@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-
+import { supabase } from "../lib/supabase";
 type LiveBid = {
   name: string;
   role: string;
@@ -179,44 +179,51 @@ function BidFeed({
   const orderedBids = [...bids.slice(activeIndex), ...bids.slice(0, activeIndex)];
 
   return (
-    <div className="space-y-3">
-      {orderedBids.map((bid, index) => {
-        const isLead = index === 0;
+    <div className="relative h-[232px] overflow-hidden">
+      <div className="absolute inset-0 flex flex-col gap-3">
+        {orderedBids.slice(0, 3).map((bid, index) => {
+          const isLead = index === 0;
 
-        return (
-          <div
-            key={`${bid.name}-${bid.price}-${bid.time}`}
-            className={`rounded-[1.35rem] border px-4 py-4 transition-all duration-500 ${
-              isLead
-                ? "translate-y-0 border-emerald-300 bg-white opacity-100 shadow-[0_14px_34px_rgba(16,185,129,0.14)]"
-                : index === 1
-                  ? "translate-y-1 border-neutral-200 bg-neutral-50 opacity-90"
-                  : "translate-y-2 border-neutral-200 bg-neutral-50 opacity-75"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-[1.15rem] font-semibold text-neutral-900">{bid.name}</p>
-                  {isLead && (
-                    <span className="animate-pulse rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white">
-                      Live
-                    </span>
-                  )}
+          return (
+            <div
+              key={`${bid.name}-${bid.price}-${bid.time}`}
+              className={`rounded-[1.35rem] border px-4 py-4 transition-all duration-500 ease-out ${
+                isLead
+                  ? "border-emerald-300 bg-white opacity-100 shadow-[0_14px_34px_rgba(16,185,129,0.14)] translate-y-0"
+                  : index === 1
+                    ? "border-neutral-200 bg-neutral-50 opacity-90 translate-y-0"
+                    : "border-neutral-200 bg-neutral-50 opacity-75 translate-y-0"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[1.15rem] font-semibold text-neutral-900">
+                      {bid.name}
+                    </p>
+                    {isLead && (
+                      <span className="animate-pulse rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-medium text-white">
+                        Live
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="mt-2 text-sm text-neutral-500">
+                    {bid.role} • ⭐ {bid.rating} • {bid.mode}
+                  </p>
                 </div>
-                <p className="mt-2 text-sm text-neutral-500">
-                  {bid.role} • ⭐ {bid.rating} • {bid.mode}
-                </p>
-              </div>
 
-              <div className="text-right">
-                <p className="text-[1.15rem] font-semibold text-neutral-900">{bid.price}</p>
-                <p className="mt-1 text-sm text-neutral-500">{bid.time}</p>
+                <div className="text-right">
+                  <p className="text-[1.15rem] font-semibold text-neutral-900">
+                    {bid.price}
+                  </p>
+                  <p className="mt-1 text-sm text-neutral-500">{bid.time}</p>
+                </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -241,12 +248,43 @@ export default function Page() {
   );
 
   useEffect(() => {
-    const countInterval = setInterval(() => {
-      setJoinCount((prev) => prev + (Math.random() > 0.68 ? 1 : 0));
-    }, 3200);
+  const fetchCount = async () => {
+    const { count, error } = await supabase
+      .from("lineup_signups")
+      .select("*", { count: "exact", head: true });
 
-    return () => clearInterval(countInterval);
-  }, []);
+    if (!error && typeof count === "number") {
+      setJoinCount(count);
+    }
+  };
+
+  fetchCount();
+
+  const channel = supabase
+    .channel("lineup-signups-realtime")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "lineup_signups",
+      },
+      async () => {
+        const { count } = await supabase
+          .from("lineup_signups")
+          .select("*", { count: "exact", head: true });
+
+        if (typeof count === "number") {
+          setJoinCount(count);
+        }
+      },
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
 
   useEffect(() => {
     const bidInterval = setInterval(() => {
@@ -286,19 +324,42 @@ export default function Page() {
     if (section) section.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
 
-    alert(
-      `Prototype only:\nEmail: ${email || "Not provided"}\nRole: ${
-        selectedRole || "Not selected"
-      }\nLocation: ${location || "Not provided"}`,
-    );
+  if (!email || !selectedRole) {
+    alert("Please enter your email and select who you are.");
+    return;
+  }
 
-    setEmail("");
-    setSelectedRole("");
-    setLocation("");
-  };
+  const { error } = await supabase.from("lineup_signups").insert([
+    {
+      email,
+      role: selectedRole,
+      location,
+      source: "website",
+      notes: "",
+    },
+  ]);
+
+if (error) {
+  console.error("Supabase insert error:", error);
+  alert(error.message);
+  return;
+}
+
+  const { count } = await supabase
+    .from("lineup_signups")
+    .select("*", { count: "exact", head: true });
+
+  if (typeof count === "number") {
+    setJoinCount(count);
+  }
+
+  setEmail("");
+  setSelectedRole("");
+  setLocation("");
+};
 
   return (
     <main className="min-h-screen bg-white text-neutral-900">
@@ -341,7 +402,7 @@ export default function Page() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-16 md:grid-cols-[1.02fr_0.98fr] md:pt-24">
+      <section className="mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-16 md:grid-cols-[1.05fr_0.95fr] md:pt-24">
         <div className="flex flex-col justify-center">
           <div className="mb-5 inline-flex w-fit items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
             <span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
@@ -357,7 +418,8 @@ export default function Page() {
           </h1>
 
           <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
-            Request the exact service you want and compare live offers from trusted professionals before booking.
+            Request the exact service you want and compare live offers from trusted
+            professionals before booking.
           </p>
 
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -399,45 +461,37 @@ export default function Page() {
           </div>
         </div>
 
-        <div className="relative">
+        <div className="relative flex items-center">
           <div className="absolute left-8 top-8 h-36 w-36 rounded-full bg-emerald-100/50 blur-3xl" />
-          <div className="absolute bottom-8 right-8 h-44 w-44 rounded-full bg-sky-100/35 blur-3xl" />
+          <div className="absolute bottom-8 right-8 h-44 w-44 rounded-full bg-sky-100/30 blur-3xl" />
 
-          <div className="relative rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-[0_18px_70px_rgba(0,0,0,0.07)]">
-            <div className="rounded-3xl bg-neutral-900 p-5 text-white">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm text-neutral-300">Client request</p>
-                  <h2 className="mt-1 text-xl font-semibold">
-                    Need a fresh burst fade tomorrow
-                  </h2>
-                </div>
-                <span className="rounded-full bg-white/10 px-3 py-1 text-xs">
-                  At home
-                </span>
+          <div className="relative w-full rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-[0_18px_70px_rgba(0,0,0,0.05)]">
+            <p className="text-sm font-medium uppercase tracking-[0.18em] text-neutral-500">
+              Welcome to LineUp
+            </p>
+
+            <h2 className="mt-4 max-w-md text-3xl font-semibold tracking-tight text-neutral-900">
+              A more modern way to discover and book beauty services.
+            </h2>
+
+            <p className="mt-4 max-w-lg leading-8 text-neutral-600">
+              Built to make beauty booking feel cleaner, more flexible, and more
+              transparent for both clients and professionals.
+            </p>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <p className="text-sm text-neutral-500">Built for</p>
+                <p className="mt-2 font-semibold text-neutral-900">
+                  Clients and beauty professionals
+                </p>
               </div>
 
-              <p className="mt-4 text-sm leading-6 text-neutral-300">
-                Post your request and compare offers before you book.
-              </p>
-            </div>
-
-            <div className="mt-5 rounded-3xl border border-neutral-200 p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-neutral-500">Incoming offers</p>
-                  <h3 className="text-lg font-semibold">Marketplace preview</h3>
-                </div>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700">
-                  Live bids
-                </span>
-              </div>
-
-              <BidFeed bids={marketplaceCards[0].bids} activeIndex={activeBidIndices[0]} />
-
-              <div className="mt-5 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
-                <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-sky-500" />
-                {tickerMessages[liveTicker]}
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <p className="text-sm text-neutral-500">Core idea</p>
+                <p className="mt-2 font-semibold text-neutral-900">
+                  Live booking, better discovery
+                </p>
               </div>
             </div>
           </div>
@@ -507,7 +561,8 @@ export default function Page() {
             <p className="text-sm font-medium text-neutral-500">02</p>
             <h3 className="mt-3 text-xl font-semibold">Receive live offers</h3>
             <p className="mt-3 leading-7 text-neutral-600">
-              Professionals respond with pricing, timing, and availability in a live marketplace flow.
+              Professionals respond with pricing, timing, and availability in a live
+              marketplace flow.
             </p>
           </div>
 
@@ -530,8 +585,8 @@ export default function Page() {
             A cleaner way to post exactly what you need.
           </h2>
           <p className="mt-4 leading-7 text-neutral-600">
-            Choose your service, set your budget, pick where the appointment should happen,
-            and let professionals respond with live offers.
+            Choose your service, set your budget, pick where the appointment should
+            happen, and let professionals respond with live offers.
           </p>
         </div>
 
@@ -576,7 +631,7 @@ export default function Page() {
                     type="text"
                     value={requestLocation}
                     onChange={(e) => setRequestLocation(e.target.value)}
-                    className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 outline-none placeholder:text-neutral-400 transition focus:border-neutral-900"
+                    className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 outline-none transition focus:border-neutral-900"
                   />
                 </div>
 
@@ -588,7 +643,7 @@ export default function Page() {
                     type="text"
                     value={requestBudget}
                     onChange={(e) => setRequestBudget(e.target.value)}
-                    className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 outline-none placeholder:text-neutral-400 transition focus:border-neutral-900"
+                    className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 outline-none transition focus:border-neutral-900"
                   />
                 </div>
               </div>
@@ -627,7 +682,7 @@ export default function Page() {
                   type="text"
                   value={requestTime}
                   onChange={(e) => setRequestTime(e.target.value)}
-                  className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 outline-none placeholder:text-neutral-400 transition focus:border-neutral-900"
+                  className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 outline-none transition focus:border-neutral-900"
                 />
               </div>
 
@@ -639,7 +694,7 @@ export default function Page() {
                   value={requestDescription}
                   onChange={(e) => setRequestDescription(e.target.value)}
                   rows={5}
-                  className="w-full resize-none rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 outline-none placeholder:text-neutral-400 transition focus:border-neutral-900"
+                  className="w-full resize-none rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 outline-none transition focus:border-neutral-900"
                 />
               </div>
 
@@ -701,7 +756,8 @@ export default function Page() {
             Live bids that feel more like a real feed.
           </h2>
           <p className="mt-4 leading-7 text-neutral-600">
-            The marketplace stays mostly neutral while motion, spacing, and live status carry the activity.
+            The marketplace stays mostly neutral while motion, spacing, and live status
+            carry the activity.
           </p>
         </div>
 
@@ -787,7 +843,8 @@ export default function Page() {
               Specialties and reviews can power discovery.
             </h2>
             <p className="mt-4 leading-7 text-neutral-600">
-              Spotlight is where top providers can stand out by specialty without cluttering the bidding experience.
+              Spotlight is where top providers can stand out by specialty without
+              cluttering the bidding experience.
             </p>
           </div>
 
@@ -828,7 +885,8 @@ export default function Page() {
               Preview a look before you ever book.
             </h2>
             <p className="mt-4 leading-7 text-neutral-600">
-              Keep this as a future-facing feature that helps clients build more confidence before they choose a professional.
+              Keep this as a future-facing feature that helps clients build more
+              confidence before they choose a professional.
             </p>
           </div>
 
