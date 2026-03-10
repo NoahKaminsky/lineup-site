@@ -1187,7 +1187,7 @@ if (error) {
             </form>
 
             <p className="mt-4 text-sm text-neutral-400">
-              Prototype mode for now. The live count is visual until the backend is connected.
+            Live signup count is active. Join the LineUp for early access before launch.
             </p>
           </div>
         </div>
