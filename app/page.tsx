@@ -238,6 +238,7 @@ export default function Page() {
   const [activeBidIndices, setActiveBidIndices] = useState<number[]>(
     marketplaceCards.map(() => 0),
   );
+  const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
   const [selectedRequestMode, setSelectedRequestMode] = useState<string>("At home");
   const [requestService, setRequestService] = useState<string>("Haircut");
   const [requestLocation, setRequestLocation] = useState<string>("South Winnipeg");
@@ -337,28 +338,28 @@ export default function Page() {
       email,
       role: selectedRole,
       location,
-      source: "website",
-      notes: "",
     },
   ]);
 
-if (error) {
-  console.error("Supabase insert error:", error);
-  alert(error.message);
-  return;
-}
+  if (error) {
+    console.error("Supabase insert error:", error);
+    alert(error.message);
+    return;
+  }
 
-  const { count } = await supabase
+  const { count, error: countError } = await supabase
     .from("lineup_signups")
     .select("*", { count: "exact", head: true });
 
-  if (typeof count === "number") {
+  if (!countError && typeof count === "number") {
     setJoinCount(count);
   }
 
   setEmail("");
   setSelectedRole("");
   setLocation("");
+
+  setShowSuccessModal(true);
 };
 
   return (
@@ -1199,6 +1200,38 @@ if (error) {
           <p>Beauty marketplace for trusted on-demand services.</p>
         </div>
       </footer>
-    </main>
+    {showSuccessModal && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-6">
+    <div className="w-full max-w-md rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50">
+        <span className="text-lg">✓</span>
+      </div>
+
+      <p className="mt-5 text-sm font-medium uppercase tracking-[0.18em] text-neutral-500">
+        Prelaunch Access
+      </p>
+
+      <h3 className="mt-3 text-3xl font-semibold tracking-tight text-neutral-900">
+        You&apos;re in.
+      </h3>
+
+      <p className="mt-4 leading-7 text-neutral-600">
+        Thanks for joining the LineUp.
+      </p>
+
+      <div className="mt-8 flex gap-3">
+        <button
+          type="button"
+          onClick={() => setShowSuccessModal(false)}
+          className="flex-1 rounded-full bg-neutral-900 px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+</main>
   );
 }
