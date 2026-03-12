@@ -230,6 +230,7 @@ function BidFeed({
 
 export default function Page() {
   const [joinCount, setJoinCount] = useState<number>(284);
+  const [firstName, setFirstName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [location, setLocation] = useState<string>("");
@@ -325,16 +326,17 @@ export default function Page() {
     if (section) section.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
   e.preventDefault();
 
-  if (!email || !selectedRole) {
-    alert("Please enter your email and select who you are.");
+  if (!firstName || !email || !selectedRole) {
+    alert("Please enter your first name, email, and select who you are.");
     return;
   }
 
   const { error } = await supabase.from("lineup_signups").insert([
     {
+      first_name: firstName,
       email,
       role: selectedRole,
       location,
@@ -351,15 +353,32 @@ export default function Page() {
     .from("lineup_signups")
     .select("*", { count: "exact", head: true });
 
-  if (!countError && typeof count === "number") {
-    setJoinCount(count);
-  }
+ if (!countError && typeof count === "number") {
+  setJoinCount(count);
+}
 
-  setEmail("");
-  setSelectedRole("");
-  setLocation("");
+try {
+  await fetch("/api/send-confirmation", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+      role: selectedRole,
+      firstName,
+    }),
+  });
+} catch (emailError) {
+  console.error("Confirmation email request failed:", emailError);
+}
 
-  setShowSuccessModal(true);
+setFirstName("");
+setEmail("");
+setSelectedRole("");
+setLocation("");
+
+setShowSuccessModal(true);
 };
 
   return (
@@ -388,6 +407,9 @@ export default function Page() {
             </a>
             <a href="#ai-preview" className="transition hover:text-neutral-900">
               AI preview
+            </a>
+            <a href="#founders" className="transition hover:text-neutral-900">
+             Founders
             </a>
             <a href="#join-lineup" className="transition hover:text-neutral-900">
               Join the LineUp
@@ -1132,7 +1154,58 @@ export default function Page() {
           </div>
         </div>
       </section>
+<section id="founders" className="border-t border-neutral-200 bg-neutral-50">
+  <div className="mx-auto max-w-7xl px-6 py-20">
+    <div className="grid gap-10 md:grid-cols-[1.05fr_0.95fr]">
+      <div>
+        <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+          About the Founders
+        </p>
 
+        <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight md:text-4xl">
+          Built by founders who saw the problem firsthand.
+        </h2>
+
+        <p className="mt-6 max-w-2xl text-base leading-8 text-neutral-600">
+          LineUp was founded by three University of Manitoba students — Dan
+          Latimer, Noah Kaminsky, and Max Kochan — with backgrounds in design,
+          agriculture, and economics.
+        </p>
+
+        <p className="mt-5 max-w-2xl text-base leading-8 text-neutral-600">
+          We created LineUp to solve a simple problem: discovering trusted beauty
+          professionals in a fragmented and inconsistent industry should not be
+          difficult. LineUp is a marketplace built to connect clients with vetted
+          beauty professionals in a way that is more transparent, reliable, and
+          convenient.
+        </p>
+
+        <p className="mt-5 max-w-2xl text-base leading-8 text-neutral-600">
+          Launching first in Winnipeg, Manitoba, our goal is to build a platform
+          that makes finding and booking aesthetic services feel just as rewarding
+          as the service itself.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-1">
+        <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-sm">
+          <p className="text-lg font-semibold text-neutral-900">Noah Kaminsky</p>
+          <p className="mt-1 text-sm text-neutral-500">Co-Founder & COO</p>
+        </div>
+
+        <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-sm">
+          <p className="text-lg font-semibold text-neutral-900">Dan Latimer</p>
+          <p className="mt-1 text-sm text-neutral-500">Co-Founder & CFO</p>
+        </div>
+
+        <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-sm">
+          <p className="text-lg font-semibold text-neutral-900">Max Kochan</p>
+          <p className="mt-1 text-sm text-neutral-500">Co-Founder & CEO</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
       <section id="join-lineup" className="mx-auto max-w-5xl px-6 pb-24 pt-20">
         <div className="rounded-[2rem] bg-neutral-900 px-6 py-12 text-white md:px-10 md:py-14">
           <div className="mx-auto max-w-3xl text-center">
@@ -1147,16 +1220,26 @@ export default function Page() {
             </p>
 
             <form
-              onSubmit={handleSubmit}
-              className="mx-auto mt-8 grid max-w-2xl gap-3"
-            >
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                className="min-w-0 rounded-2xl border border-white/15 bg-white px-5 py-3 text-neutral-900 outline-none placeholder:text-neutral-500"
-              />
+  onSubmit={handleSubmit}
+  className="mx-auto mt-8 grid max-w-2xl gap-3"
+>
+
+<input
+  required
+  type="text"
+  value={firstName}
+  onChange={(e) => setFirstName(e.target.value)}
+  placeholder="First name"
+  className="min-w-0 rounded-2xl border border-white/15 bg-white px-5 py-3 text-neutral-900 outline-none placeholder:text-neutral-500"
+/>
+
+<input
+  type="email"
+  value={email}
+  onChange={(e) => setEmail(e.target.value)}
+  placeholder="Enter your email"
+  className="min-w-0 rounded-2xl border border-white/15 bg-white px-5 py-3 text-neutral-900 outline-none placeholder:text-neutral-500"
+/>
 
               <select
                 value={selectedRole}
