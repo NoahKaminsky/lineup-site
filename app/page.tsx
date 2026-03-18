@@ -33,6 +33,8 @@ const joinRoles = [
   "I am a nail tech",
   "I am a brow artist",
   "I am a hairstylist",
+  "I am a wax technician",
+  "I am a makeup artist",
   "Other beauty professional",
 ];
 
@@ -229,7 +231,7 @@ function BidFeed({
 }
 
 export default function Page() {
-  const [joinCount, setJoinCount] = useState<number>(284);
+  const [joinCount, setJoinCount] = useState<number | null>(null);
   const [firstName, setFirstName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
@@ -303,7 +305,13 @@ export default function Page() {
     return () => clearInterval(bidInterval);
   }, []);
 
-  const countLabel = useMemo(() => joinCount.toLocaleString(), [joinCount]);
+  const countLabel = useMemo(() => {
+  if (joinCount === null) return null;
+  if (joinCount < 100) return joinCount.toLocaleString();
+
+  const roundedDown = Math.floor(joinCount / 50) * 50;
+  return `${roundedDown.toLocaleString()}+`;
+}, [joinCount]);
 
   const currentPreview = useMemo(() => {
     return (
@@ -429,7 +437,7 @@ setShowSuccessModal(true);
         <div className="flex flex-col justify-center">
           <div className="mb-5 inline-flex w-fit items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
             <span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-            Prelaunch access: {countLabel}+ joined
+            Prelaunch access: {countLabel ? `${countLabel} joined` : "Loading live count..."}
           </div>
 
           <p className="text-sm font-medium text-neutral-500">
@@ -1216,7 +1224,9 @@ setShowSuccessModal(true);
               Join the LineUp before launch.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-neutral-300 md:text-lg">
-              Early interest is growing. Join {countLabel}+ people already in LineUp.
+              {countLabel
+               ? `Early interest is growing. Join ${countLabel} people already in LineUp.`
+                : "Early interest is growing. Loading live signup count..."}
             </p>
 
             <form
