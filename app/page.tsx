@@ -433,7 +433,17 @@ setShowSuccessModal(true);
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-16 md:grid-cols-[1.05fr_0.95fr] md:pt-24">
+      <section className="relative overflow-hidden bg-white">
+  <img
+  src="/images/hero-barber.jpg"
+  alt=""
+  className="pointer-events-none absolute inset-y-0 right-0 h-full w-full object-cover object-right opacity-100"
+/>
+
+<div className="absolute inset-0 bg-gradient-to-r from-white via-white/82 to-white/18" />
+<div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/55" />
+
+  <div className="relative mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-16 md:grid-cols-[1.05fr_0.95fr] md:pt-24">
         <div className="flex flex-col justify-center">
           <div className="mb-5 inline-flex w-fit items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
             <span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
@@ -527,7 +537,8 @@ setShowSuccessModal(true);
             </div>
           </div>
         </div>
-      </section>
+       </div>
+    </section>
 
       <section id="who-we-are" className="border-t border-neutral-200 bg-neutral-50">
         <div className="mx-auto max-w-7xl px-6 py-20">
