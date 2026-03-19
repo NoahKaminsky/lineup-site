@@ -432,16 +432,23 @@ setShowSuccessModal(true);
           </button>
         </div>
       </header>
-
-      <section className="relative overflow-hidden bg-white">
+<section className="relative overflow-hidden bg-white">
+  {/* Mobile image */}
   <img
-  src="/images/hero-barber.jpg"
-  alt=""
-  className="pointer-events-none absolute inset-y-0 right-0 h-full w-full object-cover object-right opacity-100"
-/>
+    src="/images/hero-barber-mobile.jpg"
+    alt=""
+    className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-30 md:hidden"
+  />
 
-<div className="absolute inset-0 bg-gradient-to-r from-white via-white/82 to-white/18" />
-<div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/55" />
+  {/* Desktop image */}
+  <img
+    src="/images/hero-barber.jpg"
+    alt=""
+    className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-full object-cover object-right opacity-65 md:block"
+  />
+
+  <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/35 md:from-white md:via-white/82 md:to-white/18" />
+  <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/55" />
 
   <div className="relative mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-16 md:grid-cols-[1.05fr_0.95fr] md:pt-24">
         <div className="flex flex-col justify-center">
