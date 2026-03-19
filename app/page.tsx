@@ -230,6 +230,14 @@ function BidFeed({
   );
 }
 
+function SectionFade() {
+  return (
+    <div className="pointer-events-none relative -mt-10 h-10 overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/80" />
+    </div>
+  );
+}
+
 export default function Page() {
   const [joinCount, setJoinCount] = useState<number | null>(null);
   const [firstName, setFirstName] = useState<string>("");
@@ -545,9 +553,24 @@ setShowSuccessModal(true);
           </div>
         </div>
        </div>
-    </section>
+   </section>
 
-      <section id="who-we-are" className="border-t border-neutral-200 bg-neutral-50">
+<SectionFade />
+
+<section
+  id="who-we-are"
+  className="relative overflow-hidden border-t border-neutral-200 bg-neutral-50"
+>
+  <img
+    src="/images/who-we-are1.jpg"
+    alt=""
+    className="pointer-events-none absolute right-0 top-0 h-full w-full object-cover object-right opacity-95"
+  />
+
+  <div className="absolute inset-0 bg-gradient-to-r from-neutral-50 via-neutral-50/94 to-neutral-50/62" />
+  <div className="absolute inset-0 bg-gradient-to-b from-neutral-50/10 via-transparent to-neutral-50/60" />
+
+  <div className="relative">
         <div className="mx-auto max-w-7xl px-6 py-20">
           <div className="max-w-3xl">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
@@ -585,9 +608,25 @@ setShowSuccessModal(true);
             </div>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section id="how-it-works" className="mx-auto max-w-7xl px-6 py-20">
+<SectionFade />
+
+<section
+  id="how-it-works"
+  className="relative overflow-hidden bg-white"
+>
+<img
+  src="/images/how-it-works.png"
+  alt=""
+  className="pointer-events-none absolute right-0 top-1/2 w-[520px] -translate-y-1/2 opacity-70 md:w-[620px] lg:w-[720px]"
+/>
+
+  <div className="absolute inset-0 bg-gradient-to-r from-white via-white/88 to-white/22" />
+  <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/50" />
+
+  <div className="relative mx-auto max-w-7xl px-6 py-20">
         <div className="max-w-2xl">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
             How It Works
@@ -623,9 +662,12 @@ setShowSuccessModal(true);
             </p>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section id="request-flow" className="mx-auto max-w-7xl px-6 pb-20">
+<SectionFade />
+
+<section id="request-flow" className="mx-auto max-w-7xl px-6 pb-20">
         <div className="mb-10 max-w-2xl">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
             Request a Service
@@ -796,7 +838,9 @@ setShowSuccessModal(true);
         </div>
       </section>
 
-      <section id="demo" className="mx-auto max-w-7xl px-6 pb-20">
+<SectionFade />
+
+<section id="demo" className="mx-auto max-w-7xl px-6 pb-20">
         <div className="mb-10 max-w-2xl">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
             Marketplace Preview
@@ -882,7 +926,9 @@ setShowSuccessModal(true);
         </div>
       </section>
 
-      <section id="professionals" className="border-y border-neutral-200 bg-neutral-50">
+<SectionFade />
+
+<section id="professionals" className="border-y border-neutral-200 bg-neutral-50">
         <div className="mx-auto max-w-7xl px-6 py-20">
           <div className="max-w-2xl">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
@@ -924,7 +970,9 @@ setShowSuccessModal(true);
         </div>
       </section>
 
-      <section id="ai-preview" className="bg-white">
+<SectionFade />
+
+<section id="ai-preview" className="bg-white">
         <div className="mx-auto max-w-7xl px-6 py-20">
           <div className="mb-10 max-w-3xl">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
@@ -1180,6 +1228,9 @@ setShowSuccessModal(true);
           </div>
         </div>
       </section>
+
+<SectionFade />
+
 <section id="founders" className="border-t border-neutral-200 bg-neutral-50">
   <div className="mx-auto max-w-7xl px-6 py-20">
     <div className="grid gap-10 md:grid-cols-[1.05fr_0.95fr]">
@@ -1232,7 +1283,10 @@ setShowSuccessModal(true);
     </div>
   </div>
 </section>
-      <section id="join-lineup" className="mx-auto max-w-5xl px-6 pb-24 pt-20">
+
+<SectionFade />
+
+<section id="join-lineup" className="mx-auto max-w-5xl px-6 pb-24 pt-20">
         <div className="rounded-[2rem] bg-neutral-900 px-6 py-12 text-white md:px-10 md:py-14">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-300">
