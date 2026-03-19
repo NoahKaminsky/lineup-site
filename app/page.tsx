@@ -618,9 +618,9 @@ setShowSuccessModal(true);
   className="relative overflow-hidden bg-white"
 >
 <img
-  src="/images/how-it-works.png"
+  src="/images/howitworks.png"
   alt=""
-  className="pointer-events-none absolute right-0 top-1/2 w-[520px] -translate-y-1/2 opacity-70 md:w-[620px] lg:w-[720px]"
+  className="pointer-events-none absolute right-[-20px] top-[38%] w-[320px] opacity-35 md:right-0 md:top-1/2 md:w-[620px] md:-translate-y-1/2 md:opacity-70 lg:w-[720px]"
 />
 
   <div className="absolute inset-0 bg-gradient-to-r from-white via-white/88 to-white/22" />
