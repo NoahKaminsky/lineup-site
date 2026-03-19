@@ -437,7 +437,7 @@ setShowSuccessModal(true);
   <img
     src="/images/hero-barber-mobile.jpg"
     alt=""
-    className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-30 md:hidden"
+    className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-50 md:hidden"
   />
 
   {/* Desktop image */}
