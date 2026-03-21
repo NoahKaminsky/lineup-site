@@ -22,7 +22,7 @@ type MarketplaceCard = {
   bids: LiveBid[];
 };
 
-const serviceTags = ["Barbers", "Nails", "Lashes", "Brows", "Hair"];
+const serviceTags = ["Barbers", "Hairstylists", "Nail Techs", "Lash Artists", "Brow Artists", "Makeup Artists"];
 
 const joinRoles = [
   "I am a customer",
@@ -406,8 +406,8 @@ setShowSuccessModal(true);
           </a>
 
           <nav className="hidden items-center gap-8 text-sm text-neutral-600 md:flex">
-            <a href="#who-we-are" className="transition hover:text-neutral-900">
-              Who we are
+            <a href="#why-lineup" className="transition hover:text-neutral-900">
+              Why LineUp
             </a>
             <a href="#how-it-works" className="transition hover:text-neutral-900">
               How it works
@@ -466,17 +466,18 @@ setShowSuccessModal(true);
           </div>
 
           <p className="text-sm font-medium text-neutral-500">
-            Beauty services, reimagined as a live marketplace.
-          </p>
+  A live marketplace for beauty services
+</p>
 
-          <h1 className="mt-4 max-w-3xl text-5xl font-semibold tracking-tight md:text-6xl">
-            Beauty booking built around flexibility, trust, and live demand.
-          </h1>
+<h1 className="mt-4 max-w-3xl text-5xl font-semibold tracking-tight md:text-6xl">
+  Clients post what they want. Professionals choose the work.
+</h1>
 
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
-            Request the exact service you want and compare live offers from trusted
-            professionals before booking.
-          </p>
+<p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
+  LineUp lets clients post the exact service they’re looking for and gives
+  barbers, stylists, nail techs, lash artists, brow artists, and more the
+  option to respond on their own terms.
+</p>
 
           <div className="mt-10 flex flex-col gap-4 sm:flex-row">
             <button
@@ -494,7 +495,7 @@ setShowSuccessModal(true);
           </div>
 
           <div className="mt-10 flex flex-wrap items-center gap-4 text-sm text-neutral-500">
-            <span className="font-medium text-neutral-700">Built for modern beauty booking</span>
+            <span className="font-medium text-neutral-700">Built for flexible beauty work</span>
             <span className="h-1 w-1 rounded-full bg-neutral-300" />
             <span>At home</span>
             <span className="h-1 w-1 rounded-full bg-neutral-300" />
@@ -527,17 +528,18 @@ setShowSuccessModal(true);
             </p>
 
             <h2 className="mt-4 max-w-md text-3xl font-semibold tracking-tight text-neutral-900">
-              A more modern way to discover and book beauty services.
-            </h2>
+  Not a traditional booking app.
+</h2>
 
-            <p className="mt-4 max-w-lg leading-8 text-neutral-600">
-              Built to make beauty booking feel cleaner, more flexible, and more
-              transparent for both clients and professionals.
-            </p>
+<p className="mt-4 max-w-lg leading-8 text-neutral-600">
+Clients submit a request, professionals send offers, and the client chooses
+who fits best. It’s designed to help you grow your client base, stay in control,
+and work on your own terms.
+</p>
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <p className="text-sm text-neutral-500">Built for</p>
+                <p className="text-sm text-neutral-500">For professionals</p>
                 <p className="mt-2 font-semibold text-neutral-900">
                   Clients and beauty professionals
                 </p>
@@ -546,7 +548,7 @@ setShowSuccessModal(true);
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                 <p className="text-sm text-neutral-500">Core idea</p>
                 <p className="mt-2 font-semibold text-neutral-900">
-                  Live booking, better discovery
+                  Clients post what they want, professionals respond, you choose the best fit
                 </p>
               </div>
             </div>
@@ -574,29 +576,29 @@ setShowSuccessModal(true);
         <div className="mx-auto max-w-7xl px-6 py-20">
           <div className="max-w-3xl">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-              Who We Are
+              WHY LINEUP
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-              LineUp is building a marketplace for modern beauty booking.
+            <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight md:text-5xl">
+              A more flexible way to connect clients and professionals.
             </h2>
-            <p className="mt-5 max-w-2xl leading-8 text-neutral-600">
-              We are creating a platform where clients can post exactly what they
-              need and compare trusted beauty professionals in one cleaner flow.
-            </p>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
+               LineUp supports a more flexible beauty marketplace, whether services happen at home,
+                in-shop, or from a home studio.
+              </p>
           </div>
 
           <div className="mt-12 grid gap-6 md:grid-cols-3">
             <div className="rounded-3xl border border-neutral-200 bg-white p-7">
               <h3 className="text-xl font-semibold">For clients</h3>
-              <p className="mt-3 leading-7 text-neutral-600">
-                Request exactly what you want and compare offers with less guesswork.
+              <p className="mt-2 leading-7 text-neutral-600">
+                Find a better match for exactly what you need.
               </p>
             </div>
 
             <div className="rounded-3xl border border-neutral-200 bg-white p-7">
               <h3 className="text-xl font-semibold">For professionals</h3>
-              <p className="mt-3 leading-7 text-neutral-600">
-                Respond to active demand, build trust, and win more bookings.
+             <p className="mt-2 leading-7 text-neutral-600">
+                Get discovered, stay in control, and grow on your own terms.
               </p>
             </div>
 
@@ -647,16 +649,14 @@ setShowSuccessModal(true);
 
           <div className="rounded-3xl border border-neutral-200 p-7">
             <p className="text-sm font-medium text-neutral-500">02</p>
-            <h3 className="mt-3 text-xl font-semibold">Receive live offers</h3>
-            <p className="mt-3 leading-7 text-neutral-600">
-              Professionals respond with pricing, timing, and availability in a live
-              marketplace flow.
-            </p>
-          </div>
-
+            <h3 className="mt-3 text-xl font-semibold">Professionals respond</h3>
+           <p className="mt-3 leading-7 text-neutral-600">
+            Professionals send offers with pricing, timing, and availability based on your request.
+          </p>
+        </div>
           <div className="rounded-3xl border border-neutral-200 p-7">
             <p className="text-sm font-medium text-neutral-500">03</p>
-            <h3 className="mt-3 text-xl font-semibold">Book with confidence</h3>
+            <h3 className="mt-3 text-xl font-semibold">Choose the best fit</h3>
             <p className="mt-3 leading-7 text-neutral-600">
               Compare offers, specialties, reviews, and fit before deciding.
             </p>
