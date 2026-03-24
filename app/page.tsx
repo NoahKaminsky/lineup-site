@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { supabase } from "../lib/supabase";
 type LiveBid = {
   name: string;
@@ -240,6 +241,9 @@ function SectionFade() {
 
 export default function Page() {
   const [joinCount, setJoinCount] = useState<number | null>(null);
+  const [isSignedIn, setIsSignedIn] = useState<boolean>(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(0);
   const [firstName, setFirstName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
@@ -295,6 +299,94 @@ export default function Page() {
 
   return () => {
     supabase.removeChannel(channel);
+  };
+}, []);
+useEffect(() => {
+  const loadSession = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    setIsSignedIn(!!user);
+
+    if (!user) {
+      setUserRole(null);
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    const role = profile?.role ?? null;
+    setUserRole(role);
+
+if (role === "professional") {
+  const { count, error } = await supabase
+    .from("notifications")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("is_read", false);
+
+  console.log("SIGNED IN USER ID:", user.id);
+  console.log("PROFILE ROLE:", role);
+  console.log("NOTIFICATION COUNT:", count);
+  console.log("NOTIFICATION ERROR:", error);
+
+  setUnreadNotificationCount(count ?? 0);
+} else {
+  console.log("PROFILE ROLE WAS NOT PROFESSIONAL:", role);
+  setUnreadNotificationCount(0);
+}
+  };
+
+  loadSession();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const user = session?.user ?? null;
+    setIsSignedIn(!!user);
+
+    if (!user) {
+      setUserRole(null);
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    const role = profile?.role ?? null;
+    setUserRole(role);
+
+if (role === "professional") {
+  const { count, error } = await supabase
+    .from("notifications")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("is_read", false);
+
+  console.log("AUTH CHANGE USER ID:", user.id);
+  console.log("AUTH CHANGE ROLE:", role);
+  console.log("AUTH CHANGE COUNT:", count);
+  console.log("AUTH CHANGE ERROR:", error);
+
+  setUnreadNotificationCount(count ?? 0);
+} else {
+  console.log("AUTH CHANGE ROLE WAS NOT PROFESSIONAL:", role);
+  setUnreadNotificationCount(0);
+}
+  });
+
+  return () => {
+    subscription.unsubscribe();
   };
 }, []);
 
@@ -399,38 +491,58 @@ setShowSuccessModal(true);
 
   return (
     <main className="min-h-screen bg-white text-neutral-900">
-      <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <a href="#" className="text-xl font-semibold tracking-tight">
-            LineUp
-          </a>
+<header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/85 backdrop-blur-md">
+  <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <Link href="/" className="text-xl font-semibold tracking-tight">
+      LineUp
+    </Link>
 
-          <nav className="hidden items-center gap-8 text-sm text-neutral-600 md:flex">
-            <a href="#why-lineup" className="transition hover:text-neutral-900">
-              Why LineUp
-            </a>
-            <a href="#how-it-works" className="transition hover:text-neutral-900">
-              How it works
-            </a>
-            <a href="#request-flow" className="transition hover:text-neutral-900">
-              Request a service
-            </a>
-            <a href="#demo" className="transition hover:text-neutral-900">
-              Marketplace
-            </a>
-            <a href="#professionals" className="transition hover:text-neutral-900">
-              Spotlight
-            </a>
-            <a href="#ai-preview" className="transition hover:text-neutral-900">
-              AI preview
-            </a>
-            <a href="#founders" className="transition hover:text-neutral-900">
-             Founders
-            </a>
-            <a href="#join-lineup" className="transition hover:text-neutral-900">
-              Join the LineUp
-            </a>
-          </nav>
+    <nav className="hidden items-center gap-8 text-sm text-neutral-600 md:flex">
+      <a href="#how-it-works" className="transition hover:text-neutral-900">
+        How it works
+      </a>
+      <a href="#request-flow" className="transition hover:text-neutral-900">
+        Request a service
+      </a>
+      <a href="#demo" className="transition hover:text-neutral-900">
+        Marketplace
+      </a>
+      <a href="#founders" className="transition hover:text-neutral-900">
+        Founders
+      </a>
+    </nav>
+
+    <div className="flex items-center gap-3">
+      {isSignedIn ? (
+        <>
+<Link
+  href="/requests"
+  className="hidden items-center gap-2 rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 md:inline-flex"
+>
+  <span>View requests</span>
+
+  {userRole === "professional" && unreadNotificationCount > 0 && (
+    <span className="inline-flex h-5 min-w-5 animate-notification-pop items-center justify-center rounded-full bg-neutral-900 px-1.5 text-[11px] font-semibold text-white">
+      {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+    </span>
+  )}
+</Link>
+
+          <Link
+            href="/account"
+            className="rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+          >
+            View profile
+          </Link>
+        </>
+      ) : (
+        <>
+          <Link
+            href="/login"
+            className="hidden rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 md:inline-flex"
+          >
+            Sign in
+          </Link>
 
           <button
             onClick={scrollToJoin}
@@ -438,8 +550,34 @@ setShowSuccessModal(true);
           >
             Join the LineUp
           </button>
-        </div>
-      </header>
+        </>
+      )}
+    </div>
+  </div>
+
+  <div className="border-t border-neutral-200 px-6 py-3 md:hidden">
+    {isSignedIn ? (
+<div className="flex items-center gap-4 text-sm font-medium text-neutral-900">
+  <Link href="/requests" className="inline-flex items-center gap-2">
+    <span>View requests</span>
+
+    {userRole === "professional" && unreadNotificationCount > 0 && (
+      <span className="inline-flex h-5 min-w-5 animate-notification-pop items-center justify-center rounded-full bg-neutral-900 px-1.5 text-[11px] font-semibold text-white">
+        {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+      </span>
+    )}
+  </Link>
+
+  <Link href="/account">View profile</Link>
+</div>
+    ) : (
+      <div className="flex items-center gap-4 text-sm font-medium text-neutral-900">
+        <Link href="/login">Sign in</Link>
+        <button onClick={scrollToJoin}>Join the LineUp</button>
+      </div>
+    )}
+  </div>
+</header>
 <section className="relative overflow-hidden bg-white">
   {/* Mobile image */}
   <img
@@ -479,20 +617,39 @@ setShowSuccessModal(true);
   option to respond on their own terms.
 </p>
 
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-            <button
-              onClick={scrollToJoin}
-              className="rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
-            >
-              Join the LineUp
-            </button>
-            <a
-              href="#how-it-works"
-              className="rounded-full border border-neutral-300 px-6 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-            >
-              See how it works
-            </a>
-          </div>
+<div className="mt-10 flex flex-col gap-4 sm:flex-row">
+  {isSignedIn ? (
+    <>
+      <Link
+        href="/requests"
+        className="rounded-full bg-neutral-900 px-6 py-3 text-center text-sm font-medium text-white transition hover:opacity-90"
+      >
+        View requests
+      </Link>
+      <Link
+        href="/account"
+        className="rounded-full border border-neutral-300 px-6 py-3 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+      >
+        View profile
+      </Link>
+    </>
+  ) : (
+    <>
+      <button
+        onClick={scrollToJoin}
+        className="rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
+      >
+        Join the LineUp
+      </button>
+      <a
+        href="#how-it-works"
+        className="rounded-full border border-neutral-300 px-6 py-3 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+      >
+        See how it works
+      </a>
+    </>
+  )}
+</div>
 
           <div className="mt-10 flex flex-wrap items-center gap-4 text-sm text-neutral-500">
             <span className="font-medium text-neutral-700">Built for flexible beauty work</span>
@@ -684,14 +841,14 @@ and work on your own terms.
         <div className="grid gap-6 md:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-[0_12px_40px_rgba(0,0,0,0.04)]">
             <div className="mb-6 flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-2xl font-semibold tracking-tight">Request a service</h3>
-                <p className="mt-1 text-sm text-neutral-500">Interactive MVP form</p>
-              </div>
+<div>
+  <h3 className="text-2xl font-semibold tracking-tight">Request a service</h3>
+  <p className="mt-1 text-sm text-neutral-500">Preview of how posting a request works</p>
+</div>
 
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                Live concept
-              </span>
+<span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+  Product preview
+</span>
             </div>
 
             <div className="space-y-5">
@@ -789,12 +946,30 @@ and work on your own terms.
                 />
               </div>
 
-              <button
-                type="button"
-                className="w-full rounded-2xl bg-neutral-950 px-5 py-3.5 text-sm font-medium text-white transition hover:opacity-95"
-              >
-                Submit request
-              </button>
+<Link
+  href={
+    !isSignedIn
+      ? "/login"
+      : userRole === "customer" || userRole === "I am a customer"
+        ? "/requests/new"
+        : "/requests"
+  }
+  className="block w-full rounded-2xl bg-neutral-950 px-5 py-3.5 text-center text-sm font-medium text-white transition hover:opacity-95"
+>
+  {!isSignedIn
+    ? "Sign in to post a request"
+    : userRole === "customer" || userRole === "I am a customer"
+      ? "Post a request"
+      : "View open requests"}
+</Link>
+
+<p className="text-center text-xs text-neutral-500">
+  {!isSignedIn
+    ? "Sign in first to post a real request"
+    : userRole === "customer" || userRole === "I am a customer"
+      ? "Takes you to the real request form"
+      : "Browse requests that match your services"}
+</p>
             </div>
           </div>
 
@@ -848,10 +1023,9 @@ and work on your own terms.
           <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
             Live bids that feel more like a real feed.
           </h2>
-          <p className="mt-4 leading-7 text-neutral-600">
-            The marketplace stays mostly neutral while motion, spacing, and live status
-            carry the activity.
-          </p>
+        <p className="mt-4 leading-7 text-neutral-600">
+  A preview of how clients can compare requests and incoming offers inside LineUp.
+</p>
         </div>
 
         <div className="mb-6 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
@@ -906,20 +1080,14 @@ and work on your own terms.
                   <BidFeed bids={card.bids} activeIndex={activeBidIndices[cardIndex]} />
                 </div>
 
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    className="rounded-full bg-neutral-950 px-6 py-3 text-[1.02rem] font-medium text-white transition hover:opacity-95"
-                  >
-                    Choose bid
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-full border border-neutral-300 bg-white px-6 py-3 text-[1.02rem] font-medium text-neutral-700 transition hover:bg-neutral-50"
-                  >
-                    Message
-                  </button>
-                </div>
+ <div className="mt-6">
+  <Link
+    href={isSignedIn ? "/requests" : "/login"}
+    className="inline-flex rounded-full bg-neutral-950 px-6 py-3 text-[1.02rem] font-medium text-white transition hover:opacity-95"
+  >
+    View requests
+  </Link>
+</div>
               </div>
             </div>
           ))}
