@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "../../../lib/supabaseClient";
 
 type ServiceRequest = {
   id: string;
@@ -19,6 +19,7 @@ type ServiceRequest = {
   target_professions: string[] | null;
   accepted_professional_id: string | null;
   created_at: string;
+  reference_photos: string[] | null;
 };
 
 type RequestOffer = {
@@ -62,14 +63,18 @@ export default function RequestDetailPage() {
   const [role, setRole] = useState<string | null>(null);
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [offers, setOffers] = useState<RequestOffer[]>([]);
-  const [requestOwner, setRequestOwner] = useState<RequestOwnerProfile | null>(null);
+  const [requestOwner, setRequestOwner] = useState<RequestOwnerProfile | null>(
+    null
+  );
   const [message, setMessage] = useState("");
   const [acceptingOfferId, setAcceptingOfferId] = useState<string | null>(null);
   const [hasSubmittedOffer, setHasSubmittedOffer] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
-  const [existingReview, setExistingReview] = useState<ExistingReview | null>(null);
+  const [existingReview, setExistingReview] = useState<ExistingReview | null>(
+    null
+  );
   const [unreadOfferIds, setUnreadOfferIds] = useState<string[]>([]);
 
   const [decliningOfferId, setDecliningOfferId] = useState<string | null>(null);
@@ -80,6 +85,8 @@ export default function RequestDetailPage() {
   const [reofferMessage, setReofferMessage] = useState("");
   const [reofferPrice, setReofferPrice] = useState("");
   const [reofferLoading, setReofferLoading] = useState(false);
+
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadRequest() {
@@ -140,7 +147,10 @@ export default function RequestDetailPage() {
         .eq("request_id", requestId)
         .order("created_at", { ascending: false });
 
-      if (profile.role === "professional" || profile.role === "I am a professional") {
+      if (
+        profile.role === "professional" ||
+        profile.role === "I am a professional"
+      ) {
         offersQuery = offersQuery.eq("professional_id", user.id);
       }
 
@@ -261,7 +271,9 @@ export default function RequestDetailPage() {
         setOffers([]);
       }
 
-      const acceptedOffer = offersData?.find((offer) => offer.status === "accepted");
+      const acceptedOffer = offersData?.find(
+        (offer) => offer.status === "accepted"
+      );
 
       if (
         data.status === "completed" &&
@@ -308,13 +320,15 @@ export default function RequestDetailPage() {
     return mode.replaceAll("_", " ");
   }
 
-  function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString("en-CA", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }
+function formatDate(dateString: string) {
+  return new Date(dateString).toLocaleString("en-CA", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
   async function handleAcceptOffer(offerId: string) {
     if (!request) return;
@@ -380,7 +394,8 @@ export default function RequestDetailPage() {
             ...prev,
             status: "accepted",
             accepted_professional_id:
-              offers.find((offer) => offer.id === offerId)?.professional_id ?? null,
+              offers.find((offer) => offer.id === offerId)?.professional_id ??
+              null,
           }
         : prev
     );
@@ -694,6 +709,31 @@ export default function RequestDetailPage() {
             </p>
           ) : null}
 
+          {request.reference_photos && request.reference_photos.length > 0 ? (
+            <div className="mt-8">
+              <h3 className="text-lg font-semibold tracking-tight">
+                Reference photos
+              </h3>
+
+              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                {request.reference_photos.map((photoUrl, index) => (
+                  <button
+                    key={`${photoUrl}-${index}`}
+                    type="button"
+                    onClick={() => setSelectedPhoto(photoUrl)}
+                    className="overflow-hidden rounded-2xl border border-neutral-200 transition hover:opacity-90"
+                  >
+                    <img
+                      src={photoUrl}
+                      alt={`Reference ${index + 1}`}
+                      className="h-40 w-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-neutral-200 p-5">
               <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
@@ -745,8 +785,8 @@ export default function RequestDetailPage() {
               </h2>
 
               <p className="mt-4 leading-7 text-neutral-600">
-                This request is currently shown only to matching professionals based on
-                the service category selected.
+                This request is currently shown only to matching professionals
+                based on the service category selected.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3">
@@ -781,7 +821,8 @@ export default function RequestDetailPage() {
               </h2>
 
               <p className="mt-4 leading-7 text-neutral-600">
-                You’ll be able to edit this request and review incoming offers here.
+                You’ll be able to edit this request and review incoming offers
+                here.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
@@ -816,7 +857,8 @@ export default function RequestDetailPage() {
               </h2>
 
               <p className="mt-4 leading-7 text-neutral-600">
-                Send your offer with your timing, price, and why you’re a good fit.
+                Send your offer with your timing, price, and why you’re a good
+                fit.
               </p>
 
               <div className="mt-6">
@@ -847,7 +889,8 @@ export default function RequestDetailPage() {
               </h2>
 
               <p className="mt-4 leading-7 text-neutral-600">
-                Once the service is finished, send a completion request to the customer.
+                Once the service is finished, send a completion request to the
+                customer.
               </p>
 
               <div className="mt-6">
@@ -895,7 +938,8 @@ export default function RequestDetailPage() {
               </h2>
 
               <p className="mt-4 leading-7 text-neutral-600">
-                Share how the service went so future customers can make a confident choice.
+                Share how the service went so future customers can make a
+                confident choice.
               </p>
 
               {existingReview ? (
@@ -910,7 +954,9 @@ export default function RequestDetailPage() {
                       {existingReview.comment}
                     </p>
                   ) : (
-                    <p className="mt-3 text-neutral-500">No written comment added.</p>
+                    <p className="mt-3 text-neutral-500">
+                      No written comment added.
+                    </p>
                   )}
                 </div>
               ) : (
@@ -998,7 +1044,8 @@ export default function RequestDetailPage() {
                             />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center text-xs font-medium text-neutral-500">
-                              {offer.professional_name?.charAt(0).toUpperCase() || "P"}
+                              {offer.professional_name?.charAt(0).toUpperCase() ||
+                                "P"}
                             </div>
                           )}
                         </div>
@@ -1011,7 +1058,9 @@ export default function RequestDetailPage() {
                             {offer.professional_type
                               ? offer.professional_type
                                   .replaceAll("_", " ")
-                                  .replace(/\b\w/g, (char) => char.toUpperCase())
+                                  .replace(/\b\w/g, (char) =>
+                                    char.toUpperCase()
+                                  )
                               : "Beauty professional"}
                           </p>
 
@@ -1024,7 +1073,9 @@ export default function RequestDetailPage() {
                                 </span>
                                 <span>
                                   ({offer.review_count}{" "}
-                                  {offer.review_count === 1 ? "review" : "reviews"})
+                                  {offer.review_count === 1
+                                    ? "review"
+                                    : "reviews"})
                                 </span>
                               </>
                             ) : (
@@ -1059,7 +1110,8 @@ export default function RequestDetailPage() {
                       </p>
                     ) : null}
 
-                    {offer.status === "declined" && offer.customer_response_message ? (
+                    {offer.status === "declined" &&
+                    offer.customer_response_message ? (
                       <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
                         <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
                           Customer feedback
@@ -1125,7 +1177,9 @@ export default function RequestDetailPage() {
                                 disabled={reofferLoading}
                                 className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
                               >
-                                {reofferLoading ? "Submitting..." : "Submit re-offer"}
+                                {reofferLoading
+                                  ? "Submitting..."
+                                  : "Submit re-offer"}
                               </button>
 
                               <button
@@ -1194,7 +1248,9 @@ export default function RequestDetailPage() {
                                 disabled={declineLoading}
                                 className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
                               >
-                                {declineLoading ? "Declining..." : "Submit decline"}
+                                {declineLoading
+                                  ? "Declining..."
+                                  : "Submit decline"}
                               </button>
 
                               <button
@@ -1219,6 +1275,32 @@ export default function RequestDetailPage() {
           </div>
         </div>
       </div>
+
+      {selectedPhoto ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setSelectedPhoto(null)}
+        >
+          <div
+            className="relative max-h-[90vh] max-w-5xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedPhoto(null)}
+              className="absolute right-3 top-3 z-10 rounded-full bg-white px-3 py-1 text-sm font-medium text-black"
+            >
+              Close
+            </button>
+
+            <img
+              src={selectedPhoto}
+              alt="Reference full size"
+              className="max-h-[90vh] max-w-full rounded-2xl object-contain"
+            />
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

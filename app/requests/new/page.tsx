@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "../../../lib/supabaseClient";
+
+const MAX_REFERENCE_PHOTOS = 5;
+const MAX_IMAGE_DIMENSION = 1600;
+const JPEG_QUALITY = 0.8;
 
 const serviceDetailOptions: Record<string, string[]> = {
   haircut: [
@@ -52,8 +56,16 @@ const serviceDetailOptions: Record<string, string[]> = {
   ],
 };
 
+type ReferencePhotoItem = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  name: string;
+};
+
 export default function NewRequestPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -69,6 +81,12 @@ export default function NewRequestPage() {
   const [serviceMode, setServiceMode] = useState("");
   const [budget, setBudget] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const [referencePhotos, setReferencePhotos] = useState<ReferencePhotoItem[]>(
+    []
+  );
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     async function loadUser() {
@@ -113,8 +131,19 @@ export default function NewRequestPage() {
     loadUser();
   }, [router]);
 
-  function getTargetProfessions(category: string) {
-    switch (category) {
+  useEffect(() => {
+    return () => {
+      referencePhotos.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
+    };
+  }, [referencePhotos]);
+
+  const remainingPhotoSlots = useMemo(
+    () => MAX_REFERENCE_PHOTOS - referencePhotos.length,
+    [referencePhotos.length]
+  );
+
+  function getTargetProfessions(selectedCategory: string) {
+    switch (selectedCategory) {
       case "haircut":
         return ["barber", "hairstylist"];
       case "nails":
@@ -134,6 +163,186 @@ export default function NewRequestPage() {
     setCategory(value);
     setServiceDetail("");
     setOtherServiceDetail("");
+  }
+
+  function generatePhotoId() {
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  async function compressImage(file: File): Promise<File> {
+    const imageBitmap = await createImageBitmap(file);
+
+    let width = imageBitmap.width;
+    let height = imageBitmap.height;
+
+    if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+      const scale = Math.min(
+        MAX_IMAGE_DIMENSION / width,
+        MAX_IMAGE_DIMENSION / height
+      );
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      imageBitmap.close();
+      throw new Error("Could not process image.");
+    }
+
+    ctx.drawImage(imageBitmap, 0, 0, width, height);
+    imageBitmap.close();
+
+    const blob: Blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (result) => {
+          if (!result) {
+            reject(new Error("Could not compress image."));
+            return;
+          }
+          resolve(result);
+        },
+        "image/jpeg",
+        JPEG_QUALITY
+      );
+    });
+
+    const originalBaseName =
+      file.name.replace(/\.[^/.]+$/, "") || `reference-${Date.now()}`;
+
+    return new File([blob], `${originalBaseName}.jpg`, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  }
+
+  async function addFiles(rawFiles: File[]) {
+    if (!rawFiles.length) return;
+
+    const imageFiles = rawFiles.filter((file) => file.type.startsWith("image/"));
+
+    if (!imageFiles.length) {
+      setMessage("Only image files can be uploaded.");
+      return;
+    }
+
+    if (referencePhotos.length >= MAX_REFERENCE_PHOTOS) {
+      setMessage(`You can upload up to ${MAX_REFERENCE_PHOTOS} reference photos.`);
+      return;
+    }
+
+    const availableSlots = MAX_REFERENCE_PHOTOS - referencePhotos.length;
+    const filesToProcess = imageFiles.slice(0, availableSlots);
+
+    try {
+      setMessage("Compressing images...");
+
+      const processedPhotos = await Promise.all(
+        filesToProcess.map(async (file) => {
+          const compressedFile = await compressImage(file);
+          return {
+            id: generatePhotoId(),
+            file: compressedFile,
+            previewUrl: URL.createObjectURL(compressedFile),
+            name: compressedFile.name,
+          };
+        })
+      );
+
+      setReferencePhotos((prev) => [...prev, ...processedPhotos]);
+
+      if (imageFiles.length > availableSlots) {
+        setMessage(
+          `Only the first ${availableSlots} image${
+            availableSlots === 1 ? "" : "s"
+          } were added. Max is ${MAX_REFERENCE_PHOTOS}.`
+        );
+      } else {
+        setMessage("");
+      }
+    } catch (error: any) {
+      setMessage(error?.message || "Could not process one or more images.");
+    }
+  }
+
+  function handleReferencePhotoChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const files = Array.from(e.target.files || []);
+    void addFiles(files);
+    e.target.value = "";
+  }
+
+  function handleRemovePhoto(photoId: string) {
+    setReferencePhotos((prev) => {
+      const found = prev.find((photo) => photo.id === photoId);
+      if (found) {
+        URL.revokeObjectURL(found.previewUrl);
+      }
+      return prev.filter((photo) => photo.id !== photoId);
+    });
+    setMessage("");
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    void addFiles(files);
+  }
+
+  async function uploadReferencePhotos(currentUserId: string) {
+    if (!referencePhotos.length) return [];
+
+    setUploadingPhotos(true);
+
+    try {
+      const uploadedUrls: string[] = [];
+
+      for (const photo of referencePhotos) {
+        const fileExt = photo.file.name.split(".").pop() || "jpg";
+        const filePath = `${currentUserId}/${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2)}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("request-reference-photos")
+          .upload(filePath, photo.file, {
+            upsert: false,
+            contentType: photo.file.type,
+          });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data } = supabase.storage
+          .from("request-reference-photos")
+          .getPublicUrl(filePath);
+
+        if (data?.publicUrl) {
+          uploadedUrls.push(data.publicUrl);
+        }
+      }
+
+      return uploadedUrls;
+    } finally {
+      setUploadingPhotos(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -170,13 +379,13 @@ export default function NewRequestPage() {
     setMessage("Submitting request...");
 
     const targetProfessions = getTargetProfessions(category);
-
     const finalServiceDetail =
       serviceDetail === "Other" ? otherServiceDetail.trim() : serviceDetail;
 
-    const { data, error } = await supabase
-      .from("service_requests")
-      .insert([
+    try {
+      const referencePhotoUrls = await uploadReferencePhotos(userId);
+
+      const { error } = await supabase.from("service_requests").insert([
         {
           client_id: userId,
           category,
@@ -188,20 +397,24 @@ export default function NewRequestPage() {
           budget: budget.trim() || null,
           status: "open",
           target_professions: targetProfessions,
+          reference_photos: referencePhotoUrls,
         },
-      ])
-      .select();
+      ]);
 
-    if (error) {
+      if (error) {
+        throw error;
+      }
+
+      setMessage("Request posted successfully.");
+      router.push("/requests");
+    } catch (error: any) {
       console.error("INSERT ERROR:", error);
-      setMessage(error.message);
+      setMessage(error.message || "Could not post request.");
       setSubmitting(false);
       return;
     }
 
-    console.log("INSERT SUCCESS:", data);
-    setMessage("Request posted successfully.");
-    router.push("/requests");
+    setSubmitting(false);
   }
 
   if (loading) {
@@ -292,6 +505,7 @@ export default function NewRequestPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className="w-full rounded border p-3"
+            rows={5}
           />
         </div>
 
@@ -331,12 +545,85 @@ export default function NewRequestPage() {
           />
         </div>
 
+        <div>
+          <label className="mb-2 block text-sm font-medium">
+            Reference photos
+          </label>
+
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`cursor-pointer rounded-xl border border-dashed p-6 text-center transition ${
+              isDragging
+                ? "border-black bg-neutral-100"
+                : "border-neutral-300 bg-neutral-50 hover:bg-neutral-100"
+            }`}
+          >
+            <p className="text-sm font-medium text-neutral-900">
+              Drag and drop photos here, or click to upload
+            </p>
+            <p className="mt-2 text-sm text-neutral-500">
+              Up to {MAX_REFERENCE_PHOTOS} images. They’ll be compressed automatically.
+            </p>
+            <p className="mt-1 text-xs text-neutral-400">
+              {remainingPhotoSlots} slot{remainingPhotoSlots === 1 ? "" : "s"} remaining
+            </p>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleReferencePhotoChange}
+            className="hidden"
+          />
+
+          {referencePhotos.length > 0 ? (
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {referencePhotos.map((photo) => (
+                <div
+                  key={photo.id}
+                  className="overflow-hidden rounded-xl border border-neutral-200 bg-white"
+                >
+                  <img
+                    src={photo.previewUrl}
+                    alt={photo.name}
+                    className="h-32 w-full object-cover"
+                  />
+                  <div className="flex items-center justify-between gap-2 p-2">
+                    <p className="truncate text-xs text-neutral-500">
+                      {photo.name}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemovePhoto(photo.id);
+                      }}
+                      className="rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
         <button
           type="submit"
           className="w-full rounded bg-black py-3 text-white disabled:opacity-60"
-          disabled={submitting}
+          disabled={submitting || uploadingPhotos}
         >
-          {submitting ? "Posting..." : "Post request"}
+          {uploadingPhotos
+            ? "Uploading photos..."
+            : submitting
+            ? "Posting..."
+            : "Post request"}
         </button>
 
         {message ? <p className="text-sm text-red-600">{message}</p> : null}
