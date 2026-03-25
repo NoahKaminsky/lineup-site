@@ -479,6 +479,8 @@ export default function RequestDetailPage() {
     );
   }, [request, currentUserId]);
 
+  const isChatReadOnly = request?.status === "completed";
+
   async function handleAcceptOffer(offerId: string) {
     if (!request) return;
 
@@ -761,8 +763,9 @@ export default function RequestDetailPage() {
     setSubmittingReview(false);
   }
 
-  async function handleSendChatMessage() {
-    if (!request || !currentUserId || !newChatMessage.trim()) return;
+async function handleSendChatMessage() {
+  if (!request || !currentUserId || !newChatMessage.trim()) return;
+  if (request.status === "completed") return;
 
     setSendingChatMessage(true);
     setMessage("");
@@ -1007,7 +1010,11 @@ export default function RequestDetailPage() {
               <p className="mt-4 leading-7 text-neutral-600">
                 Once an offer is accepted, both sides can message here in real time.
               </p>
-
+{isChatReadOnly ? (
+  <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+    This chat is now read-only because the request has been completed.
+  </div>
+) : null}
               <div
                 ref={chatScrollRef}
                 className="mt-6 max-h-96 space-y-3 overflow-y-auto rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
@@ -1046,22 +1053,27 @@ export default function RequestDetailPage() {
               </div>
 
               <div className="mt-4 flex gap-3">
-                <textarea
-                  value={newChatMessage}
-                  onChange={(e) => setNewChatMessage(e.target.value)}
-                  rows={3}
-                  placeholder="Send a message..."
-                  className="flex-1 rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
-                />
+<textarea
+  value={newChatMessage}
+  onChange={(e) => setNewChatMessage(e.target.value)}
+  rows={3}
+  disabled={isChatReadOnly}
+  placeholder={
+    isChatReadOnly
+      ? "This chat is now read-only because the service is completed."
+      : "Send a message..."
+  }
+  className="flex-1 rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
+/>
 
-                <button
-                  type="button"
-                  onClick={handleSendChatMessage}
-                  disabled={sendingChatMessage || !newChatMessage.trim()}
-                  className="self-end rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-                >
-                  {sendingChatMessage ? "Sending..." : "Send"}
-                </button>
+<button
+  type="button"
+  onClick={handleSendChatMessage}
+  disabled={isChatReadOnly || sendingChatMessage || !newChatMessage.trim()}
+  className="self-end rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+>
+  {isChatReadOnly ? "Completed" : sendingChatMessage ? "Sending..." : "Send"}
+</button>
               </div>
             </div>
           ) : null}
