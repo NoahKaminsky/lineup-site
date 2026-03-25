@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 
@@ -54,6 +54,14 @@ type ExistingReview = {
   comment: string | null;
 };
 
+type ChatMessage = {
+  id: string;
+  request_id: string;
+  sender_id: string;
+  message: string;
+  created_at: string;
+};
+
 export default function RequestDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -61,14 +69,18 @@ export default function RequestDetailPage() {
 
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [offers, setOffers] = useState<RequestOffer[]>([]);
   const [requestOwner, setRequestOwner] = useState<RequestOwnerProfile | null>(
     null
   );
+
   const [message, setMessage] = useState("");
   const [acceptingOfferId, setAcceptingOfferId] = useState<string | null>(null);
   const [hasSubmittedOffer, setHasSubmittedOffer] = useState(false);
+
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -88,222 +100,339 @@ export default function RequestDetailPage() {
 
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadRequest() {
-      setLoading(true);
-      setMessage("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [newChatMessage, setNewChatMessage] = useState("");
+  const [sendingChatMessage, setSendingChatMessage] = useState(false);
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
-      if (userError || !user) {
-        router.push("/login");
-        return;
-      }
+  const loadRequestLive = useCallback(async () => {
+    if (!requestId) return;
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role, professional_type")
-        .eq("id", user.id)
-        .single();
+    setLoading(true);
+    setMessage("");
 
-      if (profileError || !profile) {
-        setMessage("Could not load profile.");
-        setLoading(false);
-        return;
-      }
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-      setRole(profile.role);
+    if (userError || !user) {
+      router.push("/login");
+      return;
+    }
 
-      const { data, error } = await supabase
-        .from("service_requests")
-        .select("*")
-        .eq("id", requestId)
-        .single();
+    setCurrentUserId(user.id);
 
-      if (error || !data) {
-        setMessage("Request not found or you do not have access.");
-        setLoading(false);
-        return;
-      }
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role, professional_type")
+      .eq("id", user.id)
+      .single();
 
-      setRequest(data);
+    if (profileError || !profile) {
+      setMessage("Could not load profile.");
+      setLoading(false);
+      return;
+    }
 
-      const { data: ownerProfile } = await supabase
-        .from("profiles")
-        .select("full_name, avatar_url, role")
-        .eq("id", data.client_id)
-        .single();
+    setRole(profile.role);
 
-      if (ownerProfile) {
-        setRequestOwner(ownerProfile);
-      }
+    const { data, error } = await supabase
+      .from("service_requests")
+      .select("*")
+      .eq("id", requestId)
+      .single();
 
-      let offersQuery = supabase
-        .from("request_offers")
-        .select("*")
-        .eq("request_id", requestId)
-        .order("created_at", { ascending: false });
+    if (error || !data) {
+      setMessage("Request not found or you do not have access.");
+      setLoading(false);
+      return;
+    }
 
-      if (
-        profile.role === "professional" ||
-        profile.role === "I am a professional"
-      ) {
-        offersQuery = offersQuery.eq("professional_id", user.id);
-      }
+    setRequest(data);
 
-      const { data: offersData, error: offersError } = await offersQuery;
+    const { data: ownerProfile } = await supabase
+      .from("profiles")
+      .select("full_name, avatar_url, role")
+      .eq("id", data.client_id)
+      .single();
 
-      if (!offersError && offersData) {
-        if (user) {
-          const alreadyOffered = offersData.some(
-            (offer) =>
-              offer.professional_id === user.id &&
-              (offer.status === "pending" || offer.status === "accepted")
-          );
+    if (ownerProfile) {
+      setRequestOwner(ownerProfile);
+    } else {
+      setRequestOwner(null);
+    }
 
-          setHasSubmittedOffer(!!alreadyOffered);
-        }
+    let offersQuery = supabase
+      .from("request_offers")
+      .select("*")
+      .eq("request_id", requestId)
+      .order("created_at", { ascending: false });
 
-        const professionalIds = [
-          ...new Set(offersData.map((offer) => offer.professional_id)),
-        ];
+    if (
+      profile.role === "professional" ||
+      profile.role === "I am a professional"
+    ) {
+      offersQuery = offersQuery.eq("professional_id", user.id);
+    }
 
-        let profilesMap = new Map<
-          string,
-          {
-            full_name: string | null;
-            avatar_url: string | null;
-            professional_type: string | null;
-          }
-        >();
+    const { data: offersData, error: offersError } = await offersQuery;
 
-        let ratingsMap = new Map<
-          string,
-          {
-            average_rating: number | null;
-            review_count: number;
-          }
-        >();
-
-        if (professionalIds.length > 0) {
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url, professional_type")
-            .in("id", professionalIds);
-
-          if (profileData) {
-            profilesMap = new Map(
-              profileData.map((profile) => [
-                profile.id,
-                {
-                  full_name: profile.full_name ?? null,
-                  avatar_url: profile.avatar_url ?? null,
-                  professional_type: profile.professional_type ?? null,
-                },
-              ])
-            );
-          }
-
-          const { data: reviewsData } = await supabase
-            .from("professional_reviews")
-            .select("professional_id, rating")
-            .in("professional_id", professionalIds);
-
-          if (reviewsData) {
-            const grouped = new Map<string, number[]>();
-
-            for (const review of reviewsData) {
-              const existing = grouped.get(review.professional_id) ?? [];
-              existing.push(Number(review.rating));
-              grouped.set(review.professional_id, existing);
-            }
-
-            ratingsMap = new Map(
-              Array.from(grouped.entries()).map(([professionalId, ratings]) => {
-                const total = ratings.reduce((sum, value) => sum + value, 0);
-                const avg = ratings.length ? total / ratings.length : null;
-
-                return [
-                  professionalId,
-                  {
-                    average_rating: avg,
-                    review_count: ratings.length,
-                  },
-                ];
-              })
-            );
-          }
-        }
-
-        const enrichedOffers: RequestOffer[] = offersData.map((offer) => {
-          const pro = profilesMap.get(offer.professional_id);
-          const ratingData = ratingsMap.get(offer.professional_id);
-
-          return {
-            ...offer,
-            professional_name: pro?.full_name ?? null,
-            professional_avatar_url: pro?.avatar_url ?? null,
-            professional_type: pro?.professional_type ?? null,
-            average_rating: ratingData?.average_rating ?? null,
-            review_count: ratingData?.review_count ?? 0,
-          };
-        });
-
-        setOffers(enrichedOffers);
-
-        if (profile.role === "customer" || profile.role === "I am a customer") {
-          const ids = offersData
-            .filter((offer) => !offer.viewed_by_customer)
-            .map((offer) => offer.id);
-
-          setUnreadOfferIds(ids);
-
-          await supabase
-            .from("request_offers")
-            .update({ viewed_by_customer: true })
-            .eq("request_id", requestId)
-            .eq("viewed_by_customer", false);
-        }
-      } else {
-        setOffers([]);
-      }
-
-      const acceptedOffer = offersData?.find(
-        (offer) => offer.status === "accepted"
+    if (!offersError && offersData) {
+      const alreadyOffered = offersData.some(
+        (offer) =>
+          offer.professional_id === user.id &&
+          (offer.status === "pending" || offer.status === "accepted")
       );
 
-      if (
-        data.status === "completed" &&
-        profile.role &&
-        (profile.role === "customer" || profile.role === "I am a customer") &&
-        acceptedOffer
-      ) {
-        const { data: existingReviewData } = await supabase
-          .from("professional_reviews")
-          .select("id, request_id, professional_id, reviewer_id, rating, comment")
-          .eq("request_id", data.id)
-          .eq("reviewer_id", user.id)
-          .maybeSingle();
+      setHasSubmittedOffer(alreadyOffered);
 
-        if (existingReviewData) {
-          setExistingReview(existingReviewData);
-          setReviewRating(existingReviewData.rating);
-          setReviewComment(existingReviewData.comment ?? "");
-        } else {
-          setExistingReview(null);
+      const professionalIds = [
+        ...new Set(offersData.map((offer) => offer.professional_id)),
+      ];
+
+      let profilesMap = new Map<
+        string,
+        {
+          full_name: string | null;
+          avatar_url: string | null;
+          professional_type: string | null;
+        }
+      >();
+
+      let ratingsMap = new Map<
+        string,
+        {
+          average_rating: number | null;
+          review_count: number;
+        }
+      >();
+
+      if (professionalIds.length > 0) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("id, full_name, avatar_url, professional_type")
+          .in("id", professionalIds);
+
+        if (profileData) {
+          profilesMap = new Map(
+            profileData.map((profileRow) => [
+              profileRow.id,
+              {
+                full_name: profileRow.full_name ?? null,
+                avatar_url: profileRow.avatar_url ?? null,
+                professional_type: profileRow.professional_type ?? null,
+              },
+            ])
+          );
+        }
+
+        const { data: reviewsData } = await supabase
+          .from("professional_reviews")
+          .select("professional_id, rating")
+          .in("professional_id", professionalIds);
+
+        if (reviewsData) {
+          const grouped = new Map<string, number[]>();
+
+          for (const review of reviewsData) {
+            const existing = grouped.get(review.professional_id) ?? [];
+            existing.push(Number(review.rating));
+            grouped.set(review.professional_id, existing);
+          }
+
+          ratingsMap = new Map(
+            Array.from(grouped.entries()).map(([professionalId, ratings]) => {
+              const total = ratings.reduce((sum, value) => sum + value, 0);
+              const avg = ratings.length ? total / ratings.length : null;
+
+              return [
+                professionalId,
+                {
+                  average_rating: avg,
+                  review_count: ratings.length,
+                },
+              ];
+            })
+          );
         }
       }
 
-      setLoading(false);
+      const enrichedOffers: RequestOffer[] = offersData.map((offer) => {
+        const pro = profilesMap.get(offer.professional_id);
+        const ratingData = ratingsMap.get(offer.professional_id);
+
+        return {
+          ...offer,
+          professional_name: pro?.full_name ?? null,
+          professional_avatar_url: pro?.avatar_url ?? null,
+          professional_type: pro?.professional_type ?? null,
+          average_rating: ratingData?.average_rating ?? null,
+          review_count: ratingData?.review_count ?? 0,
+        };
+      });
+
+      setOffers(enrichedOffers);
+
+      if (profile.role === "customer" || profile.role === "I am a customer") {
+        const ids = offersData
+          .filter((offer) => !offer.viewed_by_customer)
+          .map((offer) => offer.id);
+
+        setUnreadOfferIds(ids);
+
+        await supabase
+          .from("request_offers")
+          .update({ viewed_by_customer: true })
+          .eq("request_id", requestId)
+          .eq("viewed_by_customer", false);
+      } else {
+        setUnreadOfferIds([]);
+      }
+    } else {
+      setOffers([]);
+      setHasSubmittedOffer(false);
+      setUnreadOfferIds([]);
     }
 
-    if (requestId) {
-      loadRequest();
+    const acceptedOffer = offersData?.find(
+      (offer) => offer.status === "accepted"
+    );
+
+    if (
+      data.status === "completed" &&
+      (profile.role === "customer" || profile.role === "I am a customer") &&
+      acceptedOffer
+    ) {
+      const { data: existingReviewData } = await supabase
+        .from("professional_reviews")
+        .select("id, request_id, professional_id, reviewer_id, rating, comment")
+        .eq("request_id", data.id)
+        .eq("reviewer_id", user.id)
+        .maybeSingle();
+
+      if (existingReviewData) {
+        setExistingReview(existingReviewData);
+        setReviewRating(existingReviewData.rating);
+        setReviewComment(existingReviewData.comment ?? "");
+      } else {
+        setExistingReview(null);
+      }
+    } else {
+      setExistingReview(null);
     }
+
+    const canAccessChatNow =
+      !!data.accepted_professional_id &&
+      (user.id === data.client_id || user.id === data.accepted_professional_id);
+
+    if (canAccessChatNow) {
+      const { data: messagesData, error: messagesError } = await supabase
+        .from("request_messages")
+        .select("id, request_id, sender_id, message, created_at")
+        .eq("request_id", requestId)
+        .order("created_at", { ascending: true });
+
+      if (!messagesError && messagesData) {
+        setChatMessages(messagesData);
+      } else {
+        setChatMessages([]);
+      }
+    } else {
+      setChatMessages([]);
+    }
+
+    setLoading(false);
   }, [requestId, router]);
+
+  useEffect(() => {
+    loadRequestLive();
+  }, [loadRequestLive]);
+
+  useEffect(() => {
+    if (!requestId) return;
+
+    const channel = supabase
+      .channel(`request-detail-live-${requestId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "service_requests",
+          filter: `id=eq.${requestId}`,
+        },
+        async () => {
+          await loadRequestLive();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "request_offers",
+          filter: `request_id=eq.${requestId}`,
+        },
+        async () => {
+          await loadRequestLive();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [requestId, loadRequestLive]);
+
+  useEffect(() => {
+    if (!requestId || !currentUserId || !request?.accepted_professional_id)
+      return;
+
+    const canAccessCurrentChat =
+      currentUserId === request.client_id ||
+      currentUserId === request.accepted_professional_id;
+
+    if (!canAccessCurrentChat) return;
+
+    const channel = supabase
+      .channel(`request-messages-${requestId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "request_messages",
+          filter: `request_id=eq.${requestId}`,
+        },
+        (payload) => {
+          const incoming = payload.new as ChatMessage;
+
+          setChatMessages((prev) => {
+            if (prev.some((msg) => msg.id === incoming.id)) return prev;
+            return [...prev, incoming];
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log("chat realtime status:", status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [
+    requestId,
+    currentUserId,
+    request?.accepted_professional_id,
+    request?.client_id,
+  ]);
+
+  useEffect(() => {
+    if (!chatScrollRef.current) return;
+    chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+  }, [chatMessages]);
 
   function formatCategory(category: string) {
     return category
@@ -320,15 +449,35 @@ export default function RequestDetailPage() {
     return mode.replaceAll("_", " ");
   }
 
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleString("en-CA", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+  function formatDate(dateString: string) {
+    return new Date(dateString).toLocaleString("en-CA", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  function formatChatTime(dateString: string) {
+    return new Date(dateString).toLocaleString("en-CA", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  const canAccessChat = useMemo(() => {
+    if (!request || !currentUserId || !request.accepted_professional_id) {
+      return false;
+    }
+
+    return (
+      currentUserId === request.client_id ||
+      currentUserId === request.accepted_professional_id
+    );
+  }, [request, currentUserId]);
 
   async function handleAcceptOffer(offerId: string) {
     if (!request) return;
@@ -394,11 +543,20 @@ function formatDate(dateString: string) {
             ...prev,
             status: "accepted",
             accepted_professional_id:
-              offers.find((offer) => offer.id === offerId)?.professional_id ??
-              null,
+              acceptedOffer?.professional_id ?? prev.accepted_professional_id,
           }
         : prev
     );
+
+    if (currentUserId) {
+      await supabase.from("request_messages").insert([
+        {
+          request_id: request.id,
+          sender_id: currentUserId,
+          message: "Offer accepted. You can now chat here to coordinate details.",
+        },
+      ]);
+    }
 
     setAcceptingOfferId(null);
     setMessage("Offer accepted.");
@@ -603,8 +761,34 @@ function formatDate(dateString: string) {
     setSubmittingReview(false);
   }
 
-  const isCustomer = role === "customer" || role === "I am a customer";
+  async function handleSendChatMessage() {
+    if (!request || !currentUserId || !newChatMessage.trim()) return;
 
+    setSendingChatMessage(true);
+    setMessage("");
+
+    const messageToSend = newChatMessage.trim();
+    setNewChatMessage("");
+
+    const { error } = await supabase.from("request_messages").insert([
+      {
+        request_id: request.id,
+        sender_id: currentUserId,
+        message: messageToSend,
+      },
+    ]);
+
+    if (error) {
+      setMessage(error.message);
+      setNewChatMessage(messageToSend);
+      setSendingChatMessage(false);
+      return;
+    }
+
+    setSendingChatMessage(false);
+  }
+
+  const isCustomer = role === "customer" || role === "I am a customer";
   const isProfessional =
     role === "professional" || role === "I am a professional";
 
@@ -810,6 +994,78 @@ function formatDate(dateString: string) {
             </div>
           ) : null}
 
+          {canAccessChat ? (
+            <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                Chat
+              </p>
+
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                Live conversation
+              </h2>
+
+              <p className="mt-4 leading-7 text-neutral-600">
+                Once an offer is accepted, both sides can message here in real time.
+              </p>
+
+              <div
+                ref={chatScrollRef}
+                className="mt-6 max-h-96 space-y-3 overflow-y-auto rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+              >
+                {chatMessages.length === 0 ? (
+                  <p className="text-sm text-neutral-500">No messages yet.</p>
+                ) : (
+                  chatMessages.map((chat) => {
+                    const isMine = chat.sender_id === currentUserId;
+
+                    return (
+                      <div
+                        key={chat.id}
+                        className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${
+                            isMine
+                              ? "bg-black text-white"
+                              : "border border-neutral-200 bg-white text-neutral-900"
+                          }`}
+                        >
+                          <p>{chat.message}</p>
+                          <p
+                            className={`mt-2 text-xs ${
+                              isMine ? "text-neutral-300" : "text-neutral-500"
+                            }`}
+                          >
+                            {formatChatTime(chat.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="mt-4 flex gap-3">
+                <textarea
+                  value={newChatMessage}
+                  onChange={(e) => setNewChatMessage(e.target.value)}
+                  rows={3}
+                  placeholder="Send a message..."
+                  className="flex-1 rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+                />
+
+                <button
+                  type="button"
+                  onClick={handleSendChatMessage}
+                  disabled={sendingChatMessage || !newChatMessage.trim()}
+                  className="self-end rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {sendingChatMessage ? "Sending..." : "Send"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           {isCustomer ? (
             <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
               <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
@@ -857,8 +1113,7 @@ function formatDate(dateString: string) {
               </h2>
 
               <p className="mt-4 leading-7 text-neutral-600">
-                Send your offer with your timing, price, and why you’re a good
-                fit.
+                Send your offer with your timing, price, and why you’re a good fit.
               </p>
 
               <div className="mt-6">
@@ -889,8 +1144,7 @@ function formatDate(dateString: string) {
               </h2>
 
               <p className="mt-4 leading-7 text-neutral-600">
-                Once the service is finished, send a completion request to the
-                customer.
+                Once the service is finished, send a completion request to the customer.
               </p>
 
               <div className="mt-6">
@@ -938,8 +1192,7 @@ function formatDate(dateString: string) {
               </h2>
 
               <p className="mt-4 leading-7 text-neutral-600">
-                Share how the service went so future customers can make a
-                confident choice.
+                Share how the service went so future customers can make a confident choice.
               </p>
 
               {existingReview ? (
@@ -954,9 +1207,7 @@ function formatDate(dateString: string) {
                       {existingReview.comment}
                     </p>
                   ) : (
-                    <p className="mt-3 text-neutral-500">
-                      No written comment added.
-                    </p>
+                    <p className="mt-3 text-neutral-500">No written comment added.</p>
                   )}
                 </div>
               ) : (
@@ -1044,8 +1295,7 @@ function formatDate(dateString: string) {
                             />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center text-xs font-medium text-neutral-500">
-                              {offer.professional_name?.charAt(0).toUpperCase() ||
-                                "P"}
+                              {offer.professional_name?.charAt(0).toUpperCase() || "P"}
                             </div>
                           )}
                         </div>
@@ -1073,9 +1323,7 @@ function formatDate(dateString: string) {
                                 </span>
                                 <span>
                                   ({offer.review_count}{" "}
-                                  {offer.review_count === 1
-                                    ? "review"
-                                    : "reviews"})
+                                  {offer.review_count === 1 ? "review" : "reviews"})
                                 </span>
                               </>
                             ) : (
@@ -1177,9 +1425,7 @@ function formatDate(dateString: string) {
                                 disabled={reofferLoading}
                                 className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
                               >
-                                {reofferLoading
-                                  ? "Submitting..."
-                                  : "Submit re-offer"}
+                                {reofferLoading ? "Submitting..." : "Submit re-offer"}
                               </button>
 
                               <button
@@ -1248,9 +1494,7 @@ function formatDate(dateString: string) {
                                 disabled={declineLoading}
                                 className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
                               >
-                                {declineLoading
-                                  ? "Declining..."
-                                  : "Submit decline"}
+                                {declineLoading ? "Declining..." : "Submit decline"}
                               </button>
 
                               <button
