@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 
@@ -63,7 +63,7 @@ type ReferencePhotoItem = {
   name: string;
 };
 
-export default function NewRequestPage() {
+function NewRequestPageContent() {
   const router = useRouter();
 const searchParams = useSearchParams();
 const preferredProfessionalId = searchParams.get("pro");
@@ -670,5 +670,18 @@ const { error } = await supabase.from("service_requests").insert([
         {message ? <p className="text-sm text-red-600">{message}</p> : null}
       </form>
     </main>
+  );
+}
+export default function NewRequestPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-2xl p-10">
+          <p>Loading...</p>
+        </main>
+      }
+    >
+      <NewRequestPageContent />
+    </Suspense>
   );
 }
