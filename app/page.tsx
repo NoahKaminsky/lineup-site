@@ -629,46 +629,30 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
         </div>
 
         <div className="border-t border-neutral-200 px-6 py-3 md:hidden">
-          {isSignedIn ? (
-            <div className="flex items-center justify-between gap-3 text-sm font-medium text-neutral-900">
-              <Link href="/requests" className="inline-flex items-center gap-2">
-                <span>View requests</span>
+{isSignedIn ? (
+  <div className="flex items-center justify-between text-sm font-medium text-neutral-900">
+    <Link href="/requests" className="inline-flex items-center gap-2">
+      <span>View requests</span>
 
-                {isProfessionalUser && unreadNotificationCount > 0 && (
-                  <span className="inline-flex h-5 min-w-5 animate-notification-pop items-center justify-center rounded-full bg-neutral-900 px-1.5 text-[11px] font-semibold text-white">
-                    {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-                  </span>
-                )}
-              </Link>
+      {isProfessionalUser && unreadNotificationCount > 0 && (
+        <span className="inline-flex h-5 min-w-5 animate-notification-pop items-center justify-center rounded-full bg-neutral-900 px-1.5 text-[11px] font-semibold text-white">
+          {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+        </span>
+      )}
+    </Link>
 
-              <div className="flex items-center gap-3">
-                {!isProfessionalUser && (
-                  <Link
-                    href="/requests/new"
-                    className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-                  >
-                    Post
-                  </Link>
-                )}
-
-<Link
-  href="/account"
-  aria-label="View profile"
-  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-neutral-300 bg-white text-sm font-semibold text-neutral-900 transition hover:bg-neutral-50"
->
-  {userAvatarUrl ? (
-    <img
-      src={userAvatarUrl}
-      alt="Profile"
-      className="h-full w-full object-cover"
-    />
-  ) : (
-    userInitial
-  )}
-</Link>
-              </div>
-            </div>
-          ) : (
+    {!isProfessionalUser ? (
+      <Link
+        href="/requests/new"
+        className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+      >
+        Post
+      </Link>
+    ) : (
+      <div />
+    )}
+  </div>
+) : (
             <div className="flex items-center gap-4 text-sm font-medium text-neutral-900">
               <Link href="/login">Sign in</Link>
               <button onClick={scrollToJoin}>Join the LineUp</button>
