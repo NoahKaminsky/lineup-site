@@ -216,16 +216,6 @@ const uniqueRespondedIds = Array.from(
 );
 setRespondedRequestIds(uniqueRespondedIds);
 
-const { error: markReadError } = await supabase
-  .from("notifications")
-  .update({ is_read: true })
-  .eq("user_id", user.id)
-  .eq("is_read", false);
-
-if (markReadError) {
-  console.error("Error marking notifications as read:", markReadError);
-}
-
 const { data: notifications, error: notificationsError } = await supabase
   .from("notifications")
   .select("request_id")

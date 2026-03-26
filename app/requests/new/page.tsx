@@ -405,30 +405,70 @@ const isRebook =
     try {
       const referencePhotoUrls = await uploadReferencePhotos(userId);
 
-const directRebook = !!preferredProfessionalId;
+      const directRebook = !!preferredProfessionalId;
 
-const { error } = await supabase.from("service_requests").insert([
-  {
-    client_id: userId,
-    category,
-    service_detail: finalServiceDetail || null,
-    title: title.trim(),
-    description: description.trim() || null,
-    location: location.trim() || null,
-    service_mode: serviceMode || null,
-    budget: budget.trim() || null,
-    status: "open",
-    target_professions: directRebook ? null : targetProfessions,
-    reference_photos: referencePhotoUrls,
-
-    preferred_professional_id: directRebook ? preferredProfessionalId : null,
-    is_direct_rebook: directRebook,
-    original_request_id: directRebook ? originalRequestId : null,
-  },
-]);
+      const { data: createdRequest, error } = await supabase
+        .from("service_requests")
+        .insert([
+          {
+            client_id: userId,
+            category,
+            service_detail: finalServiceDetail || null,
+            title: title.trim(),
+            description: description.trim() || null,
+            location: location.trim() || null,
+            service_mode: serviceMode || null,
+            budget: budget.trim() || null,
+            status: "open",
+            target_professions: directRebook ? null : targetProfessions,
+            reference_photos: referencePhotoUrls,
+            preferred_professional_id: directRebook ? preferredProfessionalId : null,
+            is_direct_rebook: directRebook,
+            original_request_id: directRebook ? originalRequestId : null,
+          },
+        ])
+        .select("id, preferred_professional_id, is_direct_rebook")
+        .single();
 
       if (error) {
         throw error;
+      }
+
+      if (
+        createdRequest?.is_direct_rebook &&
+        createdRequest.preferred_professional_id
+      ) {
+        const { data: existingNotification, error: existingNotificationError } =
+          await supabase
+            .from("notifications")
+            .select("id")
+            .eq("user_id", createdRequest.preferred_professional_id)
+            .eq("request_id", createdRequest.id)
+            .maybeSingle();
+
+        if (existingNotificationError) {
+          console.error(
+            "Could not check existing rebook notification:",
+            existingNotificationError
+          );
+        } else if (!existingNotification) {
+          const { error: insertNotificationError } = await supabase
+            .from("notifications")
+            .insert([
+              {
+                user_id: createdRequest.preferred_professional_id,
+                request_id: createdRequest.id,
+                is_read: false,
+              },
+            ]);
+
+          if (insertNotificationError) {
+            console.error(
+              "Could not create rebook notification:",
+              insertNotificationError
+            );
+          }
+        }
       }
 
       setMessage("Request posted successfully.");
