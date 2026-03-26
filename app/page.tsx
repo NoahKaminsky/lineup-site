@@ -621,12 +621,12 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
   </>
 ) : (
               <>
-                <Link
-                  href="/login"
-                  className="hidden rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 md:inline-flex"
-                >
-                  Sign in
-                </Link>
+<Link
+  href="/login"
+  className="text-sm text-neutral-600 hover:text-neutral-900"
+>
+  Sign in
+</Link>
 
                 <button
                   onClick={scrollToJoin}
@@ -668,12 +668,7 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
       </Link>
     )}
   </div>
-) : (
-            <div className="flex items-center gap-4 text-sm font-medium text-neutral-900">
-              <Link href="/login">Sign in</Link>
-              <button onClick={scrollToJoin}>Join the LineUp</button>
-            </div>
-          )}
+) : null}
         </div>
       </header>
 
