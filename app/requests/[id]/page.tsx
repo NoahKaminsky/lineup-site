@@ -1386,79 +1386,100 @@ export default function RequestDetailPage() {
             </div>
           ) : null}
 
-          {isCustomer && request.status === "completed" ? (
-            <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                Review
-              </p>
+{isCustomer && request.status === "completed" ? (
+  <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+      Review
+    </p>
 
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                {existingReview ? "Your review" : "Leave a review"}
-              </h2>
+    <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+      {existingReview ? "Your review" : "Leave a review"}
+    </h2>
 
-              <p className="mt-4 leading-7 text-neutral-600">
-                Share how the service went so future customers can make a confident choice.
-              </p>
+    <p className="mt-4 leading-7 text-neutral-600">
+      Share how the service went so future customers can make a confident choice.
+    </p>
 
-              {existingReview ? (
-                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                  <p className="text-lg font-semibold text-neutral-900">
-                    {"★".repeat(existingReview.rating)}
-                    {"☆".repeat(5 - existingReview.rating)}
-                  </p>
+    {existingReview ? (
+      <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+        <p className="text-lg font-semibold text-neutral-900">
+          {"★".repeat(existingReview.rating)}
+          {"☆".repeat(5 - existingReview.rating)}
+        </p>
 
-                  {existingReview.comment ? (
-                    <p className="mt-3 leading-7 text-neutral-600">
-                      {existingReview.comment}
-                    </p>
-                  ) : (
-                    <p className="mt-3 text-neutral-500">No written comment added.</p>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-6 space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-neutral-900">
-                      Rating
-                    </label>
-                    <select
-                      value={reviewRating}
-                      onChange={(e) => setReviewRating(Number(e.target.value))}
-                      className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
-                    >
-                      <option value={5}>5 - Excellent</option>
-                      <option value={4}>4 - Good</option>
-                      <option value={3}>3 - Okay</option>
-                      <option value={2}>2 - Poor</option>
-                      <option value={1}>1 - Bad</option>
-                    </select>
-                  </div>
+        {existingReview.comment ? (
+          <p className="mt-3 leading-7 text-neutral-600">
+            {existingReview.comment}
+          </p>
+        ) : (
+          <p className="mt-3 text-neutral-500">No written comment added.</p>
+        )}
+      </div>
+    ) : (
+      <div className="mt-6 space-y-4">
+        <div>
+          <label className="text-sm font-medium text-neutral-900">
+            Rating
+          </label>
+          <select
+            value={reviewRating}
+            onChange={(e) => setReviewRating(Number(e.target.value))}
+            className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+          >
+            <option value={5}>5 - Excellent</option>
+            <option value={4}>4 - Good</option>
+            <option value={3}>3 - Okay</option>
+            <option value={2}>2 - Poor</option>
+            <option value={1}>1 - Bad</option>
+          </select>
+        </div>
 
-                  <div>
-                    <label className="text-sm font-medium text-neutral-900">
-                      Comment
-                    </label>
-                    <textarea
-                      value={reviewComment}
-                      onChange={(e) => setReviewComment(e.target.value)}
-                      rows={5}
-                      placeholder="How was the service, professionalism, communication, and result?"
-                      className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
-                    />
-                  </div>
+        <div>
+          <label className="text-sm font-medium text-neutral-900">
+            Comment
+          </label>
+          <textarea
+            value={reviewComment}
+            onChange={(e) => setReviewComment(e.target.value)}
+            rows={5}
+            placeholder="How was the service, professionalism, communication, and result?"
+            className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+          />
+        </div>
 
-                  <button
-                    type="button"
-                    onClick={handleSubmitReview}
-                    disabled={submittingReview}
-                    className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-                  >
-                    {submittingReview ? "Submitting..." : "Submit review"}
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : null}
+        <button
+          type="button"
+          onClick={handleSubmitReview}
+          disabled={submittingReview}
+          className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+        >
+          {submittingReview ? "Submitting..." : "Submit review"}
+        </button>
+      </div>
+    )}
+
+    {request.accepted_professional_id ? (
+      <div className="mt-6 border-t border-neutral-200 pt-6">
+        <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+          Book again
+        </p>
+
+        <p className="mt-3 leading-7 text-neutral-600">
+          Want the same professional again? Send them a direct rebook request instead of posting to the full marketplace.
+        </p>
+
+        <div className="mt-4">
+          <Link
+            href={`/requests/new?rebook=1&pro=${request.accepted_professional_id}&request=${request.id}`}
+            className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+          >
+            Book again
+          </Link>
+        </div>
+      </div>
+    ) : null}
+  </div>
+) : null}
 
           <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">

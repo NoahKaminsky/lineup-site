@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 
 const MAX_REFERENCE_PHOTOS = 5;
@@ -65,6 +65,13 @@ type ReferencePhotoItem = {
 
 export default function NewRequestPage() {
   const router = useRouter();
+const searchParams = useSearchParams();
+const preferredProfessionalId = searchParams.get("pro");
+const originalRequestId = searchParams.get("request");
+const isRebook =
+  searchParams.get("rebook") === "1" && !!preferredProfessionalId;
+
+  const [rebookProName, setRebookProName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -123,13 +130,25 @@ export default function NewRequestPage() {
         return;
       }
 
+      if (preferredProfessionalId) {
+        const { data: proProfile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", preferredProfessionalId)
+          .single();
+
+        if (proProfile?.full_name) {
+          setRebookProName(proProfile.full_name);
+        }
+      }
+
       setUserId(user.id);
       setMessage("");
       setLoading(false);
     }
 
     loadUser();
-  }, [router]);
+  }, [router, preferredProfessionalId]);
 
   useEffect(() => {
     return () => {
@@ -150,6 +169,7 @@ export default function NewRequestPage() {
         return ["nail_artist"];
       case "lashes":
         return ["lash_artist"];
+      case "brow_artist":
       case "brows":
         return ["brow_artist"];
       case "makeup":
@@ -385,21 +405,27 @@ export default function NewRequestPage() {
     try {
       const referencePhotoUrls = await uploadReferencePhotos(userId);
 
-      const { error } = await supabase.from("service_requests").insert([
-        {
-          client_id: userId,
-          category,
-          service_detail: finalServiceDetail || null,
-          title: title.trim(),
-          description: description.trim() || null,
-          location: location.trim() || null,
-          service_mode: serviceMode || null,
-          budget: budget.trim() || null,
-          status: "open",
-          target_professions: targetProfessions,
-          reference_photos: referencePhotoUrls,
-        },
-      ]);
+const directRebook = !!preferredProfessionalId;
+
+const { error } = await supabase.from("service_requests").insert([
+  {
+    client_id: userId,
+    category,
+    service_detail: finalServiceDetail || null,
+    title: title.trim(),
+    description: description.trim() || null,
+    location: location.trim() || null,
+    service_mode: serviceMode || null,
+    budget: budget.trim() || null,
+    status: "open",
+    target_professions: directRebook ? null : targetProfessions,
+    reference_photos: referencePhotoUrls,
+
+    preferred_professional_id: directRebook ? preferredProfessionalId : null,
+    is_direct_rebook: directRebook,
+    original_request_id: directRebook ? originalRequestId : null,
+  },
+]);
 
       if (error) {
         throw error;
@@ -428,7 +454,20 @@ export default function NewRequestPage() {
 
   return (
     <main className="mx-auto max-w-2xl p-10">
-      <h1 className="mb-6 text-3xl font-semibold">Create a request</h1>
+      <h1 className="mb-6 text-3xl font-semibold">
+        {isRebook ? "Book again" : "Create a request"}
+      </h1>
+
+      {isRebook && preferredProfessionalId ? (
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-sm font-medium text-emerald-800">
+            Rebooking with {rebookProName || "this professional"}
+          </p>
+          <p className="mt-1 text-sm text-emerald-700">
+            This request will be sent directly to them first.
+          </p>
+        </div>
+      ) : null}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
@@ -623,6 +662,8 @@ export default function NewRequestPage() {
             ? "Uploading photos..."
             : submitting
             ? "Posting..."
+            : isRebook
+            ? "Send rebook request"
             : "Post request"}
         </button>
 

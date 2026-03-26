@@ -50,6 +50,9 @@ export default function ProfessionalProfilePage() {
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
   const [reviews, setReviews] = useState<EnrichedReview[]>([]);
   const [showBannerPreview, setShowBannerPreview] = useState(false);
+  const [viewerUserId, setViewerUserId] = useState<string | null>(null);
+  const [viewerIsCustomer, setViewerIsCustomer] = useState(false);
+  const [hasBookedBefore, setHasBookedBefore] = useState(false);
 
   useEffect(() => {
     async function loadProfilePage() {
@@ -72,6 +75,45 @@ export default function ProfessionalProfilePage() {
         }
 
         setProfile(profileData as Profile);
+
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          setViewerUserId(user.id);
+
+          const { data: viewerProfile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+
+          const isCustomer =
+            viewerProfile?.role === "customer" ||
+            viewerProfile?.role === "I am a customer";
+
+          setViewerIsCustomer(isCustomer);
+
+          if (isCustomer) {
+            const { data: priorCompletedRequest } = await supabase
+              .from("service_requests")
+              .select("id")
+              .eq("client_id", user.id)
+              .eq("accepted_professional_id", profileId)
+              .eq("status", "completed")
+              .limit(1)
+              .maybeSingle();
+
+            setHasBookedBefore(!!priorCompletedRequest);
+          } else {
+            setHasBookedBefore(false);
+          }
+        } else {
+          setViewerUserId(null);
+          setViewerIsCustomer(false);
+          setHasBookedBefore(false);
+        }
 
         const { data: portfolioData, error: portfolioError } = await supabase
           .from("professional_portfolio")
@@ -317,6 +359,17 @@ export default function ProfessionalProfilePage() {
                   </span>
                 )}
               </div>
+
+              {viewerIsCustomer && viewerUserId !== profile.id ? (
+                <div className="mt-6">
+                  <Link
+                    href={`/requests/new?rebook=1&pro=${profile.id}`}
+                    className="inline-flex rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                  >
+                    {hasBookedBefore ? "Book again" : "Request this professional"}
+                  </Link>
+                </div>
+              ) : null}
             </div>
           </div>
 

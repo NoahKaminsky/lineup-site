@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -19,6 +19,9 @@ type ServiceRequest = {
   target_professions: string[] | null;
   accepted_professional_id: string | null;
   created_at: string;
+  reference_photos: string[] | null;
+  preferred_professional_id?: string | null;
+  is_direct_rebook?: boolean | null;
 };
 
 type RequestOfferRow = {
@@ -48,140 +51,66 @@ export default function RequestsPage() {
   >({});
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    async function loadRequests() {
-      setLoading(true);
-      setMessage("");
+  const loadRequestsLive = useCallback(async () => {
+    setLoading(true);
+    setMessage("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-      if (userError || !user) {
-        router.push("/login");
-        return;
-      }
+    if (userError || !user) {
+      router.push("/login");
+      return;
+    }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role, professional_type")
-        .eq("id", user.id)
-        .single();
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role, professional_type")
+      .eq("id", user.id)
+      .single();
 
-      if (profileError || !profile) {
-        setMessage("Could not load profile.");
+    if (profileError || !profile) {
+      setMessage("Could not load profile.");
+      setLoading(false);
+      return;
+    }
+
+    const userRole = profile.role;
+    setRole(userRole);
+
+    const isCustomer =
+      userRole === "customer" || userRole === "I am a customer";
+
+    const isProfessional =
+      userRole === "professional" ||
+      userRole === "I am a professional" ||
+      (!!userRole && userRole !== "customer" && userRole !== "I am a customer");
+
+    if (isCustomer) {
+      const { data, error } = await supabase
+        .from("service_requests")
+        .select("*")
+        .eq("client_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        setMessage(error.message);
         setLoading(false);
         return;
       }
 
-      const userRole = profile.role;
-      setRole(userRole);
+      const customerRequests = (data as ServiceRequest[]) || [];
+      setRequests(customerRequests);
 
-      const isCustomer =
-        userRole === "customer" || userRole === "I am a customer";
+      const requestIds = customerRequests.map((r) => r.id);
 
-      const isProfessional =
-        userRole === "professional" || userRole === "I am a professional";
-
-      if (isCustomer) {
-        const { data, error } = await supabase
-          .from("service_requests")
-          .select("*")
-          .eq("client_id", user.id)
-          .order("created_at", { ascending: false });
-
-        if (error) {
-          setMessage(error.message);
-          setLoading(false);
-          return;
-        }
-
-        const customerRequests = (data as ServiceRequest[]) || [];
-        setRequests(customerRequests);
-
-        const requestIds = customerRequests.map((r) => r.id);
-
-        if (requestIds.length > 0) {
-          const { data: offersData, error: offersError } = await supabase
-            .from("request_offers")
-            .select("id, request_id, viewed_by_customer")
-            .in("request_id", requestIds);
-
-          if (offersError) {
-            setMessage(offersError.message);
-            setLoading(false);
-            return;
-          }
-
-          const totalOfferCounts: Record<string, number> = {};
-          const unreadCounts: Record<string, number> = {};
-
-          ((offersData as RequestOfferRow[]) || []).forEach((offer) => {
-            totalOfferCounts[offer.request_id] =
-              (totalOfferCounts[offer.request_id] || 0) + 1;
-
-            if (!offer.viewed_by_customer) {
-              unreadCounts[offer.request_id] =
-                (unreadCounts[offer.request_id] || 0) + 1;
-            }
-          });
-
-          setOfferCountsByRequest(totalOfferCounts);
-          setUnreadOfferCountsByRequest(unreadCounts);
-        } else {
-          setOfferCountsByRequest({});
-          setUnreadOfferCountsByRequest({});
-        }
-      } else if (isProfessional) {
-        const { data: openRequests, error: openRequestsError } = await supabase
-          .from("service_requests")
-          .select("*")
-          .eq("status", "open")
-          .order("created_at", { ascending: false });
-
-        if (openRequestsError) {
-          setMessage(openRequestsError.message);
-          setLoading(false);
-          return;
-        }
-
-        const { data: trackedRequests, error: trackedRequestsError } =
-          await supabase
-            .from("service_requests")
-            .select("*")
-            .eq("accepted_professional_id", user.id)
-            .in("status", ["accepted", "completion_requested", "completed"])
-            .order("created_at", { ascending: false });
-
-        if (trackedRequestsError) {
-          setMessage(trackedRequestsError.message);
-          setLoading(false);
-          return;
-        }
-
-        const myTrackedRequests: ServiceRequest[] = trackedRequests ?? [];
-        const mergedRequestsMap = new Map<string, ServiceRequest>();
-
-        ((openRequests as ServiceRequest[]) ?? []).forEach((item) => {
-          mergedRequestsMap.set(item.id, item);
-        });
-
-        myTrackedRequests.forEach((item) => {
-          mergedRequestsMap.set(item.id, item);
-        });
-
-        const mergedRequests = Array.from(mergedRequestsMap.values()).sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-
-        setRequests(mergedRequests);
-
-        const { data: offers, error: offersError } = await supabase
+      if (requestIds.length > 0) {
+        const { data: offersData, error: offersError } = await supabase
           .from("request_offers")
-          .select("request_id")
-          .eq("professional_id", user.id);
+          .select("id, request_id, viewed_by_customer")
+          .in("request_id", requestIds);
 
         if (offersError) {
           setMessage(offersError.message);
@@ -189,60 +118,187 @@ export default function RequestsPage() {
           return;
         }
 
-        const uniqueRespondedIds = Array.from(
-          new Set(
-            (offers ?? [])
-              .map((offer) => offer.request_id)
-              .filter((id): id is string => !!id)
-          )
-        );
-        setRespondedRequestIds(uniqueRespondedIds);
+        const totalOfferCounts: Record<string, number> = {};
+        const unreadCounts: Record<string, number> = {};
 
-        const { error: markReadError } = await supabase
-          .from("notifications")
-          .update({ is_read: true })
-          .eq("user_id", user.id)
-          .eq("is_read", false);
+        ((offersData as RequestOfferRow[]) || []).forEach((offer) => {
+          totalOfferCounts[offer.request_id] =
+            (totalOfferCounts[offer.request_id] || 0) + 1;
 
-        if (markReadError) {
-          console.error("Error marking notifications as read:", markReadError);
-        }
+          if (!offer.viewed_by_customer) {
+            unreadCounts[offer.request_id] =
+              (unreadCounts[offer.request_id] || 0) + 1;
+          }
+        });
 
-        const { data: notifications, error: notificationsError } =
-          await supabase
-            .from("notifications")
-            .select("request_id")
-            .eq("user_id", user.id)
-            .eq("is_read", false);
-
-        if (notificationsError) {
-          console.error(
-            "Error loading unread notifications:",
-            notificationsError
-          );
-          setProfessionalUnreadRequestIds([]);
-        } else {
-          const unreadIds = Array.from(
-            new Set(
-              ((notifications as NotificationRow[]) ?? [])
-                .map((item) => item.request_id)
-                .filter((id): id is string => !!id)
-            )
-          );
-
-          setProfessionalUnreadRequestIds(unreadIds);
-        }
+        setOfferCountsByRequest(totalOfferCounts);
+        setUnreadOfferCountsByRequest(unreadCounts);
       } else {
-        setMessage("Invalid account role.");
+        setOfferCountsByRequest({});
+        setUnreadOfferCountsByRequest({});
+      }
+
+      setProfessionalUnreadRequestIds([]);
+      setRespondedRequestIds([]);
+    } else if (isProfessional) {
+      const { data: allRequests, error: allRequestsError } = await supabase
+        .from("service_requests")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (allRequestsError) {
+        setMessage(allRequestsError.message);
         setLoading(false);
         return;
       }
 
+      const { data: trackedRequests, error: trackedRequestsError } =
+        await supabase
+          .from("service_requests")
+          .select("*")
+          .eq("accepted_professional_id", user.id)
+          .in("status", ["accepted", "completion_requested", "completed"])
+          .order("created_at", { ascending: false });
+
+      if (trackedRequestsError) {
+        setMessage(trackedRequestsError.message);
+        setLoading(false);
+        return;
+      }
+
+      const myTrackedRequests: ServiceRequest[] = trackedRequests ?? [];
+      const mergedRequestsMap = new Map<string, ServiceRequest>();
+
+      ((allRequests as ServiceRequest[]) ?? []).forEach((item) => {
+        mergedRequestsMap.set(item.id, item);
+      });
+
+      myTrackedRequests.forEach((item) => {
+        mergedRequestsMap.set(item.id, item);
+      });
+
+      const mergedRequests = Array.from(mergedRequestsMap.values())
+        .filter((request) => {
+          if (request.is_direct_rebook) {
+            return request.preferred_professional_id === user.id;
+          }
+
+          return (
+            request.status === "open" ||
+            request.accepted_professional_id === user.id
+          );
+        })
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() -
+            new Date(a.created_at).getTime()
+        );
+
+      setRequests(mergedRequests);
+
+      const { data: offers, error: offersError } = await supabase
+        .from("request_offers")
+        .select("request_id")
+        .eq("professional_id", user.id);
+
+      if (offersError) {
+        setMessage(offersError.message);
+        setLoading(false);
+        return;
+      }
+
+      const uniqueRespondedIds = Array.from(
+        new Set(
+          (offers ?? [])
+            .map((offer) => offer.request_id)
+            .filter((id): id is string => !!id)
+        )
+      );
+      setRespondedRequestIds(uniqueRespondedIds);
+
+      const { data: notifications, error: notificationsError } = await supabase
+        .from("notifications")
+        .select("request_id")
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+
+      if (notificationsError) {
+        console.error(
+          "Error loading unread notifications:",
+          notificationsError
+        );
+        setProfessionalUnreadRequestIds([]);
+      } else {
+        const unreadIds = Array.from(
+          new Set(
+            ((notifications as NotificationRow[]) ?? [])
+              .map((item) => item.request_id)
+              .filter((id): id is string => !!id)
+          )
+        );
+
+        setProfessionalUnreadRequestIds(unreadIds);
+      }
+
+      setOfferCountsByRequest({});
+      setUnreadOfferCountsByRequest({});
+    } else {
+      setMessage("Invalid account role.");
       setLoading(false);
+      return;
     }
 
-    loadRequests();
+    setLoading(false);
   }, [router]);
+
+  useEffect(() => {
+    loadRequestsLive();
+  }, [loadRequestsLive]);
+
+  useEffect(() => {
+    if (!role) return;
+
+    const channel = supabase
+      .channel("requests-live")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "service_requests",
+        },
+        async () => {
+          await loadRequestsLive();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "request_offers",
+        },
+        async () => {
+          await loadRequestsLive();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+        },
+        async () => {
+          await loadRequestsLive();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [role, loadRequestsLive]);
 
   function formatCategory(category: string) {
     return category
@@ -259,18 +315,22 @@ export default function RequestsPage() {
     return mode.replaceAll("_", " ");
   }
 
-  function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString("en-CA", {
+  function formatDateTime(dateString: string) {
+    return new Date(dateString).toLocaleString("en-CA", {
       year: "numeric",
       month: "short",
       day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
     });
   }
 
   const isCustomer = role === "customer" || role === "I am a customer";
 
   const isProfessional =
-    role === "professional" || role === "I am a professional";
+    role === "professional" ||
+    role === "I am a professional" ||
+    (!!role && role !== "customer" && role !== "I am a customer");
 
   const activeRequests = requests.filter(
     (request) => request.status !== "completed"
@@ -379,55 +439,75 @@ export default function RequestsPage() {
                   href={`/requests/${request.id}`}
                   className="block rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
                 >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div className="max-w-3xl">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-                          {formatCategory(request.category)}
-                          {request.service_detail
-                            ? ` • ${request.service_detail}`
-                            : ""}
-                        </span>
+                  <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                    <div className="flex min-w-0 flex-1 gap-4">
+                      {request.reference_photos &&
+                      request.reference_photos.length > 0 ? (
+                        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
+                          <img
+                            src={request.reference_photos[0]}
+                            alt="Reference preview"
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      ) : null}
 
-                        <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-                          {request.status === "open"
-                            ? "Pending"
-                            : request.status === "accepted"
-                            ? "Accepted"
-                            : request.status === "completion_requested"
-                            ? "Awaiting confirmation"
-                            : request.status}
-                        </span>
-
-                        {isProfessional &&
-                        professionalUnreadRequestIds.includes(request.id) &&
-                        !respondedRequestIds.includes(request.id) ? (
-                          <span className="animate-notification-pop rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                            New
+                      <div className="min-w-0 max-w-3xl">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                            {formatCategory(request.category)}
+                            {request.service_detail
+                              ? ` • ${request.service_detail}`
+                              : ""}
                           </span>
-                        ) : null}
 
-                        {isCustomer && unreadOfferCountsByRequest[request.id] ? (
-                          <span className="animate-notification-pop rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                            {unreadOfferCountsByRequest[request.id]} of{" "}
-                            {offerCountsByRequest[request.id] || 0} offers new
+                          {request.is_direct_rebook ? (
+                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-800">
+                              Direct rebook
+                            </span>
+                          ) : null}
+
+                          <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                            {request.status === "open"
+                              ? "Pending"
+                              : request.status === "accepted"
+                              ? "Accepted"
+                              : request.status === "completion_requested"
+                              ? "Awaiting confirmation"
+                              : request.status}
                           </span>
+
+                          {isProfessional &&
+                          professionalUnreadRequestIds.includes(request.id) &&
+                          !respondedRequestIds.includes(request.id) ? (
+                            <span className="animate-notification-pop rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                              New
+                            </span>
+                          ) : null}
+
+                          {isCustomer &&
+                          unreadOfferCountsByRequest[request.id] ? (
+                            <span className="animate-notification-pop rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                              {unreadOfferCountsByRequest[request.id]} of{" "}
+                              {offerCountsByRequest[request.id] || 0} offers new
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <h2 className="mt-4 text-2xl font-semibold tracking-tight">
+                          {request.title}
+                        </h2>
+
+                        {request.description ? (
+                          <p className="mt-3 text-neutral-600 line-clamp-3">
+                            {request.description}
+                          </p>
                         ) : null}
                       </div>
-
-                      <h2 className="mt-4 text-2xl font-semibold tracking-tight">
-                        {request.title}
-                      </h2>
-
-                      {request.description ? (
-                        <p className="mt-3 text-neutral-600">
-                          {request.description}
-                        </p>
-                      ) : null}
                     </div>
 
-                    <p className="text-sm text-neutral-500">
-                      {formatDate(request.created_at)}
+                    <p className="shrink-0 text-sm text-neutral-500">
+                      Posted {formatDateTime(request.created_at)}
                     </p>
                   </div>
 
@@ -464,12 +544,16 @@ export default function RequestsPage() {
                         Matched to
                       </p>
                       <p className="mt-2 text-sm font-medium text-neutral-900">
-                        {request.target_professions?.length
+                        {request.is_direct_rebook
+                          ? "Direct to requested professional"
+                          : request.target_professions?.length
                           ? request.target_professions
                               .map((item) =>
                                 item
                                   .replaceAll("_", " ")
-                                  .replace(/\b\w/g, (char) => char.toUpperCase())
+                                  .replace(/\b\w/g, (char) =>
+                                    char.toUpperCase()
+                                  )
                               )
                               .join(", ")
                           : "Not set"}
@@ -479,7 +563,17 @@ export default function RequestsPage() {
 
                   {isProfessional ? (
                     <div className="mt-6">
-                      {request.status === "open" ? (
+                      {request.is_direct_rebook ? (
+                        respondedRequestIds.includes(request.id) ? (
+                          <span className="rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800">
+                            Rebook response sent
+                          </span>
+                        ) : (
+                          <span className="rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800">
+                            Repeat client request
+                          </span>
+                        )
+                      ) : request.status === "open" ? (
                         respondedRequestIds.includes(request.id) ? (
                           <span className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-500">
                             Responded
@@ -513,51 +607,75 @@ export default function RequestsPage() {
             </h2>
 
             <div className="mt-6 grid gap-6">
-              {completedRequests.map((request) => (
-                <Link
-                  key={request.id}
-                  href={`/requests/${request.id}`}
-                  className="block rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
-                >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div className="max-w-3xl">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-                          {formatCategory(request.category)}
-                          {request.service_detail
-                            ? ` • ${request.service_detail}`
-                            : ""}
-                        </span>
+{completedRequests.map((request) => (
+  <div
+    key={request.id}
+    className="block rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
+  >
+    <Link href={`/requests/${request.id}`}>
+      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div className="flex min-w-0 flex-1 gap-4">
+          {request.reference_photos &&
+          request.reference_photos.length > 0 ? (
+            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+              <img
+                src={request.reference_photos[0]}
+                alt="Reference preview"
+                className="h-full w-full object-cover"
+              />
+            </div>
+          ) : null}
 
-                        <span className="rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                          Completed
-                        </span>
+          <div className="min-w-0 max-w-3xl">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                {formatCategory(request.category)}
+                {request.service_detail
+                  ? ` • ${request.service_detail}`
+                  : ""}
+              </span>
 
-                        {isCustomer && unreadOfferCountsByRequest[request.id] ? (
-                          <span className="animate-notification-pop rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                            {unreadOfferCountsByRequest[request.id]} of{" "}
-                            {offerCountsByRequest[request.id] || 0} offers new
-                          </span>
-                        ) : null}
-                      </div>
+              {request.is_direct_rebook ? (
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-800">
+                  Direct rebook
+                </span>
+              ) : null}
 
-                      <h2 className="mt-4 text-2xl font-semibold tracking-tight">
-                        {request.title}
-                      </h2>
+              <span className="rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                Completed
+              </span>
+            </div>
 
-                      {request.description ? (
-                        <p className="mt-3 text-neutral-600">
-                          {request.description}
-                        </p>
-                      ) : null}
-                    </div>
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight">
+              {request.title}
+            </h2>
 
-                    <p className="text-sm text-neutral-500">
-                      {formatDate(request.created_at)}
-                    </p>
-                  </div>
-                </Link>
-              ))}
+            {request.description ? (
+              <p className="mt-3 text-neutral-600 line-clamp-3">
+                {request.description}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <p className="shrink-0 text-sm text-neutral-500">
+          Posted {formatDateTime(request.created_at)}
+        </p>
+      </div>
+    </Link>
+
+    {isCustomer && request.accepted_professional_id ? (
+      <div className="mt-6">
+        <Link
+          href={`/requests/new?rebook=1&pro=${request.accepted_professional_id}&request=${request.id}`}
+          className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
+        >
+          Book again
+        </Link>
+      </div>
+    ) : null}
+  </div>
+))}
             </div>
           </div>
         ) : null}
