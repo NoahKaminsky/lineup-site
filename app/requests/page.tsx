@@ -207,20 +207,30 @@ export default function RequestsPage() {
         return;
       }
 
-      const uniqueRespondedIds = Array.from(
-        new Set(
-          (offers ?? [])
-            .map((offer) => offer.request_id)
-            .filter((id): id is string => !!id)
-        )
-      );
-      setRespondedRequestIds(uniqueRespondedIds);
+const uniqueRespondedIds = Array.from(
+  new Set(
+    (offers ?? [])
+      .map((offer) => offer.request_id)
+      .filter((id): id is string => !!id)
+  )
+);
+setRespondedRequestIds(uniqueRespondedIds);
 
-      const { data: notifications, error: notificationsError } = await supabase
-        .from("notifications")
-        .select("request_id")
-        .eq("user_id", user.id)
-        .eq("is_read", false);
+const { error: markReadError } = await supabase
+  .from("notifications")
+  .update({ is_read: true })
+  .eq("user_id", user.id)
+  .eq("is_read", false);
+
+if (markReadError) {
+  console.error("Error marking notifications as read:", markReadError);
+}
+
+const { data: notifications, error: notificationsError } = await supabase
+  .from("notifications")
+  .select("request_id")
+  .eq("user_id", user.id)
+  .eq("is_read", false);
 
       if (notificationsError) {
         console.error(
