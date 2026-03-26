@@ -279,16 +279,20 @@ const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(0
   const isCustomerUser =
     userRole === "customer" || userRole === "I am a customer";
 
-  const userInitial = userName
-    ? userName
-        .trim()
-        .split(" ")
-        .filter(Boolean)
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase()
-    : "U";
+const userInitial = useMemo(() => {
+  if (userName) {
+    return userName
+      .trim()
+      .split(" ")
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+  }
+
+  return "•"; // neutral placeholder instead of random letter
+}, [userName]);
 
   useEffect(() => {
     const fetchCount = async () => {
