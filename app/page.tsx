@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabase";
+
 type LiveBid = {
   name: string;
   role: string;
@@ -23,7 +24,14 @@ type MarketplaceCard = {
   bids: LiveBid[];
 };
 
-const serviceTags = ["Barbers", "Hairstylists", "Nail Techs", "Lash Artists", "Brow Artists", "Makeup Artists"];
+const serviceTags = [
+  "Barbers",
+  "Hairstylists",
+  "Nail Techs",
+  "Lash Artists",
+  "Brow Artists",
+  "Makeup Artists",
+];
 
 const joinRoles = [
   "I am a customer",
@@ -241,9 +249,11 @@ function SectionFade() {
 
 export default function Page() {
   const [joinCount, setJoinCount] = useState<number | null>(null);
-  const [isSignedIn, setIsSignedIn] = useState<boolean>(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(0);
+const [isSignedIn, setIsSignedIn] = useState<boolean>(false);
+const [userRole, setUserRole] = useState<string | null>(null);
+const [userName, setUserName] = useState<string | null>(null);
+const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
+const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(0);
   const [firstName, setFirstName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
@@ -263,132 +273,178 @@ export default function Page() {
     "Looking for a burst fade and beard cleanup. Want someone experienced and available after work.",
   );
 
+  const isProfessionalUser =
+    !!userRole && userRole !== "customer" && userRole !== "I am a customer";
+
+  const isCustomerUser =
+    userRole === "customer" || userRole === "I am a customer";
+
+  const userInitial = userName
+    ? userName
+        .trim()
+        .split(" ")
+        .filter(Boolean)
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
+    : "U";
+
   useEffect(() => {
-  const fetchCount = async () => {
-    const { count, error } = await supabase
-      .from("lineup_signups")
-      .select("*", { count: "exact", head: true });
+    const fetchCount = async () => {
+      const { count, error } = await supabase
+        .from("lineup_signups")
+        .select("*", { count: "exact", head: true });
 
-    if (!error && typeof count === "number") {
-      setJoinCount(count);
-    }
-  };
+      if (!error && typeof count === "number") {
+        setJoinCount(count);
+      }
+    };
 
-  fetchCount();
+    fetchCount();
 
-  const channel = supabase
-    .channel("lineup-signups-realtime")
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "lineup_signups",
-      },
-      async () => {
-        const { count } = await supabase
-          .from("lineup_signups")
-          .select("*", { count: "exact", head: true });
+    const channel = supabase
+      .channel("lineup-signups-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "lineup_signups",
+        },
+        async () => {
+          const { count } = await supabase
+            .from("lineup_signups")
+            .select("*", { count: "exact", head: true });
 
-        if (typeof count === "number") {
-          setJoinCount(count);
-        }
-      },
-    )
-    .subscribe();
+          if (typeof count === "number") {
+            setJoinCount(count);
+          }
+        },
+      )
+      .subscribe();
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, []);
-useEffect(() => {
-  const loadSession = async () => {
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadSession = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setIsSignedIn(!!user);
+
+      if (!user) {
+setUserRole(null);
+setUserName(null);
+setUserAvatarUrl(null);
+setUnreadNotificationCount(0);
+        return;
+      }
+
+const { data: profile } = await supabase
+  .from("profiles")
+  .select("role, full_name, avatar_url")
+  .eq("id", user.id)
+  .single();
+
+const role = profile?.role ?? null;
+setUserRole(role);
+setUserName(profile?.full_name ?? null);
+setUserAvatarUrl(profile?.avatar_url ?? null);
+
+      const isProfessionalRole =
+        !!role && role !== "customer" && role !== "I am a customer";
+
+      if (isProfessionalRole) {
+        const { count, error } = await supabase
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_read", false);
+
+        console.log("SIGNED IN USER ID:", user.id);
+        console.log("PROFILE ROLE:", role);
+        console.log("NOTIFICATION COUNT:", count);
+        console.log("NOTIFICATION ERROR:", error);
+
+        setUnreadNotificationCount(count ?? 0);
+      } else {
+        console.log("PROFILE ROLE WAS NOT PROFESSIONAL:", role);
+        setUnreadNotificationCount(0);
+      }
+    };
+
+    loadSession();
+
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const user = session?.user ?? null;
+      setIsSignedIn(!!user);
 
-    setIsSignedIn(!!user);
+      if (!user) {
+        setUserRole(null);
+        setUserName(null);
+        setUnreadNotificationCount(0);
+        return;
+      }
 
-    if (!user) {
-      setUserRole(null);
-      setUnreadNotificationCount(0);
-      return;
-    }
+const { data: profile } = await supabase
+  .from("profiles")
+  .select("role, full_name, avatar_url")
+  .eq("id", user.id)
+  .single();
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+const role = profile?.role ?? null;
+setUserRole(role);
+setUserName(profile?.full_name ?? null);
+setUserAvatarUrl(profile?.avatar_url ?? null);
 
-    const role = profile?.role ?? null;
-    setUserRole(role);
+      const isProfessionalRole =
+        !!role && role !== "customer" && role !== "I am a customer";
 
-if (role === "professional") {
-  const { count, error } = await supabase
-    .from("notifications")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("is_read", false);
+      if (isProfessionalRole) {
+        const { count, error } = await supabase
+          .from("notifications")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_read", false);
 
-  console.log("SIGNED IN USER ID:", user.id);
-  console.log("PROFILE ROLE:", role);
-  console.log("NOTIFICATION COUNT:", count);
-  console.log("NOTIFICATION ERROR:", error);
+        console.log("AUTH CHANGE USER ID:", user.id);
+        console.log("AUTH CHANGE ROLE:", role);
+        console.log("AUTH CHANGE COUNT:", count);
+        console.log("AUTH CHANGE ERROR:", error);
 
-  setUnreadNotificationCount(count ?? 0);
-} else {
-  console.log("PROFILE ROLE WAS NOT PROFESSIONAL:", role);
-  setUnreadNotificationCount(0);
-}
-  };
+        setUnreadNotificationCount(count ?? 0);
+      } else {
+        console.log("AUTH CHANGE ROLE WAS NOT PROFESSIONAL:", role);
+        setUnreadNotificationCount(0);
+      }
+    });
 
-  loadSession();
+    const handleWindowFocus = () => {
+      loadSession();
+    };
 
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange(async (_event, session) => {
-    const user = session?.user ?? null;
-    setIsSignedIn(!!user);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadSession();
+      }
+    };
 
-    if (!user) {
-      setUserRole(null);
-      setUnreadNotificationCount(0);
-      return;
-    }
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    const role = profile?.role ?? null;
-    setUserRole(role);
-
-if (role === "professional") {
-  const { count, error } = await supabase
-    .from("notifications")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("is_read", false);
-
-  console.log("AUTH CHANGE USER ID:", user.id);
-  console.log("AUTH CHANGE ROLE:", role);
-  console.log("AUTH CHANGE COUNT:", count);
-  console.log("AUTH CHANGE ERROR:", error);
-
-  setUnreadNotificationCount(count ?? 0);
-} else {
-  console.log("AUTH CHANGE ROLE WAS NOT PROFESSIONAL:", role);
-  setUnreadNotificationCount(0);
-}
-  });
-
-  return () => {
-    subscription.unsubscribe();
-  };
-}, []);
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     const bidInterval = setInterval(() => {
@@ -406,12 +462,12 @@ if (role === "professional") {
   }, []);
 
   const countLabel = useMemo(() => {
-  if (joinCount === null) return null;
-  if (joinCount < 100) return joinCount.toLocaleString();
+    if (joinCount === null) return null;
+    if (joinCount < 100) return joinCount.toLocaleString();
 
-  const roundedDown = Math.floor(joinCount / 50) * 50;
-  return `${roundedDown.toLocaleString()}+`;
-}, [joinCount]);
+    const roundedDown = Math.floor(joinCount / 50) * 50;
+    return `${roundedDown.toLocaleString()}+`;
+  }, [joinCount]);
 
   const currentPreview = useMemo(() => {
     return (
@@ -434,397 +490,439 @@ if (role === "professional") {
     if (section) section.scrollIntoView({ behavior: "smooth" });
   };
 
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
 
-  if (!firstName || !email || !selectedRole) {
-    alert("Please enter your first name, email, and select who you are.");
-    return;
-  }
+    if (!firstName || !email || !selectedRole) {
+      alert("Please enter your first name, email, and select who you are.");
+      return;
+    }
 
-  const { error } = await supabase.from("lineup_signups").insert([
-    {
-      first_name: firstName,
-      email,
-      role: selectedRole,
-      location,
-    },
-  ]);
+    const { error } = await supabase.from("lineup_signups").insert([
+      {
+        first_name: firstName,
+        email,
+        role: selectedRole,
+        location,
+      },
+    ]);
 
-  if (error) {
-    console.error("Supabase insert error:", error);
-    alert(error.message);
-    return;
-  }
+    if (error) {
+      console.error("Supabase insert error:", error);
+      alert(error.message);
+      return;
+    }
 
-  const { count, error: countError } = await supabase
-    .from("lineup_signups")
-    .select("*", { count: "exact", head: true });
+    const { count, error: countError } = await supabase
+      .from("lineup_signups")
+      .select("*", { count: "exact", head: true });
 
- if (!countError && typeof count === "number") {
-  setJoinCount(count);
-}
+    if (!countError && typeof count === "number") {
+      setJoinCount(count);
+    }
 
-try {
-  await fetch("/api/send-confirmation", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      email,
-      role: selectedRole,
-      firstName,
-    }),
-  });
-} catch (emailError) {
-  console.error("Confirmation email request failed:", emailError);
-}
+    try {
+      await fetch("/api/send-confirmation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          role: selectedRole,
+          firstName,
+        }),
+      });
+    } catch (emailError) {
+      console.error("Confirmation email request failed:", emailError);
+    }
 
-setFirstName("");
-setEmail("");
-setSelectedRole("");
-setLocation("");
-
-setShowSuccessModal(true);
-};
+    setFirstName("");
+    setEmail("");
+    setSelectedRole("");
+    setLocation("");
+    setShowSuccessModal(true);
+  };
 
   return (
     <main className="min-h-screen bg-white text-neutral-900">
-<header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/85 backdrop-blur-md">
-  <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-    <Link href="/" className="text-xl font-semibold tracking-tight">
-      LineUp
-    </Link>
+      <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/85 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <Link href="/" className="text-xl font-semibold tracking-tight">
+            LineUp
+          </Link>
 
-    <nav className="hidden items-center gap-8 text-sm text-neutral-600 md:flex">
-      <a href="#how-it-works" className="transition hover:text-neutral-900">
-        How it works
-      </a>
-      <a href="#request-flow" className="transition hover:text-neutral-900">
-        Request a service
-      </a>
-      <a href="#demo" className="transition hover:text-neutral-900">
-        Marketplace
-      </a>
-      <a href="#founders" className="transition hover:text-neutral-900">
-        Founders
-      </a>
-    </nav>
+          <nav className="hidden items-center gap-8 text-sm text-neutral-600 md:flex">
+            <a href="#how-it-works" className="transition hover:text-neutral-900">
+              How it works
+            </a>
+            <a href="#request-flow" className="transition hover:text-neutral-900">
+              Request a service
+            </a>
+            <a href="#demo" className="transition hover:text-neutral-900">
+              Marketplace
+            </a>
+            <a href="#founders" className="transition hover:text-neutral-900">
+              Founders
+            </a>
+          </nav>
 
-    <div className="flex items-center gap-3">
-      {isSignedIn ? (
-        <>
+          <div className="flex items-center gap-3">
+            {isSignedIn ? (
+              <>
+                <Link
+                  href="/requests"
+                  className="hidden items-center gap-2 rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 md:inline-flex"
+                >
+                  <span>View requests</span>
+
+                  {isProfessionalUser && unreadNotificationCount > 0 && (
+                    <span className="inline-flex h-5 min-w-5 animate-notification-pop items-center justify-center rounded-full bg-neutral-900 px-1.5 text-[11px] font-semibold text-white">
+                      {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+                    </span>
+                  )}
+                </Link>
+
+                {!isProfessionalUser && (
+                  <Link
+                    href="/requests/new"
+                    className="hidden rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 md:inline-flex"
+                  >
+                    Post a request
+                  </Link>
+                )}
+
 <Link
-  href="/requests"
-  className="hidden items-center gap-2 rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 md:inline-flex"
+  href="/account"
+  aria-label="View profile"
+  className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-neutral-300 bg-white text-sm font-semibold text-neutral-900 transition hover:bg-neutral-50"
 >
-  <span>View requests</span>
-
-  {userRole === "professional" && unreadNotificationCount > 0 && (
-    <span className="inline-flex h-5 min-w-5 animate-notification-pop items-center justify-center rounded-full bg-neutral-900 px-1.5 text-[11px] font-semibold text-white">
-      {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-    </span>
+  {userAvatarUrl ? (
+    <img
+      src={userAvatarUrl}
+      alt="Profile"
+      className="h-full w-full object-cover"
+    />
+  ) : (
+    userInitial
   )}
 </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="hidden rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 md:inline-flex"
+                >
+                  Sign in
+                </Link>
 
-          <Link
-            href="/account"
-            className="rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
-          >
-            View profile
-          </Link>
-        </>
-      ) : (
-        <>
-          <Link
-            href="/login"
-            className="hidden rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 md:inline-flex"
-          >
-            Sign in
-          </Link>
-
-          <button
-            onClick={scrollToJoin}
-            className="rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
-          >
-            Join the LineUp
-          </button>
-        </>
-      )}
-    </div>
-  </div>
-
-  <div className="border-t border-neutral-200 px-6 py-3 md:hidden">
-    {isSignedIn ? (
-<div className="flex items-center gap-4 text-sm font-medium text-neutral-900">
-  <Link href="/requests" className="inline-flex items-center gap-2">
-    <span>View requests</span>
-
-    {userRole === "professional" && unreadNotificationCount > 0 && (
-      <span className="inline-flex h-5 min-w-5 animate-notification-pop items-center justify-center rounded-full bg-neutral-900 px-1.5 text-[11px] font-semibold text-white">
-        {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-      </span>
-    )}
-  </Link>
-
-  <Link href="/account">View profile</Link>
-</div>
-    ) : (
-      <div className="flex items-center gap-4 text-sm font-medium text-neutral-900">
-        <Link href="/login">Sign in</Link>
-        <button onClick={scrollToJoin}>Join the LineUp</button>
-      </div>
-    )}
-  </div>
-</header>
-<section className="relative overflow-hidden bg-white">
-  {/* Mobile image */}
-  <img
-    src="/images/hero-barber-mobile.jpg"
-    alt=""
-    className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-50 md:hidden"
-  />
-
-  {/* Desktop image */}
-  <img
-    src="/images/hero-barber.jpg"
-    alt=""
-    className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-full object-cover object-right opacity-65 md:block"
-  />
-
-  <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/35 md:from-white md:via-white/82 md:to-white/18" />
-  <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/55" />
-
-  <div className="relative mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-16 md:grid-cols-[1.05fr_0.95fr] md:pt-24">
-        <div className="flex flex-col justify-center">
-          <div className="mb-5 inline-flex w-fit items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
-            <span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-            Prelaunch access: {countLabel ? `${countLabel} joined` : "Loading live count..."}
-          </div>
-
-          <p className="text-sm font-medium text-neutral-500">
-  A live marketplace for beauty services
-</p>
-
-<h1 className="mt-4 max-w-3xl text-5xl font-semibold tracking-tight md:text-6xl">
-  Clients post what they want. Professionals choose the work.
-</h1>
-
-<p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
-  LineUp lets clients post the exact service they’re looking for and gives
-  barbers, stylists, nail techs, lash artists, brow artists, and more the
-  option to respond on their own terms.
-</p>
-
-<div className="mt-10 flex flex-col gap-4 sm:flex-row">
-  {isSignedIn ? (
-    <>
-      <Link
-        href="/requests"
-        className="rounded-full bg-neutral-900 px-6 py-3 text-center text-sm font-medium text-white transition hover:opacity-90"
-      >
-        View requests
-      </Link>
-      <Link
-        href="/account"
-        className="rounded-full border border-neutral-300 px-6 py-3 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-      >
-        View profile
-      </Link>
-    </>
-  ) : (
-    <>
-      <button
-        onClick={scrollToJoin}
-        className="rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
-      >
-        Join the LineUp
-      </button>
-      <a
-        href="#how-it-works"
-        className="rounded-full border border-neutral-300 px-6 py-3 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-      >
-        See how it works
-      </a>
-    </>
-  )}
-</div>
-
-          <div className="mt-10 flex flex-wrap items-center gap-4 text-sm text-neutral-500">
-            <span className="font-medium text-neutral-700">Built for flexible beauty work</span>
-            <span className="h-1 w-1 rounded-full bg-neutral-300" />
-            <span>At home</span>
-            <span className="h-1 w-1 rounded-full bg-neutral-300" />
-            <span>In shop</span>
-            <span className="h-1 w-1 rounded-full bg-neutral-300" />
-            <span>Home studio</span>
-            <span className="h-1 w-1 rounded-full bg-neutral-300" />
-            <span>Live marketplace</span>
-          </div>
-
-          <div className="mt-10 flex flex-wrap gap-3">
-            {serviceTags.map((item) => (
-              <span
-                key={item}
-                className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
-              >
-                {item}
-              </span>
-            ))}
+                <button
+                  onClick={scrollToJoin}
+                  className="rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+                >
+                  Join the LineUp
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        <div className="relative flex items-center">
-          <div className="absolute left-8 top-8 h-36 w-36 rounded-full bg-emerald-100/50 blur-3xl" />
-          <div className="absolute bottom-8 right-8 h-44 w-44 rounded-full bg-sky-100/30 blur-3xl" />
+        <div className="border-t border-neutral-200 px-6 py-3 md:hidden">
+          {isSignedIn ? (
+            <div className="flex items-center justify-between gap-3 text-sm font-medium text-neutral-900">
+              <Link href="/requests" className="inline-flex items-center gap-2">
+                <span>View requests</span>
 
-          <div className="relative w-full rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-[0_18px_70px_rgba(0,0,0,0.05)]">
-            <p className="text-sm font-medium uppercase tracking-[0.18em] text-neutral-500">
-              Welcome to LineUp
+                {isProfessionalUser && unreadNotificationCount > 0 && (
+                  <span className="inline-flex h-5 min-w-5 animate-notification-pop items-center justify-center rounded-full bg-neutral-900 px-1.5 text-[11px] font-semibold text-white">
+                    {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+                  </span>
+                )}
+              </Link>
+
+              <div className="flex items-center gap-3">
+                {!isProfessionalUser && (
+                  <Link
+                    href="/requests/new"
+                    className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+                  >
+                    Post
+                  </Link>
+                )}
+
+<Link
+  href="/account"
+  aria-label="View profile"
+  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-neutral-300 bg-white text-sm font-semibold text-neutral-900 transition hover:bg-neutral-50"
+>
+  {userAvatarUrl ? (
+    <img
+      src={userAvatarUrl}
+      alt="Profile"
+      className="h-full w-full object-cover"
+    />
+  ) : (
+    userInitial
+  )}
+</Link>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4 text-sm font-medium text-neutral-900">
+              <Link href="/login">Sign in</Link>
+              <button onClick={scrollToJoin}>Join the LineUp</button>
+            </div>
+          )}
+        </div>
+      </header>
+
+      <section className="relative overflow-hidden bg-white">
+        <img
+          src="/images/hero-barber-mobile.jpg"
+          alt=""
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-50 md:hidden"
+        />
+
+        <img
+          src="/images/hero-barber.jpg"
+          alt=""
+          className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-full object-cover object-right opacity-65 md:block"
+        />
+
+        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/35 md:from-white md:via-white/82 md:to-white/18" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/55" />
+
+        <div className="relative mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-16 md:grid-cols-[1.05fr_0.95fr] md:pt-24">
+          <div className="flex flex-col justify-center">
+            <div className="mb-5 inline-flex w-fit items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+              <span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+              Prelaunch access: {countLabel ? `${countLabel} joined` : "Loading live count..."}
+            </div>
+
+            <p className="text-sm font-medium text-neutral-500">
+              A live marketplace for beauty services
             </p>
 
-            <h2 className="mt-4 max-w-md text-3xl font-semibold tracking-tight text-neutral-900">
-  Not a traditional booking app.
-</h2>
+            <h1 className="mt-4 max-w-3xl text-5xl font-semibold tracking-tight md:text-6xl">
+              Clients post what they want. Professionals choose the work.
+            </h1>
 
-<p className="mt-4 max-w-lg leading-8 text-neutral-600">
-Clients submit a request, professionals send offers, and the client chooses
-who fits best. It’s designed to help you grow your client base, stay in control,
-and work on your own terms.
-</p>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
+              LineUp lets clients post the exact service they’re looking for and gives
+              barbers, stylists, nail techs, lash artists, brow artists, and more the
+              option to respond on their own terms.
+            </p>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <p className="text-sm text-neutral-500">For professionals</p>
-                <p className="mt-2 font-semibold text-neutral-900">
-                  Clients and beauty professionals
+            <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+              {isSignedIn ? (
+                <>
+                  <Link
+                    href={isCustomerUser ? "/requests/new" : "/requests"}
+                    className="rounded-full bg-neutral-900 px-6 py-3 text-center text-sm font-medium text-white transition hover:opacity-90"
+                  >
+                    {isCustomerUser ? "Post a request" : "View requests"}
+                  </Link>
+                  <Link
+                    href={isCustomerUser ? "/requests" : "#demo"}
+                    className="rounded-full border border-neutral-300 px-6 py-3 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                  >
+                    {isCustomerUser ? "View requests" : "See marketplace"}
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={scrollToJoin}
+                    className="rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                  >
+                    Join the LineUp
+                  </button>
+                  <a
+                    href="#how-it-works"
+                    className="rounded-full border border-neutral-300 px-6 py-3 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                  >
+                    See how it works
+                  </a>
+                </>
+              )}
+            </div>
+
+            <div className="mt-10 flex flex-wrap items-center gap-4 text-sm text-neutral-500">
+              <span className="font-medium text-neutral-700">Built for flexible beauty work</span>
+              <span className="h-1 w-1 rounded-full bg-neutral-300" />
+              <span>At home</span>
+              <span className="h-1 w-1 rounded-full bg-neutral-300" />
+              <span>In shop</span>
+              <span className="h-1 w-1 rounded-full bg-neutral-300" />
+              <span>Home studio</span>
+              <span className="h-1 w-1 rounded-full bg-neutral-300" />
+              <span>Live marketplace</span>
+            </div>
+
+            <div className="mt-10 flex flex-wrap gap-3">
+              {serviceTags.map((item) => (
+                <span
+                  key={item}
+                  className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative flex items-center">
+            <div className="absolute left-8 top-8 h-36 w-36 rounded-full bg-emerald-100/50 blur-3xl" />
+            <div className="absolute bottom-8 right-8 h-44 w-44 rounded-full bg-sky-100/30 blur-3xl" />
+
+            <div className="relative w-full rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-[0_18px_70px_rgba(0,0,0,0.05)]">
+              <p className="text-sm font-medium uppercase tracking-[0.18em] text-neutral-500">
+                Welcome to LineUp
+              </p>
+
+              <h2 className="mt-4 max-w-md text-3xl font-semibold tracking-tight text-neutral-900">
+                Not a traditional booking app.
+              </h2>
+
+              <p className="mt-4 max-w-lg leading-8 text-neutral-600">
+                Clients submit a request, professionals send offers, and the client chooses
+                who fits best. It’s designed to help you grow your client base, stay in control,
+                and work on your own terms.
+              </p>
+
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <p className="text-sm text-neutral-500">For professionals</p>
+                  <p className="mt-2 font-semibold text-neutral-900">
+                    Clients and beauty professionals
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <p className="text-sm text-neutral-500">Core idea</p>
+                  <p className="mt-2 font-semibold text-neutral-900">
+                    Clients post what they want, professionals respond, you choose the best fit
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <SectionFade />
+
+      <section
+        id="who-we-are"
+        className="relative overflow-hidden border-t border-neutral-200 bg-neutral-50"
+      >
+        <img
+          src="/images/who-we-are1.jpg"
+          alt=""
+          className="pointer-events-none absolute right-0 top-0 h-full w-full object-cover object-right opacity-95"
+        />
+
+        <div className="absolute inset-0 bg-gradient-to-r from-neutral-50 via-neutral-50/94 to-neutral-50/62" />
+        <div className="absolute inset-0 bg-gradient-to-b from-neutral-50/10 via-transparent to-neutral-50/60" />
+
+        <div className="relative">
+          <div className="mx-auto max-w-7xl px-6 py-20">
+            <div className="max-w-3xl">
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                WHY LINEUP
+              </p>
+              <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight md:text-5xl">
+                A more flexible way to connect clients and professionals.
+              </h2>
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
+                LineUp supports a more flexible beauty marketplace, whether services happen at home,
+                in-shop, or from a home studio.
+              </p>
+            </div>
+
+            <div className="mt-12 grid gap-6 md:grid-cols-3">
+              <div className="rounded-3xl border border-neutral-200 bg-white p-7">
+                <h3 className="text-xl font-semibold">For clients</h3>
+                <p className="mt-2 leading-7 text-neutral-600">
+                  Find a better match for exactly what you need.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <p className="text-sm text-neutral-500">Core idea</p>
-                <p className="mt-2 font-semibold text-neutral-900">
-                  Clients post what they want, professionals respond, you choose the best fit
+              <div className="rounded-3xl border border-neutral-200 bg-white p-7">
+                <h3 className="text-xl font-semibold">For professionals</h3>
+                <p className="mt-2 leading-7 text-neutral-600">
+                  Get discovered, stay in control, and grow on your own terms.
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-neutral-200 bg-white p-7">
+                <h3 className="text-xl font-semibold">For the industry</h3>
+                <p className="mt-3 leading-7 text-neutral-600">
+                  Bring at-home, in-shop, and home studio services into one marketplace.
                 </p>
               </div>
             </div>
           </div>
         </div>
-       </div>
-   </section>
+      </section>
 
-<SectionFade />
+      <SectionFade />
 
-<section
-  id="who-we-are"
-  className="relative overflow-hidden border-t border-neutral-200 bg-neutral-50"
->
-  <img
-    src="/images/who-we-are1.jpg"
-    alt=""
-    className="pointer-events-none absolute right-0 top-0 h-full w-full object-cover object-right opacity-95"
-  />
+      <section
+        id="how-it-works"
+        className="relative overflow-hidden bg-white"
+      >
+        <img
+          src="/images/howitworks.png"
+          alt=""
+          className="pointer-events-none absolute right-[-20px] top-[38%] w-[320px] opacity-35 md:right-0 md:top-1/2 md:w-[620px] md:-translate-y-1/2 md:opacity-70 lg:w-[720px]"
+        />
 
-  <div className="absolute inset-0 bg-gradient-to-r from-neutral-50 via-neutral-50/94 to-neutral-50/62" />
-  <div className="absolute inset-0 bg-gradient-to-b from-neutral-50/10 via-transparent to-neutral-50/60" />
+        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/88 to-white/22" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/50" />
 
-  <div className="relative">
-        <div className="mx-auto max-w-7xl px-6 py-20">
-          <div className="max-w-3xl">
+        <div className="relative mx-auto max-w-7xl px-6 py-20">
+          <div className="max-w-2xl">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-              WHY LINEUP
+              How It Works
             </p>
-            <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight md:text-5xl">
-              A more flexible way to connect clients and professionals.
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+              Built for cleaner booking decisions.
             </h2>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
-               LineUp supports a more flexible beauty marketplace, whether services happen at home,
-                in-shop, or from a home studio.
-              </p>
           </div>
 
           <div className="mt-12 grid gap-6 md:grid-cols-3">
-            <div className="rounded-3xl border border-neutral-200 bg-white p-7">
-              <h3 className="text-xl font-semibold">For clients</h3>
-              <p className="mt-2 leading-7 text-neutral-600">
-                Find a better match for exactly what you need.
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-neutral-200 bg-white p-7">
-              <h3 className="text-xl font-semibold">For professionals</h3>
-             <p className="mt-2 leading-7 text-neutral-600">
-                Get discovered, stay in control, and grow on your own terms.
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-neutral-200 bg-white p-7">
-              <h3 className="text-xl font-semibold">For the industry</h3>
+            <div className="rounded-3xl border border-neutral-200 p-7">
+              <p className="text-sm font-medium text-neutral-500">01</p>
+              <h3 className="mt-3 text-xl font-semibold">Post your request</h3>
               <p className="mt-3 leading-7 text-neutral-600">
-                Bring at-home, in-shop, and home studio services into one marketplace.
+                Share your service, budget, timing, and preferences in one place.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-neutral-200 p-7">
+              <p className="text-sm font-medium text-neutral-500">02</p>
+              <h3 className="mt-3 text-xl font-semibold">Professionals respond</h3>
+              <p className="mt-3 leading-7 text-neutral-600">
+                Professionals send offers with pricing, timing, and availability based on your request.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-neutral-200 p-7">
+              <p className="text-sm font-medium text-neutral-500">03</p>
+              <h3 className="mt-3 text-xl font-semibold">Choose the best fit</h3>
+              <p className="mt-3 leading-7 text-neutral-600">
+                Compare offers, specialties, reviews, and fit before deciding.
               </p>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-<SectionFade />
+      <SectionFade />
 
-<section
-  id="how-it-works"
-  className="relative overflow-hidden bg-white"
->
-<img
-  src="/images/howitworks.png"
-  alt=""
-  className="pointer-events-none absolute right-[-20px] top-[38%] w-[320px] opacity-35 md:right-0 md:top-1/2 md:w-[620px] md:-translate-y-1/2 md:opacity-70 lg:w-[720px]"
-/>
-
-  <div className="absolute inset-0 bg-gradient-to-r from-white via-white/88 to-white/22" />
-  <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/50" />
-
-  <div className="relative mx-auto max-w-7xl px-6 py-20">
-        <div className="max-w-2xl">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-            How It Works
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-            Built for cleaner booking decisions.
-          </h2>
-        </div>
-
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
-          <div className="rounded-3xl border border-neutral-200 p-7">
-            <p className="text-sm font-medium text-neutral-500">01</p>
-            <h3 className="mt-3 text-xl font-semibold">Post your request</h3>
-            <p className="mt-3 leading-7 text-neutral-600">
-              Share your service, budget, timing, and preferences in one place.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-neutral-200 p-7">
-            <p className="text-sm font-medium text-neutral-500">02</p>
-            <h3 className="mt-3 text-xl font-semibold">Professionals respond</h3>
-           <p className="mt-3 leading-7 text-neutral-600">
-            Professionals send offers with pricing, timing, and availability based on your request.
-          </p>
-        </div>
-          <div className="rounded-3xl border border-neutral-200 p-7">
-            <p className="text-sm font-medium text-neutral-500">03</p>
-            <h3 className="mt-3 text-xl font-semibold">Choose the best fit</h3>
-            <p className="mt-3 leading-7 text-neutral-600">
-              Compare offers, specialties, reviews, and fit before deciding.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-<SectionFade />
-
-<section id="request-flow" className="mx-auto max-w-7xl px-6 pb-20">
+      <section id="request-flow" className="mx-auto max-w-7xl px-6 pb-20">
         <div className="mb-10 max-w-2xl">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
             Request a Service
@@ -841,14 +939,14 @@ and work on your own terms.
         <div className="grid gap-6 md:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-[0_12px_40px_rgba(0,0,0,0.04)]">
             <div className="mb-6 flex items-start justify-between gap-4">
-<div>
-  <h3 className="text-2xl font-semibold tracking-tight">Request a service</h3>
-  <p className="mt-1 text-sm text-neutral-500">Preview of how posting a request works</p>
-</div>
+              <div>
+                <h3 className="text-2xl font-semibold tracking-tight">Request a service</h3>
+                <p className="mt-1 text-sm text-neutral-500">Preview of how posting a request works</p>
+              </div>
 
-<span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-  Product preview
-</span>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                Product preview
+              </span>
             </div>
 
             <div className="space-y-5">
@@ -946,30 +1044,30 @@ and work on your own terms.
                 />
               </div>
 
-<Link
-  href={
-    !isSignedIn
-      ? "/login"
-      : userRole === "customer" || userRole === "I am a customer"
-        ? "/requests/new"
-        : "/requests"
-  }
-  className="block w-full rounded-2xl bg-neutral-950 px-5 py-3.5 text-center text-sm font-medium text-white transition hover:opacity-95"
->
-  {!isSignedIn
-    ? "Sign in to post a request"
-    : userRole === "customer" || userRole === "I am a customer"
-      ? "Post a request"
-      : "View open requests"}
-</Link>
+              <Link
+                href={
+                  !isSignedIn
+                    ? "/login"
+                    : isCustomerUser
+                      ? "/requests/new"
+                      : "/requests"
+                }
+                className="block w-full rounded-2xl bg-neutral-950 px-5 py-3.5 text-center text-sm font-medium text-white transition hover:opacity-95"
+              >
+                {!isSignedIn
+                  ? "Sign in to post a request"
+                  : isCustomerUser
+                    ? "Post a request"
+                    : "View open requests"}
+              </Link>
 
-<p className="text-center text-xs text-neutral-500">
-  {!isSignedIn
-    ? "Sign in first to post a real request"
-    : userRole === "customer" || userRole === "I am a customer"
-      ? "Takes you to the real request form"
-      : "Browse requests that match your services"}
-</p>
+              <p className="text-center text-xs text-neutral-500">
+                {!isSignedIn
+                  ? "Sign in first to post a real request"
+                  : isCustomerUser
+                    ? "Takes you to the real request form"
+                    : "Browse requests that match your services"}
+              </p>
             </div>
           </div>
 
@@ -1013,9 +1111,9 @@ and work on your own terms.
         </div>
       </section>
 
-<SectionFade />
+      <SectionFade />
 
-<section id="demo" className="mx-auto max-w-7xl px-6 pb-20">
+      <section id="demo" className="mx-auto max-w-7xl px-6 pb-20">
         <div className="mb-10 max-w-2xl">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
             Marketplace Preview
@@ -1023,9 +1121,9 @@ and work on your own terms.
           <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
             Live bids that feel more like a real feed.
           </h2>
-        <p className="mt-4 leading-7 text-neutral-600">
-  A preview of how clients can compare requests and incoming offers inside LineUp.
-</p>
+          <p className="mt-4 leading-7 text-neutral-600">
+            A preview of how clients can compare requests and incoming offers inside LineUp.
+          </p>
         </div>
 
         <div className="mb-6 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
@@ -1080,23 +1178,23 @@ and work on your own terms.
                   <BidFeed bids={card.bids} activeIndex={activeBidIndices[cardIndex]} />
                 </div>
 
- <div className="mt-6">
-  <Link
-    href={isSignedIn ? "/requests" : "/login"}
-    className="inline-flex rounded-full bg-neutral-950 px-6 py-3 text-[1.02rem] font-medium text-white transition hover:opacity-95"
-  >
-    View requests
-  </Link>
-</div>
+                <div className="mt-6">
+                  <Link
+                    href={isSignedIn ? "/requests" : "/login"}
+                    className="inline-flex rounded-full bg-neutral-950 px-6 py-3 text-[1.02rem] font-medium text-white transition hover:opacity-95"
+                  >
+                    View requests
+                  </Link>
+                </div>
               </div>
             </div>
           ))}
         </div>
       </section>
 
-<SectionFade />
+      <SectionFade />
 
-<section id="professionals" className="border-y border-neutral-200 bg-neutral-50">
+      <section id="professionals" className="border-y border-neutral-200 bg-neutral-50">
         <div className="mx-auto max-w-7xl px-6 py-20">
           <div className="max-w-2xl">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
@@ -1138,9 +1236,9 @@ and work on your own terms.
         </div>
       </section>
 
-<SectionFade />
+      <SectionFade />
 
-<section id="ai-preview" className="bg-white">
+      <section id="ai-preview" className="bg-white">
         <div className="mx-auto max-w-7xl px-6 py-20">
           <div className="mb-10 max-w-3xl">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
@@ -1397,64 +1495,64 @@ and work on your own terms.
         </div>
       </section>
 
-<SectionFade />
+      <SectionFade />
 
-<section id="founders" className="border-t border-neutral-200 bg-neutral-50">
-  <div className="mx-auto max-w-7xl px-6 py-20">
-    <div className="grid gap-10 md:grid-cols-[1.05fr_0.95fr]">
-      <div>
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-          About the Founders
-        </p>
+      <section id="founders" className="border-t border-neutral-200 bg-neutral-50">
+        <div className="mx-auto max-w-7xl px-6 py-20">
+          <div className="grid gap-10 md:grid-cols-[1.05fr_0.95fr]">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                About the Founders
+              </p>
 
-        <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight md:text-4xl">
-          Built by founders who saw the problem firsthand.
-        </h2>
+              <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight md:text-4xl">
+                Built by founders who saw the problem firsthand.
+              </h2>
 
-        <p className="mt-6 max-w-2xl text-base leading-8 text-neutral-600">
-          LineUp was founded by three University of Manitoba students — Dan
-          Latimer, Noah Kaminsky, and Max Kochan — with backgrounds in design,
-          agriculture, and economics.
-        </p>
+              <p className="mt-6 max-w-2xl text-base leading-8 text-neutral-600">
+                LineUp was founded by three University of Manitoba students — Dan
+                Latimer, Noah Kaminsky, and Max Kochan — with backgrounds in design,
+                agriculture, and economics.
+              </p>
 
-        <p className="mt-5 max-w-2xl text-base leading-8 text-neutral-600">
-          We created LineUp to solve a simple problem: discovering trusted beauty
-          professionals in a fragmented and inconsistent industry should not be
-          difficult. LineUp is a marketplace built to connect clients with vetted
-          beauty professionals in a way that is more transparent, reliable, and
-          convenient.
-        </p>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-neutral-600">
+                We created LineUp to solve a simple problem: discovering trusted beauty
+                professionals in a fragmented and inconsistent industry should not be
+                difficult. LineUp is a marketplace built to connect clients with vetted
+                beauty professionals in a way that is more transparent, reliable, and
+                convenient.
+              </p>
 
-        <p className="mt-5 max-w-2xl text-base leading-8 text-neutral-600">
-          Launching first in Winnipeg, Manitoba, our goal is to build a platform
-          that makes finding and booking aesthetic services feel just as rewarding
-          as the service itself.
-        </p>
-      </div>
+              <p className="mt-5 max-w-2xl text-base leading-8 text-neutral-600">
+                Launching first in Winnipeg, Manitoba, our goal is to build a platform
+                that makes finding and booking aesthetic services feel just as rewarding
+                as the service itself.
+              </p>
+            </div>
 
-      <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-1">
-        <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-sm">
-          <p className="text-lg font-semibold text-neutral-900">Noah Kaminsky</p>
-          <p className="mt-1 text-sm text-neutral-500">Co-Founder & COO</p>
+            <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-1">
+              <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                <p className="text-lg font-semibold text-neutral-900">Noah Kaminsky</p>
+                <p className="mt-1 text-sm text-neutral-500">Co-Founder & COO</p>
+              </div>
+
+              <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                <p className="text-lg font-semibold text-neutral-900">Dan Latimer</p>
+                <p className="mt-1 text-sm text-neutral-500">Co-Founder & CFO</p>
+              </div>
+
+              <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                <p className="text-lg font-semibold text-neutral-900">Max Kochan</p>
+                <p className="mt-1 text-sm text-neutral-500">Co-Founder & CEO</p>
+              </div>
+            </div>
+          </div>
         </div>
+      </section>
 
-        <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-sm">
-          <p className="text-lg font-semibold text-neutral-900">Dan Latimer</p>
-          <p className="mt-1 text-sm text-neutral-500">Co-Founder & CFO</p>
-        </div>
+      <SectionFade />
 
-        <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-sm">
-          <p className="text-lg font-semibold text-neutral-900">Max Kochan</p>
-          <p className="mt-1 text-sm text-neutral-500">Co-Founder & CEO</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<SectionFade />
-
-<section id="join-lineup" className="mx-auto max-w-5xl px-6 pb-24 pt-20">
+      <section id="join-lineup" className="mx-auto max-w-5xl px-6 pb-24 pt-20">
         <div className="rounded-[2rem] bg-neutral-900 px-6 py-12 text-white md:px-10 md:py-14">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-300">
@@ -1465,31 +1563,30 @@ and work on your own terms.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-neutral-300 md:text-lg">
               {countLabel
-               ? `Early interest is growing. Join ${countLabel} people already in LineUp.`
+                ? `Early interest is growing. Join ${countLabel} people already in LineUp.`
                 : "Early interest is growing. Loading live signup count..."}
             </p>
 
             <form
-  onSubmit={handleSubmit}
-  className="mx-auto mt-8 grid max-w-2xl gap-3"
->
+              onSubmit={handleSubmit}
+              className="mx-auto mt-8 grid max-w-2xl gap-3"
+            >
+              <input
+                required
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="First name"
+                className="min-w-0 rounded-2xl border border-white/15 bg-white px-5 py-3 text-neutral-900 outline-none placeholder:text-neutral-500"
+              />
 
-<input
-  required
-  type="text"
-  value={firstName}
-  onChange={(e) => setFirstName(e.target.value)}
-  placeholder="First name"
-  className="min-w-0 rounded-2xl border border-white/15 bg-white px-5 py-3 text-neutral-900 outline-none placeholder:text-neutral-500"
-/>
-
-<input
-  type="email"
-  value={email}
-  onChange={(e) => setEmail(e.target.value)}
-  placeholder="Enter your email"
-  className="min-w-0 rounded-2xl border border-white/15 bg-white px-5 py-3 text-neutral-900 outline-none placeholder:text-neutral-500"
-/>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="min-w-0 rounded-2xl border border-white/15 bg-white px-5 py-3 text-neutral-900 outline-none placeholder:text-neutral-500"
+              />
 
               <select
                 value={selectedRole}
@@ -1521,7 +1618,7 @@ and work on your own terms.
             </form>
 
             <p className="mt-4 text-sm text-neutral-400">
-            Live signup count is active. Join the LineUp for early access before launch.
+              Live signup count is active. Join the LineUp for early access before launch.
             </p>
           </div>
         </div>
@@ -1533,38 +1630,38 @@ and work on your own terms.
           <p>Beauty marketplace for trusted on-demand services.</p>
         </div>
       </footer>
-    {showSuccessModal && (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-6">
-    <div className="w-full max-w-md rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50">
-        <span className="text-lg">✓</span>
-      </div>
 
-      <p className="mt-5 text-sm font-medium uppercase tracking-[0.18em] text-neutral-500">
-        Prelaunch Access
-      </p>
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-6">
+          <div className="w-full max-w-md rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50">
+              <span className="text-lg">✓</span>
+            </div>
 
-      <h3 className="mt-3 text-3xl font-semibold tracking-tight text-neutral-900">
-        You&apos;re in.
-      </h3>
+            <p className="mt-5 text-sm font-medium uppercase tracking-[0.18em] text-neutral-500">
+              Prelaunch Access
+            </p>
 
-      <p className="mt-4 leading-7 text-neutral-600">
-        Thanks for joining the LineUp.
-      </p>
+            <h3 className="mt-3 text-3xl font-semibold tracking-tight text-neutral-900">
+              You&apos;re in.
+            </h3>
 
-      <div className="mt-8 flex gap-3">
-        <button
-          type="button"
-          onClick={() => setShowSuccessModal(false)}
-          className="flex-1 rounded-full bg-neutral-900 px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
-        >
-          Continue
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+            <p className="mt-4 leading-7 text-neutral-600">
+              Thanks for joining the LineUp.
+            </p>
 
-</main>
+            <div className="mt-8 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowSuccessModal(false)}
+                className="flex-1 rounded-full bg-neutral-900 px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
   );
 }

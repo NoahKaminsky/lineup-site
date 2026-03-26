@@ -15,7 +15,7 @@ type ServiceRequest = {
   location: string | null;
   service_mode: string | null;
   budget: string | null;
-  status: string;
+  status: "open" | "accepted" | "completion_requested" | "completed" | string;
   target_professions: string[] | null;
   accepted_professional_id: string | null;
   created_at: string;
@@ -28,7 +28,7 @@ type RequestOffer = {
   professional_id: string;
   message: string | null;
   proposed_price: string | null;
-  status: string;
+  status: "pending" | "accepted" | "declined" | string;
   created_at: string;
   viewed_by_customer?: boolean | null;
   customer_response_message?: string | null;
@@ -62,12 +62,20 @@ type ChatMessage = {
   created_at: string;
 };
 
+type ChatParticipantProfile = {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+};
+
 export default function RequestDetailPage() {
   const router = useRouter();
   const params = useParams();
   const requestId = params.id as string;
 
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+
   const [role, setRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -76,19 +84,14 @@ export default function RequestDetailPage() {
   const [requestOwner, setRequestOwner] = useState<RequestOwnerProfile | null>(
     null
   );
+  const [chatProfiles, setChatProfiles] = useState<
+    Record<string, ChatParticipantProfile>
+  >({});
 
-  const [message, setMessage] = useState("");
-  const [acceptingOfferId, setAcceptingOfferId] = useState<string | null>(null);
   const [hasSubmittedOffer, setHasSubmittedOffer] = useState(false);
-
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewComment, setReviewComment] = useState("");
-  const [submittingReview, setSubmittingReview] = useState(false);
-  const [existingReview, setExistingReview] = useState<ExistingReview | null>(
-    null
-  );
   const [unreadOfferIds, setUnreadOfferIds] = useState<string[]>([]);
 
+  const [acceptingOfferId, setAcceptingOfferId] = useState<string | null>(null);
   const [decliningOfferId, setDecliningOfferId] = useState<string | null>(null);
   const [declineMessage, setDeclineMessage] = useState("");
   const [declineLoading, setDeclineLoading] = useState(false);
@@ -104,7 +107,82 @@ export default function RequestDetailPage() {
   const [newChatMessage, setNewChatMessage] = useState("");
   const [sendingChatMessage, setSendingChatMessage] = useState(false);
 
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [existingReview, setExistingReview] = useState<ExistingReview | null>(
+    null
+  );
+
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const isCustomer =
+    role === "customer" || role === "I am a customer" || role === "Customer";
+
+  const isProfessional =
+    role === "professional" ||
+    role === "I am a professional" ||
+    role === "Professional";
+
+  const isAcceptedProfessional = useMemo(() => {
+    if (!request || !currentUserId) return false;
+    return currentUserId === request.accepted_professional_id;
+  }, [request, currentUserId]);
+
+  const canAccessChat = useMemo(() => {
+    if (!request || !currentUserId || !request.accepted_professional_id) {
+      return false;
+    }
+
+    return (
+      currentUserId === request.client_id ||
+      currentUserId === request.accepted_professional_id
+    );
+  }, [request, currentUserId]);
+
+  const isChatReadOnly = request?.status === "completed";
+
+  function formatCategory(category: string) {
+    return category
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  function formatMode(mode: string | null) {
+    if (!mode) return "Not provided";
+    if (mode === "in_shop") return "In shop";
+    if (mode === "at_home") return "At home";
+    if (mode === "home_studio") return "Home studio";
+
+    return mode.replaceAll("_", " ");
+  }
+
+  function formatDate(dateString: string) {
+    return new Date(dateString).toLocaleString("en-CA", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  function formatChatTime(dateString: string) {
+    return new Date(dateString).toLocaleString("en-CA", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  function getStatusLabel(status: string) {
+    if (status === "open") return "Open";
+    if (status === "accepted") return "Accepted";
+    if (status === "completion_requested") return "Completion requested";
+    if (status === "completed") return "Completed";
+    return status.replaceAll("_", " ");
+  }
 
   const loadRequestLive = useCallback(async () => {
     if (!requestId) return;
@@ -138,31 +216,27 @@ export default function RequestDetailPage() {
 
     setRole(profile.role);
 
-    const { data, error } = await supabase
+    const { data: requestData, error: requestError } = await supabase
       .from("service_requests")
       .select("*")
       .eq("id", requestId)
       .single();
 
-    if (error || !data) {
+    if (requestError || !requestData) {
       setMessage("Request not found or you do not have access.");
       setLoading(false);
       return;
     }
 
-    setRequest(data);
+    setRequest(requestData);
 
     const { data: ownerProfile } = await supabase
       .from("profiles")
       .select("full_name, avatar_url, role")
-      .eq("id", data.client_id)
+      .eq("id", requestData.client_id)
       .single();
 
-    if (ownerProfile) {
-      setRequestOwner(ownerProfile);
-    } else {
-      setRequestOwner(null);
-    }
+    setRequestOwner(ownerProfile ?? null);
 
     let offersQuery = supabase
       .from("request_offers")
@@ -170,14 +244,13 @@ export default function RequestDetailPage() {
       .eq("request_id", requestId)
       .order("created_at", { ascending: false });
 
-    if (
-      profile.role === "professional" ||
-      profile.role === "I am a professional"
-    ) {
+    if (profile.role === "professional" || profile.role === "I am a professional") {
       offersQuery = offersQuery.eq("professional_id", user.id);
     }
 
     const { data: offersData, error: offersError } = await offersQuery;
+
+    let enrichedOffers: RequestOffer[] = [];
 
     if (!offersError && offersData) {
       const alreadyOffered = offersData.some(
@@ -259,7 +332,7 @@ export default function RequestDetailPage() {
         }
       }
 
-      const enrichedOffers: RequestOffer[] = offersData.map((offer) => {
+      enrichedOffers = offersData.map((offer) => {
         const pro = profilesMap.get(offer.professional_id);
         const ratingData = ratingsMap.get(offer.professional_id);
 
@@ -296,19 +369,17 @@ export default function RequestDetailPage() {
       setUnreadOfferIds([]);
     }
 
-    const acceptedOffer = offersData?.find(
-      (offer) => offer.status === "accepted"
-    );
+    const acceptedOffer = enrichedOffers.find((offer) => offer.status === "accepted");
 
     if (
-      data.status === "completed" &&
+      requestData.status === "completed" &&
       (profile.role === "customer" || profile.role === "I am a customer") &&
       acceptedOffer
     ) {
       const { data: existingReviewData } = await supabase
         .from("professional_reviews")
         .select("id, request_id, professional_id, reviewer_id, rating, comment")
-        .eq("request_id", data.id)
+        .eq("request_id", requestData.id)
         .eq("reviewer_id", user.id)
         .maybeSingle();
 
@@ -318,14 +389,17 @@ export default function RequestDetailPage() {
         setReviewComment(existingReviewData.comment ?? "");
       } else {
         setExistingReview(null);
+        setReviewRating(5);
+        setReviewComment("");
       }
     } else {
       setExistingReview(null);
     }
 
     const canAccessChatNow =
-      !!data.accepted_professional_id &&
-      (user.id === data.client_id || user.id === data.accepted_professional_id);
+      !!requestData.accepted_professional_id &&
+      (user.id === requestData.client_id ||
+        user.id === requestData.accepted_professional_id);
 
     if (canAccessChatNow) {
       const { data: messagesData, error: messagesError } = await supabase
@@ -336,11 +410,33 @@ export default function RequestDetailPage() {
 
       if (!messagesError && messagesData) {
         setChatMessages(messagesData);
+
+        const senderIds = [...new Set(messagesData.map((msg) => msg.sender_id))];
+        if (senderIds.length > 0) {
+          const { data: senderProfiles } = await supabase
+            .from("profiles")
+            .select("id, full_name, avatar_url")
+            .in("id", senderIds);
+
+          if (senderProfiles) {
+            const profileMap: Record<string, ChatParticipantProfile> = {};
+            senderProfiles.forEach((p) => {
+              profileMap[p.id] = {
+                id: p.id,
+                full_name: p.full_name ?? null,
+                avatar_url: p.avatar_url ?? null,
+              };
+            });
+            setChatProfiles(profileMap);
+          }
+        }
       } else {
         setChatMessages([]);
+        setChatProfiles({});
       }
     } else {
       setChatMessages([]);
+      setChatProfiles({});
     }
 
     setLoading(false);
@@ -387,8 +483,7 @@ export default function RequestDetailPage() {
   }, [requestId, loadRequestLive]);
 
   useEffect(() => {
-    if (!requestId || !currentUserId || !request?.accepted_professional_id)
-      return;
+    if (!requestId || !currentUserId || !request?.accepted_professional_id) return;
 
     const canAccessCurrentChat =
       currentUserId === request.client_id ||
@@ -406,18 +501,35 @@ export default function RequestDetailPage() {
           table: "request_messages",
           filter: `request_id=eq.${requestId}`,
         },
-        (payload) => {
+        async (payload) => {
           const incoming = payload.new as ChatMessage;
 
           setChatMessages((prev) => {
             if (prev.some((msg) => msg.id === incoming.id)) return prev;
             return [...prev, incoming];
           });
+
+          if (!chatProfiles[incoming.sender_id]) {
+            const { data: senderProfile } = await supabase
+              .from("profiles")
+              .select("id, full_name, avatar_url")
+              .eq("id", incoming.sender_id)
+              .single();
+
+            if (senderProfile) {
+              setChatProfiles((prev) => ({
+                ...prev,
+                [senderProfile.id]: {
+                  id: senderProfile.id,
+                  full_name: senderProfile.full_name ?? null,
+                  avatar_url: senderProfile.avatar_url ?? null,
+                },
+              }));
+            }
+          }
         }
       )
-      .subscribe((status) => {
-        console.log("chat realtime status:", status);
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -427,6 +539,7 @@ export default function RequestDetailPage() {
     currentUserId,
     request?.accepted_professional_id,
     request?.client_id,
+    chatProfiles,
   ]);
 
   useEffect(() => {
@@ -434,58 +547,19 @@ export default function RequestDetailPage() {
     chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
   }, [chatMessages]);
 
-  function formatCategory(category: string) {
-    return category
-      .replaceAll("_", " ")
-      .replace(/\b\w/g, (char) => char.toUpperCase());
-  }
-
-  function formatMode(mode: string | null) {
-    if (!mode) return "Not provided";
-    if (mode === "in_shop") return "In shop";
-    if (mode === "at_home") return "At home";
-    if (mode === "home_studio") return "Home studio";
-
-    return mode.replaceAll("_", " ");
-  }
-
-  function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleString("en-CA", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  }
-
-  function formatChatTime(dateString: string) {
-    return new Date(dateString).toLocaleString("en-CA", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  }
-
-  const canAccessChat = useMemo(() => {
-    if (!request || !currentUserId || !request.accepted_professional_id) {
-      return false;
-    }
-
-    return (
-      currentUserId === request.client_id ||
-      currentUserId === request.accepted_professional_id
-    );
-  }, [request, currentUserId]);
-
-  const isChatReadOnly = request?.status === "completed";
-
   async function handleAcceptOffer(offerId: string) {
-    if (!request) return;
+    if (!request || !isCustomer || request.status !== "open") return;
 
     setMessage("");
     setAcceptingOfferId(offerId);
+
+    const acceptedOffer = offers.find((offer) => offer.id === offerId);
+
+    if (!acceptedOffer) {
+      setMessage("Offer not found.");
+      setAcceptingOfferId(null);
+      return;
+    }
 
     const { error: acceptSelectedError } = await supabase
       .from("request_offers")
@@ -516,13 +590,11 @@ export default function RequestDetailPage() {
       }
     }
 
-    const acceptedOffer = offers.find((offer) => offer.id === offerId);
-
     const { error: updateRequestError } = await supabase
       .from("service_requests")
       .update({
         status: "accepted",
-        accepted_professional_id: acceptedOffer?.professional_id ?? null,
+        accepted_professional_id: acceptedOffer.professional_id,
       })
       .eq("id", request.id);
 
@@ -530,6 +602,16 @@ export default function RequestDetailPage() {
       setMessage(updateRequestError.message);
       setAcceptingOfferId(null);
       return;
+    }
+
+    if (currentUserId) {
+      await supabase.from("request_messages").insert([
+        {
+          request_id: request.id,
+          sender_id: currentUserId,
+          message: "Offer accepted. You can now chat here to coordinate details.",
+        },
+      ]);
     }
 
     setOffers((prev) =>
@@ -544,21 +626,10 @@ export default function RequestDetailPage() {
         ? {
             ...prev,
             status: "accepted",
-            accepted_professional_id:
-              acceptedOffer?.professional_id ?? prev.accepted_professional_id,
+            accepted_professional_id: acceptedOffer.professional_id,
           }
         : prev
     );
-
-    if (currentUserId) {
-      await supabase.from("request_messages").insert([
-        {
-          request_id: request.id,
-          sender_id: currentUserId,
-          message: "Offer accepted. You can now chat here to coordinate details.",
-        },
-      ]);
-    }
 
     setAcceptingOfferId(null);
     setMessage("Offer accepted.");
@@ -662,18 +733,31 @@ export default function RequestDetailPage() {
   }
 
   async function handleRequestCompletion() {
-    if (!request) return;
+    if (!request || !isAcceptedProfessional || request.status !== "accepted") {
+      return;
+    }
 
     setMessage("");
 
     const { error } = await supabase
       .from("service_requests")
       .update({ status: "completion_requested" })
-      .eq("id", request.id);
+      .eq("id", request.id)
+      .eq("accepted_professional_id", currentUserId);
 
     if (error) {
       setMessage(error.message);
       return;
+    }
+
+    if (currentUserId) {
+      await supabase.from("request_messages").insert([
+        {
+          request_id: request.id,
+          sender_id: currentUserId,
+          message: "Completion requested. Waiting for customer confirmation.",
+        },
+      ]);
     }
 
     setRequest((prev) =>
@@ -689,18 +773,31 @@ export default function RequestDetailPage() {
   }
 
   async function handleConfirmCompletion() {
-    if (!request) return;
+    if (!request || !isCustomer || request.status !== "completion_requested") {
+      return;
+    }
 
     setMessage("");
 
     const { error } = await supabase
       .from("service_requests")
       .update({ status: "completed" })
-      .eq("id", request.id);
+      .eq("id", request.id)
+      .eq("client_id", currentUserId);
 
     if (error) {
       setMessage(error.message);
       return;
+    }
+
+    if (currentUserId) {
+      await supabase.from("request_messages").insert([
+        {
+          request_id: request.id,
+          sender_id: currentUserId,
+          message: "Service confirmed as completed.",
+        },
+      ]);
     }
 
     setRequest((prev) =>
@@ -763,9 +860,10 @@ export default function RequestDetailPage() {
     setSubmittingReview(false);
   }
 
-async function handleSendChatMessage() {
-  if (!request || !currentUserId || !newChatMessage.trim()) return;
-  if (request.status === "completed") return;
+  async function handleSendChatMessage() {
+    if (!request || !currentUserId || !newChatMessage.trim()) return;
+    if (!canAccessChat) return;
+    if (request.status === "completed") return;
 
     setSendingChatMessage(true);
     setMessage("");
@@ -791,9 +889,9 @@ async function handleSendChatMessage() {
     setSendingChatMessage(false);
   }
 
-  const isCustomer = role === "customer" || role === "I am a customer";
-  const isProfessional =
-    role === "professional" || role === "I am a professional";
+  const acceptedOffer = useMemo(() => {
+    return offers.find((offer) => offer.status === "accepted") ?? null;
+  }, [offers]);
 
   if (loading) {
     return (
@@ -857,7 +955,7 @@ async function handleSendChatMessage() {
             </span>
 
             <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-              {request.status === "open" ? "Pending" : request.status}
+              {getStatusLabel(request.status)}
             </span>
           </div>
 
@@ -958,9 +1056,64 @@ async function handleSendChatMessage() {
               </p>
             </div>
           </div>
+
+          {acceptedOffer ? (
+            <div className="mt-8 rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                Accepted professional
+              </p>
+
+              <Link
+                href={`/profile/${acceptedOffer.professional_id}`}
+                className="mt-4 flex items-center gap-4 transition hover:opacity-80"
+              >
+                <div className="h-14 w-14 overflow-hidden rounded-full border border-neutral-200 bg-white">
+                  {acceptedOffer.professional_avatar_url ? (
+                    <img
+                      src={acceptedOffer.professional_avatar_url}
+                      alt={acceptedOffer.professional_name || "Professional"}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
+                      {acceptedOffer.professional_name?.charAt(0).toUpperCase() || "P"}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-lg font-semibold text-neutral-900">
+                    {acceptedOffer.professional_name || "Professional"}
+                  </p>
+                  <p className="text-sm text-neutral-500">
+                    {acceptedOffer.professional_type
+                      ? acceptedOffer.professional_type
+                          .replaceAll("_", " ")
+                          .replace(/\b\w/g, (char) => char.toUpperCase())
+                      : "Beauty professional"}
+                  </p>
+
+                  <p className="mt-1 text-sm text-neutral-600">
+                    {typeof acceptedOffer.average_rating === "number" &&
+                    acceptedOffer.review_count
+                      ? `${acceptedOffer.average_rating.toFixed(1)} ★ (${acceptedOffer.review_count} ${
+                          acceptedOffer.review_count === 1 ? "review" : "reviews"
+                        })`
+                      : "No reviews yet"}
+                  </p>
+                </div>
+              </Link>
+            </div>
+          ) : null}
         </div>
 
         <div className="space-y-6">
+          {message ? (
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+              {message}
+            </div>
+          ) : null}
+
           {isCustomer ? (
             <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
               <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
@@ -997,86 +1150,142 @@ async function handleSendChatMessage() {
             </div>
           ) : null}
 
-          {canAccessChat ? (
-            <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                Chat
-              </p>
+          <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+              Chat
+            </p>
 
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                Live conversation
-              </h2>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+              Live conversation
+            </h2>
 
-              <p className="mt-4 leading-7 text-neutral-600">
-                Once an offer is accepted, both sides can message here in real time.
-              </p>
-{isChatReadOnly ? (
-  <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
-    This chat is now read-only because the request has been completed.
-  </div>
-) : null}
-              <div
-                ref={chatScrollRef}
-                className="mt-6 max-h-96 space-y-3 overflow-y-auto rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-              >
-                {chatMessages.length === 0 ? (
-                  <p className="text-sm text-neutral-500">No messages yet.</p>
-                ) : (
-                  chatMessages.map((chat) => {
-                    const isMine = chat.sender_id === currentUserId;
+            <p className="mt-4 leading-7 text-neutral-600">
+              {canAccessChat
+                ? "Once an offer is accepted, both sides can message here in real time."
+                : "Chat opens once an offer is accepted."}
+            </p>
 
-                    return (
-                      <div
-                        key={chat.id}
-                        className={`flex ${isMine ? "justify-end" : "justify-start"}`}
-                      >
+            {!canAccessChat ? (
+              <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                Chat is only available to the customer and the accepted professional.
+              </div>
+            ) : null}
+
+            {isChatReadOnly && canAccessChat ? (
+              <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                This chat is now read-only because the request has been completed.
+              </div>
+            ) : null}
+
+            {canAccessChat ? (
+              <>
+                <div
+                  ref={chatScrollRef}
+                  className="mt-6 max-h-96 space-y-4 overflow-y-auto rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                >
+                  {chatMessages.length === 0 ? (
+                    <p className="text-sm text-neutral-500">No messages yet.</p>
+                  ) : (
+                    chatMessages.map((chat) => {
+                      const isMine = chat.sender_id === currentUserId;
+                      const sender = chatProfiles[chat.sender_id];
+                      const isSystemMessage =
+                        chat.message ===
+                          "Offer accepted. You can now chat here to coordinate details." ||
+                        chat.message ===
+                          "Completion requested. Waiting for customer confirmation." ||
+                        chat.message === "Service confirmed as completed.";
+
+                      if (isSystemMessage) {
+                        return (
+                          <div key={chat.id} className="flex justify-center">
+                            <div className="max-w-[90%] rounded-full border border-neutral-200 bg-white px-4 py-2 text-center text-xs font-medium text-neutral-600">
+                              {chat.message}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
                         <div
-                          className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${
-                            isMine
-                              ? "bg-black text-white"
-                              : "border border-neutral-200 bg-white text-neutral-900"
-                          }`}
+                          key={chat.id}
+                          className={`flex ${isMine ? "justify-end" : "justify-start"}`}
                         >
-                          <p>{chat.message}</p>
-                          <p
-                            className={`mt-2 text-xs ${
-                              isMine ? "text-neutral-300" : "text-neutral-500"
+                          <div
+                            className={`flex max-w-[85%] items-end gap-3 ${
+                              isMine ? "flex-row-reverse" : "flex-row"
                             }`}
                           >
-                            {formatChatTime(chat.created_at)}
-                          </p>
+                            <div className="h-9 w-9 overflow-hidden rounded-full border border-neutral-200 bg-white">
+                              {sender?.avatar_url ? (
+                                <img
+                                  src={sender.avatar_url}
+                                  alt={sender.full_name || "User"}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-xs font-medium text-neutral-500">
+                                  {sender?.full_name?.charAt(0).toUpperCase() || "U"}
+                                </div>
+                              )}
+                            </div>
+
+                            <div
+                              className={`rounded-2xl px-4 py-3 text-sm ${
+                                isMine
+                                  ? "bg-black text-white"
+                                  : "border border-neutral-200 bg-white text-neutral-900"
+                              }`}
+                            >
+                              <p
+                                className={`mb-1 text-xs font-medium ${
+                                  isMine ? "text-neutral-300" : "text-neutral-500"
+                                }`}
+                              >
+                                {isMine ? "You" : sender?.full_name || "User"}
+                              </p>
+                              <p>{chat.message}</p>
+                              <p
+                                className={`mt-2 text-xs ${
+                                  isMine ? "text-neutral-300" : "text-neutral-500"
+                                }`}
+                              >
+                                {formatChatTime(chat.created_at)}
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+                      );
+                    })
+                  )}
+                </div>
 
-              <div className="mt-4 flex gap-3">
-<textarea
-  value={newChatMessage}
-  onChange={(e) => setNewChatMessage(e.target.value)}
-  rows={3}
-  disabled={isChatReadOnly}
-  placeholder={
-    isChatReadOnly
-      ? "This chat is now read-only because the service is completed."
-      : "Send a message..."
-  }
-  className="flex-1 rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
-/>
+                <div className="mt-4 flex gap-3">
+                  <textarea
+                    value={newChatMessage}
+                    onChange={(e) => setNewChatMessage(e.target.value)}
+                    rows={3}
+                    disabled={isChatReadOnly}
+                    placeholder={
+                      isChatReadOnly
+                        ? "This chat is now read-only because the service is completed."
+                        : "Send a message..."
+                    }
+                    className="flex-1 rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
+                  />
 
-<button
-  type="button"
-  onClick={handleSendChatMessage}
-  disabled={isChatReadOnly || sendingChatMessage || !newChatMessage.trim()}
-  className="self-end rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
->
-  {isChatReadOnly ? "Completed" : sendingChatMessage ? "Sending..." : "Send"}
-</button>
-              </div>
-            </div>
-          ) : null}
+                  <button
+                    type="button"
+                    onClick={handleSendChatMessage}
+                    disabled={isChatReadOnly || sendingChatMessage || !newChatMessage.trim()}
+                    className="self-end rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                  >
+                    {isChatReadOnly ? "Completed" : sendingChatMessage ? "Sending..." : "Send"}
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
 
           {isCustomer ? (
             <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
@@ -1089,18 +1298,10 @@ async function handleSendChatMessage() {
               </h2>
 
               <p className="mt-4 leading-7 text-neutral-600">
-                You’ll be able to edit this request and review incoming offers
-                here.
+                Review offers, confirm completion, and manage the final result here.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                >
-                  Edit request soon
-                </button>
-
                 {request.status === "completion_requested" ? (
                   <button
                     type="button"
@@ -1145,7 +1346,7 @@ async function handleSendChatMessage() {
             </div>
           ) : null}
 
-          {isProfessional && request.status === "accepted" ? (
+          {isAcceptedProfessional && request.status === "accepted" ? (
             <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
               <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
                 Professional actions
@@ -1171,25 +1372,17 @@ async function handleSendChatMessage() {
             </div>
           ) : null}
 
-          {isProfessional && request.status === "completion_requested" ? (
+          {isAcceptedProfessional && request.status === "completion_requested" ? (
             <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
               Completion request sent. Waiting for customer confirmation.
             </div>
           ) : null}
 
-          {isProfessional && request.status === "completed" ? (
+          {isProfessional &&
+          request.status === "completed" &&
+          isAcceptedProfessional ? (
             <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
               This service has been completed.
-            </div>
-          ) : null}
-
-          {isProfessional &&
-          request.status !== "open" &&
-          request.status !== "accepted" &&
-          request.status !== "completion_requested" &&
-          request.status !== "completed" ? (
-            <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
-              This request is no longer accepting responses.
             </div>
           ) : null}
 
@@ -1320,9 +1513,7 @@ async function handleSendChatMessage() {
                             {offer.professional_type
                               ? offer.professional_type
                                   .replaceAll("_", " ")
-                                  .replace(/\b\w/g, (char) =>
-                                    char.toUpperCase()
-                                  )
+                                  .replace(/\b\w/g, (char) => char.toUpperCase())
                               : "Beauty professional"}
                           </p>
 
@@ -1354,7 +1545,7 @@ async function handleSendChatMessage() {
                           ) : null}
 
                           <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-                            {offer.status}
+                            {getStatusLabel(offer.status)}
                           </span>
                         </div>
 
@@ -1468,9 +1659,7 @@ async function handleSendChatMessage() {
                             disabled={acceptingOfferId === offer.id}
                             className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
                           >
-                            {acceptingOfferId === offer.id
-                              ? "Accepting..."
-                              : "Choose offer"}
+                            {acceptingOfferId === offer.id ? "Accepting..." : "Choose offer"}
                           </button>
 
                           <button
