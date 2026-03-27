@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
-import MarkRequestNotificationRead from "@/app/components/MarkRequestNotificationRead";
+import MarkRequestNotificationRead from "../../components/MarkRequestNotificationRead";
 
 type ServiceRequest = {
   id: string;
@@ -925,10 +925,7 @@ export default function RequestDetailPage() {
 
   return (
     <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
-      {isProfessional ? (
-        <MarkRequestNotificationRead requestId={requestId} />
-      ) : null}
-
+      <MarkRequestNotificationRead requestId={requestId} />
       <div className="mx-auto flex max-w-6xl items-center justify-between border-b border-neutral-200 pb-6">
         <Link href="/" className="text-2xl font-semibold tracking-tight">
           LineUp

@@ -405,9 +405,11 @@ const isRebook =
     try {
       const referencePhotoUrls = await uploadReferencePhotos(userId);
 
-      const directRebook = !!preferredProfessionalId;
+      const directRebook = isRebook && !!preferredProfessionalId;
 
-      const { data: createdRequest, error } = await supabase
+
+
+      const { data: insertedRequest, error: insertRequestError } = await supabase
         .from("service_requests")
         .insert([
           {
@@ -427,47 +429,43 @@ const isRebook =
             original_request_id: directRebook ? originalRequestId : null,
           },
         ])
-        .select("id, preferred_professional_id, is_direct_rebook")
+        .select("id, client_id, preferred_professional_id, is_direct_rebook, original_request_id")
         .single();
 
-      if (error) {
-        throw error;
+      console.log("insertedRequest:", insertedRequest);
+      console.log("insertRequestError:", insertRequestError);
+
+      if (insertRequestError) {
+        throw insertRequestError;
       }
 
-      if (
-        createdRequest?.is_direct_rebook &&
-        createdRequest.preferred_professional_id
-      ) {
-        const { data: existingNotification, error: existingNotificationError } =
-          await supabase
-            .from("notifications")
-            .select("id")
-            .eq("user_id", createdRequest.preferred_professional_id)
-            .eq("request_id", createdRequest.id)
-            .maybeSingle();
+           if (directRebook) {
+        console.log("REBOOK DEBUG preferredProfessionalId:", preferredProfessionalId);
+        console.log("REBOOK DEBUG insertedRequest:", insertedRequest);
 
-        if (existingNotificationError) {
-          console.error(
-            "Could not check existing rebook notification:",
-            existingNotificationError
-          );
-        } else if (!existingNotification) {
-          const { error: insertNotificationError } = await supabase
-            .from("notifications")
-            .insert([
-              {
-                user_id: createdRequest.preferred_professional_id,
-                request_id: createdRequest.id,
-                is_read: false,
-              },
-            ]);
+        if (!insertedRequest?.preferred_professional_id) {
+          throw new Error("Rebook request was created without preferred_professional_id.");
+        }
+const { data: insertedNotification, error: notificationError } =
+  await supabase
+    .from("notifications")
+    .insert([
+      {
+        user_id: insertedRequest.preferred_professional_id,
+        request_id: insertedRequest.id,
+        is_read: false,
+        type: "request",
+        title: "New booking request",
+      },
+    ])
+    .select("*")
+    .single();
 
-          if (insertNotificationError) {
-            console.error(
-              "Could not create rebook notification:",
-              insertNotificationError
-            );
-          }
+        console.log("REBOOK DEBUG insertedNotification:", insertedNotification);
+        console.log("REBOOK DEBUG notificationError:", notificationError);
+
+        if (notificationError) {
+          throw notificationError;
         }
       }
 
