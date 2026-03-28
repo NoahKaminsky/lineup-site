@@ -9,6 +9,9 @@ export default function OnboardingPage() {
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [professionalType, setProfessionalType] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -28,7 +31,16 @@ export default function OnboardingPage() {
 
       const { data: profile, error } = await supabase
         .from("profiles")
-        .select("full_name, role, professional_type")
+        .select(
+          `
+            full_name,
+            role,
+            professional_type,
+            terms_accepted,
+            privacy_accepted,
+            marketing_consent
+          `
+        )
         .eq("id", user.id)
         .single();
 
@@ -46,6 +58,9 @@ export default function OnboardingPage() {
         setName(profile.full_name || "");
         setRole(profile.role || "");
         setProfessionalType(profile.professional_type || "");
+        setAcceptedTerms(!!profile.terms_accepted);
+        setAcceptedPrivacy(!!profile.privacy_accepted);
+        setMarketingConsent(!!profile.marketing_consent);
       }
 
       setLoading(false);
@@ -88,6 +103,20 @@ export default function OnboardingPage() {
       return;
     }
 
+    if (!acceptedTerms) {
+      setSaving(false);
+      setErrorMessage("Please agree to the Terms of Service.");
+      return;
+    }
+
+    if (!acceptedPrivacy) {
+      setSaving(false);
+      setErrorMessage("Please agree to the Privacy Policy.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+
     const { error } = await supabase.from("profiles").upsert(
       {
         id: user.id,
@@ -95,6 +124,14 @@ export default function OnboardingPage() {
         full_name: name.trim(),
         role,
         professional_type: role === "professional" ? professionalType : null,
+        terms_accepted: acceptedTerms,
+        terms_accepted_at: acceptedTerms ? now : null,
+        privacy_accepted: acceptedPrivacy,
+        privacy_accepted_at: acceptedPrivacy ? now : null,
+        marketing_consent: marketingConsent,
+        marketing_consent_at: marketingConsent ? now : null,
+        marketing_consent_source: marketingConsent ? "account_creation" : null,
+        unsubscribed_from_marketing: false,
       },
       { onConflict: "id" }
     );
@@ -204,6 +241,64 @@ export default function OnboardingPage() {
                 </select>
               </div>
             )}
+
+            <div className="space-y-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+              <label className="flex items-start gap-3 text-sm leading-6 text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4"
+                />
+                <span>
+                  I agree to the{" "}
+                  <a
+                    href="/terms"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline text-black"
+                  >
+                    Terms of Service
+                  </a>
+                  .
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 text-sm leading-6 text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={acceptedPrivacy}
+                  onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                  className="mt-1 h-4 w-4"
+                />
+                <span>
+                  I agree to the{" "}
+                  <a
+                    href="/privacy"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline text-black"
+                  >
+                    Privacy Policy
+                  </a>
+                  .
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 text-sm leading-6 text-neutral-600">
+                <input
+                  type="checkbox"
+                  checked={marketingConsent}
+                  onChange={(e) => setMarketingConsent(e.target.checked)}
+                  className="mt-1 h-4 w-4"
+                />
+                <span>
+                  I want to receive newsletters, launch updates, promotions, and
+                  product news from LineUp Aesthetics. I can unsubscribe at any
+                  time.
+                </span>
+              </label>
+            </div>
 
             <button
               type="submit"
