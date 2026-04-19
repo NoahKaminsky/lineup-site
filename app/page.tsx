@@ -573,41 +573,9 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
 
           <div className="flex items-center gap-3">
 {isSignedIn ? (
-  <>
-    <Link
-      href="/requests"
-      className="hidden items-center gap-2 rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 md:inline-flex"
-    >
-      <span>View requests</span>
-
-      {isProfessionalUser && unreadNotificationCount > 0 && (
-        <span className="inline-flex h-5 min-w-5 animate-notification-pop items-center justify-center rounded-full bg-neutral-900 px-1.5 text-[11px] font-semibold text-white">
-          {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-        </span>
-      )}
-    </Link>
-
-    {isProfessionalUser ? (
-      <Link
-        href="/offers"
-        className="hidden rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 md:inline-flex"
-      >
-        My offers
-      </Link>
-    ) : (
-      <Link
-        href="/requests/new"
-        className="hidden rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 md:inline-flex"
-      >
-        Post a request
-      </Link>
-    )}
-
-    <Link
-      href="/account"
-      aria-label="View profile"
-      className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-neutral-300 bg-white text-sm font-semibold text-neutral-900 transition hover:bg-neutral-50"
-    >
+  <div className="relative group">
+    {/* Avatar */}
+    <button className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-neutral-300 bg-white text-sm font-semibold text-neutral-900 transition hover:bg-neutral-50">
       {userAvatarUrl ? (
         <img
           src={userAvatarUrl}
@@ -617,8 +585,48 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
       ) : (
         userInitial
       )}
-    </Link>
-  </>
+    </button>
+
+    {/* Dropdown */}
+    <div className="invisible absolute right-0 mt-3 w-56 translate-y-2 rounded-2xl border border-neutral-200 bg-white opacity-0 shadow-xl transition-all group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+      <div className="p-2">
+        <Link
+          href="/requests"
+          className="block rounded-xl px-4 py-3 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+        >
+          Dashboard
+        </Link>
+
+        {isProfessionalUser && (
+          <Link
+            href="/calendar"
+            className="mt-1 block rounded-xl px-4 py-3 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+          >
+            Calendar
+          </Link>
+        )}
+
+        <Link
+          href="/account"
+          className="mt-1 block rounded-xl px-4 py-3 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+        >
+          Profile
+        </Link>
+      </div>
+
+      <div className="border-t border-neutral-100 p-2">
+        <button
+          onClick={async () => {
+            await supabase.auth.signOut();
+            window.location.href = "/";
+          }}
+          className="block w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
 ) : (
               <>
 <Link
@@ -639,37 +647,7 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
           </div>
         </div>
 
-        <div className="border-t border-neutral-200 px-6 py-3 md:hidden">
-{isSignedIn ? (
-  <div className="flex items-center justify-between text-sm font-medium text-neutral-900">
-    <Link href="/requests" className="inline-flex items-center gap-2">
-      <span>View requests</span>
 
-      {isProfessionalUser && unreadNotificationCount > 0 && (
-        <span className="inline-flex h-5 min-w-5 animate-notification-pop items-center justify-center rounded-full bg-neutral-900 px-1.5 text-[11px] font-semibold text-white">
-          {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-        </span>
-      )}
-    </Link>
-
-    {isProfessionalUser ? (
-      <Link
-        href="/offers"
-        className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-      >
-        My offers
-      </Link>
-    ) : (
-      <Link
-        href="/requests/new"
-        className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-      >
-        Post
-      </Link>
-    )}
-  </div>
-) : null}
-        </div>
       </header>
 
       <section className="relative overflow-hidden bg-white">

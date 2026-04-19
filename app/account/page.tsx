@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
+import Navbar from "../components/AppNavbar";
 
 type Profile = {
   id: string;
@@ -16,7 +16,7 @@ type Profile = {
   banner_url: string | null;
   bio: string | null;
   instagram_handle: string | null;
-  service_modes: string[] | null;
+  specialties: string[] | null;
 };
 
 type PortfolioItem = {
@@ -41,7 +41,71 @@ type EnrichedReview = ReviewRow & {
   reviewer_avatar_url: string | null;
 };
 
-const modeOptions = ["at_home", "in_shop", "home_studio"];
+type BookingStatus =
+  | "confirmed"
+  | "cancelled"
+  | "completion_requested"
+  | "completed";
+
+type BookingRow = {
+  id: string;
+  professional_id: string;
+  customer_id: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  status: BookingStatus;
+  created_at: string;
+  service_id: string | null;
+  service_name: string | null;
+  duration_minutes: number | null;
+  cancelled_by?: string | null;
+  cancelled_at?: string | null;
+  completion_requested_at?: string | null;
+  completed_at?: string | null;
+};
+
+type EnrichedBooking = BookingRow & {
+  customer_name: string | null;
+  customer_avatar_url: string | null;
+};
+
+type CompletedRequestRow = {
+  id: string;
+  client_id: string | null;
+  accepted_professional_id: string | null;
+  title: string | null;
+  service_detail: string | null;
+  status: string | null;
+  created_at: string | null;
+  completed_at: string | null;
+};
+
+type CompletedServiceItem = {
+  id: string;
+  source: "booking" | "request";
+  title: string;
+  subtitle: string;
+  completed_at: string | null;
+  customer_name: string | null;
+  customer_avatar_url: string | null;
+};
+
+const suggestedSpecialtiesByType: Record<string, string[]> = {
+  barber: ["Fades", "Beard work", "Line ups", "Scissor cuts", "Mobile cuts"],
+  hairstylist: ["Blonding", "Color", "Curly cuts", "Extensions", "Blowouts"],
+  nail_tech: ["Gel sets", "Acrylics", "Nail art", "Russian manicures", "Pedicures"],
+  lash_artist: ["Classic lashes", "Hybrid lashes", "Volume lashes", "Lash lifts"],
+  brow_artist: ["Brow shaping", "Brow tint", "Lamination", "Ombre brows"],
+  esthetician: ["Facials", "Sugaring", "Waxing", "Skin treatments", "Teeth whitening"],
+  makeup_artist: ["Soft glam", "Bridal", "Event glam", "Editorial makeup"],
+};
+
+function normalizeProfessionalType(value: string | null | undefined) {
+  return String(value || "")
+    .toLowerCase()
+    .replaceAll(" ", "_");
+}
 
 export default function AccountPage() {
   const router = useRouter();
@@ -51,6 +115,7 @@ export default function AccountPage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [portfolioUploading, setPortfolioUploading] = useState(false);
+  const [bookingActionLoadingId, setBookingActionLoadingId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showBannerPreview, setShowBannerPreview] = useState(false);
 
@@ -62,6 +127,8 @@ export default function AccountPage() {
 
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
   const [reviews, setReviews] = useState<EnrichedReview[]>([]);
+  const [bookings, setBookings] = useState<EnrichedBooking[]>([]);
+  const [completedServices, setCompletedServices] = useState<CompletedServiceItem[]>([]);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -71,7 +138,10 @@ export default function AccountPage() {
   const [location, setLocation] = useState("");
   const [bio, setBio] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
-  const [serviceModes, setServiceModes] = useState<string[]>([]);
+  const [specialties, setSpecialties] = useState<string[]>([]);
+  const [newSpecialty, setNewSpecialty] = useState("");
+
+  const isProfessional = profile?.role === "professional";
 
   useEffect(() => {
     async function loadProfile() {
@@ -102,7 +172,7 @@ export default function AccountPage() {
       setLocation(data.location || "");
       setBio(data.bio || "");
       setInstagramHandle(data.instagram_handle || "");
-      setServiceModes(data.service_modes || []);
+      setSpecialties(data.specialties || []);
 
       const { data: portfolioData, error: portfolioError } = await supabase
         .from("professional_portfolio")
@@ -164,6 +234,166 @@ export default function AccountPage() {
         setReviews([]);
       }
 
+      if (data.role === "professional") {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = `${today.getMonth() + 1}`.padStart(2, "0");
+        const day = `${today.getDate()}`.padStart(2, "0");
+        const todayString = `${year}-${month}-${day}`;
+
+        const { data: activeBookingsData, error: bookingsError } = await supabase
+          .from("bookings")
+          .select(
+            "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at"
+          )
+          .eq("professional_id", user.id)
+          .in("status", ["confirmed", "completion_requested"])
+          .gte("booking_date", todayString)
+          .order("booking_date", { ascending: true })
+          .order("start_time", { ascending: true });
+
+        if (!bookingsError && activeBookingsData) {
+          const customerIds = [
+            ...new Set(activeBookingsData.map((booking) => booking.customer_id).filter(Boolean)),
+          ];
+
+          let customerMap = new Map<
+            string,
+            { full_name: string | null; avatar_url: string | null }
+          >();
+
+          if (customerIds.length > 0) {
+            const { data: customerProfiles } = await supabase
+              .from("profiles")
+              .select("id, full_name, avatar_url")
+              .in("id", customerIds);
+
+            if (customerProfiles) {
+              customerMap = new Map(
+                customerProfiles.map((customer) => [
+                  customer.id,
+                  {
+                    full_name: customer.full_name ?? null,
+                    avatar_url: customer.avatar_url ?? null,
+                  },
+                ])
+              );
+            }
+          }
+
+          const enrichedBookings: EnrichedBooking[] = activeBookingsData.map((booking) => {
+            const customer = customerMap.get(booking.customer_id);
+
+            return {
+              ...(booking as BookingRow),
+              start_time: String(booking.start_time).slice(0, 5),
+              end_time: String(booking.end_time).slice(0, 5),
+              customer_name: customer?.full_name ?? null,
+              customer_avatar_url: customer?.avatar_url ?? null,
+            };
+          });
+
+          setBookings(enrichedBookings);
+        } else {
+          setBookings([]);
+        }
+
+        const { data: completedBookingsData } = await supabase
+          .from("bookings")
+          .select(
+            "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at"
+          )
+          .eq("professional_id", user.id)
+          .eq("status", "completed")
+          .order("completed_at", { ascending: false });
+
+        const { data: completedRequestsData } = await supabase
+          .from("service_requests")
+          .select(
+            "id, client_id, accepted_professional_id, title, service_detail, status, created_at, completed_at"
+          )
+          .eq("accepted_professional_id", user.id)
+          .eq("status", "completed")
+          .order("completed_at", { ascending: false });
+
+        const completedCustomerIds = [
+          ...new Set([
+            ...(completedBookingsData?.map((item) => item.customer_id).filter(Boolean) || []),
+            ...(completedRequestsData?.map((item) => item.client_id).filter(Boolean) || []),
+          ]),
+        ];
+
+        let completedCustomerMap = new Map<
+          string,
+          { full_name: string | null; avatar_url: string | null }
+        >();
+
+        if (completedCustomerIds.length > 0) {
+          const { data: completedCustomerProfiles } = await supabase
+            .from("profiles")
+            .select("id, full_name, avatar_url")
+            .in("id", completedCustomerIds);
+
+          if (completedCustomerProfiles) {
+            completedCustomerMap = new Map(
+              completedCustomerProfiles.map((customer) => [
+                customer.id,
+                {
+                  full_name: customer.full_name ?? null,
+                  avatar_url: customer.avatar_url ?? null,
+                },
+              ])
+            );
+          }
+        }
+
+        const bookingCompletedItems: CompletedServiceItem[] = (completedBookingsData || []).map(
+          (booking) => {
+            const customer = completedCustomerMap.get(booking.customer_id);
+
+            return {
+              id: booking.id,
+              source: "booking",
+              title: booking.service_name || "Booked service",
+              subtitle: `${formatBookingDate(booking.booking_date)} • ${formatTime(
+                String(booking.start_time).slice(0, 5)
+              )} - ${formatTime(String(booking.end_time).slice(0, 5))}`,
+              completed_at: booking.completed_at || booking.created_at || null,
+              customer_name: customer?.full_name ?? null,
+              customer_avatar_url: customer?.avatar_url ?? null,
+            };
+          }
+        );
+
+        const requestCompletedItems: CompletedServiceItem[] = (
+          (completedRequestsData || []) as CompletedRequestRow[]
+        ).map((request) => {
+          const customer = request.client_id
+            ? completedCustomerMap.get(request.client_id)
+            : undefined;
+
+          return {
+            id: request.id,
+            source: "request",
+            title: request.title || request.service_detail || "Requested service",
+            subtitle: "Completed through request flow",
+            completed_at: request.completed_at || request.created_at || null,
+            customer_name: customer?.full_name ?? null,
+            customer_avatar_url: customer?.avatar_url ?? null,
+          };
+        });
+
+        const mergedCompleted = [...bookingCompletedItems, ...requestCompletedItems].sort(
+          (a, b) =>
+            new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime()
+        );
+
+        setCompletedServices(mergedCompleted);
+      } else {
+        setBookings([]);
+        setCompletedServices([]);
+      }
+
       setLoading(false);
     }
 
@@ -176,12 +406,32 @@ export default function AccountPage() {
     return (total / reviews.length).toFixed(1);
   }, [reviews]);
 
-  function toggleServiceMode(mode: string) {
-    setServiceModes((prev) =>
-      prev.includes(mode)
-        ? prev.filter((item) => item !== mode)
-        : [...prev, mode]
-    );
+  const suggestedSpecialties = useMemo(() => {
+    const key = normalizeProfessionalType(profile?.professional_type);
+    return suggestedSpecialtiesByType[key] || [];
+  }, [profile?.professional_type]);
+
+  const visibleReviews = useMemo(() => {
+    return showAllReviews ? reviews : reviews.slice(0, 3);
+  }, [reviews, showAllReviews]);
+
+  function addSpecialty(value: string) {
+    const cleanValue = value.trim();
+    if (!cleanValue) return;
+
+    setSpecialties((prev) => {
+      const exists = prev.some(
+        (specialty) => specialty.toLowerCase() === cleanValue.toLowerCase()
+      );
+      if (exists) return prev;
+      return [...prev, cleanValue];
+    });
+
+    setNewSpecialty("");
+  }
+
+  function removeSpecialty(value: string) {
+    setSpecialties((prev) => prev.filter((specialty) => specialty !== value));
   }
 
   function formatProfessionalType(value: string | null) {
@@ -191,13 +441,35 @@ export default function AccountPage() {
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
-  function formatServiceModes(value: string[] | null) {
-    if (!value || value.length === 0) return null;
-    return value
-      .map((mode) =>
-        mode.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase())
-      )
-      .join(" • ");
+  function formatTime(time: string) {
+    const [hourString, minute] = time.split(":");
+    const hour = Number(hourString);
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const twelveHour = hour % 12 || 12;
+    return `${twelveHour}:${minute} ${suffix}`;
+  }
+
+  function formatBookingDate(dateString: string) {
+    const date = new Date(`${dateString}T00:00:00`);
+    return date.toLocaleDateString("en-CA", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  function formatCompletedDate(dateString: string | null) {
+    if (!dateString) return "Completed";
+    return new Date(dateString).toLocaleDateString("en-CA", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  function getBookingStatusLabel(status: BookingStatus) {
+    if (status === "completion_requested") return "completion requested";
+    return status;
   }
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -247,10 +519,7 @@ export default function AccountPage() {
         return;
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(filePath);
-
+      const { data: publicUrlData } = supabase.storage.from("avatars").getPublicUrl(filePath);
       const publicUrl = publicUrlData.publicUrl;
 
       const { error: updateError } = await supabase
@@ -263,15 +532,7 @@ export default function AccountPage() {
         return;
       }
 
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              avatar_url: publicUrl,
-            }
-          : prev
-      );
-
+      setProfile((prev) => (prev ? { ...prev, avatar_url: publicUrl } : prev));
       setAvatarFile(null);
       setMessage("Profile photo updated.");
     } catch (error) {
@@ -333,15 +594,7 @@ export default function AccountPage() {
         return;
       }
 
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              banner_url: publicUrl,
-            }
-          : prev
-      );
-
+      setProfile((prev) => (prev ? { ...prev, banner_url: publicUrl } : prev));
       setBannerFile(null);
       setMessage("Banner updated.");
     } catch (error) {
@@ -447,6 +700,79 @@ export default function AccountPage() {
     }
   }
 
+  async function handleCancelBooking(bookingId: string) {
+    if (!profile) return;
+    if (!confirm("Cancel this booking?")) return;
+
+    try {
+      setBookingActionLoadingId(bookingId);
+      setMessage("");
+
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          status: "cancelled",
+          cancelled_by: profile.id,
+          cancelled_at: new Date().toISOString(),
+        })
+        .eq("id", bookingId)
+        .eq("professional_id", profile.id)
+        .in("status", ["confirmed", "completion_requested"]);
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      setBookings((prev) => prev.filter((booking) => booking.id !== bookingId));
+      setMessage("Booking cancelled.");
+    } catch (error) {
+      console.error(error);
+      setMessage("Something went wrong cancelling this booking.");
+    } finally {
+      setBookingActionLoadingId(null);
+    }
+  }
+
+  async function handleRequestCompletion(bookingId: string) {
+    if (!profile) return;
+
+    try {
+      setBookingActionLoadingId(bookingId);
+      setMessage("");
+
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          status: "completion_requested",
+          completion_requested_at: new Date().toISOString(),
+        })
+        .eq("id", bookingId)
+        .eq("professional_id", profile.id)
+        .eq("status", "confirmed");
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      setBookings((prev) =>
+        prev.map((booking) =>
+          booking.id === bookingId
+            ? { ...booking, status: "completion_requested" }
+            : booking
+        )
+      );
+
+      setMessage("Completion requested. Waiting for customer confirmation.");
+    } catch (error) {
+      console.error(error);
+      setMessage("Something went wrong requesting completion.");
+    } finally {
+      setBookingActionLoadingId(null);
+    }
+  }
+
   function handleCancelEdit() {
     if (!profile) return;
 
@@ -454,9 +780,10 @@ export default function AccountPage() {
     setLocation(profile.location || "");
     setBio(profile.bio || "");
     setInstagramHandle(profile.instagram_handle || "");
-    setServiceModes(profile.service_modes || []);
+    setSpecialties(profile.specialties || []);
     setAvatarFile(null);
     setBannerFile(null);
+    setNewSpecialty("");
     setMessage("");
     setIsEditing(false);
   }
@@ -474,7 +801,7 @@ export default function AccountPage() {
       location,
       bio,
       instagram_handle: instagramHandle,
-      service_modes: profile.role === "professional" ? serviceModes : null,
+      specialties: profile.role === "professional" ? specialties : [],
     };
 
     const { error } = await supabase
@@ -482,30 +809,16 @@ export default function AccountPage() {
       .update(updates)
       .eq("id", profile.id);
 
-    setSaving(false);
-
     if (error) {
+      setSaving(false);
       setMessage(error.message);
       return;
     }
 
-    setProfile((prev) =>
-      prev
-        ? {
-            ...prev,
-            ...updates,
-          }
-        : prev
-    );
-
+    setProfile((prev) => (prev ? { ...prev, ...updates } : prev));
+    setSaving(false);
     setMessage("Profile updated.");
     setIsEditing(false);
-  }
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
   }
 
   if (loading) {
@@ -528,31 +841,10 @@ export default function AccountPage() {
     );
   }
 
-  const isProfessional = profile.role === "professional";
-
   return (
     <>
       <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
-        <div className="mx-auto flex max-w-6xl items-center justify-between border-b border-neutral-200 pb-6">
-          <Link href="/" className="text-2xl font-semibold tracking-tight">
-            LineUp
-          </Link>
-
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="text-sm font-medium text-neutral-500 transition hover:text-neutral-900"
-            >
-              Back to site
-            </Link>
-            <button
-              onClick={handleSignOut}
-              className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
+        <Navbar />
 
         <div className="mx-auto max-w-6xl py-10">
           <div className="mb-6 rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
@@ -616,11 +908,16 @@ export default function AccountPage() {
                       </span>
                     ) : null}
 
-                    {isProfessional && formatServiceModes(profile.service_modes) ? (
-                      <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                        {formatServiceModes(profile.service_modes)}
-                      </span>
-                    ) : null}
+                    {isProfessional && specialties.length > 0
+                      ? specialties.map((specialty) => (
+                          <span
+                            key={specialty}
+                            className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700"
+                          >
+                            {specialty}
+                          </span>
+                        ))
+                      : null}
 
                     {isProfessional ? (
                       <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
@@ -667,15 +964,39 @@ export default function AccountPage() {
                     </p>
                   </div>
 
+                  {isProfessional ? (
+                    <div className="mt-8">
+                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                        Specialties
+                      </p>
+
+                      {specialties.length === 0 ? (
+                        <p className="mt-3 text-neutral-400">No specialties added yet.</p>
+                      ) : (
+                        <div className="mt-3 flex flex-wrap gap-3">
+                          {specialties.map((specialty) => (
+                            <span
+                              key={specialty}
+                              className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
+                            >
+                              {specialty}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
                   {profile.instagram_handle ? (
                     <div className="mt-8">
                       <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
                         Instagram
                       </p>
                       <a
-                        href={`https://instagram.com/${String(
-                          profile.instagram_handle
-                        ).replace("@", "")}`}
+                        href={`https://instagram.com/${String(profile.instagram_handle).replace(
+                          "@",
+                          ""
+                        )}`}
                         target="_blank"
                         rel="noreferrer"
                         className="mt-3 inline-flex rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
@@ -830,30 +1151,83 @@ export default function AccountPage() {
                         />
                       </div>
 
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-neutral-700">
-                          Service modes
-                        </label>
-                        <div className="flex flex-wrap gap-3">
-                          {modeOptions.map((mode) => {
-                            const selected = serviceModes.includes(mode);
+                      <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
+                        <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                          Specialties
+                        </p>
 
-                            return (
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          {specialties.map((specialty) => (
+                            <div
+                              key={specialty}
+                              className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-700"
+                            >
+                              <span>{specialty}</span>
                               <button
-                                key={mode}
                                 type="button"
-                                onClick={() => toggleServiceMode(mode)}
-                                className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
-                                  selected
-                                    ? "border-neutral-900 bg-neutral-900 text-white"
-                                    : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50"
-                                }`}
+                                onClick={() => removeSpecialty(specialty)}
+                                className="text-neutral-400 transition hover:text-neutral-800"
                               >
-                                {mode.replaceAll("_", " ")}
+                                ×
                               </button>
-                            );
-                          })}
+                            </div>
+                          ))}
                         </div>
+
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                          <input
+                            type="text"
+                            value={newSpecialty}
+                            onChange={(e) => setNewSpecialty(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                addSpecialty(newSpecialty);
+                              }
+                            }}
+                            placeholder="Add a specialty"
+                            className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => addSpecialty(newSpecialty)}
+                            className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                          >
+                            Add
+                          </button>
+                        </div>
+
+                        {suggestedSpecialties.length > 0 ? (
+                          <div className="mt-5">
+                            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                              Suggested
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-3">
+                              {suggestedSpecialties.map((specialty) => {
+                                const selected = specialties.includes(specialty);
+
+                                return (
+                                  <button
+                                    key={specialty}
+                                    type="button"
+                                    onClick={() =>
+                                      selected
+                                        ? removeSpecialty(specialty)
+                                        : addSpecialty(specialty)
+                                    }
+                                    className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                                      selected
+                                        ? "border-neutral-900 bg-neutral-900 text-white"
+                                        : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50"
+                                    }`}
+                                  >
+                                    {specialty}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     </>
                   ) : null}
@@ -932,12 +1306,30 @@ export default function AccountPage() {
                         </p>
                       </div>
 
-                      <div className="rounded-2xl border border-neutral-200 bg-white p-5 sm:col-span-2">
+                      <div className="rounded-2xl border border-neutral-200 bg-white p-5">
                         <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                          Portfolio items
+                          Active bookings
                         </p>
                         <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                          {portfolioItems.length}
+                          {bookings.length}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-neutral-200 bg-white p-5">
+                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                          Services page
+                        </p>
+                        <p className="mt-2 text-base font-semibold text-neutral-900">
+                          Managed separately
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-neutral-200 bg-white p-5">
+                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                          Completed services
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold text-neutral-900">
+                          {completedServices.length}
                         </p>
                       </div>
                     </>
@@ -954,9 +1346,7 @@ export default function AccountPage() {
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
                     Portfolio
                   </p>
-                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                    Past work
-                  </h2>
+                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">Past work</h2>
                 </div>
 
                 <button
@@ -980,60 +1370,59 @@ export default function AccountPage() {
                 {portfolioItems.map((item) => (
                   <div
                     key={item.id}
-                    className="overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-white"
+                    className="group relative overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-neutral-100"
                   >
-                    <div className="aspect-square bg-neutral-100">
-                      <img
-                        src={item.image_url}
-                        alt={item.caption || "Portfolio image"}
-                        className="h-full w-full object-cover"
-                      />
+                    <img
+                      src={item.image_url}
+                      alt={item.caption || "Portfolio item"}
+                      className="aspect-square h-full w-full object-cover"
+                    />
+
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent p-4 text-white">
+                      <p className="text-sm font-medium">
+                        {item.caption?.trim() || "Untitled work"}
+                      </p>
                     </div>
 
-                    <div className="p-4">
-                      {item.caption ? (
-                        <p className="text-sm text-neutral-700">{item.caption}</p>
-                      ) : (
-                        <p className="text-sm text-neutral-400">No caption</p>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePortfolioItem(item.id)}
-                        className="mt-3 text-sm font-medium text-red-600 transition hover:text-red-700"
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePortfolioItem(item.id)}
+                      className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-red-600 opacity-0 shadow transition group-hover:opacity-100"
+                    >
+                      Delete
+                    </button>
                   </div>
                 ))}
-
-                {portfolioItems.length === 0 ? (
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600 sm:col-span-2 lg:col-span-2">
-                    No portfolio items yet.
-                  </div>
-                ) : null}
               </div>
+
+              {portfolioItems.length === 0 ? (
+                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
+                  No portfolio work uploaded yet.
+                </div>
+              ) : null}
             </div>
           ) : null}
 
           {isProfessional ? (
             <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-              <div className="flex items-end justify-between gap-4">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
                     Reviews
                   </p>
-
                   <h2 className="mt-3 text-3xl font-semibold tracking-tight">
                     Client feedback
                   </h2>
                 </div>
 
-                {reviews.length > 0 ? (
-                  <div className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                    {reviews.length} review{reviews.length === 1 ? "" : "s"}
-                  </div>
+                {reviews.length > 3 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllReviews((prev) => !prev)}
+                    className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                  >
+                    {showAllReviews ? "Show less" : "Show all reviews"}
+                  </button>
                 ) : null}
               </div>
 
@@ -1042,71 +1431,226 @@ export default function AccountPage() {
                   No reviews yet.
                 </div>
               ) : (
-                <>
-                  <div className="mt-6 space-y-4">
-                    {(showAllReviews ? reviews : reviews.slice(0, 2)).map((review) => (
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  {visibleReviews.map((review) => (
+                    <div
+                      key={review.id}
+                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-white">
+                          {review.reviewer_avatar_url ? (
+                            <img
+                              src={review.reviewer_avatar_url}
+                              alt={review.reviewer_name || "Reviewer"}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
+                              {review.reviewer_name?.charAt(0).toUpperCase() || "C"}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-4">
+                            <p className="font-medium text-neutral-900">
+                              {review.reviewer_name || "Client"}
+                            </p>
+                            <p className="text-sm text-neutral-500">
+                              {new Date(review.created_at).toLocaleDateString("en-CA", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </p>
+                          </div>
+
+                          <p className="mt-2 text-sm text-neutral-600">
+                            {"★".repeat(Number(review.rating || 0))}
+                            {"☆".repeat(Math.max(0, 5 - Number(review.rating || 0)))}
+                          </p>
+
+                          <p className="mt-3 text-neutral-700">
+                            {review.comment?.trim() || "No written comment."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {isProfessional ? (
+            <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Active bookings
+                  </p>
+                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+                    Current schedule
+                  </h2>
+                </div>
+              </div>
+
+              {bookings.length === 0 ? (
+                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
+                  No active bookings right now.
+                </div>
+              ) : (
+                <div className="mt-6 grid gap-4">
+                  {bookings.map((booking) => {
+                    const isLoadingAction = bookingActionLoadingId === booking.id;
+
+                    return (
                       <div
-                        key={review.id}
+                        key={booking.id}
                         className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5"
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <div className="h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-white">
-                              {review.reviewer_avatar_url ? (
+                        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                          <div className="flex min-w-0 flex-1 gap-4">
+                            <div className="h-14 w-14 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+                              {booking.customer_avatar_url ? (
                                 <img
-                                  src={review.reviewer_avatar_url}
-                                  alt={review.reviewer_name || "Reviewer"}
+                                  src={booking.customer_avatar_url}
+                                  alt={booking.customer_name || "Customer"}
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
-                                <div className="flex h-full w-full items-center justify-center text-xs font-medium text-neutral-500">
-                                  {review.reviewer_name?.charAt(0).toUpperCase() || "C"}
+                                <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
+                                  {booking.customer_name?.charAt(0).toUpperCase() || "C"}
                                 </div>
                               )}
                             </div>
 
-                            <div>
-                              <p className="font-semibold text-neutral-900">
-                                {review.reviewer_name || "Verified client"}
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-3">
+                                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                                  {getBookingStatusLabel(booking.status)}
+                                </span>
+                              </div>
+
+                              <h3 className="mt-3 text-xl font-semibold text-neutral-900">
+                                {booking.service_name || "Booked service"}
+                              </h3>
+
+                              <p className="mt-2 text-neutral-600">
+                                {formatBookingDate(booking.booking_date)} •{" "}
+                                {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
                               </p>
-                              <p className="text-xs text-neutral-400">Verified client</p>
-                              <p className="text-sm text-neutral-500">
-                                {new Date(review.created_at).toLocaleDateString("en-CA", {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                })}
+
+                              <p className="mt-2 text-neutral-600">
+                                Client: {booking.customer_name || "Unknown client"}
                               </p>
                             </div>
                           </div>
-
-                          <div className="text-sm font-medium text-neutral-900">
-                            {"★".repeat(Math.max(1, Math.min(5, Number(review.rating || 0))))}
-                            <span className="ml-2">{review.rating}/5</span>
-                          </div>
                         </div>
 
-                        {review.comment ? (
-                          <p className="mt-4 leading-7 text-neutral-600">
-                            {review.comment}
-                          </p>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          {booking.status === "confirmed" ? (
+                            <button
+                              type="button"
+                              onClick={() => handleRequestCompletion(booking.id)}
+                              disabled={isLoadingAction}
+                              className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                            >
+                              {isLoadingAction ? "Working..." : "Request completion"}
+                            </button>
+                          ) : null}
 
-                  {reviews.length > 2 ? (
-                    <div className="mt-5">
-                      <button
-                        type="button"
-                        onClick={() => setShowAllReviews((prev) => !prev)}
-                        className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                      >
-                        {showAllReviews ? "Show less" : `View all ${reviews.length} reviews`}
-                      </button>
+                          {(booking.status === "confirmed" ||
+                            booking.status === "completion_requested") ? (
+                            <button
+                              type="button"
+                              onClick={() => handleCancelBooking(booking.id)}
+                              disabled={isLoadingAction}
+                              className="rounded-full border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                            >
+                              {isLoadingAction ? "Working..." : "Cancel booking"}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {isProfessional ? (
+            <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Completed services
+                  </p>
+                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+                    Recent work
+                  </h2>
+                </div>
+              </div>
+
+              {completedServices.length === 0 ? (
+                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
+                  No completed services yet.
+                </div>
+              ) : (
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  {completedServices.map((item) => (
+                    <div
+                      key={`${item.source}-${item.id}`}
+                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-white">
+                          {item.customer_avatar_url ? (
+                            <img
+                              src={item.customer_avatar_url}
+                              alt={item.customer_name || "Customer"}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
+                              {item.customer_name?.charAt(0).toUpperCase() || "C"}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                              {item.source}
+                            </span>
+
+                            <span className="rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                              Completed
+                            </span>
+                          </div>
+
+                          <h3 className="mt-3 text-lg font-semibold text-neutral-900">
+                            {item.title}
+                          </h3>
+
+                          <p className="mt-2 text-sm text-neutral-600">
+                            {item.subtitle}
+                          </p>
+
+                          <p className="mt-2 text-sm text-neutral-600">
+                            {item.customer_name || "Unknown client"}
+                          </p>
+
+                          <p className="mt-2 text-sm text-neutral-500">
+                            {formatCompletedDate(item.completed_at)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  ) : null}
-                </>
+                  ))}
+                </div>
               )}
             </div>
           ) : null}
@@ -1114,33 +1658,38 @@ export default function AccountPage() {
       </main>
 
       {showUpload ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-[1.5rem] bg-white p-6 shadow-xl">
-            <h3 className="text-xl font-semibold text-neutral-900">
-              Add portfolio work
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-6">
+          <div className="w-full max-w-lg rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+              Portfolio
+            </p>
+            <h3 className="mt-3 text-3xl font-semibold tracking-tight text-neutral-900">
+              Add work
             </h3>
 
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
-              className="mt-4 w-full text-sm text-neutral-700"
-            />
+            <div className="mt-6 space-y-4">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-neutral-600 file:mr-4 file:rounded-full file:border-0 file:bg-neutral-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:opacity-90"
+              />
 
-            <textarea
-              value={uploadCaption}
-              onChange={(e) => setUploadCaption(e.target.value)}
-              placeholder="Caption (optional)"
-              rows={3}
-              className="mt-4 w-full rounded-2xl border border-neutral-300 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
-            />
+              <textarea
+                rows={4}
+                value={uploadCaption}
+                onChange={(e) => setUploadCaption(e.target.value)}
+                placeholder="Caption (optional)"
+                className="w-full resize-none rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+              />
+            </div>
 
-            <div className="mt-4 flex gap-3">
+            <div className="mt-8 flex flex-wrap gap-3">
               <button
                 type="button"
                 onClick={handlePortfolioUpload}
-                disabled={portfolioUploading || !uploadFile}
-                className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                disabled={portfolioUploading}
+                className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
               >
                 {portfolioUploading ? "Uploading..." : "Upload"}
               </button>
@@ -1152,7 +1701,7 @@ export default function AccountPage() {
                   setUploadFile(null);
                   setUploadCaption("");
                 }}
-                className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
               >
                 Cancel
               </button>
@@ -1162,21 +1711,24 @@ export default function AccountPage() {
       ) : null}
 
       {showBannerPreview && profile.banner_url ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
-          <button
-            type="button"
-            onClick={() => setShowBannerPreview(false)}
-            className="absolute right-4 top-4 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
-          >
-            Close
-          </button>
-
-          <div className="flex h-full w-full max-w-6xl items-center justify-center">
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 px-6"
+          onClick={() => setShowBannerPreview(false)}
+        >
+          <div className="relative max-h-[90vh] max-w-6xl">
             <img
               src={profile.banner_url}
-              alt="Full cover photo"
-              className="max-h-full max-w-full rounded-2xl object-contain"
+              alt="Banner preview"
+              className="max-h-[90vh] w-auto rounded-3xl object-contain"
             />
+
+            <button
+              type="button"
+              onClick={() => setShowBannerPreview(false)}
+              className="absolute right-4 top-4 rounded-full bg-white/95 px-4 py-2 text-sm font-medium text-neutral-900 shadow"
+            >
+              Close
+            </button>
           </div>
         </div>
       ) : null}

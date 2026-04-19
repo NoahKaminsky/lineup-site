@@ -3,7 +3,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { supabase } from "../../../lib/supabaseClient";
+import {
+  CalendarDays,
+  Clock3,
+  MapPin,
+  Star,
+  Sparkles,
+  ShieldCheck,
+} from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 type Profile = {
   id: string;
@@ -16,6 +24,10 @@ type Profile = {
   bio: string | null;
   instagram_handle: string | null;
   service_modes: string | string[] | null;
+  specialties: string[] | null;
+  direct_booking_enabled: boolean | null;
+  public_availability_enabled: boolean | null;
+  default_appointment_duration: number | null;
 };
 
 type PortfolioItem = {
@@ -40,6 +52,64 @@ type EnrichedReview = ReviewRow & {
   reviewer_avatar_url: string | null;
 };
 
+type AvailabilityRow = {
+  id: string;
+  professional_id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  is_active: boolean;
+};
+
+type BookingStatus =
+  | "confirmed"
+  | "cancelled"
+  | "completion_requested"
+  | "completed";
+
+type BookingRow = {
+  id: string;
+  professional_id: string;
+  customer_id: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  status: BookingStatus;
+  service_id?: string | null;
+  service_name?: string | null;
+  duration_minutes?: number | null;
+};
+
+type ProfessionalService = {
+  id: string;
+  professional_id: string;
+  service_name: string;
+  duration_minutes: number;
+  is_active: boolean;
+  is_bookable: boolean;
+  created_at: string;
+};
+
+type GeneratedSlot = {
+  key: string;
+  date: string;
+  dayLabel: string;
+  dateLabel: string;
+  start_time: string;
+  end_time: string;
+  duration_minutes: number;
+};
+
+const dayLabels = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
 export default function ProfessionalProfilePage() {
   const params = useParams();
   const profileId = params.id as string;
@@ -49,10 +119,19 @@ export default function ProfessionalProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
   const [reviews, setReviews] = useState<EnrichedReview[]>([]);
+  const [availability, setAvailability] = useState<AvailabilityRow[]>([]);
+  const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const [services, setServices] = useState<ProfessionalService[]>([]);
   const [showBannerPreview, setShowBannerPreview] = useState(false);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [viewerIsCustomer, setViewerIsCustomer] = useState(false);
   const [hasBookedBefore, setHasBookedBefore] = useState(false);
+
+const [selectedSlot, setSelectedSlot] = useState<GeneratedSlot | null>(null);
+const [selectedServiceMode, setSelectedServiceMode] = useState<string | null>(null);
+const [locationInput, setLocationInput] = useState("");
+  const [bookingSlotKey, setBookingSlotKey] = useState<string | null>(null);
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
   useEffect(() => {
     async function loadProfilePage() {
@@ -63,7 +142,7 @@ export default function ProfessionalProfilePage() {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select(
-            "id, full_name, avatar_url, banner_url, role, professional_type, location, bio, instagram_handle, service_modes"
+            "id, full_name, avatar_url, banner_url, role, professional_type, location, bio, instagram_handle, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
           )
           .eq("id", profileId)
           .single();
@@ -105,7 +184,16 @@ export default function ProfessionalProfilePage() {
               .limit(1)
               .maybeSingle();
 
-            setHasBookedBefore(!!priorCompletedRequest);
+            const { data: priorCompletedBooking } = await supabase
+              .from("bookings")
+              .select("id")
+              .eq("customer_id", user.id)
+              .eq("professional_id", profileId)
+              .eq("status", "completed")
+              .limit(1)
+              .maybeSingle();
+
+            setHasBookedBefore(!!priorCompletedRequest || !!priorCompletedBooking);
           } else {
             setHasBookedBefore(false);
           }
@@ -113,6 +201,72 @@ export default function ProfessionalProfilePage() {
           setViewerUserId(null);
           setViewerIsCustomer(false);
           setHasBookedBefore(false);
+        }
+
+        const { data: servicesData, error: servicesError } = await supabase
+          .from("professional_services")
+          .select(
+            "id, professional_id, service_name, duration_minutes, is_active, is_bookable, created_at"
+          )
+          .eq("professional_id", profileId)
+          .eq("is_active", true)
+          .eq("is_bookable", true)
+          .order("created_at", { ascending: true });
+
+        if (!servicesError && servicesData) {
+          setServices(servicesData as ProfessionalService[]);
+        } else {
+          setServices([]);
+        }
+
+        const { data: availabilityData, error: availabilityError } = await supabase
+          .from("professional_availability")
+          .select("id, professional_id, day_of_week, start_time, end_time, is_active")
+          .eq("professional_id", profileId)
+          .order("day_of_week", { ascending: true })
+          .order("start_time", { ascending: true });
+
+        if (!availabilityError && availabilityData) {
+          setAvailability(
+            availabilityData.map((row) => ({
+              ...row,
+              start_time: String(row.start_time).slice(0, 5),
+              end_time: String(row.end_time).slice(0, 5),
+            })) as AvailabilityRow[]
+          );
+        } else {
+          setAvailability([]);
+        }
+
+        const today = new Date();
+        const end = new Date();
+        end.setDate(today.getDate() + 7);
+
+        const todayString = formatDateKey(today);
+        const endString = formatDateKey(end);
+
+        const { data: bookingsData, error: bookingsError } = await supabase
+          .from("bookings")
+          .select(
+            "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes"
+          )
+          .eq("professional_id", profileId)
+          .in("status", ["confirmed", "completion_requested", "completed"])
+          .gte("booking_date", todayString)
+          .lte("booking_date", endString)
+          .order("booking_date", { ascending: true })
+          .order("start_time", { ascending: true });
+
+        if (!bookingsError && bookingsData) {
+          setBookings(
+            bookingsData.map((row) => ({
+              ...row,
+              start_time: String(row.start_time).slice(0, 5),
+              end_time: String(row.end_time).slice(0, 5),
+            })) as BookingRow[]
+          );
+        } else {
+          setBookings([]);
         }
 
         const { data: portfolioData, error: portfolioError } = await supabase
@@ -194,8 +348,122 @@ export default function ProfessionalProfilePage() {
     return (total / reviews.length).toFixed(1);
   }, [reviews]);
 
+  const slotBlockMinutes = useMemo(() => {
+    return Math.max(Number(profile?.default_appointment_duration || 60), 30);
+  }, [profile?.default_appointment_duration]);
+
+  const generatedSlots = useMemo(() => {
+    if (!profile?.direct_booking_enabled || !profile?.public_availability_enabled) {
+      return [];
+    }
+
+    const activeAvailability = availability.filter((row) => row.is_active);
+    const nextSevenDays: GeneratedSlot[] = [];
+
+    for (let offset = 0; offset < 7; offset += 1) {
+      const currentDate = new Date();
+      currentDate.setHours(0, 0, 0, 0);
+      currentDate.setDate(currentDate.getDate() + offset);
+
+      const dayOfWeek = currentDate.getDay();
+      const matchingWindows = activeAvailability.filter(
+        (row) => Number(row.day_of_week) === dayOfWeek
+      );
+
+      if (matchingWindows.length === 0) continue;
+
+      for (const window of matchingWindows) {
+        const startMinutes = timeToMinutes(window.start_time);
+        const endMinutes = timeToMinutes(window.end_time);
+
+        for (
+          let slotStart = startMinutes;
+          slotStart + slotBlockMinutes <= endMinutes;
+          slotStart += 15
+        ) {
+          const slotEnd = slotStart + slotBlockMinutes;
+          const dateKey = formatDateKey(currentDate);
+          const startTime = minutesToTime(slotStart);
+          const endTime = minutesToTime(slotEnd);
+
+          const overlapsExistingBooking = bookings.some((booking) => {
+            if (booking.booking_date !== dateKey) return false;
+            if (booking.status === "cancelled") return false;
+
+            const bookingStart = timeToMinutes(booking.start_time);
+            const bookingEnd = timeToMinutes(booking.end_time);
+
+            return slotStart < bookingEnd && slotEnd > bookingStart;
+          });
+
+          if (overlapsExistingBooking) continue;
+
+          nextSevenDays.push({
+            key: `${dateKey}-${startTime}-${endTime}-${slotBlockMinutes}`,
+            date: dateKey,
+            dayLabel:
+              offset === 0
+                ? "Today"
+                : offset === 1
+                ? "Tomorrow"
+                : dayLabels[dayOfWeek],
+            dateLabel: currentDate.toLocaleDateString("en-CA", {
+              month: "short",
+              day: "numeric",
+            }),
+            start_time: startTime,
+            end_time: endTime,
+            duration_minutes: slotBlockMinutes,
+          });
+        }
+      }
+    }
+
+    return nextSevenDays;
+  }, [availability, bookings, profile, slotBlockMinutes]);
+
+  const groupedSlots = useMemo(() => {
+    const groups = new Map<
+      string,
+      { dayLabel: string; dateLabel: string; slots: GeneratedSlot[] }
+    >();
+
+    for (const slot of generatedSlots) {
+      if (!groups.has(slot.date)) {
+        groups.set(slot.date, {
+          dayLabel: slot.dayLabel,
+          dateLabel: slot.dateLabel,
+          slots: [],
+        });
+      }
+
+      groups.get(slot.date)?.slots.push(slot);
+    }
+
+    return Array.from(groups.entries()).map(([date, value]) => ({
+      date,
+      dayLabel: value.dayLabel,
+      dateLabel: value.dateLabel,
+      slots: value.slots,
+    }));
+  }, [generatedSlots]);
+
+  const servicesThatFitSelectedSlot = useMemo(() => {
+    if (!selectedSlot) return [];
+    return services.filter(
+      (service) =>
+        service.is_active &&
+        service.is_bookable &&
+        Number(service.duration_minutes) <= Number(selectedSlot.duration_minutes)
+    );
+  }, [services, selectedSlot]);
+
+  const visibleReviews = useMemo(() => {
+    return showAllReviews ? reviews : reviews.slice(0, 4);
+  }, [reviews, showAllReviews]);
+
   function formatProfessionalType(value: string | null) {
-    if (!value) return "Beauty professional";
+    if (!value) return "Customer";
 
     return value
       .replaceAll("_", " ")
@@ -231,6 +499,126 @@ export default function ProfessionalProfilePage() {
     return "★".repeat(safeRating) + "☆".repeat(5 - safeRating);
   }
 
+  function formatTime(time: string) {
+    const [hourString, minute] = time.split(":");
+    const hour = Number(hourString);
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const twelveHour = hour % 12 || 12;
+    return `${twelveHour}:${minute} ${suffix}`;
+  }
+
+  function formatDateKey(date: Date) {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, "0");
+    const day = `${date.getDate()}`.padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function timeToMinutes(time: string) {
+    const [hours, minutes] = time.split(":").map(Number);
+    return hours * 60 + minutes;
+  }
+
+  function minutesToTime(totalMinutes: number) {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  }
+
+  function getNextOpeningText() {
+    if (generatedSlots.length === 0) return null;
+    const first = generatedSlots[0];
+    return `${first.dayLabel} ${first.dateLabel} • ${formatTime(first.start_time)}`;
+  }
+
+  async function handleBookServiceInSlot(service: ProfessionalService) {
+    try {
+      setMessage("");
+
+      if (!viewerUserId || !viewerIsCustomer) {
+        setMessage("You need to be signed in as a customer to book a time.");
+        return;
+      }
+
+      if (!profile || !selectedSlot) return;
+
+      setBookingSlotKey(selectedSlot.key);
+
+      const slotStart = timeToMinutes(selectedSlot.start_time);
+      const slotEnd = timeToMinutes(selectedSlot.end_time);
+
+      const { data: existingBookings } = await supabase
+        .from("bookings")
+        .select("id, start_time, end_time, status")
+        .eq("professional_id", profile.id)
+        .eq("booking_date", selectedSlot.date)
+        .in("status", ["confirmed", "completion_requested", "completed"]);
+
+      const hasConflict = (existingBookings || []).some((booking) => {
+        const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
+        const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
+        return slotStart < bookingEnd && slotEnd > bookingStart;
+      });
+
+      if (hasConflict) {
+        setMessage("That time was just taken. Please choose another one.");
+        setSelectedSlot(null);
+setSelectedServiceMode(null);
+setLocationInput("");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("bookings")
+.insert({
+  professional_id: profile.id,
+  customer_id: viewerUserId,
+  booking_date: selectedSlot.date,
+  start_time: selectedSlot.start_time,
+  end_time: selectedSlot.end_time,
+  status: "confirmed",
+
+  // 🔥 NEW FIELDS
+  source: "booking",
+  service_mode: selectedServiceMode,
+  location: locationInput || null,
+
+  service_id: service.id,
+  service_name: service.service_name,
+  duration_minutes: service.duration_minutes,
+})
+        .select(
+          "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes"
+        )
+        .single();
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      if (data) {
+        const normalized = {
+          ...data,
+          start_time: String(data.start_time).slice(0, 5),
+          end_time: String(data.end_time).slice(0, 5),
+        } as BookingRow;
+
+        setBookings((prev) => [...prev, normalized]);
+      }
+
+      setMessage(
+        `Booked ${service.service_name} for ${selectedSlot.dayLabel} ${selectedSlot.dateLabel} at ${formatTime(selectedSlot.start_time)}.`
+      );
+      setSelectedSlot(null);
+    } catch (error) {
+      console.error(error);
+      setMessage("Something went wrong booking that time.");
+    } finally {
+      setBookingSlotKey(null);
+    }
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
@@ -260,6 +648,16 @@ export default function ProfessionalProfilePage() {
     );
   }
 
+  const isProfessional =
+    profile.role === "professional" || profile.role === "I am a professional";
+
+  const profileTags = [
+    profile.direct_booking_enabled ? "Direct booking" : null,
+    getNextOpeningText() ? "Open this week" : null,
+    averageRating ? "Highly rated" : null,
+    reviews.length >= 3 ? "Trusted by clients" : null,
+  ].filter(Boolean) as string[];
+
   return (
     <>
       <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
@@ -286,112 +684,230 @@ export default function ProfessionalProfilePage() {
         </div>
 
         <div className="mx-auto max-w-6xl py-12">
-          <div className="mb-6 rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => profile.banner_url && setShowBannerPreview(true)}
-                className={`block w-full ${
-                  profile.banner_url ? "cursor-zoom-in" : "cursor-default"
-                }`}
-              >
-                <div className="h-56 w-full overflow-hidden rounded-t-[2rem] bg-neutral-100 md:h-72">
-                  {profile.banner_url ? (
-                    <img
-                      src={profile.banner_url}
-                      alt="Cover photo"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm text-neutral-400">
-                      No cover photo
-                    </div>
-                  )}
+          <section className="mb-8 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
+            <div className="relative h-48 w-full bg-black md:h-64">
+              {profile.banner_url ? (
+                <button
+                  type="button"
+                  onClick={() => setShowBannerPreview(true)}
+                  className="h-full w-full cursor-zoom-in"
+                >
+                  <img
+                    src={profile.banner_url}
+                    alt="Cover photo"
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-neutral-950 text-sm text-white/60">
+                  No cover photo
                 </div>
-              </button>
+              )}
 
-              <div className="absolute -bottom-16 left-6 md:left-8">
-                <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-neutral-100 shadow md:h-40 md:w-40">
-                  {profile.avatar_url ? (
-                    <img
-                      src={profile.avatar_url}
-                      alt={profile.full_name || "Professional"}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-4xl font-semibold text-neutral-500">
-                      {profile.full_name?.charAt(0).toUpperCase() || "P"}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent" />
             </div>
 
-            <div className="px-6 pb-6 pt-20 md:px-8 md:pt-24">
-              <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
-                {profile.full_name || "Professional"}
-              </h1>
+            <div className="px-6 pb-6 pt-6 md:px-8">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex min-w-0 gap-4">
+                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[1.5rem] border-4 border-white bg-neutral-100 shadow md:h-28 md:w-28">
+                    {profile.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt={profile.full_name || "Profile"}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-neutral-500">
+                        {profile.full_name?.charAt(0).toUpperCase() || "P"}
+                      </div>
+                    )}
+                  </div>
 
-              <p className="mt-3 text-lg text-neutral-600">
-                {formatProfessionalType(profile.professional_type)}
-              </p>
+                  <div className="min-w-0 pt-1">
+                    <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">
+                      {profile.full_name || "Profile"}
+                    </h1>
 
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                {profile.location ? (
-                  <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                    {profile.location}
-                  </span>
+                    <p className="mt-2 text-base text-neutral-600 md:text-lg">
+                      {isProfessional
+                        ? formatProfessionalType(profile.professional_type)
+                        : "Customer"}
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-600">
+                      {profile.location ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <MapPin className="h-4 w-4" />
+                          {profile.location}
+                        </span>
+                      ) : null}
+
+                      {isProfessional && averageRating ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Star className="h-4 w-4 fill-current" />
+                          {averageRating} · {reviews.length} review{reviews.length === 1 ? "" : "s"}
+                        </span>
+                      ) : isProfessional ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Star className="h-4 w-4" />
+                          No reviews yet
+                        </span>
+                      ) : null}
+                    </div>
+
+                    {profileTags.length > 0 ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {profileTags.slice(0, 4).map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                {isProfessional && viewerIsCustomer && viewerUserId !== profile.id ? (
+                  <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[240px]">
+                    {profile.direct_booking_enabled && profile.public_availability_enabled ? (
+                      <a
+                        href="#availability"
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                      >
+                        <CalendarDays className="h-4 w-4" />
+                        Book directly
+                      </a>
+                    ) : null}
+
+                    <Link
+                      href={`/requests/new?rebook=1&pro=${profile.id}`}
+                      className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-6 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                    >
+                      {hasBookedBefore ? "Request again" : "Request service"}
+                    </Link>
+                  </div>
                 ) : null}
-
-                {formatServiceModes(profile.service_modes) ? (
-                  <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                    {formatServiceModes(profile.service_modes)}
-                  </span>
-                ) : null}
-
-                {averageRating ? (
-                  <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                    {averageRating} / 5 · {reviews.length} review{reviews.length === 1 ? "" : "s"}
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                    No reviews yet
-                  </span>
-                )}
               </div>
 
-              {viewerIsCustomer && viewerUserId !== profile.id ? (
-                <div className="mt-6">
-                  <Link
-                    href={`/requests/new?rebook=1&pro=${profile.id}`}
-                    className="inline-flex rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
-                  >
-                    {hasBookedBefore ? "Book again" : "Request this professional"}
-                  </Link>
+              {(profile.bio ||
+                (isProfessional && formatServiceModes(profile.service_modes))) && (
+                <div className="mt-6 border-t border-neutral-200 pt-6">
+                  {profile.bio ? (
+                    <p className="max-w-3xl text-sm leading-7 text-neutral-600 md:text-[15px]">
+                      {profile.bio}
+                    </p>
+                  ) : null}
+
+                  {isProfessional && formatServiceModes(profile.service_modes) ? (
+                    <div className="mt-4 inline-flex rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700">
+                      {formatServiceModes(profile.service_modes)}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {message ? (
+                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+                  {message}
                 </div>
               ) : null}
             </div>
-          </div>
+          </section>
 
-          <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
+          {isProfessional && services.length > 0 ? (
+            <section className="mb-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Services
+                  </p>
+                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+                    What you can book
+                  </h2>
+                </div>
+
+                <div className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
+                  {services.length} service{services.length === 1 ? "" : "s"}
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-3">
+                {services.map((service) => (
+                  <div
+                    key={service.id}
+                    className="flex flex-col gap-3 rounded-[1.5rem] border border-neutral-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="text-lg font-semibold text-neutral-900">
+                        {service.service_name}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-neutral-500">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock3 className="h-4 w-4" />
+                          {service.duration_minutes} min
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <ShieldCheck className="h-4 w-4" />
+                          {service.is_bookable ? "Bookable" : "Request only"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {profile.direct_booking_enabled && profile.public_availability_enabled ? (
+                      <a
+                        href="#availability"
+                        className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                      >
+                        View times
+                      </a>
+                    ) : (
+                      <Link
+                        href={`/requests/new?rebook=1&pro=${profile.id}`}
+                        className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                      >
+                        Request service
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <div className={`grid gap-8 ${isProfessional ? "lg:grid-cols-[1.15fr_0.85fr]" : ""}`}>
             <div className="rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-              {profile.bio ? (
-                <div>
+              <div>
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                  About
+                </p>
+                <p className="mt-4 max-w-3xl text-lg leading-8 text-neutral-600">
+                  {profile.bio?.trim() || "No bio added yet."}
+                </p>
+              </div>
+
+              {isProfessional &&
+              profile.specialties &&
+              profile.specialties.length > 0 ? (
+                <div className="mt-8">
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    About
+                    Specialties
                   </p>
-                  <p className="mt-4 max-w-3xl text-lg leading-8 text-neutral-600">
-                    {profile.bio}
-                  </p>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {profile.specialties.map((specialty) => (
+                      <span
+                        key={specialty}
+                        className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
+                      >
+                        {specialty}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              ) : (
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    About
-                  </p>
-                  <p className="mt-4 text-neutral-400">No bio added yet.</p>
-                </div>
-              )}
+              ) : null}
 
               {profile.instagram_handle ? (
                 <div className="mt-8">
@@ -410,11 +926,14 @@ export default function ProfessionalProfilePage() {
               ) : null}
             </div>
 
-            <div className="space-y-6">
+            {isProfessional ? (
               <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                  Trust snapshot
-                </p>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-neutral-500" />
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Trust snapshot
+                  </p>
+                </div>
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <div className="rounded-2xl border border-neutral-200 bg-white p-5">
@@ -428,7 +947,7 @@ export default function ProfessionalProfilePage() {
 
                   <div className="rounded-2xl border border-neutral-200 bg-white p-5">
                     <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      Total reviews
+                      Reviews
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-neutral-900">
                       {reviews.length}
@@ -437,134 +956,371 @@ export default function ProfessionalProfilePage() {
 
                   <div className="rounded-2xl border border-neutral-200 bg-white p-5">
                     <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      Portfolio items
+                      Bookable services
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                      {portfolioItems.length}
+                      {services.length}
                     </p>
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200 bg-white p-5">
                     <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      Specialty
+                      Next opening
                     </p>
-                    <p className="mt-2 text-base font-semibold text-neutral-900">
-                      {formatProfessionalType(profile.professional_type)}
+                    <p className="mt-2 text-sm font-semibold text-neutral-900">
+                      {getNextOpeningText() || "No opening"}
                     </p>
                   </div>
                 </div>
+
+                {viewerIsCustomer && viewerUserId !== profile.id ? (
+                  <div className="mt-4">
+                    <Link
+                      href={`/requests/new?rebook=1&pro=${profile.id}`}
+                      className="inline-flex w-full items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-white"
+                    >
+                      {hasBookedBefore ? "Request again" : "Start a request"}
+                    </Link>
+                  </div>
+                ) : null}
               </div>
-            </div>
+            ) : null}
           </div>
 
-          <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-            <div>
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                Portfolio
-              </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                Past work
-              </h2>
-            </div>
+          {isProfessional &&
+          profile.direct_booking_enabled &&
+          profile.public_availability_enabled ? (
+            <section
+              id="availability"
+              className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm"
+            >
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Availability
+                  </p>
+                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+                    Book available time
+                  </h2>
+                </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {portfolioItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-white"
-                >
-                  <div className="aspect-square bg-neutral-100">
-                    <img
-                      src={item.image_url}
-                      alt={item.caption || "Portfolio image"}
-                      className="h-full w-full object-cover"
-                    />
+                <div className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
+                  {slotBlockMinutes} min open blocks
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
+                <p className="text-sm font-medium text-neutral-900">
+                  Choose a time on the left, then select the service that fits that slot.
+                </p>
+                <p className="mt-2 text-sm text-neutral-500">
+                  Once a time is booked, that whole slot disappears for everyone else.
+                </p>
+              </div>
+
+              {services.length === 0 ? (
+                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
+                  This professional has not added any bookable services yet.
+                </div>
+              ) : groupedSlots.length === 0 ? (
+                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
+                  No open times available in the next 7 days.
+                </div>
+              ) : (
+                <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+                  <div className="space-y-6">
+                    {groupedSlots.map((group) => (
+                      <div
+                        key={group.date}
+                        className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5"
+                      >
+                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                          <h3 className="text-xl font-semibold text-neutral-900">
+                            {group.dayLabel}
+                          </h3>
+                          <p className="text-sm text-neutral-500">{group.dateLabel}</p>
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          {group.slots.map((slot) => (
+                            <button
+                              key={slot.key}
+                              type="button"
+                              disabled={
+                                !viewerIsCustomer ||
+                                viewerUserId === profile.id ||
+                                bookingSlotKey === slot.key
+                              }
+                              onClick={() => {
+                                setSelectedSlot(slot);
+                                setMessage("");
+                              }}
+                              className={`rounded-full border px-4 py-3 text-sm font-medium transition ${
+                                selectedSlot?.key === slot.key
+                                  ? "border-black bg-black text-white"
+                                  : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
+                              } disabled:cursor-not-allowed disabled:opacity-50`}
+                            >
+                              {bookingSlotKey === slot.key
+                                ? "Booking..."
+                                : `${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}`}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
-                  {item.caption ? (
-                    <div className="p-4">
-                      <p className="text-sm text-neutral-700">{item.caption}</p>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
+                  <div className="h-fit rounded-[1.5rem] border border-neutral-200 bg-white p-5 lg:sticky lg:top-6">
+                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      Booking summary
+                    </p>
 
-              {portfolioItems.length === 0 ? (
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600 sm:col-span-2 lg:col-span-3">
-                  No portfolio uploaded yet.
-                </div>
-              ) : null}
-            </div>
-          </div>
+                    {!selectedSlot ? (
+                      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                        Select a time to see which services fit and complete your booking.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mt-4 rounded-2xl bg-black p-5 text-white">
+                          <p className="text-xs uppercase tracking-[0.2em] text-white/70">
+                            Selected time
+                          </p>
+                          <h3 className="mt-2 text-xl font-semibold">
+                            {selectedSlot.dayLabel} {selectedSlot.dateLabel}
+                          </h3>
+                          <p className="mt-2 text-sm text-white/80">
+                            {formatTime(selectedSlot.start_time)} - {formatTime(selectedSlot.end_time)}
+                          </p>
 
-          <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-              Reviews
-            </p>
-
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-              Client feedback
-            </h2>
-
-            {reviews.length === 0 ? (
-              <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
-                No reviews yet.
-              </div>
-            ) : (
-              <div className="mt-6 space-y-4">
-                {reviews.map((review) => (
-                  <div
-                    key={review.id}
-                    className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-white">
-                          {review.reviewer_avatar_url ? (
-                            <img
-                              src={review.reviewer_avatar_url}
-                              alt={review.reviewer_name || "Reviewer"}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-xs font-medium text-neutral-500">
-                              {review.reviewer_name?.charAt(0).toUpperCase() || "C"}
-                            </div>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSlot(null)}
+                            className="mt-4 rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                          >
+                            Clear
+                          </button>
                         </div>
 
-                        <div>
-                          <p className="font-semibold text-neutral-900">
-                            {review.reviewer_name || "Verified client"}
-                          </p>
-                          <p className="text-xs text-neutral-400">Verified client</p>
-                          <p className="text-sm text-neutral-500">
-                            {formatDate(review.created_at)}
-                          </p>
-                        </div>
-                      </div>
+                        {servicesThatFitSelectedSlot.length === 0 ? (
+                          <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                            No services fit inside this time block.
+                          </div>
+                        ) : (
+                          <div className="mt-4 space-y-3">
 
-                      <div className="text-sm font-medium text-neutral-900">
-                        {renderStars(review.rating)}{" "}
-                        <span className="ml-2">{review.rating}/5</span>
-                      </div>
-                    </div>
+<div className="mt-4">
+  <p className="text-sm font-medium text-neutral-900">Service mode</p>
 
-                    {review.comment ? (
-                      <p className="mt-4 leading-7 text-neutral-600">
-                        {review.comment}
-                      </p>
+  <div className="mt-2 flex flex-wrap gap-2">
+    {["in_shop", "home_studio", "at_home"].map((mode) => (
+      <button
+        key={mode}
+        type="button"
+        onClick={() => setSelectedServiceMode(mode)}
+        className={`rounded-full border px-4 py-2 text-sm transition ${
+          selectedServiceMode === mode
+            ? "border-black bg-black text-white"
+            : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
+        }`}
+      >
+        {mode.replace("_", " ")}
+      </button>
+    ))}
+  </div>
+</div>
+
+<div className="mt-4">
+  <p className="text-sm font-medium text-neutral-900">Location (optional)</p>
+
+  <input
+    type="text"
+    value={locationInput}
+    onChange={(e) => setLocationInput(e.target.value)}
+    placeholder="Address, studio name, etc."
+    className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-2 text-sm"
+  />
+</div>
+
+                            <p className="text-sm font-medium text-neutral-900">
+                              Choose your service
+                            </p>
+
+                            {servicesThatFitSelectedSlot.map((service) => (
+                              <button
+                                key={service.id}
+                                type="button"
+onClick={() => {
+  if (!selectedServiceMode) {
+    setMessage("Please select a service mode.");
+    return;
+  }
+  handleBookServiceInSlot(service);
+}}
+                                disabled={bookingSlotKey === selectedSlot.key}
+                                className="w-full rounded-2xl border border-neutral-200 bg-white p-4 text-left transition hover:border-black hover:bg-neutral-50 disabled:opacity-60"
+                              >
+                                <p className="font-semibold text-neutral-900">
+                                  {service.service_name}
+                                </p>
+                                <p className="mt-1 text-sm text-neutral-500">
+                                  {service.duration_minutes} min
+                                </p>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {!viewerIsCustomer ? (
+                      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                        Sign in as a customer to book a time.
+                      </div>
                     ) : null}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+            </section>
+          ) : null}
 
-          {message ? (
-            <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-              {message}
-            </div>
+          {isProfessional ? (
+            <section className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Portfolio
+                  </p>
+                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">Past work</h2>
+                </div>
+
+                {portfolioItems.length > 0 ? (
+                  <div className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
+                    {portfolioItems.length} item{portfolioItems.length === 1 ? "" : "s"}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {portfolioItems.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className={`overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-white ${
+                      index === 0 ? "sm:col-span-2 sm:row-span-2 lg:col-span-2" : ""
+                    }`}
+                  >
+                    <div
+                      className={`bg-neutral-100 ${
+                        index === 0 ? "aspect-[4/3] lg:aspect-[5/4]" : "aspect-square"
+                      }`}
+                    >
+                      <img
+                        src={item.image_url}
+                        alt={item.caption || "Portfolio image"}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+
+                    <div className="p-4">
+                      {item.caption ? (
+                        <p className="text-sm text-neutral-700">{item.caption}</p>
+                      ) : (
+                        <p className="text-sm text-neutral-400">No caption</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {portfolioItems.length === 0 ? (
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600 sm:col-span-2 lg:col-span-3">
+                    No portfolio items yet.
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
+          {isProfessional ? (
+            <section className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Reviews
+                  </p>
+                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">Client feedback</h2>
+                </div>
+
+                {reviews.length > 0 ? (
+                  <div className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
+                    {reviews.length} review{reviews.length === 1 ? "" : "s"}
+                  </div>
+                ) : null}
+              </div>
+
+              {reviews.length === 0 ? (
+                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
+                  No reviews yet.
+                </div>
+              ) : (
+                <>
+                  <div className="mt-6 space-y-4">
+                    {visibleReviews.map((review) => (
+                      <div
+                        key={review.id}
+                        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-white">
+                              {review.reviewer_avatar_url ? (
+                                <img
+                                  src={review.reviewer_avatar_url}
+                                  alt={review.reviewer_name || "Reviewer"}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-xs font-medium text-neutral-500">
+                                  {review.reviewer_name?.charAt(0).toUpperCase() || "C"}
+                                </div>
+                              )}
+                            </div>
+
+                            <div>
+                              <p className="font-semibold text-neutral-900">
+                                {review.reviewer_name || "Verified client"}
+                              </p>
+                              <p className="text-xs text-neutral-400">
+                                {formatDate(review.created_at)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="text-sm font-medium text-neutral-900">
+                            {renderStars(review.rating)} <span className="ml-2">{review.rating}/5</span>
+                          </div>
+                        </div>
+
+                        {review.comment ? (
+                          <p className="mt-4 leading-7 text-neutral-600">{review.comment}</p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+
+                  {reviews.length > 4 ? (
+                    <div className="mt-6">
+                      <button
+                        type="button"
+                        onClick={() => setShowAllReviews((prev) => !prev)}
+                        className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                      >
+                        {showAllReviews ? "Show fewer reviews" : "Show all reviews"}
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              )}
+            </section>
           ) : null}
         </div>
       </main>
