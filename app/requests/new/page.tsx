@@ -65,11 +65,11 @@ type ReferencePhotoItem = {
 
 function NewRequestPageContent() {
   const router = useRouter();
-const searchParams = useSearchParams();
-const preferredProfessionalId = searchParams.get("pro");
-const originalRequestId = searchParams.get("request");
-const isRebook =
-  searchParams.get("rebook") === "1" && !!preferredProfessionalId;
+  const searchParams = useSearchParams();
+  const preferredProfessionalId = searchParams.get("pro");
+  const originalRequestId = searchParams.get("request");
+  const isRebook =
+    searchParams.get("rebook") === "1" && !!preferredProfessionalId;
 
   const [rebookProName, setRebookProName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -87,6 +87,12 @@ const isRebook =
   const [location, setLocation] = useState("");
   const [serviceMode, setServiceMode] = useState("");
   const [budget, setBudget] = useState("");
+
+  const [preferredDate, setPreferredDate] = useState("");
+  const [preferredStartTime, setPreferredStartTime] = useState("");
+  const [preferredEndTime, setPreferredEndTime] = useState("");
+  const [timingFlexibility, setTimingFlexibility] = useState("exact");
+
   const [submitting, setSubmitting] = useState(false);
 
   const [referencePhotos, setReferencePhotos] = useState<ReferencePhotoItem[]>(
@@ -121,8 +127,8 @@ const isRebook =
         return;
       }
 
-      const isCustomer =
-        profile?.role === "customer" || profile?.role === "I am a customer";
+      const normalizedRole = profile?.role?.toLowerCase().trim() || "";
+      const isCustomer = normalizedRole.includes("customer");
 
       if (!isCustomer) {
         setMessage("Only customers can post requests.");
@@ -395,6 +401,23 @@ const isRebook =
       return;
     }
 
+    if (timingFlexibility !== "anytime") {
+      if (!preferredDate) {
+        setMessage("Please select a preferred date.");
+        return;
+      }
+
+      if (!preferredStartTime) {
+        setMessage("Please select a preferred start time.");
+        return;
+      }
+
+      if (preferredEndTime && preferredEndTime <= preferredStartTime) {
+        setMessage("End time must be later than start time.");
+        return;
+      }
+    }
+
     setSubmitting(true);
     setMessage("Submitting request...");
 
@@ -406,8 +429,6 @@ const isRebook =
       const referencePhotoUrls = await uploadReferencePhotos(userId);
 
       const directRebook = isRebook && !!preferredProfessionalId;
-
-
 
       const { data: insertedRequest, error: insertRequestError } = await supabase
         .from("service_requests")
@@ -427,9 +448,17 @@ const isRebook =
             preferred_professional_id: directRebook ? preferredProfessionalId : null,
             is_direct_rebook: directRebook,
             original_request_id: directRebook ? originalRequestId : null,
+            preferred_date: timingFlexibility === "anytime" ? null : preferredDate || null,
+            preferred_start_time:
+              timingFlexibility === "anytime" ? null : preferredStartTime || null,
+            preferred_end_time:
+              timingFlexibility === "anytime" ? null : preferredEndTime || null,
+            timing_flexibility: timingFlexibility,
           },
         ])
-        .select("id, client_id, preferred_professional_id, is_direct_rebook, original_request_id")
+        .select(
+          "id, client_id, preferred_professional_id, is_direct_rebook, original_request_id"
+        )
         .single();
 
       console.log("insertedRequest:", insertedRequest);
@@ -439,27 +468,28 @@ const isRebook =
         throw insertRequestError;
       }
 
-           if (directRebook) {
+      if (directRebook) {
         console.log("REBOOK DEBUG preferredProfessionalId:", preferredProfessionalId);
         console.log("REBOOK DEBUG insertedRequest:", insertedRequest);
 
         if (!insertedRequest?.preferred_professional_id) {
           throw new Error("Rebook request was created without preferred_professional_id.");
         }
-const { data: insertedNotification, error: notificationError } =
-  await supabase
-    .from("notifications")
-    .insert([
-      {
-        user_id: insertedRequest.preferred_professional_id,
-        request_id: insertedRequest.id,
-        is_read: false,
-        type: "request",
-        title: "New booking request",
-      },
-    ])
-    .select("*")
-    .single();
+
+        const { data: insertedNotification, error: notificationError } =
+          await supabase
+            .from("notifications")
+            .insert([
+              {
+                user_id: insertedRequest.preferred_professional_id,
+                request_id: insertedRequest.id,
+                is_read: false,
+                type: "request",
+                title: "New booking request",
+              },
+            ])
+            .select("*")
+            .single();
 
         console.log("REBOOK DEBUG insertedNotification:", insertedNotification);
         console.log("REBOOK DEBUG notificationError:", notificationError);
@@ -624,6 +654,54 @@ const { data: insertedNotification, error: notificationError } =
 
         <div>
           <label className="mb-2 block text-sm font-medium">
+            When do you want this done?
+          </label>
+
+          <div className="space-y-3">
+            <select
+              value={timingFlexibility}
+              onChange={(e) => setTimingFlexibility(e.target.value)}
+              className="w-full rounded border p-3"
+            >
+              <option value="exact">Exact time</option>
+              <option value="flexible">Flexible around a time</option>
+              <option value="anytime">Anytime</option>
+            </select>
+
+            {timingFlexibility !== "anytime" ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <input
+                  type="date"
+                  value={preferredDate}
+                  onChange={(e) => setPreferredDate(e.target.value)}
+                  className="rounded border p-3"
+                />
+
+                <input
+                  type="time"
+                  value={preferredStartTime}
+                  onChange={(e) => setPreferredStartTime(e.target.value)}
+                  className="rounded border p-3"
+                />
+
+                <input
+                  type="time"
+                  value={preferredEndTime}
+                  onChange={(e) => setPreferredEndTime(e.target.value)}
+                  className="rounded border p-3"
+                />
+              </div>
+            ) : null}
+
+            <p className="text-sm text-neutral-500">
+              Barbers and other professionals can match this time or send an offer
+              with a different time slot.
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium">
             Reference photos
           </label>
 
@@ -710,6 +788,7 @@ const { data: insertedNotification, error: notificationError } =
     </main>
   );
 }
+
 export default function NewRequestPage() {
   return (
     <Suspense

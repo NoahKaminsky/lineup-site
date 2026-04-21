@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
 type LiveBid = {
@@ -248,12 +249,10 @@ function SectionFade() {
 }
 
 export default function Page() {
+  const router = useRouter();
+
+  const [authResolved, setAuthResolved] = useState<boolean>(false);
   const [joinCount, setJoinCount] = useState<number | null>(null);
-const [isSignedIn, setIsSignedIn] = useState<boolean>(false);
-const [userRole, setUserRole] = useState<string | null>(null);
-const [userName, setUserName] = useState<string | null>(null);
-const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
-const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(0);
   const [firstName, setFirstName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("");
@@ -261,38 +260,18 @@ const [unreadNotificationCount, setUnreadNotificationCount] = useState<number>(0
   const [selectedPreview, setSelectedPreview] = useState<string>("Low Taper Fade");
   const [liveTicker, setLiveTicker] = useState<number>(0);
   const [activeBidIndices, setActiveBidIndices] = useState<number[]>(
-    marketplaceCards.map(() => 0),
+    marketplaceCards.map(() => 0)
   );
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
-  const [selectedRequestMode, setSelectedRequestMode] = useState<string>("At home");
+  const [selectedRequestMode, setSelectedRequestMode] =
+    useState<string>("At home");
   const [requestService, setRequestService] = useState<string>("Haircut");
   const [requestLocation, setRequestLocation] = useState<string>("South Winnipeg");
   const [requestBudget, setRequestBudget] = useState<string>("$40–$50");
   const [requestTime, setRequestTime] = useState<string>("Tomorrow at 6:00 PM");
   const [requestDescription, setRequestDescription] = useState<string>(
-    "Looking for a burst fade and beard cleanup. Want someone experienced and available after work.",
+    "Looking for a burst fade and beard cleanup. Want someone experienced and available after work."
   );
-
-  const isProfessionalUser =
-    !!userRole && userRole !== "customer" && userRole !== "I am a customer";
-
-  const isCustomerUser =
-    userRole === "customer" || userRole === "I am a customer";
-
-const userInitial = useMemo(() => {
-  if (userName) {
-    return userName
-      .trim()
-      .split(" ")
-      .filter(Boolean)
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-  }
-
-  return "•"; // neutral placeholder instead of random letter
-}, [userName]);
 
   useEffect(() => {
     const fetchCount = async () => {
@@ -324,7 +303,7 @@ const userInitial = useMemo(() => {
           if (typeof count === "number") {
             setJoinCount(count);
           }
-        },
+        }
       )
       .subscribe();
 
@@ -334,121 +313,38 @@ const userInitial = useMemo(() => {
   }, []);
 
   useEffect(() => {
-    const loadSession = async () => {
+    const redirectIfSignedIn = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      setIsSignedIn(!!user);
-
-      if (!user) {
-setUserRole(null);
-setUserName(null);
-setUserAvatarUrl(null);
-setUnreadNotificationCount(0);
+      if (user) {
+        router.replace("/requests");
         return;
       }
 
-const { data: profile } = await supabase
-  .from("profiles")
-  .select("role, full_name, avatar_url")
-  .eq("id", user.id)
-  .single();
-
-const role = profile?.role ?? null;
-setUserRole(role);
-setUserName(profile?.full_name ?? null);
-setUserAvatarUrl(profile?.avatar_url ?? null);
-
-      const isProfessionalRole =
-        !!role && role !== "customer" && role !== "I am a customer";
-
-      if (isProfessionalRole) {
-        const { count, error } = await supabase
-          .from("notifications")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("is_read", false);
-
-        console.log("SIGNED IN USER ID:", user.id);
-        console.log("PROFILE ROLE:", role);
-        console.log("NOTIFICATION COUNT:", count);
-        console.log("NOTIFICATION ERROR:", error);
-
-        setUnreadNotificationCount(count ?? 0);
-      } else {
-        console.log("PROFILE ROLE WAS NOT PROFESSIONAL:", role);
-        setUnreadNotificationCount(0);
-      }
+      setAuthResolved(true);
     };
 
-    loadSession();
+    redirectIfSignedIn();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const user = session?.user ?? null;
-      setIsSignedIn(!!user);
 
-      if (!user) {
-        setUserRole(null);
-        setUserName(null);
-        setUnreadNotificationCount(0);
+      if (user) {
+        router.replace("/requests");
         return;
       }
 
-const { data: profile } = await supabase
-  .from("profiles")
-  .select("role, full_name, avatar_url")
-  .eq("id", user.id)
-  .single();
-
-const role = profile?.role ?? null;
-setUserRole(role);
-setUserName(profile?.full_name ?? null);
-setUserAvatarUrl(profile?.avatar_url ?? null);
-
-      const isProfessionalRole =
-        !!role && role !== "customer" && role !== "I am a customer";
-
-      if (isProfessionalRole) {
-        const { count, error } = await supabase
-          .from("notifications")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("is_read", false);
-
-        console.log("AUTH CHANGE USER ID:", user.id);
-        console.log("AUTH CHANGE ROLE:", role);
-        console.log("AUTH CHANGE COUNT:", count);
-        console.log("AUTH CHANGE ERROR:", error);
-
-        setUnreadNotificationCount(count ?? 0);
-      } else {
-        console.log("AUTH CHANGE ROLE WAS NOT PROFESSIONAL:", role);
-        setUnreadNotificationCount(0);
-      }
+      setAuthResolved(true);
     });
-
-    const handleWindowFocus = () => {
-      loadSession();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        loadSession();
-      }
-    };
-
-    window.addEventListener("focus", handleWindowFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       subscription.unsubscribe();
-      window.removeEventListener("focus", handleWindowFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const bidInterval = setInterval(() => {
@@ -457,7 +353,7 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
           const bidsLength = marketplaceCards[cardIndex].bids.length;
           if (bidsLength <= 1) return 0;
           return (index + 1) % bidsLength;
-        }),
+        })
       );
       setLiveTicker((prev) => (prev + 1) % 6);
     }, 2500);
@@ -548,6 +444,16 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
     setShowSuccessModal(true);
   };
 
+  if (!authResolved) {
+    return (
+      <main className="min-h-screen bg-white text-neutral-900">
+        <div className="flex min-h-screen items-center justify-center px-6">
+          <p className="text-sm text-neutral-500">Loading...</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-white text-neutral-900">
       <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/85 backdrop-blur-md">
@@ -572,82 +478,21 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
           </nav>
 
           <div className="flex items-center gap-3">
-{isSignedIn ? (
-  <div className="relative group">
-    {/* Avatar */}
-    <button className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-neutral-300 bg-white text-sm font-semibold text-neutral-900 transition hover:bg-neutral-50">
-      {userAvatarUrl ? (
-        <img
-          src={userAvatarUrl}
-          alt="Profile"
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        userInitial
-      )}
-    </button>
+            <Link
+              href="/login"
+              className="text-sm text-neutral-600 hover:text-neutral-900"
+            >
+              Sign in
+            </Link>
 
-    {/* Dropdown */}
-    <div className="invisible absolute right-0 mt-3 w-56 translate-y-2 rounded-2xl border border-neutral-200 bg-white opacity-0 shadow-xl transition-all group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-      <div className="p-2">
-        <Link
-          href="/requests"
-          className="block rounded-xl px-4 py-3 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
-        >
-          Dashboard
-        </Link>
-
-        {isProfessionalUser && (
-          <Link
-            href="/calendar"
-            className="mt-1 block rounded-xl px-4 py-3 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
-          >
-            Calendar
-          </Link>
-        )}
-
-        <Link
-          href="/account"
-          className="mt-1 block rounded-xl px-4 py-3 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
-        >
-          Profile
-        </Link>
-      </div>
-
-      <div className="border-t border-neutral-100 p-2">
-        <button
-          onClick={async () => {
-            await supabase.auth.signOut();
-            window.location.href = "/";
-          }}
-          className="block w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-neutral-900 hover:bg-neutral-50"
-        >
-          Sign out
-        </button>
-      </div>
-    </div>
-  </div>
-) : (
-              <>
-<Link
-  href="/login"
-  className="text-sm text-neutral-600 hover:text-neutral-900"
->
-  Sign in
-</Link>
-
-                <button
-                  onClick={scrollToJoin}
-                  className="rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
-                >
-                  Join the LineUp
-                </button>
-              </>
-            )}
+            <button
+              onClick={scrollToJoin}
+              className="rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+            >
+              Join the LineUp
+            </button>
           </div>
         </div>
-
-
       </header>
 
       <section className="relative overflow-hidden bg-white">
@@ -670,7 +515,8 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
           <div className="flex flex-col justify-center">
             <div className="mb-5 inline-flex w-fit items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
               <span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-              Prelaunch access: {countLabel ? `${countLabel} joined` : "Loading live count..."}
+              Prelaunch access:{" "}
+              {countLabel ? `${countLabel} joined` : "Loading live count..."}
             </div>
 
             <p className="text-sm font-medium text-neutral-500">
@@ -688,41 +534,25 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
             </p>
 
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-              {isSignedIn ? (
-                <>
-                  <Link
-                    href={isCustomerUser ? "/requests/new" : "/requests"}
-                    className="rounded-full bg-neutral-900 px-6 py-3 text-center text-sm font-medium text-white transition hover:opacity-90"
-                  >
-                    {isCustomerUser ? "Post a request" : "View requests"}
-                  </Link>
-                  <Link
-                    href={isCustomerUser ? "/requests" : "#demo"}
-                    className="rounded-full border border-neutral-300 px-6 py-3 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                  >
-                    {isCustomerUser ? "View requests" : "See marketplace"}
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={scrollToJoin}
-                    className="rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
-                  >
-                    Join the LineUp
-                  </button>
-                  <a
-                    href="#how-it-works"
-                    className="rounded-full border border-neutral-300 px-6 py-3 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                  >
-                    See how it works
-                  </a>
-                </>
-              )}
+              <button
+                onClick={scrollToJoin}
+                className="rounded-full bg-neutral-900 px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
+              >
+                Join the LineUp
+              </button>
+
+              <a
+                href="#how-it-works"
+                className="rounded-full border border-neutral-300 px-6 py-3 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+              >
+                See how it works
+              </a>
             </div>
 
             <div className="mt-10 flex flex-wrap items-center gap-4 text-sm text-neutral-500">
-              <span className="font-medium text-neutral-700">Built for flexible beauty work</span>
+              <span className="font-medium text-neutral-700">
+                Built for flexible beauty work
+              </span>
               <span className="h-1 w-1 rounded-full bg-neutral-300" />
               <span>At home</span>
               <span className="h-1 w-1 rounded-full bg-neutral-300" />
@@ -759,9 +589,9 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
               </h2>
 
               <p className="mt-4 max-w-lg leading-8 text-neutral-600">
-                Clients submit a request, professionals send offers, and the client chooses
-                who fits best. It’s designed to help you grow your client base, stay in control,
-                and work on your own terms.
+                Clients submit a request, professionals send offers, and the client
+                chooses who fits best. It’s designed to help you grow your client base,
+                stay in control, and work on your own terms.
               </p>
 
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -775,7 +605,8 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
                 <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                   <p className="text-sm text-neutral-500">Core idea</p>
                   <p className="mt-2 font-semibold text-neutral-900">
-                    Clients post what they want, professionals respond, you choose the best fit
+                    Clients post what they want, professionals respond, you choose the
+                    best fit
                   </p>
                 </div>
               </div>
@@ -809,8 +640,8 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
                 A more flexible way to connect clients and professionals.
               </h2>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
-                LineUp supports a more flexible beauty marketplace, whether services happen at home,
-                in-shop, or from a home studio.
+                LineUp supports a more flexible beauty marketplace, whether services
+                happen at home, in-shop, or from a home studio.
               </p>
             </div>
 
@@ -842,10 +673,7 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
 
       <SectionFade />
 
-      <section
-        id="how-it-works"
-        className="relative overflow-hidden bg-white"
-      >
+      <section id="how-it-works" className="relative overflow-hidden bg-white">
         <img
           src="/images/howitworks.png"
           alt=""
@@ -876,9 +704,12 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
 
             <div className="rounded-3xl border border-neutral-200 p-7">
               <p className="text-sm font-medium text-neutral-500">02</p>
-              <h3 className="mt-3 text-xl font-semibold">Professionals respond</h3>
+              <h3 className="mt-3 text-xl font-semibold">
+                Professionals respond
+              </h3>
               <p className="mt-3 leading-7 text-neutral-600">
-                Professionals send offers with pricing, timing, and availability based on your request.
+                Professionals send offers with pricing, timing, and availability based
+                on your request.
               </p>
             </div>
 
@@ -913,8 +744,12 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
           <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-[0_12px_40px_rgba(0,0,0,0.04)]">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-2xl font-semibold tracking-tight">Request a service</h3>
-                <p className="mt-1 text-sm text-neutral-500">Preview of how posting a request works</p>
+                <h3 className="text-2xl font-semibold tracking-tight">
+                  Request a service
+                </h3>
+                <p className="mt-1 text-sm text-neutral-500">
+                  Preview of how posting a request works
+                </p>
               </div>
 
               <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
@@ -1018,28 +853,14 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
               </div>
 
               <Link
-                href={
-                  !isSignedIn
-                    ? "/login"
-                    : isCustomerUser
-                      ? "/requests/new"
-                      : "/requests"
-                }
+                href="/login"
                 className="block w-full rounded-2xl bg-neutral-950 px-5 py-3.5 text-center text-sm font-medium text-white transition hover:opacity-95"
               >
-                {!isSignedIn
-                  ? "Sign in to post a request"
-                  : isCustomerUser
-                    ? "Post a request"
-                    : "View open requests"}
+                Sign in to post a request
               </Link>
 
               <p className="text-center text-xs text-neutral-500">
-                {!isSignedIn
-                  ? "Sign in first to post a real request"
-                  : isCustomerUser
-                    ? "Takes you to the real request form"
-                    : "Browse requests that match your services"}
+                Sign in first to post a real request
               </p>
             </div>
           </div>
@@ -1053,17 +874,23 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
               <div className="mt-5 space-y-4">
                 <div className="rounded-2xl border border-neutral-200 bg-white p-5">
                   <p className="text-sm text-neutral-500">Service mode</p>
-                  <h3 className="mt-1 text-lg font-semibold">Choose where it happens</h3>
+                  <h3 className="mt-1 text-lg font-semibold">
+                    Choose where it happens
+                  </h3>
                   <p className="mt-2 text-neutral-600">
-                    At home, in shop, or home studio — clients choose the setup that fits best.
+                    At home, in shop, or home studio — clients choose the setup that
+                    fits best.
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-neutral-200 bg-white p-5">
                   <p className="text-sm text-neutral-500">Live marketplace</p>
-                  <h3 className="mt-1 text-lg font-semibold">Professionals respond to demand</h3>
+                  <h3 className="mt-1 text-lg font-semibold">
+                    Professionals respond to demand
+                  </h3>
                   <p className="mt-2 text-neutral-600">
-                    Instead of searching blindly, clients post once and compare incoming offers.
+                    Instead of searching blindly, clients post once and compare
+                    incoming offers.
                   </p>
                 </div>
               </div>
@@ -1077,7 +904,8 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
                 Booking becomes more flexible and more transparent.
               </h3>
               <p className="mt-4 leading-7 text-neutral-300">
-                Clients choose the service style and location they want, then compare offers in one place.
+                Clients choose the service style and location they want, then compare
+                offers in one place.
               </p>
             </div>
           </div>
@@ -1095,7 +923,8 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
             Live bids that feel more like a real feed.
           </h2>
           <p className="mt-4 leading-7 text-neutral-600">
-            A preview of how clients can compare requests and incoming offers inside LineUp.
+            A preview of how clients can compare requests and incoming offers inside
+            LineUp.
           </p>
         </div>
 
@@ -1145,18 +974,23 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
               </div>
 
               <div className="mt-8 rounded-[1.75rem] border border-neutral-200 bg-white p-5">
-                <h4 className="text-[1.65rem] font-semibold tracking-tight">Live bids</h4>
+                <h4 className="text-[1.65rem] font-semibold tracking-tight">
+                  Live bids
+                </h4>
 
                 <div className="mt-5">
-                  <BidFeed bids={card.bids} activeIndex={activeBidIndices[cardIndex]} />
+                  <BidFeed
+                    bids={card.bids}
+                    activeIndex={activeBidIndices[cardIndex]}
+                  />
                 </div>
 
                 <div className="mt-6">
                   <Link
-                    href={isSignedIn ? "/requests" : "/login"}
+                    href="/login"
                     className="inline-flex rounded-full bg-neutral-950 px-6 py-3 text-[1.02rem] font-medium text-white transition hover:opacity-95"
                   >
-                    View requests
+                    Sign in to continue
                   </Link>
                 </div>
               </div>
@@ -1231,7 +1065,9 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-neutral-500">App flow preview</p>
-                  <h3 className="mt-1 text-2xl font-semibold">Create your preview</h3>
+                  <h3 className="mt-1 text-2xl font-semibold">
+                    Create your preview
+                  </h3>
                 </div>
                 <span className="rounded-full bg-neutral-900 px-3 py-1 text-xs text-white">
                   Future feature
@@ -1318,7 +1154,9 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
                 </div>
                 <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                   <p className="text-sm text-neutral-500">Step 2</p>
-                  <p className="mt-1 font-medium text-neutral-900">Generate preview</p>
+                  <p className="mt-1 font-medium text-neutral-900">
+                    Generate preview
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                   <p className="text-sm text-neutral-500">Step 3</p>
@@ -1343,7 +1181,9 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
                   <div className="flex items-center justify-between border-b border-neutral-200 pb-4">
                     <div>
                       <p className="text-sm text-neutral-500">Previewing</p>
-                      <p className="font-semibold text-neutral-900">{currentPreview.name}</p>
+                      <p className="font-semibold text-neutral-900">
+                        {currentPreview.name}
+                      </p>
                     </div>
                     <span className="rounded-full bg-neutral-900 px-3 py-1 text-xs text-white">
                       AI render
@@ -1427,23 +1267,33 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
                       <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm">
                         <div>
                           <p className="font-medium text-neutral-900">Jay Cuts</p>
-                          <p className="text-sm text-neutral-500">4.9 rating · At home</p>
+                          <p className="text-sm text-neutral-500">
+                            4.9 rating · At home
+                          </p>
                         </div>
                         <p className="font-semibold text-neutral-900">$42</p>
                       </div>
 
                       <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm">
                         <div>
-                          <p className="font-medium text-neutral-900">Studio Gloss</p>
-                          <p className="text-sm text-neutral-500">Portfolio match · In shop</p>
+                          <p className="font-medium text-neutral-900">
+                            Studio Gloss
+                          </p>
+                          <p className="text-sm text-neutral-500">
+                            Portfolio match · In shop
+                          </p>
                         </div>
                         <p className="font-semibold text-neutral-900">$48</p>
                       </div>
 
                       <div className="flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-sm">
                         <div>
-                          <p className="font-medium text-neutral-900">Kiana Brows</p>
-                          <p className="text-sm text-neutral-500">Top reviews · Home studio</p>
+                          <p className="font-medium text-neutral-900">
+                            Kiana Brows
+                          </p>
+                          <p className="text-sm text-neutral-500">
+                            Top reviews · Home studio
+                          </p>
                         </div>
                         <p className="font-semibold text-neutral-900">$50</p>
                       </div>
@@ -1505,7 +1355,9 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
 
             <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-1">
               <div className="rounded-[1.75rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                <p className="text-lg font-semibold text-neutral-900">Noah Kaminsky</p>
+                <p className="text-lg font-semibold text-neutral-900">
+                  Noah Kaminsky
+                </p>
                 <p className="mt-1 text-sm text-neutral-500">Co-Founder & COO</p>
               </div>
 
@@ -1591,7 +1443,8 @@ setUserAvatarUrl(profile?.avatar_url ?? null);
             </form>
 
             <p className="mt-4 text-sm text-neutral-400">
-              Live signup count is active. Join the LineUp for early access before launch.
+              Live signup count is active. Join the LineUp for early access before
+              launch.
             </p>
           </div>
         </div>

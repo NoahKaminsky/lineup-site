@@ -21,6 +21,13 @@ type ServiceRequest = {
   accepted_professional_id: string | null;
   created_at: string;
   reference_photos: string[] | null;
+  preferred_date?: string | null;
+  preferred_start_time?: string | null;
+  preferred_end_time?: string | null;
+  timing_flexibility?: string | null;
+  scheduled_date?: string | null;
+  scheduled_start_time?: string | null;
+  scheduled_end_time?: string | null;
 };
 
 type RequestOffer = {
@@ -29,6 +36,10 @@ type RequestOffer = {
   professional_id: string;
   message: string | null;
   proposed_price: string | null;
+  proposed_date?: string | null;
+  proposed_start_time?: string | null;
+  proposed_end_time?: string | null;
+  matches_requested_time?: boolean | null;
   status: "pending" | "accepted" | "declined" | string;
   created_at: string;
   viewed_by_customer?: boolean | null;
@@ -117,13 +128,9 @@ export default function RequestDetailPage() {
 
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
-  const isCustomer =
-    role === "customer" || role === "I am a customer" || role === "Customer";
-
-  const isProfessional =
-    role === "professional" ||
-    role === "I am a professional" ||
-    role === "Professional";
+  const normalizedRole = role?.toLowerCase().trim() || "";
+  const isCustomer = normalizedRole.includes("customer");
+  const isProfessional = !!normalizedRole && !normalizedRole.includes("customer");
 
   const isAcceptedProfessional = useMemo(() => {
     if (!request || !currentUserId) return false;
@@ -154,7 +161,6 @@ export default function RequestDetailPage() {
     if (mode === "in_shop") return "In shop";
     if (mode === "at_home") return "At home";
     if (mode === "home_studio") return "Home studio";
-
     return mode.replaceAll("_", " ");
   }
 
@@ -177,6 +183,23 @@ export default function RequestDetailPage() {
     });
   }
 
+  function formatDateOnly(dateString: string) {
+    return new Date(`${dateString}T00:00:00`).toLocaleDateString("en-CA", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+
+  function formatTime(timeString: string) {
+    const [hourString, minute] = timeString.split(":");
+    const hour = Number(hourString);
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const twelveHour = hour % 12 || 12;
+    return `${twelveHour}:${minute} ${suffix}`;
+  }
+
   function getStatusLabel(status: string) {
     if (status === "open") return "Open";
     if (status === "accepted") return "Accepted";
@@ -197,6 +220,77 @@ export default function RequestDetailPage() {
       return `${value.toFixed(1)} ★ (${count} ${count === 1 ? "review" : "reviews"})`;
     }
     return "No reviews yet";
+  }
+
+  function getScheduledSummary(currentRequest: ServiceRequest | null) {
+    if (
+      !currentRequest?.scheduled_date ||
+      !currentRequest?.scheduled_start_time ||
+      !currentRequest?.scheduled_end_time
+    ) {
+      return null;
+    }
+
+    return `${formatDateOnly(currentRequest.scheduled_date)} • ${formatTime(
+      currentRequest.scheduled_start_time
+    )} - ${formatTime(currentRequest.scheduled_end_time)}`;
+  }
+
+  function getPreferredSummary(currentRequest: ServiceRequest | null) {
+    if (!currentRequest) return null;
+
+    if (currentRequest.timing_flexibility === "anytime") {
+      return "Anytime";
+    }
+
+    if (
+      currentRequest.preferred_date &&
+      currentRequest.preferred_start_time &&
+      currentRequest.preferred_end_time
+    ) {
+      return `${formatDateOnly(currentRequest.preferred_date)} • ${formatTime(
+        currentRequest.preferred_start_time
+      )} - ${formatTime(currentRequest.preferred_end_time)}`;
+    }
+
+    if (
+      currentRequest.preferred_date &&
+      currentRequest.preferred_start_time
+    ) {
+      return `${formatDateOnly(currentRequest.preferred_date)} • ${formatTime(
+        currentRequest.preferred_start_time
+      )}`;
+    }
+
+    if (currentRequest.preferred_date) {
+      return formatDateOnly(currentRequest.preferred_date);
+    }
+
+    return null;
+  }
+
+  function getOfferTimingSummary(offer: RequestOffer) {
+    if (
+      offer.proposed_date &&
+      offer.proposed_start_time &&
+      offer.proposed_end_time
+    ) {
+      return `${formatDateOnly(offer.proposed_date)} • ${formatTime(
+        String(offer.proposed_start_time).slice(0, 5)
+      )} - ${formatTime(String(offer.proposed_end_time).slice(0, 5))}`;
+    }
+
+    if (offer.proposed_date && offer.proposed_start_time) {
+      return `${formatDateOnly(offer.proposed_date)} • ${formatTime(
+        String(offer.proposed_start_time).slice(0, 5)
+      )}`;
+    }
+
+    if (offer.proposed_date) {
+      return formatDateOnly(offer.proposed_date);
+    }
+
+    return null;
   }
 
   const loadRequestLive = useCallback(async () => {
@@ -259,7 +353,7 @@ export default function RequestDetailPage() {
       .eq("request_id", requestId)
       .order("created_at", { ascending: false });
 
-    if (profile.role === "professional" || profile.role === "I am a professional") {
+    if (isProfessional) {
       offersQuery = offersQuery.eq("professional_id", user.id);
     }
 
@@ -363,7 +457,7 @@ export default function RequestDetailPage() {
 
       setOffers(enrichedOffers);
 
-      if (profile.role === "customer" || profile.role === "I am a customer") {
+      if (isCustomer) {
         const ids = offersData
           .filter((offer) => !offer.viewed_by_customer)
           .map((offer) => offer.id);
@@ -386,11 +480,7 @@ export default function RequestDetailPage() {
 
     const acceptedOffer = enrichedOffers.find((offer) => offer.status === "accepted");
 
-    if (
-      requestData.status === "completed" &&
-      (profile.role === "customer" || profile.role === "I am a customer") &&
-      acceptedOffer
-    ) {
+    if (requestData.status === "completed" && isCustomer && acceptedOffer) {
       const { data: existingReviewData } = await supabase
         .from("professional_reviews")
         .select("id, request_id, professional_id, reviewer_id, rating, comment")
@@ -455,7 +545,7 @@ export default function RequestDetailPage() {
     }
 
     setLoading(false);
-  }, [requestId, router]);
+  }, [requestId, router, isCustomer, isProfessional]);
 
   useEffect(() => {
     loadRequestLive();
@@ -576,6 +666,12 @@ export default function RequestDetailPage() {
       return;
     }
 
+    if (!acceptedOffer.proposed_date || !acceptedOffer.proposed_start_time) {
+      setMessage("This offer does not include a valid time yet.");
+      setAcceptingOfferId(null);
+      return;
+    }
+
     const { error: acceptSelectedError } = await supabase
       .from("request_offers")
       .update({ status: "accepted" })
@@ -610,6 +706,9 @@ export default function RequestDetailPage() {
       .update({
         status: "accepted",
         accepted_professional_id: acceptedOffer.professional_id,
+        scheduled_date: acceptedOffer.proposed_date,
+        scheduled_start_time: acceptedOffer.proposed_start_time,
+        scheduled_end_time: acceptedOffer.proposed_end_time,
       })
       .eq("id", request.id);
 
@@ -624,7 +723,15 @@ export default function RequestDetailPage() {
         {
           request_id: request.id,
           sender_id: currentUserId,
-          message: "Offer accepted. You can now chat here to coordinate details.",
+          message: `Offer accepted. Scheduled for ${formatDateOnly(
+            acceptedOffer.proposed_date
+          )} at ${formatTime(
+            String(acceptedOffer.proposed_start_time).slice(0, 5)
+          )}${
+            acceptedOffer.proposed_end_time
+              ? ` - ${formatTime(String(acceptedOffer.proposed_end_time).slice(0, 5))}`
+              : ""
+          }. You can now chat here to coordinate details.`,
         },
       ]);
     }
@@ -642,6 +749,9 @@ export default function RequestDetailPage() {
             ...prev,
             status: "accepted",
             accepted_professional_id: acceptedOffer.professional_id,
+            scheduled_date: acceptedOffer.proposed_date ?? null,
+            scheduled_start_time: acceptedOffer.proposed_start_time ?? null,
+            scheduled_end_time: acceptedOffer.proposed_end_time ?? null,
           }
         : prev
     );
@@ -947,930 +1057,966 @@ export default function RequestDetailPage() {
     );
   }
 
-return (
-  <>
-    <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
-      <MarkRequestNotificationRead requestId={requestId} />
+  const scheduledSummary = getScheduledSummary(request);
+  const preferredSummary = getPreferredSummary(request);
 
-      <div className="mx-auto flex max-w-6xl items-center justify-between border-b border-neutral-200 pb-6">
-        <Link href="/" className="text-2xl font-semibold tracking-tight">
-          LineUp
-        </Link>
+  return (
+    <>
+      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+        <MarkRequestNotificationRead requestId={requestId} />
 
-        <div className="flex items-center gap-4">
-          <Link
-            href="/requests"
-            className="text-sm font-medium text-neutral-500 transition hover:text-neutral-900"
-          >
-            Back to requests
+        <div className="mx-auto flex max-w-6xl items-center justify-between border-b border-neutral-200 pb-6">
+          <Link href="/" className="text-2xl font-semibold tracking-tight">
+            LineUp
           </Link>
 
-          <Link
-            href="/account"
-            className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-          >
-            View profile
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/requests"
+              className="text-sm font-medium text-neutral-500 transition hover:text-neutral-900"
+            >
+              Back to requests
+            </Link>
+
+            <Link
+              href="/account"
+              className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+            >
+              View profile
+            </Link>
+          </div>
         </div>
-      </div>
 
-      <div className="mx-auto max-w-6xl py-10">
-        <section className="overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
-          <div className="bg-black px-6 py-8 text-white md:px-8 md:py-10">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                {formatCategory(request.category)}
-                {request.service_detail ? ` • ${request.service_detail}` : ""}
-              </span>
-
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-black">
-                {getStatusLabel(request.status)}
-              </span>
-
-              {offers.length > 0 ? (
+        <div className="mx-auto max-w-6xl py-10">
+          <section className="overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
+            <div className="bg-black px-6 py-8 text-white md:px-8 md:py-10">
+              <div className="flex flex-wrap items-center gap-3">
                 <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                  {offers.length} offer{offers.length === 1 ? "" : "s"}
+                  {formatCategory(request.category)}
+                  {request.service_detail ? ` • ${request.service_detail}` : ""}
                 </span>
-              ) : null}
-            </div>
 
-            <h1 className="mt-5 max-w-4xl text-4xl font-semibold tracking-tight md:text-5xl">
-              {request.title}
-            </h1>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-black">
+                  {getStatusLabel(request.status)}
+                </span>
 
-            {request.description ? (
-              <p className="mt-5 max-w-3xl text-base leading-8 text-white/75 md:text-lg">
-                {request.description}
-              </p>
-            ) : null}
-
-            {requestOwner ? (
-              <div className="mt-6 flex items-center gap-3">
-                <div className="h-12 w-12 overflow-hidden rounded-full border border-white/20 bg-white/10">
-                  {requestOwner.avatar_url ? (
-                    <img
-                      src={requestOwner.avatar_url}
-                      alt={requestOwner.full_name || "Customer"}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-xs font-medium text-white/80">
-                      {requestOwner.full_name?.charAt(0).toUpperCase() || "C"}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <p className="text-sm text-white/60">Posted by</p>
-                  <p className="font-semibold text-white">
-                    {requestOwner.full_name || "Customer"}
-                  </p>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="grid gap-4 px-6 py-6 md:grid-cols-2 xl:grid-cols-4 md:px-8">
-            <div className="rounded-2xl border border-neutral-200 p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                Location
-              </p>
-              <p className="mt-2 text-sm font-medium text-neutral-900">
-                {request.location || "Not provided"}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-neutral-200 p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                Service mode
-              </p>
-              <p className="mt-2 text-sm font-medium text-neutral-900">
-                {formatMode(request.service_mode)}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-neutral-200 p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                Budget
-              </p>
-              <p className="mt-2 text-sm font-medium text-neutral-900">
-                {request.budget || "Not provided"}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-neutral-200 p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                Posted
-              </p>
-              <p className="mt-2 text-sm font-medium text-neutral-900">
-                {formatDate(request.created_at)}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-8">
-            {acceptedOffer ? (
-              <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                      Accepted professional
-                    </p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                      This request has a winner
-                    </h2>
-                  </div>
-
-                  <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                    Accepted
-                  </span>
-                </div>
-
-                <Link
-                  href={`/profile/${acceptedOffer.professional_id}`}
-                  className="mt-6 flex items-center gap-4 rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5 transition hover:opacity-90"
-                >
-                  <div className="h-16 w-16 overflow-hidden rounded-full border border-neutral-200 bg-white">
-                    {acceptedOffer.professional_avatar_url ? (
-                      <img
-                        src={acceptedOffer.professional_avatar_url}
-                        alt={acceptedOffer.professional_name || "Professional"}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
-                        {acceptedOffer.professional_name?.charAt(0).toUpperCase() || "P"}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="min-w-0">
-                    <p className="text-lg font-semibold text-neutral-900">
-                      {acceptedOffer.professional_name || "Professional"}
-                    </p>
-                    <p className="text-sm text-neutral-500">
-                      {formatProfessionalType(acceptedOffer.professional_type)}
-                    </p>
-                    <p className="mt-1 text-sm text-neutral-600">
-                      {formatRating(
-                        acceptedOffer.average_rating,
-                        acceptedOffer.review_count
-                      )}
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-neutral-900">
-                      {acceptedOffer.proposed_price || "Price not provided"}
-                    </p>
-                  </div>
-                </Link>
-              </section>
-            ) : null}
-
-            {request.reference_photos && request.reference_photos.length > 0 ? (
-              <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
-                <div className="flex items-end justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                      Reference photos
-                    </p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                      Visual inspiration
-                    </h2>
-                  </div>
-
-                  <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                    {request.reference_photos.length} photo
-                    {request.reference_photos.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-
-                <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
-                  {request.reference_photos.map((photoUrl, index) => (
-                    <button
-                      key={`${photoUrl}-${index}`}
-                      type="button"
-                      onClick={() => setSelectedPhoto(photoUrl)}
-                      className={`overflow-hidden rounded-[1.5rem] border border-neutral-200 transition hover:opacity-90 ${
-                        index === 0 ? "sm:col-span-2" : ""
-                      }`}
-                    >
-                      <img
-                        src={photoUrl}
-                        alt={`Reference ${index + 1}`}
-                        className={`w-full object-cover ${index === 0 ? "h-56" : "h-40"}`}
-                      />
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    Offers
-                  </p>
-                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                    {isCustomer ? "Choose the right professional" : "Offer activity"}
-                  </h2>
-                </div>
-
-                {sortedOffers.length > 0 ? (
-                  <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                    {sortedOffers.length} total
+                {offers.length > 0 ? (
+                  <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                    {offers.length} offer{offers.length === 1 ? "" : "s"}
                   </span>
                 ) : null}
               </div>
 
-              <p className="mt-4 leading-7 text-neutral-600">
-                {isCustomer
-                  ? "Compare the offers below and choose the best fit based on price, message, and trust."
-                  : "This is where your offer activity and customer decisions appear."}
-              </p>
+              <h1 className="mt-5 max-w-4xl text-4xl font-semibold tracking-tight md:text-5xl">
+                {request.title}
+              </h1>
 
-              {sortedOffers.length === 0 ? (
-                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                  <p className="text-sm text-neutral-600">No offers yet.</p>
+              {request.description ? (
+                <p className="mt-5 max-w-3xl text-base leading-8 text-white/75 md:text-lg">
+                  {request.description}
+                </p>
+              ) : null}
+
+              {requestOwner ? (
+                <div className="mt-6 flex items-center gap-3">
+                  <div className="h-12 w-12 overflow-hidden rounded-full border border-white/20 bg-white/10">
+                    {requestOwner.avatar_url ? (
+                      <img
+                        src={requestOwner.avatar_url}
+                        alt={requestOwner.full_name || "Customer"}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs font-medium text-white/80">
+                        {requestOwner.full_name?.charAt(0).toUpperCase() || "C"}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="text-sm text-white/60">Posted by</p>
+                    <p className="font-semibold text-white">
+                      {requestOwner.full_name || "Customer"}
+                    </p>
+                  </div>
                 </div>
-              ) : (
-                <div className="mt-6 space-y-4">
-                  {sortedOffers.map((offer) => (
-                    <div
-                      key={offer.id}
-                      className={`rounded-[1.5rem] border p-5 ${
-                        offer.status === "accepted"
-                          ? "border-black bg-black text-white"
-                          : "border-neutral-200 bg-neutral-50"
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-4">
-                        <Link
-                          href={`/profile/${offer.professional_id}`}
-                          className="flex items-center gap-3 transition hover:opacity-80"
-                        >
-                          <div
-                            className={`h-12 w-12 overflow-hidden rounded-full border ${
-                              offer.status === "accepted"
-                                ? "border-white/15 bg-white/10"
-                                : "border-neutral-200 bg-white"
-                            }`}
+              ) : null}
+            </div>
+
+            <div className="grid gap-4 px-6 py-6 md:grid-cols-2 xl:grid-cols-4 md:px-8">
+              <div className="rounded-2xl border border-neutral-200 p-5">
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Preferred time
+                </p>
+                <p className="mt-2 text-sm font-medium text-neutral-900">
+                  {preferredSummary || "Not provided"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 p-5">
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Location
+                </p>
+                <p className="mt-2 text-sm font-medium text-neutral-900">
+                  {request.location || "Not provided"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 p-5">
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Service mode
+                </p>
+                <p className="mt-2 text-sm font-medium text-neutral-900">
+                  {formatMode(request.service_mode)}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 p-5">
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Budget
+                </p>
+                <p className="mt-2 text-sm font-medium text-neutral-900">
+                  {request.budget || "Not provided"}
+                </p>
+              </div>
+            </div>
+
+            {scheduledSummary ? (
+              <div className="px-6 pb-6 md:px-8">
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    Scheduled service time
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-neutral-900">
+                    {scheduledSummary}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </section>
+
+          <div className="mt-8 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="space-y-8">
+              {acceptedOffer ? (
+                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                        Accepted professional
+                      </p>
+                      <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                        This request has a winner
+                      </h2>
+                    </div>
+
+                    <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
+                      Accepted
+                    </span>
+                  </div>
+
+                  <Link
+                    href={`/profile/${acceptedOffer.professional_id}`}
+                    className="mt-6 flex items-center gap-4 rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5 transition hover:opacity-90"
+                  >
+                    <div className="h-16 w-16 overflow-hidden rounded-full border border-neutral-200 bg-white">
+                      {acceptedOffer.professional_avatar_url ? (
+                        <img
+                          src={acceptedOffer.professional_avatar_url}
+                          alt={acceptedOffer.professional_name || "Professional"}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
+                          {acceptedOffer.professional_name?.charAt(0).toUpperCase() || "P"}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-lg font-semibold text-neutral-900">
+                        {acceptedOffer.professional_name || "Professional"}
+                      </p>
+                      <p className="text-sm text-neutral-500">
+                        {formatProfessionalType(acceptedOffer.professional_type)}
+                      </p>
+                      <p className="mt-1 text-sm text-neutral-600">
+                        {formatRating(
+                          acceptedOffer.average_rating,
+                          acceptedOffer.review_count
+                        )}
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-neutral-900">
+                        {acceptedOffer.proposed_price || "Price not provided"}
+                      </p>
+                      {getOfferTimingSummary(acceptedOffer) ? (
+                        <p className="mt-2 text-sm text-neutral-600">
+                          {getOfferTimingSummary(acceptedOffer)}
+                        </p>
+                      ) : null}
+                    </div>
+                  </Link>
+                </section>
+              ) : null}
+
+              {request.reference_photos && request.reference_photos.length > 0 ? (
+                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
+                  <div className="flex items-end justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                        Reference photos
+                      </p>
+                      <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                        Visual inspiration
+                      </h2>
+                    </div>
+
+                    <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
+                      {request.reference_photos.length} photo
+                      {request.reference_photos.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+
+                  <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                    {request.reference_photos.map((photoUrl, index) => (
+                      <button
+                        key={`${photoUrl}-${index}`}
+                        type="button"
+                        onClick={() => setSelectedPhoto(photoUrl)}
+                        className={`overflow-hidden rounded-[1.5rem] border border-neutral-200 transition hover:opacity-90 ${
+                          index === 0 ? "sm:col-span-2" : ""
+                        }`}
+                      >
+                        <img
+                          src={photoUrl}
+                          alt={`Reference ${index + 1}`}
+                          className={`w-full object-cover ${index === 0 ? "h-56" : "h-40"}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      Offers
+                    </p>
+                    <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                      {isCustomer ? "Choose the right professional" : "Offer activity"}
+                    </h2>
+                  </div>
+
+                  {sortedOffers.length > 0 ? (
+                    <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
+                      {sortedOffers.length} total
+                    </span>
+                  ) : null}
+                </div>
+
+                <p className="mt-4 leading-7 text-neutral-600">
+                  {isCustomer
+                    ? "Compare the offers below and choose the best fit based on price, time, message, and trust."
+                    : "This is where your offer activity and customer decisions appear."}
+                </p>
+
+                {sortedOffers.length === 0 ? (
+                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                    <p className="text-sm text-neutral-600">No offers yet.</p>
+                  </div>
+                ) : (
+                  <div className="mt-6 space-y-4">
+                    {sortedOffers.map((offer) => (
+                      <div
+                        key={offer.id}
+                        className={`rounded-[1.5rem] border p-5 ${
+                          offer.status === "accepted"
+                            ? "border-black bg-black text-white"
+                            : "border-neutral-200 bg-neutral-50"
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-4">
+                          <Link
+                            href={`/profile/${offer.professional_id}`}
+                            className="flex items-center gap-3 transition hover:opacity-80"
                           >
-                            {offer.professional_avatar_url ? (
-                              <img
-                                src={offer.professional_avatar_url}
-                                alt={offer.professional_name || "Professional"}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div
-                                className={`flex h-full w-full items-center justify-center text-xs font-medium ${
+                            <div
+                              className={`h-12 w-12 overflow-hidden rounded-full border ${
+                                offer.status === "accepted"
+                                  ? "border-white/15 bg-white/10"
+                                  : "border-neutral-200 bg-white"
+                              }`}
+                            >
+                              {offer.professional_avatar_url ? (
+                                <img
+                                  src={offer.professional_avatar_url}
+                                  alt={offer.professional_name || "Professional"}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div
+                                  className={`flex h-full w-full items-center justify-center text-xs font-medium ${
+                                    offer.status === "accepted"
+                                      ? "text-white/80"
+                                      : "text-neutral-500"
+                                  }`}
+                                >
+                                  {offer.professional_name?.charAt(0).toUpperCase() || "P"}
+                                </div>
+                              )}
+                            </div>
+
+                            <div>
+                              <p
+                                className={`text-lg font-semibold ${
                                   offer.status === "accepted"
-                                    ? "text-white/80"
+                                    ? "text-white"
+                                    : "text-neutral-900"
+                                }`}
+                              >
+                                {offer.professional_name || "Professional"}
+                              </p>
+                              <p
+                                className={`text-sm ${
+                                  offer.status === "accepted"
+                                    ? "text-white/70"
                                     : "text-neutral-500"
                                 }`}
                               >
-                                {offer.professional_name?.charAt(0).toUpperCase() || "P"}
-                              </div>
-                            )}
-                          </div>
+                                {formatProfessionalType(offer.professional_type)}
+                              </p>
 
-                          <div>
+                              <div
+                                className={`mt-1 text-sm ${
+                                  offer.status === "accepted"
+                                    ? "text-white/80"
+                                    : "text-neutral-600"
+                                }`}
+                              >
+                                {formatRating(offer.average_rating, offer.review_count)}
+                              </div>
+                            </div>
+                          </Link>
+
+                          <div className="text-right">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              {isCustomer && unreadOfferIds.includes(offer.id) ? (
+                                <span
+                                  className={`rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide ${
+                                    offer.status === "accepted"
+                                      ? "bg-white text-black"
+                                      : "bg-black text-white"
+                                  }`}
+                                >
+                                  New
+                                </span>
+                              ) : null}
+
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide ${
+                                  offer.status === "accepted"
+                                    ? "bg-white/10 text-white"
+                                    : "bg-white text-neutral-700"
+                                }`}
+                              >
+                                {getStatusLabel(offer.status)}
+                              </span>
+                            </div>
+
                             <p
-                              className={`text-lg font-semibold ${
+                              className={`mt-3 text-2xl font-semibold ${
                                 offer.status === "accepted"
                                   ? "text-white"
                                   : "text-neutral-900"
                               }`}
                             >
-                              {offer.professional_name || "Professional"}
-                            </p>
-                            <p
-                              className={`text-sm ${
-                                offer.status === "accepted"
-                                  ? "text-white/70"
-                                  : "text-neutral-500"
-                              }`}
-                            >
-                              {formatProfessionalType(offer.professional_type)}
+                              {offer.proposed_price || "Price not provided"}
                             </p>
 
-                            <div
-                              className={`mt-1 text-sm ${
-                                offer.status === "accepted"
-                                  ? "text-white/80"
-                                  : "text-neutral-600"
-                              }`}
-                            >
-                              {formatRating(offer.average_rating, offer.review_count)}
-                            </div>
-                          </div>
-                        </Link>
-
-                        <div className="text-right">
-                          <div className="flex flex-wrap justify-end gap-2">
-                            {isCustomer && unreadOfferIds.includes(offer.id) ? (
-                              <span
-                                className={`rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide ${
+                            {getOfferTimingSummary(offer) ? (
+                              <p
+                                className={`mt-2 text-sm ${
                                   offer.status === "accepted"
-                                    ? "bg-white text-black"
-                                    : "bg-black text-white"
+                                    ? "text-white/80"
+                                    : "text-neutral-600"
                                 }`}
                               >
-                                New
-                              </span>
+                                {offer.matches_requested_time
+                                  ? "Matches requested time • "
+                                  : "Offered time • "}
+                                {getOfferTimingSummary(offer)}
+                              </p>
                             ) : null}
-
-                            <span
-                              className={`rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide ${
-                                offer.status === "accepted"
-                                  ? "bg-white/10 text-white"
-                                  : "bg-white text-neutral-700"
-                              }`}
-                            >
-                              {getStatusLabel(offer.status)}
-                            </span>
                           </div>
+                        </div>
 
+                        {offer.message ? (
                           <p
-                            className={`mt-3 text-2xl font-semibold ${
+                            className={`mt-4 leading-7 ${
+                              offer.status === "accepted"
+                                ? "text-white/80"
+                                : "text-neutral-600"
+                            }`}
+                          >
+                            {offer.message}
+                          </p>
+                        ) : null}
+
+                        {offer.status === "declined" &&
+                        offer.customer_response_message ? (
+                          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                            <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                              Customer feedback
+                            </p>
+                            <p className="mt-2 text-sm leading-6 text-amber-900">
+                              {offer.customer_response_message}
+                            </p>
+                          </div>
+                        ) : null}
+
+                        <div
+                          className={`mt-4 flex flex-wrap items-center justify-between gap-3 text-xs ${
+                            offer.status === "accepted"
+                              ? "text-white/60"
+                              : "text-neutral-500"
+                          }`}
+                        >
+                          <p>Submitted {formatDate(offer.created_at)}</p>
+
+                          <Link
+                            href={`/profile/${offer.professional_id}`}
+                            className={`font-medium ${
                               offer.status === "accepted"
                                 ? "text-white"
                                 : "text-neutral-900"
                             }`}
                           >
-                            {offer.proposed_price || "Price not provided"}
-                          </p>
+                            View profile
+                          </Link>
                         </div>
-                      </div>
 
-                      {offer.message ? (
-                        <p
-                          className={`mt-4 leading-7 ${
-                            offer.status === "accepted"
-                              ? "text-white/80"
-                              : "text-neutral-600"
-                          }`}
-                        >
-                          {offer.message}
-                        </p>
-                      ) : null}
-
-                      {offer.status === "declined" &&
-                      offer.customer_response_message ? (
-                        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                          <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
-                            Customer feedback
-                          </p>
-                          <p className="mt-2 text-sm leading-6 text-amber-900">
-                            {offer.customer_response_message}
-                          </p>
-                        </div>
-                      ) : null}
-
-                      <div
-                        className={`mt-4 flex flex-wrap items-center justify-between gap-3 text-xs ${
-                          offer.status === "accepted"
-                            ? "text-white/60"
-                            : "text-neutral-500"
-                        }`}
-                      >
-                        <p>Submitted {formatDate(offer.created_at)}</p>
-
-                        <Link
-                          href={`/profile/${offer.professional_id}`}
-                          className={`font-medium ${
-                            offer.status === "accepted"
-                              ? "text-white"
-                              : "text-neutral-900"
-                          }`}
-                        >
-                          View profile
-                        </Link>
-                      </div>
-
-                      {isProfessional &&
-                      request.status === "open" &&
-                      offer.status === "declined" ? (
-                        <div className="mt-5 space-y-3">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingReofferId(offer.id);
-                              setReofferMessage(offer.message ?? "");
-                              setReofferPrice(offer.proposed_price ?? "");
-                            }}
-                            className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
-                          >
-                            Re-offer
-                          </button>
-
-                          {editingReofferId === offer.id ? (
-                            <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                              <div>
-                                <label className="text-sm font-medium text-neutral-900">
-                                  Updated message
-                                </label>
-                                <textarea
-                                  value={reofferMessage}
-                                  onChange={(e) => setReofferMessage(e.target.value)}
-                                  rows={4}
-                                  placeholder="Update your offer based on the customer’s feedback."
-                                  className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
-                                />
-                              </div>
-
-                              <div className="mt-4">
-                                <label className="text-sm font-medium text-neutral-900">
-                                  Updated price
-                                </label>
-                                <input
-                                  type="text"
-                                  value={reofferPrice}
-                                  onChange={(e) => setReofferPrice(e.target.value)}
-                                  placeholder="Enter updated price"
-                                  className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
-                                />
-                              </div>
-
-                              <div className="mt-4 flex flex-wrap gap-3">
-                                <button
-                                  type="button"
-                                  onClick={() => handleReoffer(offer.id)}
-                                  disabled={reofferLoading}
-                                  className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-                                >
-                                  {reofferLoading ? "Submitting..." : "Submit re-offer"}
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingReofferId(null);
-                                    setReofferMessage("");
-                                    setReofferPrice("");
-                                  }}
-                                  className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-
-                      {isCustomer &&
-                      request.status === "open" &&
-                      offer.status === "pending" ? (
-                        <div className="mt-5 space-y-3">
-                          <div className="flex flex-wrap gap-3">
-                            <button
-                              type="button"
-                              onClick={() => handleAcceptOffer(offer.id)}
-                              disabled={acceptingOfferId === offer.id}
-                              className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-                            >
-                              {acceptingOfferId === offer.id ? "Accepting..." : "Choose offer"}
-                            </button>
-
+                        {isProfessional &&
+                        request.status === "open" &&
+                        offer.status === "declined" ? (
+                          <div className="mt-5 space-y-3">
                             <button
                               type="button"
                               onClick={() => {
-                                setDecliningOfferId(offer.id);
-                                setDeclineMessage("");
+                                setEditingReofferId(offer.id);
+                                setReofferMessage(offer.message ?? "");
+                                setReofferPrice(offer.proposed_price ?? "");
                               }}
                               className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
                             >
-                              Decline offer
+                              Re-offer
                             </button>
-                          </div>
 
-                          {decliningOfferId === offer.id ? (
-                            <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                              <label className="text-sm font-medium text-neutral-900">
-                                Why are you declining this offer?
-                              </label>
+                            {editingReofferId === offer.id ? (
+                              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                                <div>
+                                  <label className="text-sm font-medium text-neutral-900">
+                                    Updated message
+                                  </label>
+                                  <textarea
+                                    value={reofferMessage}
+                                    onChange={(e) => setReofferMessage(e.target.value)}
+                                    rows={4}
+                                    placeholder="Update your offer based on the customer’s feedback."
+                                    className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+                                  />
+                                </div>
 
-                              <textarea
-                                value={declineMessage}
-                                onChange={(e) => setDeclineMessage(e.target.value)}
-                                rows={4}
-                                placeholder="Example: Timing doesn’t work for me, price is too high, or I’m looking for a different fit."
-                                className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
-                              />
+                                <div className="mt-4">
+                                  <label className="text-sm font-medium text-neutral-900">
+                                    Updated price
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={reofferPrice}
+                                    onChange={(e) => setReofferPrice(e.target.value)}
+                                    placeholder="Enter updated price"
+                                    className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+                                  />
+                                </div>
 
-                              <div className="mt-3 flex flex-wrap gap-3">
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeclineOffer(offer.id)}
-                                  disabled={declineLoading}
-                                  className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-                                >
-                                  {declineLoading ? "Declining..." : "Submit decline"}
-                                </button>
+                                <div className="mt-4 flex flex-wrap gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleReoffer(offer.id)}
+                                    disabled={reofferLoading}
+                                    className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                                  >
+                                    {reofferLoading ? "Submitting..." : "Submit re-offer"}
+                                  </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setDecliningOfferId(null);
-                                    setDeclineMessage("");
-                                  }}
-                                  className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                                >
-                                  Cancel
-                                </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingReofferId(null);
+                                      setReofferMessage("");
+                                      setReofferPrice("");
+                                    }}
+                                    className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
                               </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+
+                        {isCustomer &&
+                        request.status === "open" &&
+                        offer.status === "pending" ? (
+                          <div className="mt-5 space-y-3">
+                            <div className="flex flex-wrap gap-3">
+                              <button
+                                type="button"
+                                onClick={() => handleAcceptOffer(offer.id)}
+                                disabled={acceptingOfferId === offer.id}
+                                className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                              >
+                                {acceptingOfferId === offer.id
+                                  ? "Accepting..."
+                                  : "Accept offer"}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDecliningOfferId(offer.id);
+                                  setDeclineMessage("");
+                                }}
+                                className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
+                              >
+                                Decline offer
+                              </button>
                             </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
+
+                            {decliningOfferId === offer.id ? (
+                              <div className="rounded-2xl border border-neutral-200 bg-white p-4">
+                                <label className="text-sm font-medium text-neutral-900">
+                                  Why are you declining this offer?
+                                </label>
+
+                                <textarea
+                                  value={declineMessage}
+                                  onChange={(e) => setDeclineMessage(e.target.value)}
+                                  rows={4}
+                                  placeholder="Example: Timing doesn’t work for me, price is too high, or I’m looking for a different fit."
+                                  className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+                                />
+
+                                <div className="mt-3 flex flex-wrap gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeclineOffer(offer.id)}
+                                    disabled={declineLoading}
+                                    className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                                  >
+                                    {declineLoading ? "Declining..." : "Submit decline"}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDecliningOfferId(null);
+                                      setDeclineMessage("");
+                                    }}
+                                    className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <div className="space-y-6">
+              {message ? (
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+                  {message}
                 </div>
-              )}
-            </section>
-          </div>
+              ) : null}
 
-          <div className="space-y-6">
-            {message ? (
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-                {message}
-              </div>
-            ) : null}
+              {isCustomer ? (
+                <section className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Matched professionals
+                  </p>
 
-            {isCustomer ? (
-              <section className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                    Who this request is visible to
+                  </h2>
+
+                  <p className="mt-4 leading-7 text-neutral-600">
+                    This request is currently shown only to matching professionals
+                    based on the service category selected.
+                  </p>
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    {request.target_professions?.length ? (
+                      request.target_professions.map((item) => (
+                        <span
+                          key={item}
+                          className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-700"
+                        >
+                          {item
+                            .replaceAll("_", " ")
+                            .replace(/\b\w/g, (char) => char.toUpperCase())}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-700">
+                        Not set
+                      </span>
+                    )}
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
                 <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                  Matched professionals
+                  Chat
                 </p>
 
                 <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                  Who this request is visible to
+                  Live conversation
                 </h2>
 
                 <p className="mt-4 leading-7 text-neutral-600">
-                  This request is currently shown only to matching professionals
-                  based on the service category selected.
+                  {canAccessChat
+                    ? "Once an offer is accepted, both sides can message here in real time."
+                    : "Chat opens once an offer is accepted."}
                 </p>
 
-                <div className="mt-5 flex flex-wrap gap-3">
-                  {request.target_professions?.length ? (
-                    request.target_professions.map((item) => (
-                      <span
-                        key={item}
-                        className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-700"
-                      >
-                        {item
-                          .replaceAll("_", " ")
-                          .replace(/\b\w/g, (char) => char.toUpperCase())}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm text-neutral-700">
-                      Not set
-                    </span>
-                  )}
-                </div>
-              </section>
-            ) : null}
+                {!canAccessChat ? (
+                  <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                    Chat is only available to the customer and the accepted professional.
+                  </div>
+                ) : null}
 
-            <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                Chat
-              </p>
+                {isChatReadOnly && canAccessChat ? (
+                  <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                    This chat is now read-only because the request has been completed.
+                  </div>
+                ) : null}
 
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                Live conversation
-              </h2>
+                {canAccessChat ? (
+                  <>
+                    <div
+                      ref={chatScrollRef}
+                      className="mt-6 max-h-96 space-y-4 overflow-y-auto rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                    >
+                      {chatMessages.length === 0 ? (
+                        <p className="text-sm text-neutral-500">No messages yet.</p>
+                      ) : (
+                        chatMessages.map((chat) => {
+                          const isMine = chat.sender_id === currentUserId;
+                          const sender = chatProfiles[chat.sender_id];
+                          const isSystemMessage =
+                            chat.message.includes("Offer accepted.") ||
+                            chat.message ===
+                              "Completion requested. Waiting for customer confirmation." ||
+                            chat.message === "Service confirmed as completed.";
 
-              <p className="mt-4 leading-7 text-neutral-600">
-                {canAccessChat
-                  ? "Once an offer is accepted, both sides can message here in real time."
-                  : "Chat opens once an offer is accepted."}
-              </p>
+                          if (isSystemMessage) {
+                            return (
+                              <div key={chat.id} className="flex justify-center">
+                                <div className="max-w-[90%] rounded-full border border-neutral-200 bg-white px-4 py-2 text-center text-xs font-medium text-neutral-600">
+                                  {chat.message}
+                                </div>
+                              </div>
+                            );
+                          }
 
-              {!canAccessChat ? (
-                <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
-                  Chat is only available to the customer and the accepted professional.
-                </div>
-              ) : null}
-
-              {isChatReadOnly && canAccessChat ? (
-                <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
-                  This chat is now read-only because the request has been completed.
-                </div>
-              ) : null}
-
-              {canAccessChat ? (
-                <>
-                  <div
-                    ref={chatScrollRef}
-                    className="mt-6 max-h-96 space-y-4 overflow-y-auto rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-                  >
-                    {chatMessages.length === 0 ? (
-                      <p className="text-sm text-neutral-500">No messages yet.</p>
-                    ) : (
-                      chatMessages.map((chat) => {
-                        const isMine = chat.sender_id === currentUserId;
-                        const sender = chatProfiles[chat.sender_id];
-                        const isSystemMessage =
-                          chat.message ===
-                            "Offer accepted. You can now chat here to coordinate details." ||
-                          chat.message ===
-                            "Completion requested. Waiting for customer confirmation." ||
-                          chat.message === "Service confirmed as completed.";
-
-                        if (isSystemMessage) {
                           return (
-                            <div key={chat.id} className="flex justify-center">
-                              <div className="max-w-[90%] rounded-full border border-neutral-200 bg-white px-4 py-2 text-center text-xs font-medium text-neutral-600">
-                                {chat.message}
+                            <div
+                              key={chat.id}
+                              className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                            >
+                              <div
+                                className={`flex max-w-[85%] items-end gap-3 ${
+                                  isMine ? "flex-row-reverse" : "flex-row"
+                                }`}
+                              >
+                                <div className="h-9 w-9 overflow-hidden rounded-full border border-neutral-200 bg-white">
+                                  {sender?.avatar_url ? (
+                                    <img
+                                      src={sender.avatar_url}
+                                      alt={sender.full_name || "User"}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center text-xs font-medium text-neutral-500">
+                                      {sender?.full_name?.charAt(0).toUpperCase() || "U"}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div
+                                  className={`rounded-2xl px-4 py-3 text-sm ${
+                                    isMine
+                                      ? "bg-black text-white"
+                                      : "border border-neutral-200 bg-white text-neutral-900"
+                                  }`}
+                                >
+                                  <p
+                                    className={`mb-1 text-xs font-medium ${
+                                      isMine ? "text-neutral-300" : "text-neutral-500"
+                                    }`}
+                                  >
+                                    {isMine ? "You" : sender?.full_name || "User"}
+                                  </p>
+                                  <p>{chat.message}</p>
+                                  <p
+                                    className={`mt-2 text-xs ${
+                                      isMine ? "text-neutral-300" : "text-neutral-500"
+                                    }`}
+                                  >
+                                    {formatChatTime(chat.created_at)}
+                                  </p>
+                                </div>
                               </div>
                             </div>
                           );
-                        }
-
-                        return (
-                          <div
-                            key={chat.id}
-                            className={`flex ${isMine ? "justify-end" : "justify-start"}`}
-                          >
-                            <div
-                              className={`flex max-w-[85%] items-end gap-3 ${
-                                isMine ? "flex-row-reverse" : "flex-row"
-                              }`}
-                            >
-                              <div className="h-9 w-9 overflow-hidden rounded-full border border-neutral-200 bg-white">
-                                {sender?.avatar_url ? (
-                                  <img
-                                    src={sender.avatar_url}
-                                    alt={sender.full_name || "User"}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center text-xs font-medium text-neutral-500">
-                                    {sender?.full_name?.charAt(0).toUpperCase() || "U"}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div
-                                className={`rounded-2xl px-4 py-3 text-sm ${
-                                  isMine
-                                    ? "bg-black text-white"
-                                    : "border border-neutral-200 bg-white text-neutral-900"
-                                }`}
-                              >
-                                <p
-                                  className={`mb-1 text-xs font-medium ${
-                                    isMine ? "text-neutral-300" : "text-neutral-500"
-                                  }`}
-                                >
-                                  {isMine ? "You" : sender?.full_name || "User"}
-                                </p>
-                                <p>{chat.message}</p>
-                                <p
-                                  className={`mt-2 text-xs ${
-                                    isMine ? "text-neutral-300" : "text-neutral-500"
-                                  }`}
-                                >
-                                  {formatChatTime(chat.created_at)}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-
-                  <div className="mt-4 flex gap-3">
-                    <textarea
-                      value={newChatMessage}
-                      onChange={(e) => setNewChatMessage(e.target.value)}
-                      rows={3}
-                      disabled={isChatReadOnly}
-                      placeholder={
-                        isChatReadOnly
-                          ? "This chat is now read-only because the service is completed."
-                          : "Send a message..."
-                      }
-                      className="flex-1 rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={handleSendChatMessage}
-                      disabled={isChatReadOnly || sendingChatMessage || !newChatMessage.trim()}
-                      className="self-end rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-                    >
-                      {isChatReadOnly ? "Completed" : sendingChatMessage ? "Sending..." : "Send"}
-                    </button>
-                  </div>
-                </>
-              ) : null}
-            </section>
-
-            {isCustomer ? (
-              <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                  Customer actions
-                </p>
-
-                <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                  Manage your request
-                </h2>
-
-                <p className="mt-4 leading-7 text-neutral-600">
-                  Review offers, confirm completion, and manage the final result here.
-                </p>
-
-                <div className="mt-6 flex flex-wrap gap-3">
-                  {request.status === "completion_requested" ? (
-                    <button
-                      type="button"
-                      onClick={handleConfirmCompletion}
-                      className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-                    >
-                      Confirm completion
-                    </button>
-                  ) : null}
-                </div>
-              </section>
-            ) : null}
-
-            {isProfessional && request.status === "open" ? (
-              <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                  Professional actions
-                </p>
-
-                <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                  Respond to this request
-                </h2>
-
-                <p className="mt-4 leading-7 text-neutral-600">
-                  Send your offer with your timing, price, and why you’re a good fit.
-                </p>
-
-                <div className="mt-6">
-                  {hasSubmittedOffer ? (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-                      You already have an active offer on this request.
-                    </div>
-                  ) : (
-                    <Link
-                      href={`/requests/${request.id}/respond`}
-                      className="inline-flex rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
-                    >
-                      Respond to request
-                    </Link>
-                  )}
-                </div>
-              </section>
-            ) : null}
-
-            {isAcceptedProfessional && request.status === "accepted" ? (
-              <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                  Professional actions
-                </p>
-
-                <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                  Complete this service
-                </h2>
-
-                <p className="mt-4 leading-7 text-neutral-600">
-                  Once the service is finished, send a completion request to the customer.
-                </p>
-
-                <div className="mt-6">
-                  <button
-                    type="button"
-                    onClick={handleRequestCompletion}
-                    className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
-                  >
-                    Mark service complete
-                  </button>
-                </div>
-              </section>
-            ) : null}
-
-            {isAcceptedProfessional && request.status === "completion_requested" ? (
-              <section className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
-                Completion request sent. Waiting for customer confirmation.
-              </section>
-            ) : null}
-
-            {isProfessional &&
-            request.status === "completed" &&
-            isAcceptedProfessional ? (
-              <section className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
-                This service has been completed.
-              </section>
-            ) : null}
-
-            {isCustomer && request.status === "completed" ? (
-              <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                  Review
-                </p>
-
-                <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                  {existingReview ? "Your review" : "Leave a review"}
-                </h2>
-
-                <p className="mt-4 leading-7 text-neutral-600">
-                  Share how the service went so future customers can make a confident choice.
-                </p>
-
-                {existingReview ? (
-                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-lg font-semibold text-neutral-900">
-                      {"★".repeat(existingReview.rating)}
-                      {"☆".repeat(5 - existingReview.rating)}
-                    </p>
-
-                    {existingReview.comment ? (
-                      <p className="mt-3 leading-7 text-neutral-600">
-                        {existingReview.comment}
-                      </p>
-                    ) : (
-                      <p className="mt-3 text-neutral-500">No written comment added.</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="mt-6 space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-neutral-900">
-                        Rating
-                      </label>
-                      <select
-                        value={reviewRating}
-                        onChange={(e) => setReviewRating(Number(e.target.value))}
-                        className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
-                      >
-                        <option value={5}>5 - Excellent</option>
-                        <option value={4}>4 - Good</option>
-                        <option value={3}>3 - Okay</option>
-                        <option value={2}>2 - Poor</option>
-                        <option value={1}>1 - Bad</option>
-                      </select>
+                        })
+                      )}
                     </div>
 
-                    <div>
-                      <label className="text-sm font-medium text-neutral-900">
-                        Comment
-                      </label>
+                    <div className="mt-4 flex gap-3">
                       <textarea
-                        value={reviewComment}
-                        onChange={(e) => setReviewComment(e.target.value)}
-                        rows={5}
-                        placeholder="How was the service, professionalism, communication, and result?"
-                        className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+                        value={newChatMessage}
+                        onChange={(e) => setNewChatMessage(e.target.value)}
+                        rows={3}
+                        disabled={isChatReadOnly}
+                        placeholder={
+                          isChatReadOnly
+                            ? "This chat is now read-only because the service is completed."
+                            : "Send a message..."
+                        }
+                        className="flex-1 rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
                       />
-                    </div>
 
-                    <button
-                      type="button"
-                      onClick={handleSubmitReview}
-                      disabled={submittingReview}
-                      className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-                    >
-                      {submittingReview ? "Submitting..." : "Submit review"}
-                    </button>
-                  </div>
-                )}
-
-                {request.accepted_professional_id ? (
-                  <div className="mt-6 border-t border-neutral-200 pt-6">
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                      Book again
-                    </p>
-
-                    <p className="mt-3 leading-7 text-neutral-600">
-                      Want the same professional again? Send them a direct rebook request instead of posting to the full marketplace.
-                    </p>
-
-                    <div className="mt-4">
-                      <Link
-                        href={`/requests/new?rebook=1&pro=${request.accepted_professional_id}&request=${request.id}`}
-                        className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                      <button
+                        type="button"
+                        onClick={handleSendChatMessage}
+                        disabled={isChatReadOnly || sendingChatMessage || !newChatMessage.trim()}
+                        className="self-end rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
                       >
-                        Book again
-                      </Link>
+                        {isChatReadOnly ? "Completed" : sendingChatMessage ? "Sending..." : "Send"}
+                      </button>
                     </div>
-                  </div>
+                  </>
                 ) : null}
               </section>
-            ) : null}
+
+              {isCustomer ? (
+                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Customer actions
+                  </p>
+
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                    Manage your request
+                  </h2>
+
+                  <p className="mt-4 leading-7 text-neutral-600">
+                    Review offers, confirm completion, and manage the final result here.
+                  </p>
+
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    {request.status === "completion_requested" ? (
+                      <button
+                        type="button"
+                        onClick={handleConfirmCompletion}
+                        className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+                      >
+                        Confirm completion
+                      </button>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
+
+              {isProfessional && request.status === "open" ? (
+                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Professional actions
+                  </p>
+
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                    Respond to this request
+                  </h2>
+
+                  <p className="mt-4 leading-7 text-neutral-600">
+                    Send your offer with your timing, price, and why you’re a good fit.
+                  </p>
+
+                  <div className="mt-6">
+                    {hasSubmittedOffer ? (
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+                        You already have an active offer on this request.
+                      </div>
+                    ) : (
+                      <Link
+                        href={`/requests/${request.id}/respond`}
+                        className="inline-flex rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                      >
+                        Respond to request
+                      </Link>
+                    )}
+                  </div>
+                </section>
+              ) : null}
+
+              {isAcceptedProfessional && request.status === "accepted" ? (
+                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Professional actions
+                  </p>
+
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                    Complete this service
+                  </h2>
+
+                  <p className="mt-4 leading-7 text-neutral-600">
+                    Once the service is finished, send a completion request to the customer.
+                  </p>
+
+                  <div className="mt-6">
+                    <button
+                      type="button"
+                      onClick={handleRequestCompletion}
+                      className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                    >
+                      Mark service complete
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
+              {isAcceptedProfessional && request.status === "completion_requested" ? (
+                <section className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
+                  Completion request sent. Waiting for customer confirmation.
+                </section>
+              ) : null}
+
+              {isProfessional &&
+              request.status === "completed" &&
+              isAcceptedProfessional ? (
+                <section className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
+                  This service has been completed.
+                </section>
+              ) : null}
+
+              {isCustomer && request.status === "completed" ? (
+                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Review
+                  </p>
+
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                    {existingReview ? "Your review" : "Leave a review"}
+                  </h2>
+
+                  <p className="mt-4 leading-7 text-neutral-600">
+                    Share how the service went so future customers can make a confident choice.
+                  </p>
+
+                  {existingReview ? (
+                    <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                      <p className="text-lg font-semibold text-neutral-900">
+                        {"★".repeat(existingReview.rating)}
+                        {"☆".repeat(5 - existingReview.rating)}
+                      </p>
+
+                      {existingReview.comment ? (
+                        <p className="mt-3 leading-7 text-neutral-600">
+                          {existingReview.comment}
+                        </p>
+                      ) : (
+                        <p className="mt-3 text-neutral-500">No written comment added.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-6 space-y-4">
+                      <div>
+                        <label className="text-sm font-medium text-neutral-900">
+                          Rating
+                        </label>
+                        <select
+                          value={reviewRating}
+                          onChange={(e) => setReviewRating(Number(e.target.value))}
+                          className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+                        >
+                          <option value={5}>5 - Excellent</option>
+                          <option value={4}>4 - Good</option>
+                          <option value={3}>3 - Okay</option>
+                          <option value={2}>2 - Poor</option>
+                          <option value={1}>1 - Bad</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-neutral-900">
+                          Comment
+                        </label>
+                        <textarea
+                          value={reviewComment}
+                          onChange={(e) => setReviewComment(e.target.value)}
+                          rows={5}
+                          placeholder="How was the service, professionalism, communication, and result?"
+                          className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleSubmitReview}
+                        disabled={submittingReview}
+                        className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                      >
+                        {submittingReview ? "Submitting..." : "Submit review"}
+                      </button>
+                    </div>
+                  )}
+
+                  {request.accepted_professional_id ? (
+                    <div className="mt-6 border-t border-neutral-200 pt-6">
+                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                        Book again
+                      </p>
+
+                      <p className="mt-3 leading-7 text-neutral-600">
+                        Want the same professional again? Send them a direct rebook request instead of posting to the full marketplace.
+                      </p>
+
+                      <div className="mt-4">
+                        <Link
+                          href={`/requests/new?rebook=1&pro=${request.accepted_professional_id}&request=${request.id}`}
+                          className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                        >
+                          Book again
+                        </Link>
+                      </div>
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
+            </div>
           </div>
         </div>
-      </div>
-
-           </main>
+      </main>
 
       {selectedPhoto ? (
         <div
