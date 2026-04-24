@@ -74,15 +74,11 @@ function formatShortDateLabel(dateString: string) {
 }
 
 function formatTime(time: string) {
-  const [hourString, minute] = time.split(":");
+  const [hourString, minute = "00"] = time.split(":");
   const hour = Number(hourString);
   const suffix = hour >= 12 ? "PM" : "AM";
   const twelveHour = hour % 12 || 12;
   return `${twelveHour}:${minute} ${suffix}`;
-}
-
-function getMonthKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function getDateKey(date: Date) {
@@ -92,8 +88,117 @@ function getDateKey(date: Date) {
 }
 
 function getTodayKey() {
-  const now = new Date();
-  return getDateKey(now);
+  return getDateKey(new Date());
+}
+
+function timeToMinutes(time: string) {
+  const [hours, minutes] = String(time).slice(0, 5).split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function getTimeIcon(time: string) {
+  return timeToMinutes(time) >= 16 * 60 ? "🌙" : "☀️";
+}
+
+function getBookingStart(booking: Pick<BookingRow, "booking_date" | "start_time">) {
+  return new Date(`${booking.booking_date}T${String(booking.start_time).slice(0, 5)}:00`);
+}
+
+function getBookingEnd(booking: Pick<BookingRow, "booking_date" | "end_time">) {
+  return new Date(`${booking.booking_date}T${String(booking.end_time).slice(0, 5)}:00`);
+}
+
+function getStatusLabel(status: BookingStatus) {
+  if (status === "completion_requested") return "Awaiting customer";
+  if (status === "confirmed") return "Confirmed";
+  if (status === "completed") return "Completed";
+  return "Cancelled";
+}
+
+function BookingCard({ booking, compact = false }: { booking: CalendarBooking; compact?: boolean }) {
+  const isAwaiting = booking.status === "completion_requested";
+  const isCompleted = booking.status === "completed";
+
+  return (
+    <Link
+      href={`/bookings/${booking.id}`}
+      className="block rounded-2xl border border-neutral-200 bg-neutral-50 p-4 transition hover:-translate-y-0.5 hover:border-neutral-300 hover:bg-white hover:shadow-sm"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-wide ${
+                isAwaiting
+                  ? "bg-amber-50 text-amber-700"
+                  : isCompleted
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "bg-white text-neutral-700"
+              }`}
+            >
+              {getStatusLabel(booking.status)}
+            </span>
+            <span className="text-xs text-neutral-500">View booking →</span>
+          </div>
+
+          <h3
+            className={`${
+              compact ? "mt-2 text-base" : "mt-3 text-xl"
+            } truncate font-semibold text-neutral-900`}
+          >
+            {getTimeIcon(booking.start_time)} {booking.service_name || "Booked service"}
+          </h3>
+
+          <p className="mt-2 text-sm text-neutral-600">
+            {formatShortDateLabel(booking.booking_date)} • {formatTime(booking.start_time)} -{" "}
+            {formatTime(booking.end_time)}
+          </p>
+
+          <p className="mt-1 text-sm text-neutral-600">
+            Client: {booking.client_name || "Not available"}
+          </p>
+
+          {!compact ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-neutral-200 bg-white p-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+                  Duration
+                </p>
+                <p className="mt-1 text-sm font-medium text-neutral-900">
+                  {booking.duration_minutes ? `${booking.duration_minutes} min` : "Not set"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-neutral-200 bg-white p-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+                  Created
+                </p>
+                <p className="mt-1 text-sm font-medium text-neutral-900">
+                  {new Date(booking.created_at).toLocaleDateString("en-CA", {
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+          {booking.client_avatar_url ? (
+            <img
+              src={booking.client_avatar_url}
+              alt={booking.client_name || "Client"}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
+              {booking.client_name?.charAt(0).toUpperCase() || "C"}
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
 }
 
 export default function CalendarPage() {
@@ -264,10 +369,17 @@ export default function CalendarPage() {
     };
   }, [role, loadCalendarData]);
 
+  const activeBookings = useMemo(() => {
+    return bookings.filter(
+      (booking) =>
+        booking.status === "confirmed" || booking.status === "completion_requested"
+    );
+  }, [bookings]);
+
   const bookingsByDate = useMemo(() => {
     const map: Record<string, CalendarBooking[]> = {};
 
-    bookings.forEach((booking) => {
+    activeBookings.forEach((booking) => {
       if (!map[booking.booking_date]) {
         map[booking.booking_date] = [];
       }
@@ -279,7 +391,7 @@ export default function CalendarPage() {
     });
 
     return map;
-  }, [bookings]);
+  }, [activeBookings]);
 
   const monthCells = useMemo(() => {
     const firstDayOfMonth = new Date(
@@ -304,29 +416,16 @@ export default function CalendarPage() {
     }> = [];
 
     for (let i = 0; i < startWeekday; i += 1) {
-      cells.push({
-        key: `empty-start-${i}`,
-        date: null,
-        isCurrentMonth: false,
-      });
+      cells.push({ key: `empty-start-${i}`, date: null, isCurrentMonth: false });
     }
 
     for (let day = 1; day <= totalDays; day += 1) {
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-
-      cells.push({
-        key: getDateKey(date),
-        date,
-        isCurrentMonth: true,
-      });
+      cells.push({ key: getDateKey(date), date, isCurrentMonth: true });
     }
 
     while (cells.length % 7 !== 0) {
-      cells.push({
-        key: `empty-end-${cells.length}`,
-        date: null,
-        isCurrentMonth: false,
-      });
+      cells.push({ key: `empty-end-${cells.length}`, date: null, isCurrentMonth: false });
     }
 
     return cells;
@@ -339,23 +438,20 @@ export default function CalendarPage() {
   const upcomingBookings = useMemo(() => {
     const now = new Date();
 
-    return bookings
-      .filter((booking) => {
-        if (booking.status === "completed") return false;
-        const bookingDateTime = new Date(`${booking.booking_date}T${booking.start_time}:00`);
-        return bookingDateTime >= now;
-      })
-      .sort((a, b) => {
-        const aDate = new Date(`${a.booking_date}T${a.start_time}:00`).getTime();
-        const bDate = new Date(`${b.booking_date}T${b.start_time}:00`).getTime();
-        return aDate - bDate;
-      })
+    return activeBookings
+      .filter((booking) => getBookingEnd(booking) >= now)
+      .sort((a, b) => getBookingStart(a).getTime() - getBookingStart(b).getTime())
       .slice(0, 6);
-  }, [bookings]);
+  }, [activeBookings]);
 
-  const completionRequestedBookings = useMemo(() => {
-    return bookings.filter((booking) => booking.status === "completion_requested");
-  }, [bookings]);
+  const pastNeedsActionBookings = useMemo(() => {
+    const now = new Date();
+
+    return activeBookings
+      .filter((booking) => getBookingEnd(booking) < now)
+      .sort((a, b) => getBookingEnd(b).getTime() - getBookingEnd(a).getTime())
+      .slice(0, 6);
+  }, [activeBookings]);
 
   const completedBookings = useMemo(() => {
     return bookings
@@ -388,14 +484,13 @@ export default function CalendarPage() {
 
   function goToToday() {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), 1);
-    setCurrentMonth(today);
+    setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
     setSelectedDate(getTodayKey());
   }
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 sm:py-10">
         <div className="mx-auto max-w-7xl">
           <Navbar />
           <div className="py-16">
@@ -407,32 +502,30 @@ export default function CalendarPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+    <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-7xl">
         <Navbar />
 
-        <div className="py-16">
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="py-10 sm:py-16">
+          <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
                 Calendar
               </p>
-              <h1 className="mt-4 text-5xl font-semibold tracking-tight md:text-6xl">
+              <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
                 Your schedule.
               </h1>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
-                View bookings, upcoming appointments, and completed work in one place.
+              <p className="mt-5 max-w-2xl text-base leading-7 text-neutral-600 sm:text-lg sm:leading-8">
+                Tap a day to see bookings. Mobile stays clean with simple booking icons instead of crowded text.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/requests"
-                className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-              >
-                Back to dashboard
-              </Link>
-            </div>
+            <Link
+              href="/requests"
+              className="inline-flex w-fit rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+            >
+              Back to dashboard
+            </Link>
           </div>
 
           {message ? (
@@ -441,19 +534,19 @@ export default function CalendarPage() {
             </div>
           ) : null}
 
-          <div className="mt-10 grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="mt-8 grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
+            <section className="rounded-[2rem] border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-2xl font-semibold tracking-tight">
                     {formatMonthYear(currentMonth)}
                   </h2>
                   <p className="mt-2 text-sm text-neutral-500">
-                    Click a day to view appointments and time slots.
+                    ☀️ before 4 PM. 🌙 after 4 PM.
                   </p>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:gap-3">
                   <button
                     type="button"
                     onClick={goToPreviousMonth}
@@ -480,7 +573,7 @@ export default function CalendarPage() {
                 </div>
               </div>
 
-              <div className="mt-8 grid grid-cols-7 gap-3 text-center text-xs font-medium uppercase tracking-wide text-neutral-500">
+              <div className="mt-6 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase tracking-wide text-neutral-500 sm:gap-3 sm:text-xs">
                 <div>Sun</div>
                 <div>Mon</div>
                 <div>Tue</div>
@@ -490,13 +583,13 @@ export default function CalendarPage() {
                 <div>Sat</div>
               </div>
 
-              <div className="mt-4 grid grid-cols-7 gap-3">
+              <div className="mt-3 grid grid-cols-7 gap-1 sm:gap-3">
                 {monthCells.map((cell) => {
                   if (!cell.date) {
                     return (
                       <div
                         key={cell.key}
-                        className="min-h-[108px] rounded-2xl border border-transparent bg-transparent"
+                        className="min-h-[70px] rounded-2xl border border-transparent sm:min-h-[108px]"
                       />
                     );
                   }
@@ -505,35 +598,23 @@ export default function CalendarPage() {
                   const dayBookings = bookingsByDate[dateKey] || [];
                   const isSelected = selectedDate === dateKey;
                   const isToday = todayKey === dateKey;
-                  const confirmedCount = dayBookings.filter(
-                    (booking) => booking.status === "confirmed"
-                  ).length;
-                  const completionRequestedCount = dayBookings.filter(
-                    (booking) => booking.status === "completion_requested"
-                  ).length;
-                  const completedCount = dayBookings.filter(
-                    (booking) => booking.status === "completed"
-                  ).length;
+                  const visibleIcons = dayBookings.slice(0, 4);
 
                   return (
                     <button
                       key={cell.key}
                       type="button"
                       onClick={() => setSelectedDate(dateKey)}
-                      className={`min-h-[108px] rounded-2xl border p-3 text-left transition ${
+                      className={`min-h-[70px] rounded-2xl border p-2 text-left transition sm:min-h-[108px] sm:p-3 ${
                         isSelected
                           ? "border-black bg-black text-white"
                           : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-white"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start justify-between gap-1">
                         <span
                           className={`text-sm font-semibold ${
-                            isSelected
-                              ? "text-white"
-                              : isToday
-                              ? "text-neutral-900"
-                              : "text-neutral-800"
+                            isSelected ? "text-white" : "text-neutral-800"
                           }`}
                         >
                           {cell.date.getDate()}
@@ -541,7 +622,7 @@ export default function CalendarPage() {
 
                         {isToday ? (
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            className={`hidden rounded-full px-2 py-0.5 text-[10px] font-medium sm:inline-flex ${
                               isSelected
                                 ? "bg-white text-black"
                                 : "bg-neutral-900 text-white"
@@ -552,243 +633,128 @@ export default function CalendarPage() {
                         ) : null}
                       </div>
 
-                      <div className="mt-3 space-y-2">
-                        {confirmedCount > 0 ? (
-                          <div
-                            className={`rounded-full px-2 py-1 text-[11px] font-medium ${
-                              isSelected
-                                ? "bg-white/15 text-white"
-                                : "bg-white text-neutral-700"
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {visibleIcons.map((booking) => (
+                          <span
+                            key={booking.id}
+                            className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${
+                              isSelected ? "bg-white/15" : "bg-white"
                             }`}
+                            title={`${booking.service_name || "Booking"} ${formatTime(
+                              booking.start_time
+                            )}`}
                           >
-                            {confirmedCount} upcoming
-                          </div>
-                        ) : null}
+                            {getTimeIcon(booking.start_time)}
+                          </span>
+                        ))}
 
-                        {completionRequestedCount > 0 ? (
-                          <div
-                            className={`rounded-full px-2 py-1 text-[11px] font-medium ${
+                        {dayBookings.length > 4 ? (
+                          <span
+                            className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-medium ${
                               isSelected
                                 ? "bg-white/15 text-white"
                                 : "bg-white text-neutral-700"
                             }`}
                           >
-                            {completionRequestedCount} awaiting confirmation
-                          </div>
-                        ) : null}
-
-                        {completedCount > 0 ? (
-                          <div
-                            className={`rounded-full px-2 py-1 text-[11px] font-medium ${
-                              isSelected
-                                ? "bg-white/15 text-white"
-                                : "bg-white text-neutral-700"
-                            }`}
-                          >
-                            {completedCount} completed
-                          </div>
+                            +{dayBookings.length - 4}
+                          </span>
                         ) : null}
 
                         {dayBookings.length === 0 ? (
-                          <div
-                            className={`text-[11px] ${
+                          <span
+                            className={`hidden text-[11px] sm:block ${
                               isSelected ? "text-white/70" : "text-neutral-400"
                             }`}
                           >
-                            No bookings
-                          </div>
+                            Open
+                          </span>
                         ) : null}
                       </div>
                     </button>
                   );
                 })}
               </div>
-            </div>
+            </section>
 
-            <div className="space-y-8">
-              <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                <h2 className="text-2xl font-semibold tracking-tight">
-                  {selectedDateLabel}
-                </h2>
+            <aside className="space-y-8">
+              <section className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-2xl font-semibold tracking-tight">
+                      {selectedDateLabel}
+                    </h2>
+                    <p className="mt-2 text-sm text-neutral-500">
+                      Tap a booking to manage it.
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+                    {selectedDateBookings.length}
+                  </span>
+                </div>
 
                 {selectedDateBookings.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
-                    No bookings for this day.
+                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">
+                    No active bookings for this day.
                   </div>
                 ) : (
                   <div className="mt-6 space-y-4">
                     {selectedDateBookings.map((booking) => (
-                      <div
-                        key={booking.id}
-                        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-                                {booking.status === "completion_requested"
-                                  ? "Awaiting confirmation"
-                                  : booking.status}
-                              </span>
-                            </div>
-
-                            <h3 className="mt-3 text-xl font-semibold text-neutral-900">
-                              {booking.service_name || "Booked service"}
-                            </h3>
-
-                            <p className="mt-2 text-neutral-600">
-                              {formatTime(booking.start_time)} -{" "}
-                              {formatTime(booking.end_time)}
-                            </p>
-
-                            <p className="mt-2 text-neutral-600">
-                              Client: {booking.client_name || "Not available"}
-                            </p>
-                          </div>
-
-                          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-                            {booking.client_avatar_url ? (
-                              <img
-                                src={booking.client_avatar_url}
-                                alt={booking.client_name || "Client"}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
-                                {booking.client_name?.charAt(0).toUpperCase() || "C"}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                          <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                              Duration
-                            </p>
-                            <p className="mt-2 text-sm font-medium text-neutral-900">
-                              {booking.duration_minutes
-                                ? `${booking.duration_minutes} min`
-                                : "Not provided"}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-                            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                              Created
-                            </p>
-                            <p className="mt-2 text-sm font-medium text-neutral-900">
-                              {new Date(booking.created_at).toLocaleString("en-CA", {
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                      <BookingCard key={booking.id} booking={booking} />
                     ))}
                   </div>
                 )}
-              </div>
+              </section>
 
-              <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                <h2 className="text-2xl font-semibold tracking-tight">
-                  Upcoming bookings
-                </h2>
+              <section className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
+                <h2 className="text-2xl font-semibold tracking-tight">Upcoming work</h2>
 
                 {upcomingBookings.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
+                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">
                     No upcoming bookings.
                   </div>
                 ) : (
                   <div className="mt-6 space-y-4">
                     {upcomingBookings.map((booking) => (
-                      <div
-                        key={booking.id}
-                        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-                      >
-                        <p className="text-sm font-medium text-neutral-900">
-                          {booking.service_name || "Booked service"}
-                        </p>
-                        <p className="mt-2 text-sm text-neutral-600">
-                          {formatShortDateLabel(booking.booking_date)} •{" "}
-                          {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
-                        </p>
-                        <p className="mt-1 text-sm text-neutral-600">
-                          {booking.client_name || "Client"}
-                        </p>
-                      </div>
+                      <BookingCard key={booking.id} booking={booking} compact />
                     ))}
                   </div>
                 )}
-              </div>
+              </section>
 
-              <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                <h2 className="text-2xl font-semibold tracking-tight">
-                  Awaiting confirmation
-                </h2>
+              {pastNeedsActionBookings.length > 0 ? (
+                <section className="rounded-[2rem] border border-amber-200 bg-amber-50 p-5 shadow-sm sm:p-6">
+                  <h2 className="text-2xl font-semibold tracking-tight text-neutral-900">
+                    Needs update
+                  </h2>
+                  <p className="mt-2 text-sm text-neutral-700">
+                    These booking times have passed. Open them to request completion or cancel.
+                  </p>
 
-                {completionRequestedBookings.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
-                    No bookings awaiting completion confirmation.
-                  </div>
-                ) : (
                   <div className="mt-6 space-y-4">
-                    {completionRequestedBookings.map((booking) => (
-                      <div
-                        key={booking.id}
-                        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-                      >
-                        <p className="text-sm font-medium text-neutral-900">
-                          {booking.service_name || "Booked service"}
-                        </p>
-                        <p className="mt-2 text-sm text-neutral-600">
-                          {formatShortDateLabel(booking.booking_date)} •{" "}
-                          {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
-                        </p>
-                        <p className="mt-1 text-sm text-neutral-600">
-                          {booking.client_name || "Client"}
-                        </p>
-                      </div>
+                    {pastNeedsActionBookings.map((booking) => (
+                      <BookingCard key={booking.id} booking={booking} compact />
                     ))}
                   </div>
-                )}
-              </div>
+                </section>
+              ) : null}
 
-              <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                <h2 className="text-2xl font-semibold tracking-tight">
-                  Recently completed
-                </h2>
+              <section className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
+                <h2 className="text-2xl font-semibold tracking-tight">Recently completed</h2>
 
                 {completedBookings.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
+                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">
                     No completed bookings yet.
                   </div>
                 ) : (
                   <div className="mt-6 space-y-4">
                     {completedBookings.map((booking) => (
-                      <div
-                        key={booking.id}
-                        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-                      >
-                        <p className="text-sm font-medium text-neutral-900">
-                          {booking.service_name || "Booked service"}
-                        </p>
-                        <p className="mt-2 text-sm text-neutral-600">
-                          {formatShortDateLabel(booking.booking_date)} •{" "}
-                          {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
-                        </p>
-                        <p className="mt-1 text-sm text-neutral-600">
-                          {booking.client_name || "Client"}
-                        </p>
-                      </div>
+                      <BookingCard key={booking.id} booking={booking} compact />
                     ))}
                   </div>
                 )}
-              </div>
-            </div>
+              </section>
+            </aside>
           </div>
         </div>
       </div>
