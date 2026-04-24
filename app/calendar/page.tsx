@@ -41,7 +41,6 @@ type RequestRow = {
   scheduled_start_time: string | null;
   scheduled_end_time: string | null;
   created_at: string;
-  completed_at?: string | null;
 };
 
 type ClientProfile = {
@@ -123,8 +122,12 @@ function timeToMinutes(time: string) {
   return hours * 60 + minutes;
 }
 
-function getTimeIcon(time: string) {
-  return timeToMinutes(time) >= 16 * 60 ? "🌙" : "☀️";
+function isEvening(time: string) {
+  return timeToMinutes(time) >= 16 * 60;
+}
+
+function getTimeSymbol(time: string) {
+  return isEvening(time) ? "☾" : "☀";
 }
 
 function getItemStart(item: Pick<CalendarItem, "date" | "start_time">) {
@@ -170,7 +173,8 @@ function ScheduleCard({ item, compact = false }: { item: CalendarItem; compact?:
           </div>
 
           <h3 className={`${compact ? "mt-2 text-base" : "mt-3 text-xl"} truncate font-semibold text-neutral-900`}>
-            {getTimeIcon(item.start_time)} {item.title}
+            <span className="mr-1 text-neutral-500">{getTimeSymbol(item.start_time)}</span>
+            {item.title}
           </h3>
 
           <p className="mt-2 text-sm text-neutral-600">
@@ -270,7 +274,7 @@ export default function CalendarPage() {
           .order("start_time", { ascending: true }),
         supabase
           .from("service_requests")
-          .select("id, client_id, title, service_detail, status, accepted_professional_id, scheduled_date, scheduled_start_time, scheduled_end_time, created_at, completed_at")
+          .select("id, client_id, title, service_detail, status, accepted_professional_id, scheduled_date, scheduled_start_time, scheduled_end_time, created_at")
           .eq("accepted_professional_id", user.id)
           .in("status", ["accepted", "completion_requested", "completed"])
           .not("scheduled_date", "is", null)
@@ -360,7 +364,7 @@ export default function CalendarPage() {
           title: request.title || request.service_detail || "Accepted request",
           subtitle: request.service_detail,
           created_at: request.created_at,
-          completed_at: request.completed_at ?? null,
+          completed_at: null,
           duration_minutes: null,
         };
       });
@@ -535,15 +539,17 @@ export default function CalendarPage() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${isToday ? "bg-black text-white" : "text-neutral-900"}`}>{cell.date.getDate()}</span>
-                        <span className={`hidden rounded-full px-2 py-1 text-[11px] font-medium sm:inline-flex ${dayItems.length > 0 ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-400"}`}>
-                          {dayItems.length > 0 ? `${dayItems.length} ${dayItems.length === 1 ? "booking" : "bookings"}` : "No bookings"}
-                        </span>
+                        {dayItems.length > 0 ? (
+                          <span className="hidden rounded-full bg-neutral-900 px-2 py-1 text-[11px] font-medium text-white sm:inline-flex">
+                            {dayItems.length}
+                          </span>
+                        ) : null}
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-1.5 sm:hidden">
                         {dayItems.slice(0, 4).map((item) => (
-                          <span key={`${item.source}-${item.id}`} className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-[10px]">
-                            {getTimeIcon(item.start_time)}
+                          <span key={`${item.source}-${item.id}`} className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] ${isEvening(item.start_time) ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-800"}`}>
+                            {getTimeSymbol(item.start_time)}
                           </span>
                         ))}
                         {dayItems.length > 4 ? <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-neutral-100 px-1 text-[10px] font-medium text-neutral-700">+{dayItems.length - 4}</span> : null}
@@ -552,7 +558,7 @@ export default function CalendarPage() {
                       <div className="mt-3 hidden space-y-1.5 sm:block">
                         {visibleItems.map((item) => (
                           <div key={`${item.source}-${item.id}`} className="truncate rounded-xl bg-neutral-100 px-2 py-1.5 text-[11px] font-medium text-neutral-800">
-                            {getTimeIcon(item.start_time)} {formatTime(item.start_time)} · {item.source === "request" ? "Request" : item.title}
+                            <span className="mr-1 text-neutral-500">{getTimeSymbol(item.start_time)}</span>{formatTime(item.start_time)} · {item.source === "request" ? "Request" : item.title}
                           </div>
                         ))}
                         {dayItems.length > 2 ? <div className="px-2 text-[11px] font-medium text-neutral-500">+{dayItems.length - 2} more</div> : null}
