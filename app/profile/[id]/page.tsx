@@ -127,9 +127,10 @@ export default function ProfessionalProfilePage() {
   const [viewerIsCustomer, setViewerIsCustomer] = useState(false);
   const [hasBookedBefore, setHasBookedBefore] = useState(false);
 
-const [selectedSlot, setSelectedSlot] = useState<GeneratedSlot | null>(null);
-const [selectedServiceMode, setSelectedServiceMode] = useState<string | null>(null);
-const [locationInput, setLocationInput] = useState("");
+  const [selectedSlot, setSelectedSlot] = useState<GeneratedSlot | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [selectedServiceMode, setSelectedServiceMode] = useState<string | null>(null);
+  const [locationInput, setLocationInput] = useState("");
   const [bookingSlotKey, setBookingSlotKey] = useState<string | null>(null);
   const [showAllReviews, setShowAllReviews] = useState(false);
 
@@ -448,6 +449,74 @@ const [locationInput, setLocationInput] = useState("");
     }));
   }, [generatedSlots]);
 
+  const bookingCalendarDays = useMemo(() => {
+    const slotMap = new Map(groupedSlots.map((group) => [group.date, group.slots]));
+
+    return Array.from({ length: 7 }).map((_, offset) => {
+      const currentDate = new Date();
+      currentDate.setHours(0, 0, 0, 0);
+      currentDate.setDate(currentDate.getDate() + offset);
+
+      const date = formatDateKey(currentDate);
+      const slots = slotMap.get(date) || [];
+
+      return {
+        date,
+        dayLabel:
+          offset === 0
+            ? "Today"
+            : offset === 1
+            ? "Tomorrow"
+            : dayLabels[currentDate.getDay()],
+        shortDayLabel: currentDate.toLocaleDateString("en-CA", {
+          weekday: "short",
+        }),
+        dateLabel: currentDate.toLocaleDateString("en-CA", {
+          month: "short",
+          day: "numeric",
+        }),
+        slots,
+      };
+    });
+  }, [groupedSlots]);
+
+  const selectedBookingDay = useMemo(() => {
+    if (selectedDay) {
+      return bookingCalendarDays.find((day) => day.date === selectedDay) || null;
+    }
+
+    return (
+      bookingCalendarDays.find((day) => day.slots.length > 0) ||
+      bookingCalendarDays[0] ||
+      null
+    );
+  }, [bookingCalendarDays, selectedDay]);
+
+  const selectedDayTimeGroups = useMemo(() => {
+    const slots = selectedBookingDay?.slots || [];
+
+    return [
+      {
+        label: "Morning",
+        helper: "Before 12 PM",
+        slots: slots.filter((slot) => timeToMinutes(slot.start_time) < 12 * 60),
+      },
+      {
+        label: "Afternoon",
+        helper: "12 PM - 4 PM",
+        slots: slots.filter((slot) => {
+          const minutes = timeToMinutes(slot.start_time);
+          return minutes >= 12 * 60 && minutes < 16 * 60;
+        }),
+      },
+      {
+        label: "Evening",
+        helper: "After 4 PM",
+        slots: slots.filter((slot) => timeToMinutes(slot.start_time) >= 16 * 60),
+      },
+    ].filter((group) => group.slots.length > 0);
+  }, [selectedBookingDay]);
+
   const servicesThatFitSelectedSlot = useMemo(() => {
     if (!selectedSlot) return [];
     return services.filter(
@@ -525,6 +594,25 @@ const [locationInput, setLocationInput] = useState("");
     return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
   }
 
+
+  function getSlotPeriod(time: string) {
+    const minutes = timeToMinutes(time);
+    if (minutes < 12 * 60) return "morning";
+    if (minutes < 16 * 60) return "afternoon";
+    return "evening";
+  }
+
+  function getSlotSymbol(time: string) {
+    return getSlotPeriod(time) === "evening" ? "☾" : "☀";
+  }
+
+  function getDaySymbols(slots: GeneratedSlot[]) {
+    const hasDaytime = slots.some((slot) => getSlotPeriod(slot.start_time) !== "evening");
+    const hasEvening = slots.some((slot) => getSlotPeriod(slot.start_time) === "evening");
+
+    return [hasDaytime ? "☀" : null, hasEvening ? "☾" : null].filter(Boolean) as string[];
+  }
+
   function getNextOpeningText() {
     if (generatedSlots.length === 0) return null;
     const first = generatedSlots[0];
@@ -563,8 +651,8 @@ const [locationInput, setLocationInput] = useState("");
       if (hasConflict) {
         setMessage("That time was just taken. Please choose another one.");
         setSelectedSlot(null);
-setSelectedServiceMode(null);
-setLocationInput("");
+        setSelectedServiceMode(null);
+        setLocationInput("");
         return;
       }
 
@@ -992,7 +1080,7 @@ setLocationInput("");
           profile.public_availability_enabled ? (
             <section
               id="availability"
-              className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm"
+              className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8"
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
@@ -1000,85 +1088,223 @@ setLocationInput("");
                     Availability
                   </p>
                   <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                    Book available time
+                    Book a time
                   </h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">
+                    Pick a day first, then choose one of the available times for that day.
+                  </p>
                 </div>
 
-                <div className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
+                <div className="w-fit rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
                   {slotBlockMinutes} min open blocks
                 </div>
-              </div>
-
-              <div className="mt-6 rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
-                <p className="text-sm font-medium text-neutral-900">
-                  Choose a time on the left, then select the service that fits that slot.
-                </p>
-                <p className="mt-2 text-sm text-neutral-500">
-                  Once a time is booked, that whole slot disappears for everyone else.
-                </p>
               </div>
 
               {services.length === 0 ? (
                 <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
                   This professional has not added any bookable services yet.
                 </div>
-              ) : groupedSlots.length === 0 ? (
+              ) : generatedSlots.length === 0 ? (
                 <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
                   No open times available in the next 7 days.
                 </div>
               ) : (
-                <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+                <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
                   <div className="space-y-6">
-                    {groupedSlots.map((group) => (
-                      <div
-                        key={group.date}
-                        className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5"
-                      >
-                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                          <h3 className="text-xl font-semibold text-neutral-900">
-                            {group.dayLabel}
-                          </h3>
-                          <p className="text-sm text-neutral-500">{group.dateLabel}</p>
-                        </div>
+                    <div className="rounded-[2rem] border border-neutral-200 bg-white p-3 shadow-sm sm:p-4">
+                      <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-semibold uppercase tracking-wide text-neutral-400 sm:text-xs">
+                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                          <div key={day} className="py-2">
+                            {day}
+                          </div>
+                        ))}
+                      </div>
 
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          {group.slots.map((slot) => (
+                      <div className="mt-1 grid grid-cols-7 gap-2">
+                        {bookingCalendarDays.map((day) => {
+                          const isSelected = selectedBookingDay?.date === day.date;
+                          const hasSlots = day.slots.length > 0;
+                          const symbols = getDaySymbols(day.slots);
+
+                          return (
                             <button
-                              key={slot.key}
+                              key={day.date}
                               type="button"
-                              disabled={
-                                !viewerIsCustomer ||
-                                viewerUserId === profile.id ||
-                                bookingSlotKey === slot.key
-                              }
                               onClick={() => {
-                                setSelectedSlot(slot);
+                                setSelectedDay(day.date);
+                                setSelectedSlot(null);
+                                setSelectedServiceMode(null);
+                                setLocationInput("");
                                 setMessage("");
                               }}
-                              className={`rounded-full border px-4 py-3 text-sm font-medium transition ${
-                                selectedSlot?.key === slot.key
-                                  ? "border-black bg-black text-white"
-                                  : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
-                              } disabled:cursor-not-allowed disabled:opacity-50`}
+                              className={`min-h-[86px] rounded-3xl border p-2 text-left transition-all duration-150 sm:min-h-[116px] sm:p-3 ${
+                                isSelected
+                                  ? "border-black bg-black text-white shadow-sm"
+                                  : hasSlots
+                                  ? "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-white hover:shadow-sm"
+                                  : "border-neutral-100 bg-white text-neutral-300 hover:bg-neutral-50"
+                              }`}
                             >
-                              {bookingSlotKey === slot.key
-                                ? "Booking..."
-                                : `${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}`}
+                              <div className="flex h-full flex-col justify-between gap-3">
+                                <div className="flex items-start justify-between gap-1">
+                                  <div className="min-w-0">
+                                    <p className={`text-[10px] font-medium uppercase tracking-wide sm:hidden ${isSelected ? "text-white/60" : "text-neutral-400"}`}>
+                                      {day.shortDayLabel}
+                                    </p>
+                                    <p className={`truncate text-sm font-semibold ${isSelected ? "text-white" : hasSlots ? "text-neutral-900" : "text-neutral-300"}`}>
+                                      {day.dateLabel}
+                                    </p>
+                                  </div>
+
+                                  {hasSlots ? (
+                                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isSelected ? "bg-white text-black" : "bg-white text-neutral-700"}`}>
+                                      {day.slots.length}
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                {hasSlots ? (
+                                  <div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {symbols.map((symbol) => (
+                                        <span
+                                          key={symbol}
+                                          className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium ${
+                                            isSelected
+                                              ? "bg-white/20 text-white"
+                                              : symbol === "☾"
+                                              ? "bg-neutral-900 text-white"
+                                              : "bg-neutral-100 text-neutral-700"
+                                          }`}
+                                        >
+                                          {symbol}
+                                        </span>
+                                      ))}
+                                    </div>
+                                    <p className={`mt-2 hidden text-[11px] font-medium sm:block ${isSelected ? "text-white/70" : "text-neutral-500"}`}>
+                                      {day.slots.length} open {day.slots.length === 1 ? "time" : "times"}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <p className="hidden text-[11px] text-neutral-300 sm:block">No openings</p>
+                                )}
+                              </div>
                             </button>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
-                    ))}
+                    </div>
+
+                    <div className="rounded-[2rem] border border-neutral-200 bg-gradient-to-b from-neutral-50 to-white p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                            Selected day
+                          </p>
+                          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+                            {selectedBookingDay
+                              ? `${selectedBookingDay.dayLabel} ${selectedBookingDay.dateLabel}`
+                              : "Choose a day"}
+                          </h3>
+                        </div>
+
+                        {selectedBookingDay ? (
+                          <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm ring-1 ring-neutral-200">
+                            {selectedBookingDay.slots.length} open{" "}
+                            {selectedBookingDay.slots.length === 1 ? "time" : "times"}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      {!selectedBookingDay || selectedBookingDay.slots.length === 0 ? (
+                        <div className="mt-5 rounded-2xl border border-neutral-200 bg-white p-4 text-sm text-neutral-600">
+                          No times available for this day. Pick another day with an open time.
+                        </div>
+                      ) : (
+                        <div className="mt-6 space-y-6">
+                          {selectedDayTimeGroups.map((group) => {
+                            const symbol = group.label === "Evening" ? "☾" : "☀";
+
+                            return (
+                              <div key={group.label} className="border-t border-neutral-200 pt-5 first:border-t-0 first:pt-0">
+                                <div className="mb-3 flex items-center gap-3">
+                                  <span
+                                    className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${group.label === "Evening" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"}`}
+                                  >
+                                    {symbol}
+                                  </span>
+                                  <div>
+                                    <p className="text-sm font-semibold text-neutral-900">
+                                      {group.label}
+                                    </p>
+                                    <p className="text-xs text-neutral-500">{group.helper}</p>
+                                  </div>
+                                </div>
+
+                                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                  {group.slots.map((slot) => (
+                                    <button
+                                      key={slot.key}
+                                      type="button"
+                                      disabled={
+                                        !viewerIsCustomer ||
+                                        viewerUserId === profile.id ||
+                                        bookingSlotKey === slot.key
+                                      }
+                                      onClick={() => {
+                                        setSelectedSlot(slot);
+                                        setSelectedServiceMode(null);
+                                        setLocationInput("");
+                                        setMessage("");
+                                      }}
+                                      className={`rounded-2xl border px-4 py-3 text-left transition-all duration-150 ${
+                                        selectedSlot?.key === slot.key
+                                          ? "border-black bg-black text-white shadow-md"
+                                          : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400 hover:shadow-sm"
+                                      } disabled:cursor-not-allowed disabled:opacity-50`}
+                                    >
+                                      <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                          <p className="text-base font-semibold">
+                                            {bookingSlotKey === slot.key
+                                              ? "Booking..."
+                                              : formatTime(slot.start_time)}
+                                          </p>
+                                          <p
+                                            className={`mt-1 text-xs ${
+                                              selectedSlot?.key === slot.key
+                                                ? "text-white/70"
+                                                : "text-neutral-500"
+                                            }`}
+                                          >
+                                            until {formatTime(slot.end_time)}
+                                          </p>
+                                        </div>
+                                        <span
+                                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${selectedSlot?.key === slot.key ? "bg-white/20 text-white" : getSlotSymbol(slot.start_time) === "☾" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"}`}
+                                        >
+                                          {getSlotSymbol(slot.start_time)}
+                                        </span>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="h-fit rounded-[1.5rem] border border-neutral-200 bg-white p-5 lg:sticky lg:top-6">
+                  <div className="h-fit rounded-[1.75rem] border border-neutral-200 bg-white p-5 xl:sticky xl:top-6">
                     <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
                       Booking summary
                     </p>
 
                     {!selectedSlot ? (
                       <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
-                        Select a time to see which services fit and complete your booking.
+                        Select a day and time to see which services fit and complete your booking.
                       </div>
                     ) : (
                       <>
@@ -1090,12 +1316,17 @@ setLocationInput("");
                             {selectedSlot.dayLabel} {selectedSlot.dateLabel}
                           </h3>
                           <p className="mt-2 text-sm text-white/80">
-                            {formatTime(selectedSlot.start_time)} - {formatTime(selectedSlot.end_time)}
+                            {formatTime(selectedSlot.start_time)} -{" "}
+                            {formatTime(selectedSlot.end_time)}
                           </p>
 
                           <button
                             type="button"
-                            onClick={() => setSelectedSlot(null)}
+                            onClick={() => {
+                              setSelectedSlot(null);
+                              setSelectedServiceMode(null);
+                              setLocationInput("");
+                            }}
                             className="mt-4 rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
                           >
                             Clear
@@ -1107,67 +1338,74 @@ setLocationInput("");
                             No services fit inside this time block.
                           </div>
                         ) : (
-                          <div className="mt-4 space-y-3">
+                          <div className="mt-4 space-y-4">
+                            <div>
+                              <p className="text-sm font-medium text-neutral-900">
+                                Service mode
+                              </p>
 
-<div className="mt-4">
-  <p className="text-sm font-medium text-neutral-900">Service mode</p>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {["in_shop", "home_studio", "at_home"].map((mode) => (
+                                  <button
+                                    key={mode}
+                                    type="button"
+                                    onClick={() => setSelectedServiceMode(mode)}
+                                    className={`rounded-full border px-4 py-2 text-sm transition ${
+                                      selectedServiceMode === mode
+                                        ? "border-black bg-black text-white"
+                                        : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
+                                    }`}
+                                  >
+                                    {mode.replaceAll("_", " ")}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
 
-  <div className="mt-2 flex flex-wrap gap-2">
-    {["in_shop", "home_studio", "at_home"].map((mode) => (
-      <button
-        key={mode}
-        type="button"
-        onClick={() => setSelectedServiceMode(mode)}
-        className={`rounded-full border px-4 py-2 text-sm transition ${
-          selectedServiceMode === mode
-            ? "border-black bg-black text-white"
-            : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
-        }`}
-      >
-        {mode.replace("_", " ")}
-      </button>
-    ))}
-  </div>
-</div>
+                            <div>
+                              <p className="text-sm font-medium text-neutral-900">
+                                Location
+                              </p>
 
-<div className="mt-4">
-  <p className="text-sm font-medium text-neutral-900">Location (optional)</p>
+                              <input
+                                type="text"
+                                value={locationInput}
+                                onChange={(e) => setLocationInput(e.target.value)}
+                                placeholder="Address, studio name, etc."
+                                className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-2 text-sm outline-none transition focus:border-neutral-900"
+                              />
+                            </div>
 
-  <input
-    type="text"
-    value={locationInput}
-    onChange={(e) => setLocationInput(e.target.value)}
-    placeholder="Address, studio name, etc."
-    className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-2 text-sm"
-  />
-</div>
+                            <div>
+                              <p className="text-sm font-medium text-neutral-900">
+                                Choose your service
+                              </p>
 
-                            <p className="text-sm font-medium text-neutral-900">
-                              Choose your service
-                            </p>
-
-                            {servicesThatFitSelectedSlot.map((service) => (
-                              <button
-                                key={service.id}
-                                type="button"
-onClick={() => {
-  if (!selectedServiceMode) {
-    setMessage("Please select a service mode.");
-    return;
-  }
-  handleBookServiceInSlot(service);
-}}
-                                disabled={bookingSlotKey === selectedSlot.key}
-                                className="w-full rounded-2xl border border-neutral-200 bg-white p-4 text-left transition hover:border-black hover:bg-neutral-50 disabled:opacity-60"
-                              >
-                                <p className="font-semibold text-neutral-900">
-                                  {service.service_name}
-                                </p>
-                                <p className="mt-1 text-sm text-neutral-500">
-                                  {service.duration_minutes} min
-                                </p>
-                              </button>
-                            ))}
+                              <div className="mt-2 space-y-3">
+                                {servicesThatFitSelectedSlot.map((service) => (
+                                  <button
+                                    key={service.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (!selectedServiceMode) {
+                                        setMessage("Please select a service mode.");
+                                        return;
+                                      }
+                                      handleBookServiceInSlot(service);
+                                    }}
+                                    disabled={bookingSlotKey === selectedSlot.key}
+                                    className="w-full rounded-2xl border border-neutral-200 bg-white p-4 text-left transition hover:border-black hover:bg-neutral-50 disabled:opacity-60"
+                                  >
+                                    <p className="font-semibold text-neutral-900">
+                                      {service.service_name}
+                                    </p>
+                                    <p className="mt-1 text-sm text-neutral-500">
+                                      {service.duration_minutes} min
+                                    </p>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </>
