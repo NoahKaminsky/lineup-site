@@ -10,6 +10,8 @@ import {
   Star,
   Sparkles,
   ShieldCheck,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -603,14 +605,14 @@ export default function ProfessionalProfilePage() {
   }
 
   function getSlotSymbol(time: string) {
-    return getSlotPeriod(time) === "evening" ? "☾" : "☀";
+    return getSlotPeriod(time) === "evening" ? "evening" : "daytime";
   }
 
   function getDaySymbols(slots: GeneratedSlot[]) {
     const hasDaytime = slots.some((slot) => getSlotPeriod(slot.start_time) !== "evening");
     const hasEvening = slots.some((slot) => getSlotPeriod(slot.start_time) === "evening");
 
-    return [hasDaytime ? "☀" : null, hasEvening ? "☾" : null].filter(Boolean) as string[];
+    return [hasDaytime ? "daytime" : null, hasEvening ? "evening" : null].filter(Boolean) as string[];
   }
 
   function getNextOpeningText() {
@@ -651,8 +653,8 @@ export default function ProfessionalProfilePage() {
       if (hasConflict) {
         setMessage("That time was just taken. Please choose another one.");
         setSelectedSlot(null);
-        setSelectedServiceMode(null);
-        setLocationInput("");
+setSelectedServiceMode(null);
+setLocationInput("");
         return;
       }
 
@@ -1111,20 +1113,13 @@ export default function ProfessionalProfilePage() {
               ) : (
                 <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
                   <div className="space-y-6">
-                    <div className="rounded-[2rem] border border-neutral-200 bg-white p-3 shadow-sm sm:p-4">
-                      <div className="grid grid-cols-7 gap-2 text-center text-[10px] font-semibold uppercase tracking-wide text-neutral-400 sm:text-xs">
-                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                          <div key={day} className="py-2">
-                            {day}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mt-1 grid grid-cols-7 gap-2">
+                    <div className="rounded-[2rem] border border-neutral-200 bg-white p-4 shadow-sm">
+                      <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {bookingCalendarDays.map((day) => {
                           const isSelected = selectedBookingDay?.date === day.date;
                           const hasSlots = day.slots.length > 0;
                           const symbols = getDaySymbols(day.slots);
+                          const dateNumber = new Date(`${day.date}T00:00:00`).getDate();
 
                           return (
                             <button
@@ -1137,58 +1132,46 @@ export default function ProfessionalProfilePage() {
                                 setLocationInput("");
                                 setMessage("");
                               }}
-                              className={`min-h-[86px] rounded-3xl border p-2 text-left transition-all duration-150 sm:min-h-[116px] sm:p-3 ${
-                                isSelected
-                                  ? "border-black bg-black text-white shadow-sm"
-                                  : hasSlots
-                                  ? "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-white hover:shadow-sm"
-                                  : "border-neutral-100 bg-white text-neutral-300 hover:bg-neutral-50"
-                              }`}
+                              className="flex min-w-[66px] flex-col items-center gap-2 text-center transition active:scale-[0.98] sm:min-w-[78px]"
                             >
-                              <div className="flex h-full flex-col justify-between gap-3">
-                                <div className="flex items-start justify-between gap-1">
-                                  <div className="min-w-0">
-                                    <p className={`text-[10px] font-medium uppercase tracking-wide sm:hidden ${isSelected ? "text-white/60" : "text-neutral-400"}`}>
-                                      {day.shortDayLabel}
-                                    </p>
-                                    <p className={`truncate text-sm font-semibold ${isSelected ? "text-white" : hasSlots ? "text-neutral-900" : "text-neutral-300"}`}>
-                                      {day.dateLabel}
-                                    </p>
-                                  </div>
+                              <span
+                                className={`flex h-14 w-14 items-center justify-center rounded-full border text-lg font-semibold transition sm:h-16 sm:w-16 sm:text-xl ${
+                                  isSelected
+                                    ? "border-black bg-black text-white shadow-sm ring-2 ring-black ring-offset-2"
+                                    : hasSlots
+                                    ? "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400"
+                                    : "border-neutral-200 bg-neutral-100 text-neutral-400"
+                                }`}
+                              >
+                                {dateNumber}
+                              </span>
 
-                                  {hasSlots ? (
-                                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isSelected ? "bg-white text-black" : "bg-white text-neutral-700"}`}>
-                                      {day.slots.length}
+                              <span
+                                className={`text-xs font-medium ${
+                                  isSelected ? "text-neutral-900" : hasSlots ? "text-neutral-600" : "text-neutral-400"
+                                }`}
+                              >
+                                {day.shortDayLabel}
+                              </span>
+
+                              <span className="flex h-5 items-center justify-center gap-1">
+                                {symbols.length > 0 ? (
+                                  symbols.map((symbol) => (
+                                    <span
+                                      key={symbol}
+                                      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-neutral-700 ring-1 ring-neutral-200"
+                                    >
+                                      {symbol === "evening" ? (
+                                        <Moon className="h-3 w-3" strokeWidth={2.25} />
+                                      ) : (
+                                        <Sun className="h-3 w-3" strokeWidth={2.25} />
+                                      )}
                                     </span>
-                                  ) : null}
-                                </div>
-
-                                {hasSlots ? (
-                                  <div>
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {symbols.map((symbol) => (
-                                        <span
-                                          key={symbol}
-                                          className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-medium ${
-                                            isSelected
-                                              ? "bg-white/20 text-white"
-                                              : symbol === "☾"
-                                              ? "bg-neutral-900 text-white"
-                                              : "bg-neutral-100 text-neutral-700"
-                                          }`}
-                                        >
-                                          {symbol}
-                                        </span>
-                                      ))}
-                                    </div>
-                                    <p className={`mt-2 hidden text-[11px] font-medium sm:block ${isSelected ? "text-white/70" : "text-neutral-500"}`}>
-                                      {day.slots.length} open {day.slots.length === 1 ? "time" : "times"}
-                                    </p>
-                                  </div>
+                                  ))
                                 ) : (
-                                  <p className="hidden text-[11px] text-neutral-300 sm:block">No openings</p>
+                                  <span className="h-1.5 w-1.5 rounded-full bg-neutral-200" />
                                 )}
-                              </div>
+                              </span>
                             </button>
                           );
                         })}
@@ -1223,15 +1206,17 @@ export default function ProfessionalProfilePage() {
                       ) : (
                         <div className="mt-6 space-y-6">
                           {selectedDayTimeGroups.map((group) => {
-                            const symbol = group.label === "Evening" ? "☾" : "☀";
+                            const isEveningGroup = group.label === "Evening";
 
                             return (
                               <div key={group.label} className="border-t border-neutral-200 pt-5 first:border-t-0 first:pt-0">
                                 <div className="mb-3 flex items-center gap-3">
-                                  <span
-                                    className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${group.label === "Evening" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"}`}
-                                  >
-                                    {symbol}
+                                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-700 ring-1 ring-neutral-200">
+                                    {isEveningGroup ? (
+                                      <Moon className="h-4 w-4" strokeWidth={2.25} />
+                                    ) : (
+                                      <Sun className="h-4 w-4" strokeWidth={2.25} />
+                                    )}
                                   </span>
                                   <div>
                                     <p className="text-sm font-semibold text-neutral-900">
@@ -1241,7 +1226,7 @@ export default function ProfessionalProfilePage() {
                                   </div>
                                 </div>
 
-                                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                                   {group.slots.map((slot) => (
                                     <button
                                       key={slot.key}
@@ -1257,10 +1242,10 @@ export default function ProfessionalProfilePage() {
                                         setLocationInput("");
                                         setMessage("");
                                       }}
-                                      className={`rounded-2xl border px-4 py-3 text-left transition-all duration-150 ${
+                                      className={`rounded-2xl border px-3 py-3 text-left transition-all duration-150 ${
                                         selectedSlot?.key === slot.key
                                           ? "border-black bg-black text-white shadow-md"
-                                          : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400 hover:shadow-sm"
+                                          : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 hover:shadow-sm"
                                       } disabled:cursor-not-allowed disabled:opacity-50`}
                                     >
                                       <div className="flex items-start justify-between gap-3">
@@ -1281,9 +1266,17 @@ export default function ProfessionalProfilePage() {
                                           </p>
                                         </div>
                                         <span
-                                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs ${selectedSlot?.key === slot.key ? "bg-white/20 text-white" : getSlotSymbol(slot.start_time) === "☾" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"}`}
+                                          className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-1 ${
+                                            selectedSlot?.key === slot.key
+                                              ? "bg-white/20 text-white ring-white/20"
+                                              : "bg-neutral-100 text-neutral-700 ring-neutral-200"
+                                          }`}
                                         >
-                                          {getSlotSymbol(slot.start_time)}
+                                          {getSlotSymbol(slot.start_time) === "evening" ? (
+                                            <Moon className="h-3.5 w-3.5" strokeWidth={2.25} />
+                                          ) : (
+                                            <Sun className="h-3.5 w-3.5" strokeWidth={2.25} />
+                                          )}
                                         </span>
                                       </div>
                                     </button>
