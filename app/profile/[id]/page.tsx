@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   CalendarDays,
@@ -135,6 +135,8 @@ export default function ProfessionalProfilePage() {
   const [locationInput, setLocationInput] = useState("");
   const [bookingSlotKey, setBookingSlotKey] = useState<string | null>(null);
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const dateScrollerRef = useRef<HTMLDivElement | null>(null);
+  const dateButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEffect(() => {
     async function loadProfilePage() {
@@ -494,6 +496,17 @@ export default function ProfessionalProfilePage() {
     );
   }, [bookingCalendarDays, selectedDay]);
 
+  useEffect(() => {
+    const selectedDate = selectedBookingDay?.date;
+    if (!selectedDate) return;
+
+    dateButtonRefs.current[selectedDate]?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [selectedBookingDay?.date]);
+
   const selectedDayTimeGroups = useMemo(() => {
     const slots = selectedBookingDay?.slots || [];
 
@@ -613,6 +626,16 @@ export default function ProfessionalProfilePage() {
     const hasEvening = slots.some((slot) => getSlotPeriod(slot.start_time) === "evening");
 
     return [hasDaytime ? "daytime" : null, hasEvening ? "evening" : null].filter(Boolean) as string[];
+  }
+
+  function getSelectedMonthLabel() {
+    const date = selectedBookingDay?.date || bookingCalendarDays[0]?.date;
+    if (!date) return "";
+
+    return new Date(`${date}T00:00:00`).toLocaleDateString("en-CA", {
+      month: "long",
+      year: "numeric",
+    });
   }
 
   function getNextOpeningText() {
@@ -1082,7 +1105,7 @@ setLocationInput("");
           profile.public_availability_enabled ? (
             <section
               id="availability"
-              className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8"
+              className="mt-10 scroll-mt-24 overflow-visible rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 md:p-8"
             >
               <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
@@ -1111,10 +1134,27 @@ setLocationInput("");
                   No open times available in the next 7 days.
                 </div>
               ) : (
-                <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-                  <div className="space-y-6">
-                    <div className="rounded-[2rem] border border-neutral-200 bg-white p-4 shadow-sm">
-                      <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+                  <div className="min-w-0 space-y-6">
+                    <div className="w-full max-w-full overflow-visible rounded-[2rem] border border-neutral-200 bg-white p-3 shadow-sm sm:p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3 px-1">
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-400">
+                            Choose a day
+                          </p>
+                          <p className="mt-1 text-lg font-semibold tracking-tight text-neutral-900">
+                            {getSelectedMonthLabel()}
+                          </p>
+                        </div>
+                        <span className="hidden rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-600 sm:inline-flex">
+                          Swipe dates
+                        </span>
+                      </div>
+
+                      <div
+                        ref={dateScrollerRef}
+                        className="flex w-full max-w-full snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible scroll-smooth px-2 pb-3 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                      >
                         {bookingCalendarDays.map((day) => {
                           const isSelected = selectedBookingDay?.date === day.date;
                           const hasSlots = day.slots.length > 0;
@@ -1124,6 +1164,9 @@ setLocationInput("");
                           return (
                             <button
                               key={day.date}
+                              ref={(element) => {
+                                dateButtonRefs.current[day.date] = element;
+                              }}
                               type="button"
                               onClick={() => {
                                 setSelectedDay(day.date);
@@ -1132,14 +1175,14 @@ setLocationInput("");
                                 setLocationInput("");
                                 setMessage("");
                               }}
-                              className="flex min-w-[66px] flex-col items-center gap-2 text-center transition active:scale-[0.98] sm:min-w-[78px]"
+                              className="flex min-w-[58px] snap-center flex-col items-center gap-2 rounded-3xl px-1 py-1 text-center transition active:scale-[0.97] sm:min-w-[74px]"
                             >
                               <span
-                                className={`flex h-14 w-14 items-center justify-center rounded-full border text-lg font-semibold transition sm:h-16 sm:w-16 sm:text-xl ${
+                                className={`relative flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold transition-all duration-200 sm:h-16 sm:w-16 sm:text-xl ${
                                   isSelected
-                                    ? "border-black bg-black text-white shadow-sm ring-2 ring-black ring-offset-2"
+                                    ? "border-black bg-black text-white shadow-md ring-2 ring-black ring-offset-2"
                                     : hasSlots
-                                    ? "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400"
+                                    ? "border-neutral-200 bg-white text-neutral-900 shadow-[0_1px_0_rgba(0,0,0,0.03)] hover:border-neutral-400 hover:shadow-sm"
                                     : "border-neutral-200 bg-neutral-100 text-neutral-400"
                                 }`}
                               >
@@ -1159,7 +1202,11 @@ setLocationInput("");
                                   symbols.map((symbol) => (
                                     <span
                                       key={symbol}
-                                      className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-neutral-100 text-neutral-700 ring-1 ring-neutral-200"
+                                      className={`inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ${
+                                        isSelected
+                                          ? "bg-black text-white ring-black"
+                                          : "bg-neutral-100 text-neutral-500 ring-neutral-200"
+                                      }`}
                                     >
                                       {symbol === "evening" ? (
                                         <Moon className="h-3 w-3" strokeWidth={2.25} />
@@ -1178,7 +1225,7 @@ setLocationInput("");
                       </div>
                     </div>
 
-                    <div className="rounded-[2rem] border border-neutral-200 bg-gradient-to-b from-neutral-50 to-white p-5">
+                    <div className="min-w-0 rounded-[2rem] border border-neutral-200 bg-gradient-to-b from-neutral-50 to-white p-4 shadow-sm sm:p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
@@ -1242,7 +1289,7 @@ setLocationInput("");
                                         setLocationInput("");
                                         setMessage("");
                                       }}
-                                      className={`rounded-2xl border px-3 py-3 text-left transition-all duration-150 ${
+                                      className={`min-w-0 rounded-2xl border px-3 py-3 text-left transition-all duration-150 ${
                                         selectedSlot?.key === slot.key
                                           ? "border-black bg-black text-white shadow-md"
                                           : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 hover:shadow-sm"
