@@ -15,13 +15,14 @@ type Profile = {
   default_appointment_duration: number | null;
 };
 
-type AvailabilityRow = {
+type AvailabilityWindow = {
   id?: string;
   professional_id?: string;
   day_of_week: number;
   start_time: string;
   end_time: string;
   is_active: boolean;
+  local_id: string;
 };
 
 type ProfessionalService = {
@@ -122,19 +123,34 @@ const dayLabels = [
   "Saturday",
 ];
 
-function getDefaultWeeklyAvailability(): AvailabilityRow[] {
-  return dayLabels.map((_, index) => ({
-    day_of_week: index,
-    start_time: "09:00",
-    end_time: "17:00",
-    is_active: false,
-  }));
+function makeLocalId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function normalizeProfessionalType(value: string | null | undefined) {
-  return String(value || "")
-    .toLowerCase()
-    .replaceAll(" ", "_");
+  return String(value || "").toLowerCase().replaceAll(" ", "_");
+}
+
+function normalizeTime(time: string) {
+  return String(time || "").slice(0, 5);
+}
+
+function formatTime(time: string) {
+  const [hourString, minute = "00"] = normalizeTime(time).split(":");
+  const hour = Number(hourString);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const twelveHour = hour % 12 || 12;
+  return `${twelveHour}:${minute} ${suffix}`;
+}
+
+function getGroupedAvailability(windows: AvailabilityWindow[]) {
+  return dayLabels.map((day, dayIndex) => ({
+    day,
+    dayIndex,
+    windows: windows
+      .filter((window) => window.day_of_week === dayIndex)
+      .sort((a, b) => a.start_time.localeCompare(b.start_time)),
+  }));
 }
 
 export default function ServicesPage() {
@@ -151,15 +167,17 @@ export default function ServicesPage() {
   const [directBookingEnabled, setDirectBookingEnabled] = useState(false);
   const [publicAvailabilityEnabled, setPublicAvailabilityEnabled] = useState(false);
   const [defaultAppointmentDuration, setDefaultAppointmentDuration] = useState(60);
-  const [weeklyAvailability, setWeeklyAvailability] = useState<AvailabilityRow[]>(
-    getDefaultWeeklyAvailability()
-  );
+  const [availabilityWindows, setAvailabilityWindows] = useState<AvailabilityWindow[]>([]);
 
   const [newServiceName, setNewServiceName] = useState("");
   const [newServiceDuration, setNewServiceDuration] = useState(45);
 
   const normalizedType = normalizeProfessionalType(profile?.professional_type);
   const presetServices = suggestedServiceTemplatesByType[normalizedType] || [];
+  const groupedAvailability = useMemo(
+    () => getGroupedAvailability(availabilityWindows),
+    [availabilityWindows]
+  );
 
   useEffect(() => {
     async function loadPage() {
@@ -202,26 +220,21 @@ export default function ServicesPage() {
         .from("professional_availability")
         .select("id, professional_id, day_of_week, start_time, end_time, is_active")
         .eq("professional_id", user.id)
-        .order("day_of_week", { ascending: true });
+        .order("day_of_week", { ascending: true })
+        .order("start_time", { ascending: true });
 
       if (!availabilityError && availabilityData) {
-        const base = getDefaultWeeklyAvailability();
-
-        availabilityData.forEach((row) => {
-          const index = Number(row.day_of_week);
-          if (index >= 0 && index <= 6) {
-            base[index] = {
-              id: row.id,
-              professional_id: row.professional_id,
-              day_of_week: row.day_of_week,
-              start_time: String(row.start_time).slice(0, 5),
-              end_time: String(row.end_time).slice(0, 5),
-              is_active: row.is_active,
-            };
-          }
-        });
-
-        setWeeklyAvailability(base);
+        setAvailabilityWindows(
+          availabilityData.map((row) => ({
+            id: row.id,
+            professional_id: row.professional_id,
+            day_of_week: Number(row.day_of_week),
+            start_time: normalizeTime(row.start_time),
+            end_time: normalizeTime(row.end_time),
+            is_active: Boolean(row.is_active),
+            local_id: row.id || makeLocalId(),
+          }))
+        );
       }
 
       const { data: servicesData, error: servicesError } = await supabase
@@ -248,11 +261,7 @@ export default function ServicesPage() {
         (service) =>
           service.service_name.trim().toLowerCase() === template.name.trim().toLowerCase()
       );
-
-      return {
-        ...template,
-        exists,
-      };
+      return { ...template, exists };
     });
   }, [presetServices, services]);
 
@@ -262,27 +271,38 @@ export default function ServicesPage() {
     );
   }
 
-  function updateAvailabilityDay(
-    dayIndex: number,
-    field: "is_active" | "start_time" | "end_time",
-    value: boolean | string
+  function addAvailabilityWindow(dayIndex: number) {
+    setAvailabilityWindows((prev) => [
+      ...prev,
+      {
+        day_of_week: dayIndex,
+        start_time: "09:00",
+        end_time: "12:00",
+        is_active: true,
+        local_id: makeLocalId(),
+      },
+    ]);
+  }
+
+  function updateAvailabilityWindow(
+    localId: string,
+    field: "start_time" | "end_time" | "is_active",
+    value: string | boolean
   ) {
-    setWeeklyAvailability((prev) =>
-      prev.map((day, index) =>
-        index === dayIndex
-          ? {
-              ...day,
-              [field]: value,
-            }
-          : day
+    setAvailabilityWindows((prev) =>
+      prev.map((window) =>
+        window.local_id === localId ? { ...window, [field]: value } : window
       )
     );
+  }
+
+  function removeAvailabilityWindow(localId: string) {
+    setAvailabilityWindows((prev) => prev.filter((window) => window.local_id !== localId));
   }
 
   async function handleAddService() {
     try {
       if (!profile) return;
-
       const cleanName = newServiceName.trim();
 
       if (!cleanName) {
@@ -321,10 +341,7 @@ export default function ServicesPage() {
         return;
       }
 
-      if (data) {
-        setServices((prev) => [...prev, data as ProfessionalService]);
-      }
-
+      if (data) setServices((prev) => [...prev, data as ProfessionalService]);
       setNewServiceName("");
       setNewServiceDuration(45);
       setMessage("Service added.");
@@ -339,7 +356,6 @@ export default function ServicesPage() {
   async function handleAddPresetService(template: ServiceTemplate) {
     try {
       if (!profile) return;
-
       const exists = services.some(
         (service) =>
           service.service_name.trim().toLowerCase() === template.name.trim().toLowerCase()
@@ -372,10 +388,7 @@ export default function ServicesPage() {
         return;
       }
 
-      if (data) {
-        setServices((prev) => [...prev, data as ProfessionalService]);
-      }
-
+      if (data) setServices((prev) => [...prev, data as ProfessionalService]);
       setMessage(`${template.name} added.`);
     } catch (error) {
       console.error(error);
@@ -390,7 +403,6 @@ export default function ServicesPage() {
 
     try {
       setMessage("");
-
       const { error } = await supabase
         .from("professional_services")
         .delete()
@@ -412,7 +424,6 @@ export default function ServicesPage() {
   async function handleToggleBookable(serviceId: string, nextValue: boolean) {
     try {
       setMessage("");
-
       const { error } = await supabase
         .from("professional_services")
         .update({ is_bookable: nextValue })
@@ -440,10 +451,20 @@ export default function ServicesPage() {
     setSaving(true);
     setMessage("");
 
-    for (const day of weeklyAvailability) {
-      if (day.is_active && day.start_time >= day.end_time) {
+    const activeAvailabilityRows = availabilityWindows
+      .filter((window) => window.is_active)
+      .map((window) => ({
+        professional_id: profile.id,
+        day_of_week: window.day_of_week,
+        start_time: window.start_time,
+        end_time: window.end_time,
+        is_active: true,
+      }));
+
+    for (const window of activeAvailabilityRows) {
+      if (window.start_time >= window.end_time) {
         setSaving(false);
-        setMessage("Each active availability day must have an end time later than the start time.");
+        setMessage("Each availability window must have an end time later than its start time.");
         return;
       }
     }
@@ -475,26 +496,31 @@ export default function ServicesPage() {
       return;
     }
 
-    const activeAvailabilityRows = weeklyAvailability
-      .filter((day) => day.is_active)
-      .map((day) => ({
-        professional_id: profile.id,
-        day_of_week: day.day_of_week,
-        start_time: day.start_time,
-        end_time: day.end_time,
-        is_active: true,
-      }));
-
     if (activeAvailabilityRows.length > 0) {
-      const { error: insertAvailabilityError } = await supabase
+      const { data, error: insertAvailabilityError } = await supabase
         .from("professional_availability")
-        .insert(activeAvailabilityRows);
+        .insert(activeAvailabilityRows)
+        .select("id, professional_id, day_of_week, start_time, end_time, is_active");
 
       if (insertAvailabilityError) {
         setSaving(false);
         setMessage(insertAvailabilityError.message);
         return;
       }
+
+      setAvailabilityWindows(
+        (data || []).map((row) => ({
+          id: row.id,
+          professional_id: row.professional_id,
+          day_of_week: Number(row.day_of_week),
+          start_time: normalizeTime(row.start_time),
+          end_time: normalizeTime(row.end_time),
+          is_active: Boolean(row.is_active),
+          local_id: row.id || makeLocalId(),
+        }))
+      );
+    } else {
+      setAvailabilityWindows([]);
     }
 
     setProfile((prev) =>
@@ -605,18 +631,9 @@ export default function ServicesPage() {
                 onChange={(e) => setNewServiceDuration(Number(e.target.value))}
                 className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
               >
-                <option value={15}>15 min</option>
-                <option value={20}>20 min</option>
-                <option value={30}>30 min</option>
-                <option value={45}>45 min</option>
-                <option value={60}>60 min</option>
-                <option value={75}>75 min</option>
-                <option value={90}>90 min</option>
-                <option value={105}>105 min</option>
-                <option value={120}>120 min</option>
-                <option value={135}>135 min</option>
-                <option value={150}>150 min</option>
-                <option value={180}>180 min</option>
+                {[15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150, 180].map((minutes) => (
+                  <option key={minutes} value={minutes}>{minutes} min</option>
+                ))}
               </select>
             </div>
 
@@ -648,40 +665,22 @@ export default function ServicesPage() {
           ) : (
             <div className="mt-6 grid gap-4 md:grid-cols-2">
               {services.map((service) => (
-                <div
-                  key={service.id}
-                  className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5"
-                >
+                <div key={service.id} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-lg font-semibold text-neutral-900">
-                        {service.service_name}
-                      </p>
-                      <p className="mt-1 text-sm text-neutral-500">
-                        {service.duration_minutes} minutes
-                      </p>
+                      <p className="text-lg font-semibold text-neutral-900">{service.service_name}</p>
+                      <p className="mt-1 text-sm text-neutral-500">{service.duration_minutes} minutes</p>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteService(service.id)}
-                      className="text-sm font-medium text-red-600 transition hover:text-red-700"
-                    >
+                    <button type="button" onClick={() => handleDeleteService(service.id)} className="text-sm font-medium text-red-600 transition hover:text-red-700">
                       Delete
                     </button>
                   </div>
 
                   <div className="mt-4 flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium text-neutral-900">
-                        Bookable on profile
-                      </p>
-                      <p className="mt-1 text-xs text-neutral-500">
-                        Controls whether customers can select this service after clicking an
-                        open time.
-                      </p>
+                      <p className="text-sm font-medium text-neutral-900">Bookable on profile</p>
+                      <p className="mt-1 text-xs text-neutral-500">Controls whether customers can select this service after clicking an open time.</p>
                     </div>
-
                     <button
                       type="button"
                       onClick={() => handleToggleBookable(service.id, !service.is_bookable)}
@@ -707,7 +706,6 @@ export default function ServicesPage() {
           <div className="mt-6 flex flex-wrap gap-3">
             {modeOptions.map((mode) => {
               const selected = serviceModes.includes(mode);
-
               return (
                 <button
                   key={mode}
@@ -734,118 +732,108 @@ export default function ServicesPage() {
           <div className="mt-6 space-y-4">
             <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4">
               <div className="pr-4">
-                <p className="text-sm font-medium text-neutral-900">
-                  Allow instant booking
-                </p>
-                <p className="mt-1 text-sm text-neutral-500">
-                  Customers can book from open times on your profile.
-                </p>
+                <p className="text-sm font-medium text-neutral-900">Allow instant booking</p>
+                <p className="mt-1 text-sm text-neutral-500">Customers can book from open times on your profile.</p>
               </div>
-
-              <input
-                type="checkbox"
-                checked={directBookingEnabled}
-                onChange={(e) => setDirectBookingEnabled(e.target.checked)}
-                className="h-5 w-5 accent-black"
-              />
+              <input type="checkbox" checked={directBookingEnabled} onChange={(e) => setDirectBookingEnabled(e.target.checked)} className="h-5 w-5 accent-black" />
             </label>
 
             <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4">
               <div className="pr-4">
-                <p className="text-sm font-medium text-neutral-900">
-                  Show availability publicly
-                </p>
-                <p className="mt-1 text-sm text-neutral-500">
-                  Display your open times on your public profile.
-                </p>
+                <p className="text-sm font-medium text-neutral-900">Show availability publicly</p>
+                <p className="mt-1 text-sm text-neutral-500">Display your open times on your public profile.</p>
               </div>
-
-              <input
-                type="checkbox"
-                checked={publicAvailabilityEnabled}
-                onChange={(e) => setPublicAvailabilityEnabled(e.target.checked)}
-                className="h-5 w-5 accent-black"
-              />
+              <input type="checkbox" checked={publicAvailabilityEnabled} onChange={(e) => setPublicAvailabilityEnabled(e.target.checked)} className="h-5 w-5 accent-black" />
             </label>
 
             <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-              <label className="mb-2 block text-sm font-medium text-neutral-900">
-                Default slot length shown on profile
-              </label>
+              <label className="mb-2 block text-sm font-medium text-neutral-900">Default slot length shown on profile</label>
               <select
                 value={defaultAppointmentDuration}
-                onChange={(e) =>
-                  setDefaultAppointmentDuration(Number(e.target.value))
-                }
+                onChange={(e) => setDefaultAppointmentDuration(Number(e.target.value))}
                 className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
               >
-                <option value={30}>30 minutes</option>
-                <option value={45}>45 minutes</option>
-                <option value={60}>60 minutes</option>
-                <option value={75}>75 minutes</option>
-                <option value={90}>90 minutes</option>
-                <option value={120}>120 minutes</option>
+                {[30, 45, 60, 75, 90, 120].map((minutes) => (
+                  <option key={minutes} value={minutes}>{minutes} minutes</option>
+                ))}
               </select>
             </div>
           </div>
         </div>
 
         <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-            Weekly availability
-          </p>
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">Weekly availability</p>
+              <h2 className="mt-3 text-3xl font-semibold tracking-tight">Set your open windows</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">
+                Add multiple windows per day if your schedule is split up. For example, Monday 9–12 and Monday 3–6.
+              </p>
+            </div>
+          </div>
 
           <div className="mt-6 space-y-4">
-            {weeklyAvailability.map((day, index) => (
-              <div
-                key={day.day_of_week}
-                className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={day.is_active}
-                      onChange={(e) =>
-                        updateAvailabilityDay(index, "is_active", e.target.checked)
-                      }
-                      className="h-5 w-5 accent-black"
-                    />
-                    <span className="text-sm font-medium text-neutral-900">
-                      {dayLabels[index]}
-                    </span>
+            {groupedAvailability.map((group) => (
+              <div key={group.dayIndex} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-[140px]">
+                    <p className="text-base font-semibold text-neutral-900">{group.day}</p>
+                    <p className="mt-1 text-sm text-neutral-500">
+                      {group.windows.length === 0
+                        ? "Closed"
+                        : `${group.windows.length} open ${group.windows.length === 1 ? "window" : "windows"}`}
+                    </p>
                   </div>
 
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-500">
-                        Start
-                      </label>
-                      <input
-                        type="time"
-                        value={day.start_time}
-                        disabled={!day.is_active}
-                        onChange={(e) =>
-                          updateAvailabilityDay(index, "start_time", e.target.value)
-                        }
-                        className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900 disabled:cursor-not-allowed disabled:bg-neutral-100"
-                      />
-                    </div>
+                  <div className="flex-1 space-y-3">
+                    {group.windows.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-4 text-sm text-neutral-500">
+                        No windows yet.
+                      </div>
+                    ) : (
+                      group.windows.map((window) => (
+                        <div key={window.local_id} className="rounded-2xl border border-neutral-200 bg-white p-4">
+                          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                            <div>
+                              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-500">Start</label>
+                              <input
+                                type="time"
+                                value={window.start_time}
+                                onChange={(e) => updateAvailabilityWindow(window.local_id, "start_time", e.target.value)}
+                                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                              />
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-500">End</label>
+                              <input
+                                type="time"
+                                value={window.end_time}
+                                onChange={(e) => updateAvailabilityWindow(window.local_id, "end_time", e.target.value)}
+                                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeAvailabilityWindow(window.local_id)}
+                              className="rounded-full border border-red-200 px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                          <p className="mt-3 text-xs text-neutral-500">
+                            {formatTime(window.start_time)} - {formatTime(window.end_time)}
+                          </p>
+                        </div>
+                      ))
+                    )}
 
-                    <div>
-                      <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-500">
-                        End
-                      </label>
-                      <input
-                        type="time"
-                        value={day.end_time}
-                        disabled={!day.is_active}
-                        onChange={(e) =>
-                          updateAvailabilityDay(index, "end_time", e.target.value)
-                        }
-                        className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900 disabled:cursor-not-allowed disabled:bg-neutral-100"
-                      />
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => addAvailabilityWindow(group.dayIndex)}
+                      className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
+                    >
+                      + Add window
+                    </button>
                   </div>
                 </div>
               </div>
