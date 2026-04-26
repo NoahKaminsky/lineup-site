@@ -448,11 +448,15 @@ export default function CalendarPage() {
       <div className="mx-auto max-w-7xl">
         <Navbar />
 
-        <div className="py-10 sm:py-16">
+        <div className="py-8 sm:py-16">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">Calendar</p>
-              <h1 className="mt-4 text-4xl font-semibold tracking-tight md:text-6xl">Your schedule.</h1>
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                Calendar
+              </p>
+              <h1 className="mt-4 text-4xl font-semibold tracking-tight md:text-6xl">
+                Your schedule.
+              </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-600 sm:mt-6 sm:text-lg sm:leading-8">
                 View confirmed bookings, upcoming appointments, and completed work in one place.
               </p>
@@ -469,32 +473,53 @@ export default function CalendarPage() {
           </div>
 
           {message ? (
-            <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{message}</div>
+            <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {message}
+            </div>
           ) : null}
 
-          <div className="mt-8 grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-[2rem] border border-neutral-200 bg-white p-4 shadow-sm sm:p-6">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          {/* MOBILE CALENDAR APP STYLE */}
+          <div className="mt-8 block md:hidden">
+            <div className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-2xl font-semibold tracking-tight">{formatMonthYear(currentMonth)}</h2>
-                  <p className="mt-2 text-sm text-neutral-500">Tap a day to view bookings.</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-neutral-500">
+                    Month
+                  </p>
+                  <h2 className="mt-1 text-2xl font-semibold tracking-tight">
+                    {formatMonthYear(currentMonth)}
+                  </h2>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
-                  <button type="button" onClick={goToPreviousMonth} className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50">
-                    Prev
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={goToPreviousMonth}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 text-lg font-medium transition active:scale-95"
+                    aria-label="Previous month"
+                  >
+                    ‹
                   </button>
-                  <button type="button" onClick={goToToday} className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50">
+                  <button
+                    type="button"
+                    onClick={goToToday}
+                    className="rounded-full border border-neutral-200 px-4 py-2 text-sm font-semibold transition active:scale-95"
+                  >
                     Today
                   </button>
-                  <button type="button" onClick={goToNextMonth} className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50">
-                    Next
+                  <button
+                    type="button"
+                    onClick={goToNextMonth}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 text-lg font-medium transition active:scale-95"
+                    aria-label="Next month"
+                  >
+                    ›
                   </button>
                 </div>
               </div>
 
-              <div className="-mx-4 mt-6 block overflow-hidden md:hidden">
-                <div className="flex w-full snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-visible scroll-smooth px-4 pb-4 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="-mx-5 mt-6 overflow-hidden">
+                <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-5 pb-3 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {mobileCalendarDays.map((date) => {
                     const dateKey = getDateKey(date);
                     const dayBookings = bookingsByDate[dateKey] || [];
@@ -509,35 +534,37 @@ export default function CalendarPage() {
                         }}
                         type="button"
                         onClick={() => setSelectedDate(dateKey)}
-                        className="flex min-w-[70px] snap-center flex-col items-center gap-2 rounded-3xl px-1 py-1 text-center transition active:scale-[0.97]"
+                        className="flex min-w-[58px] snap-center flex-col items-center gap-2 text-center transition active:scale-[0.97]"
                       >
                         <span
-                          className={`relative flex h-16 w-16 items-center justify-center rounded-full border text-xl font-semibold transition-all ${
+                          className={`text-xs font-semibold uppercase tracking-wide ${
+                            isSelected ? "text-neutral-900" : "text-neutral-500"
+                          }`}
+                        >
+                          {date.toLocaleDateString("en-CA", { weekday: "short" })}
+                        </span>
+
+                        <span
+                          className={`relative flex h-12 w-12 items-center justify-center rounded-full border text-lg font-semibold transition ${
                             isSelected
-                              ? "border-black bg-black text-white shadow-md ring-2 ring-black ring-offset-2"
+                              ? "border-black bg-black text-white shadow-md"
                               : isToday
-                              ? "border-neutral-900 bg-white text-neutral-900 shadow-sm"
-                              : dayBookings.length > 0
-                              ? "border-neutral-200 bg-white text-neutral-900 shadow-sm"
-                              : "border-neutral-200 bg-neutral-100 text-neutral-400"
+                              ? "border-neutral-900 bg-white text-neutral-900"
+                              : "border-neutral-200 bg-neutral-50 text-neutral-700"
                           }`}
                         >
                           {date.getDate()}
                         </span>
-                        <span className={`text-xs font-medium ${isSelected ? "text-neutral-900" : "text-neutral-500"}`}>
-                          {date.toLocaleDateString("en-CA", { weekday: "short" })}
-                        </span>
-                        <span className="flex h-5 items-center justify-center gap-1">
+
+                        <span className="flex h-2 items-center justify-center">
                           {dayBookings.length > 0 ? (
                             <span
-                              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                                isSelected ? "bg-black text-white" : "bg-neutral-100 text-neutral-600"
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                isSelected ? "bg-black" : "bg-neutral-400"
                               }`}
-                            >
-                              {dayBookings.length} booked
-                            </span>
+                            />
                           ) : (
-                            <span className="h-1.5 w-1.5 rounded-full bg-neutral-200" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-transparent" />
                           )}
                         </span>
                       </button>
@@ -545,8 +572,159 @@ export default function CalendarPage() {
                   })}
                 </div>
               </div>
+            </div>
 
-              <div className="mt-8 hidden grid-cols-7 gap-3 text-center text-xs font-medium uppercase tracking-wide text-neutral-500 md:grid">
+            <div className="mt-5 rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-neutral-500">
+                    Selected day
+                  </p>
+                  <h2 className="mt-2 text-3xl font-semibold tracking-tight">
+                    {selectedDate === todayKey ? "Today" : formatDateLabel(selectedDate)}
+                  </h2>
+                  {selectedDate === todayKey ? (
+                    <p className="mt-1 text-sm text-neutral-500">
+                      {formatDateLabel(selectedDate)}
+                    </p>
+                  ) : null}
+                </div>
+
+                <span className="shrink-0 rounded-full bg-neutral-100 px-3 py-1.5 text-sm font-semibold text-neutral-700">
+                  {selectedDateBookings.length}
+                </span>
+              </div>
+
+              {selectedDateBookings.length === 0 ? (
+                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">
+                  No bookings for this day.
+                </div>
+              ) : (
+                <div className="mt-6 space-y-4">
+                  {selectedDateBookings.map((booking) => (
+                    <div key={booking.id} className="grid grid-cols-[58px_1fr] gap-3">
+                      <div className="pt-1 text-right">
+                        <p className="text-sm font-semibold text-neutral-900">
+                          {formatTime(booking.start_time)}
+                        </p>
+                        <p className="text-xs text-neutral-400">
+                          {formatTime(booking.end_time)}
+                        </p>
+                      </div>
+
+                      <div className="relative border-l border-neutral-200 pl-4">
+                        <span className="absolute -left-[5px] top-3 h-2.5 w-2.5 rounded-full bg-black" />
+                        <BookingCard booking={booking} compact />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 space-y-5">
+              <div className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold tracking-tight">Upcoming</h2>
+                  <span className="rounded-full bg-neutral-100 px-3 py-1 text-sm font-semibold text-neutral-600">
+                    {upcomingBookings.length}
+                  </span>
+                </div>
+
+                {upcomingBookings.length === 0 ? (
+                  <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">
+                    No upcoming bookings.
+                  </div>
+                ) : (
+                  <div className="mt-5 max-h-[420px] space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {upcomingBookings.map((booking) => (
+                      <BookingCard booking={booking} compact key={booking.id} />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold tracking-tight">Awaiting confirmation</h2>
+                  <span className="rounded-full bg-neutral-100 px-3 py-1 text-sm font-semibold text-neutral-600">
+                    {completionRequestedBookings.length}
+                  </span>
+                </div>
+
+                {completionRequestedBookings.length === 0 ? (
+                  <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">
+                    No bookings awaiting completion confirmation.
+                  </div>
+                ) : (
+                  <div className="mt-5 max-h-[420px] space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {completionRequestedBookings.map((booking) => (
+                      <BookingCard booking={booking} compact key={booking.id} />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold tracking-tight">Recently completed</h2>
+                  <span className="rounded-full bg-neutral-100 px-3 py-1 text-sm font-semibold text-neutral-600">
+                    {completedBookings.length}
+                  </span>
+                </div>
+
+                {completedBookings.length === 0 ? (
+                  <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">
+                    No completed bookings yet.
+                  </div>
+                ) : (
+                  <div className="mt-5 max-h-[420px] space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {completedBookings.map((booking) => (
+                      <BookingCard booking={booking} compact key={booking.id} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* DESKTOP/TABLET CALENDAR */}
+          <div className="mt-8 hidden gap-8 md:grid xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-2xl font-semibold tracking-tight">
+                    {formatMonthYear(currentMonth)}
+                  </h2>
+                  <p className="mt-2 text-sm text-neutral-500">Tap a day to view bookings.</p>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={goToPreviousMonth}
+                    className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                  >
+                    Prev
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goToToday}
+                    className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                  >
+                    Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goToNextMonth}
+                    className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-8 grid grid-cols-7 gap-3 text-center text-xs font-medium uppercase tracking-wide text-neutral-500">
                 <div>Sun</div>
                 <div>Mon</div>
                 <div>Tue</div>
@@ -556,19 +734,30 @@ export default function CalendarPage() {
                 <div>Sat</div>
               </div>
 
-              <div className="mt-4 hidden grid-cols-7 gap-3 md:grid">
+              <div className="mt-4 grid grid-cols-7 gap-3">
                 {monthCells.map((cell) => {
                   if (!cell.date) {
-                    return <div key={cell.key} className="min-h-[108px] rounded-2xl border border-transparent bg-transparent" />;
+                    return (
+                      <div
+                        key={cell.key}
+                        className="min-h-[108px] rounded-2xl border border-transparent bg-transparent"
+                      />
+                    );
                   }
 
                   const dateKey = getDateKey(cell.date);
                   const dayBookings = bookingsByDate[dateKey] || [];
                   const isSelected = selectedDate === dateKey;
                   const isToday = todayKey === dateKey;
-                  const confirmedCount = dayBookings.filter((booking) => booking.status === "confirmed").length;
-                  const completionRequestedCount = dayBookings.filter((booking) => booking.status === "completion_requested").length;
-                  const completedCount = dayBookings.filter((booking) => booking.status === "completed").length;
+                  const confirmedCount = dayBookings.filter(
+                    (booking) => booking.status === "confirmed"
+                  ).length;
+                  const completionRequestedCount = dayBookings.filter(
+                    (booking) => booking.status === "completion_requested"
+                  ).length;
+                  const completedCount = dayBookings.filter(
+                    (booking) => booking.status === "completed"
+                  ).length;
 
                   return (
                     <button
@@ -576,15 +765,29 @@ export default function CalendarPage() {
                       type="button"
                       onClick={() => setSelectedDate(dateKey)}
                       className={`min-h-[108px] rounded-2xl border p-3 text-left transition ${
-                        isSelected ? "border-black bg-black text-white" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-white"
+                        isSelected
+                          ? "border-black bg-black text-white"
+                          : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-white"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <span className={`text-sm font-semibold ${isSelected ? "text-white" : isToday ? "text-neutral-900" : "text-neutral-800"}`}>
+                        <span
+                          className={`text-sm font-semibold ${
+                            isSelected
+                              ? "text-white"
+                              : isToday
+                              ? "text-neutral-900"
+                              : "text-neutral-800"
+                          }`}
+                        >
                           {cell.date.getDate()}
                         </span>
                         {isToday ? (
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${isSelected ? "bg-white text-black" : "bg-neutral-900 text-white"}`}>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              isSelected ? "bg-white text-black" : "bg-neutral-900 text-white"
+                            }`}
+                          >
                             Today
                           </span>
                         ) : null}
@@ -592,22 +795,40 @@ export default function CalendarPage() {
 
                       <div className="mt-3 space-y-2">
                         {confirmedCount > 0 ? (
-                          <div className={`rounded-full px-2 py-1 text-[11px] font-medium ${isSelected ? "bg-white/15 text-white" : "bg-white text-neutral-700"}`}>
+                          <div
+                            className={`rounded-full px-2 py-1 text-[11px] font-medium ${
+                              isSelected ? "bg-white/15 text-white" : "bg-white text-neutral-700"
+                            }`}
+                          >
                             {confirmedCount} upcoming
                           </div>
                         ) : null}
                         {completionRequestedCount > 0 ? (
-                          <div className={`rounded-full px-2 py-1 text-[11px] font-medium ${isSelected ? "bg-white/15 text-white" : "bg-white text-neutral-700"}`}>
+                          <div
+                            className={`rounded-full px-2 py-1 text-[11px] font-medium ${
+                              isSelected ? "bg-white/15 text-white" : "bg-white text-neutral-700"
+                            }`}
+                          >
                             {completionRequestedCount} awaiting
                           </div>
                         ) : null}
                         {completedCount > 0 ? (
-                          <div className={`rounded-full px-2 py-1 text-[11px] font-medium ${isSelected ? "bg-white/15 text-white" : "bg-white text-neutral-700"}`}>
+                          <div
+                            className={`rounded-full px-2 py-1 text-[11px] font-medium ${
+                              isSelected ? "bg-white/15 text-white" : "bg-white text-neutral-700"
+                            }`}
+                          >
                             {completedCount} completed
                           </div>
                         ) : null}
                         {dayBookings.length === 0 ? (
-                          <div className={`text-[11px] ${isSelected ? "text-white/70" : "text-neutral-400"}`}>No bookings</div>
+                          <div
+                            className={`text-[11px] ${
+                              isSelected ? "text-white/70" : "text-neutral-400"
+                            }`}
+                          >
+                            No bookings
+                          </div>
                         ) : null}
                       </div>
                     </button>
@@ -617,20 +838,23 @@ export default function CalendarPage() {
             </div>
 
             <div className="space-y-6">
-              <div className="flex h-[54vh] min-h-[420px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 xl:h-[58vh]">
-                <div className="shrink-0 flex items-start justify-between gap-3">
+              <div className="flex h-[58vh] min-h-[420px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                <div className="flex shrink-0 items-start justify-between gap-3">
                   <div>
                     <h2 className="text-2xl font-semibold tracking-tight">{selectedDateLabel}</h2>
                     <p className="mt-1 text-sm text-neutral-500">
-                      {selectedDateBookings.length} booking{selectedDateBookings.length === 1 ? "" : "s"}
+                      {selectedDateBookings.length} booking
+                      {selectedDateBookings.length === 1 ? "" : "s"}
                     </p>
                   </div>
                 </div>
 
                 {selectedDateBookings.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">No bookings for this day.</div>
+                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">
+                    No bookings for this day.
+                  </div>
                 ) : (
-                  <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {selectedDateBookings.map((booking) => (
                       <BookingCard booking={booking} key={booking.id} />
                     ))}
@@ -639,12 +863,14 @@ export default function CalendarPage() {
               </div>
 
               <div className="grid gap-6 lg:grid-cols-3 xl:grid-cols-1">
-                <div className="flex h-[38vh] min-h-[320px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 xl:h-[38vh]">
+                <div className="flex h-[38vh] min-h-[320px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
                   <h2 className="shrink-0 text-xl font-semibold tracking-tight">Upcoming</h2>
                   {upcomingBookings.length === 0 ? (
-                    <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">No upcoming bookings.</div>
+                    <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">
+                      No upcoming bookings.
+                    </div>
                   ) : (
-                    <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {upcomingBookings.map((booking) => (
                         <BookingCard booking={booking} compact key={booking.id} />
                       ))}
@@ -652,12 +878,16 @@ export default function CalendarPage() {
                   )}
                 </div>
 
-                <div className="flex h-[38vh] min-h-[320px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 xl:h-[38vh]">
-                  <h2 className="shrink-0 text-xl font-semibold tracking-tight">Awaiting confirmation</h2>
+                <div className="flex h-[38vh] min-h-[320px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                  <h2 className="shrink-0 text-xl font-semibold tracking-tight">
+                    Awaiting confirmation
+                  </h2>
                   {completionRequestedBookings.length === 0 ? (
-                    <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">No bookings awaiting completion confirmation.</div>
+                    <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">
+                      No bookings awaiting completion confirmation.
+                    </div>
                   ) : (
-                    <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {completionRequestedBookings.map((booking) => (
                         <BookingCard booking={booking} compact key={booking.id} />
                       ))}
@@ -665,12 +895,16 @@ export default function CalendarPage() {
                   )}
                 </div>
 
-                <div className="flex h-[38vh] min-h-[320px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 xl:h-[38vh]">
-                  <h2 className="shrink-0 text-xl font-semibold tracking-tight">Recently completed</h2>
+                <div className="flex h-[38vh] min-h-[320px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                  <h2 className="shrink-0 text-xl font-semibold tracking-tight">
+                    Recently completed
+                  </h2>
                   {completedBookings.length === 0 ? (
-                    <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">No completed bookings yet.</div>
+                    <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">
+                      No completed bookings yet.
+                    </div>
                   ) : (
-                    <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {completedBookings.map((booking) => (
                         <BookingCard booking={booking} compact key={booking.id} />
                       ))}
