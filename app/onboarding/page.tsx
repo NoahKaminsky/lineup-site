@@ -5,10 +5,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
+const PROFESSIONAL_OPTIONS = [
+  { label: "Barber", value: "barber" },
+  { label: "Hairstylist", value: "hairstylist" },
+  { label: "Nail Artist", value: "nail_artist" },
+  { label: "Lash Artist", value: "lash_artist" },
+  { label: "Brow Artist", value: "brow_artist" },
+  { label: "Makeup Artist", value: "makeup_artist" },
+  { label: "Wax Technician", value: "wax_technician" },
+];
+
 export default function OnboardingPage() {
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
-  const [professionalType, setProfessionalType] = useState("");
+  const [professionalTypes, setProfessionalTypes] = useState<string[]>([]);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
@@ -36,6 +46,7 @@ export default function OnboardingPage() {
             full_name,
             role,
             professional_type,
+            professional_types,
             terms_accepted,
             privacy_accepted,
             marketing_consent
@@ -45,10 +56,17 @@ export default function OnboardingPage() {
         .single();
 
       if (!error && profile) {
+        const savedProfessionalTypes =
+          profile.professional_types && profile.professional_types.length > 0
+            ? profile.professional_types
+            : profile.professional_type
+            ? [profile.professional_type]
+            : [];
+
         const hasCompletedProfile =
           !!profile.full_name &&
           !!profile.role &&
-          (profile.role !== "professional" || !!profile.professional_type);
+          (profile.role !== "professional" || savedProfessionalTypes.length > 0);
 
         if (hasCompletedProfile) {
           router.push("/account");
@@ -57,7 +75,7 @@ export default function OnboardingPage() {
 
         setName(profile.full_name || "");
         setRole(profile.role || "");
-        setProfessionalType(profile.professional_type || "");
+        setProfessionalTypes(savedProfessionalTypes);
         setAcceptedTerms(!!profile.terms_accepted);
         setAcceptedPrivacy(!!profile.privacy_accepted);
         setMarketingConsent(!!profile.marketing_consent);
@@ -68,6 +86,14 @@ export default function OnboardingPage() {
 
     checkExistingProfile();
   }, [router]);
+
+  function toggleProfessionalType(value: string) {
+    setProfessionalTypes((prev) =>
+      prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value]
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -97,9 +123,9 @@ export default function OnboardingPage() {
       return;
     }
 
-    if (role === "professional" && !professionalType) {
+    if (role === "professional" && professionalTypes.length === 0) {
       setSaving(false);
-      setErrorMessage("Please choose your professional category.");
+      setErrorMessage("Please choose at least one professional category.");
       return;
     }
 
@@ -116,6 +142,8 @@ export default function OnboardingPage() {
     }
 
     const now = new Date().toISOString();
+    const primaryProfessionalType =
+      role === "professional" ? professionalTypes[0] ?? null : null;
 
     const { error } = await supabase.from("profiles").upsert(
       {
@@ -123,7 +151,10 @@ export default function OnboardingPage() {
         email: user.email,
         full_name: name.trim(),
         role,
-        professional_type: role === "professional" ? professionalType : null,
+        // Keep old field populated so existing pages that still read professional_type do not break.
+        professional_type: primaryProfessionalType,
+        // New multi-select field. Add this column in Supabase if you have not yet.
+        professional_types: role === "professional" ? professionalTypes : [],
         terms_accepted: acceptedTerms,
         terms_accepted_at: acceptedTerms ? now : null,
         privacy_accepted: acceptedPrivacy,
@@ -208,7 +239,7 @@ export default function OnboardingPage() {
                 onChange={(e) => {
                   setRole(e.target.value);
                   if (e.target.value !== "professional") {
-                    setProfessionalType("");
+                    setProfessionalTypes([]);
                   }
                 }}
                 className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
@@ -221,24 +252,41 @@ export default function OnboardingPage() {
 
             {role === "professional" && (
               <div>
-                <label className="mb-2 block text-sm font-medium text-neutral-700">
-                  Professional category
-                </label>
-                <select
-                  required
-                  value={professionalType}
-                  onChange={(e) => setProfessionalType(e.target.value)}
-                  className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
-                >
-                  <option value="">Select your category</option>
-                  <option value="barber">Barber</option>
-                  <option value="hairstylist">Hairstylist</option>
-                  <option value="nail_artist">Nail Artist</option>
-                  <option value="lash_artist">Lash Artist</option>
-                  <option value="brow_artist">Brow Artist</option>
-                  <option value="makeup_artist">Makeup Artist</option>
-                  <option value="wax_technician">Wax Technician</option>
-                </select>
+                <div className="mb-3 flex items-end justify-between gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700">
+                      Professional categories
+                    </label>
+                    <p className="mt-1 text-sm text-neutral-500">
+                      Select every service you offer.
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-600">
+                    {professionalTypes.length} selected
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {PROFESSIONAL_OPTIONS.map((option) => {
+                    const isSelected = professionalTypes.includes(option.value);
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => toggleProfessionalType(option.value)}
+                        className={`rounded-2xl border px-4 py-3 text-sm font-medium transition active:scale-[0.99] ${
+                          isSelected
+                            ? "border-black bg-black text-white shadow-sm"
+                            : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -256,7 +304,7 @@ export default function OnboardingPage() {
                     href="/terms"
                     target="_blank"
                     rel="noreferrer"
-                    className="underline text-black"
+                    className="text-black underline"
                   >
                     Terms of Service
                   </a>
@@ -277,7 +325,7 @@ export default function OnboardingPage() {
                     href="/privacy"
                     target="_blank"
                     rel="noreferrer"
-                    className="underline text-black"
+                    className="text-black underline"
                   >
                     Privacy Policy
                   </a>

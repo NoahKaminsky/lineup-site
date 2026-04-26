@@ -11,6 +11,7 @@ type Profile = {
   full_name: string | null;
   role: string | null;
   professional_type: string | null;
+  professional_types?: string[] | null;
   location: string | null;
   avatar_url: string | null;
   banner_url: string | null;
@@ -100,6 +101,20 @@ const suggestedSpecialtiesByType: Record<string, string[]> = {
   esthetician: ["Facials", "Sugaring", "Waxing", "Skin treatments", "Teeth whitening"],
   makeup_artist: ["Soft glam", "Bridal", "Event glam", "Editorial makeup"],
 };
+const professionalTypeOptions = [
+  { value: "barber", label: "Barber" },
+  { value: "hairstylist", label: "Hairstylist" },
+  { value: "nail_artist", label: "Nail Artist" },
+  { value: "lash_artist", label: "Lash Artist" },
+  { value: "brow_artist", label: "Brow Artist" },
+  { value: "makeup_artist", label: "Makeup Artist" },
+  { value: "wax_technician", label: "Wax Technician" },
+];
+
+const professionalTypeLabelMap = new Map(
+  professionalTypeOptions.map((option) => [option.value, option.label])
+);
+
 
 function normalizeProfessionalType(value: string | null | undefined) {
   return String(value || "")
@@ -139,6 +154,7 @@ export default function AccountPage() {
   const [bio, setBio] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
   const [specialties, setSpecialties] = useState<string[]>([]);
+  const [professionalTypes, setProfessionalTypes] = useState<string[]>([]);
   const [newSpecialty, setNewSpecialty] = useState("");
 
   const isProfessional = profile?.role === "professional";
@@ -173,6 +189,13 @@ export default function AccountPage() {
       setBio(data.bio || "");
       setInstagramHandle(data.instagram_handle || "");
       setSpecialties(data.specialties || []);
+      setProfessionalTypes(
+        Array.isArray(data.professional_types) && data.professional_types.length > 0
+          ? data.professional_types
+          : data.professional_type
+          ? [data.professional_type]
+          : []
+      );
 
       const { data: portfolioData, error: portfolioError } = await supabase
         .from("professional_portfolio")
@@ -407,9 +430,14 @@ export default function AccountPage() {
   }, [reviews]);
 
   const suggestedSpecialties = useMemo(() => {
-    const key = normalizeProfessionalType(profile?.professional_type);
-    return suggestedSpecialtiesByType[key] || [];
-  }, [profile?.professional_type]);
+    const keys = professionalTypes.length
+      ? professionalTypes.map((type) => normalizeProfessionalType(type))
+      : [normalizeProfessionalType(profile?.professional_type)];
+
+    return Array.from(
+      new Set(keys.flatMap((key) => suggestedSpecialtiesByType[key] || []))
+    );
+  }, [professionalTypes, profile?.professional_type]);
 
   const visibleReviews = useMemo(() => {
     return showAllReviews ? reviews : reviews.slice(0, 3);
@@ -432,6 +460,34 @@ export default function AccountPage() {
 
   function removeSpecialty(value: string) {
     setSpecialties((prev) => prev.filter((specialty) => specialty !== value));
+  }
+
+  function toggleProfessionalType(value: string) {
+    setProfessionalTypes((prev) =>
+      prev.includes(value)
+        ? prev.filter((type) => type !== value)
+        : [...prev, value]
+    );
+  }
+
+  function getProfessionalTypes(profileValue?: Profile | null) {
+    if (!profileValue) return [];
+
+    if (
+      Array.isArray(profileValue.professional_types) &&
+      profileValue.professional_types.length > 0
+    ) {
+      return profileValue.professional_types;
+    }
+
+    return profileValue.professional_type ? [profileValue.professional_type] : [];
+  }
+
+  function formatProfessionalTypes(values: string[]) {
+    if (!values.length) return "Professional";
+    return values
+      .map((value) => professionalTypeLabelMap.get(value) || formatProfessionalType(value))
+      .join(" • ");
   }
 
   function formatProfessionalType(value: string | null) {
@@ -781,6 +837,7 @@ export default function AccountPage() {
     setBio(profile.bio || "");
     setInstagramHandle(profile.instagram_handle || "");
     setSpecialties(profile.specialties || []);
+    setProfessionalTypes(getProfessionalTypes(profile));
     setAvatarFile(null);
     setBannerFile(null);
     setNewSpecialty("");
@@ -796,12 +853,20 @@ export default function AccountPage() {
     setSaving(true);
     setMessage("");
 
+    const cleanProfessionalTypes = Array.from(new Set(professionalTypes));
+
     const updates = {
       full_name: fullName,
       location,
       bio,
       instagram_handle: instagramHandle,
       specialties: profile.role === "professional" ? specialties : [],
+      professional_types:
+        profile.role === "professional" ? cleanProfessionalTypes : [],
+      professional_type:
+        profile.role === "professional"
+          ? cleanProfessionalTypes[0] || profile.professional_type || null
+          : null,
     };
 
     const { error } = await supabase
@@ -897,7 +962,7 @@ export default function AccountPage() {
 
                   <p className="mt-3 text-lg text-neutral-600">
                     {isProfessional
-                      ? formatProfessionalType(profile.professional_type)
+                      ? formatProfessionalTypes(getProfessionalTypes(profile))
                       : "Customer"}
                   </p>
 
@@ -1125,6 +1190,36 @@ export default function AccountPage() {
 
                   {isProfessional ? (
                     <>
+                      <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
+                        <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                          Professional categories
+                        </p>
+                        <p className="mt-2 text-sm text-neutral-500">
+                          Select every service category you offer. These help clients find you.
+                        </p>
+
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                          {professionalTypeOptions.map((option) => {
+                            const selected = professionalTypes.includes(option.value);
+
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => toggleProfessionalType(option.value)}
+                                className={`rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                                  selected
+                                    ? "border-neutral-900 bg-neutral-900 text-white"
+                                    : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50"
+                                }`}
+                              >
+                                {option.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
                       <div>
                         <label className="mb-2 block text-sm font-medium text-neutral-700">
                           Bio
@@ -1281,7 +1376,7 @@ export default function AccountPage() {
                     </p>
                     <p className="mt-2 text-base font-semibold text-neutral-900">
                       {isProfessional
-                        ? formatProfessionalType(profile.professional_type)
+                        ? formatProfessionalTypes(getProfessionalTypes(profile))
                         : "Customer"}
                     </p>
                   </div>

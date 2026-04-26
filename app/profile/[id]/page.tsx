@@ -22,6 +22,7 @@ type Profile = {
   banner_url: string | null;
   role: string | null;
   professional_type: string | null;
+  professional_types?: string[] | null;
   location: string | null;
   bio: string | null;
   instagram_handle: string | null;
@@ -147,7 +148,7 @@ export default function ProfessionalProfilePage() {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select(
-            "id, full_name, avatar_url, banner_url, role, professional_type, location, bio, instagram_handle, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
+            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, bio, instagram_handle, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
           )
           .eq("id", profileId)
           .single();
@@ -546,12 +547,33 @@ export default function ProfessionalProfilePage() {
     return showAllReviews ? reviews : reviews.slice(0, 4);
   }, [reviews, showAllReviews]);
 
-  function formatProfessionalType(value: string | null) {
+  function formatProfessionalType(value: string | null | undefined) {
     if (!value) return "Customer";
 
-    return value
+    return String(value)
       .replaceAll("_", " ")
       .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  function getProfessionalTypeLabels(currentProfile: Profile | null) {
+    if (!currentProfile) return [];
+
+    const savedTypes = Array.isArray(currentProfile.professional_types)
+      ? currentProfile.professional_types
+      : [];
+
+    const fallbackType = currentProfile.professional_type
+      ? [currentProfile.professional_type]
+      : [];
+
+    return (savedTypes.length > 0 ? savedTypes : fallbackType)
+      .filter(Boolean)
+      .map((type) => formatProfessionalType(type));
+  }
+
+  function formatProfessionalTypes(currentProfile: Profile | null) {
+    const labels = getProfessionalTypeLabels(currentProfile);
+    return labels.length > 0 ? labels.join(" • ") : "Professional";
   }
 
   function formatServiceModes(value: string | string[] | null) {
@@ -764,6 +786,8 @@ setLocationInput("");
   const isProfessional =
     profile.role === "professional" || profile.role === "I am a professional";
 
+  const professionalTypeLabels = getProfessionalTypeLabels(profile);
+
   const profileTags = [
     profile.direct_booking_enabled ? "Direct booking" : null,
     getNextOpeningText() ? "Open this week" : null,
@@ -843,10 +867,21 @@ setLocationInput("");
                     </h1>
 
                     <p className="mt-2 text-base text-neutral-600 md:text-lg">
-                      {isProfessional
-                        ? formatProfessionalType(profile.professional_type)
-                        : "Customer"}
+                      {isProfessional ? formatProfessionalTypes(profile) : "Customer"}
                     </p>
+
+                    {isProfessional && professionalTypeLabels.length > 1 ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {professionalTypeLabels.map((label) => (
+                          <span
+                            key={label}
+                            className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700"
+                          >
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
 
                     <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-600">
                       {profile.location ? (
@@ -1001,6 +1036,24 @@ setLocationInput("");
                   {profile.bio?.trim() || "No bio added yet."}
                 </p>
               </div>
+
+              {isProfessional && professionalTypeLabels.length > 0 ? (
+                <div className="mt-8">
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Service categories
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {professionalTypeLabels.map((label) => (
+                      <span
+                        key={label}
+                        className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {isProfessional &&
               profile.specialties &&

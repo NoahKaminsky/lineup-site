@@ -27,7 +27,6 @@ type ServiceRequest = {
   is_direct_rebook?: boolean | null;
   preferred_date?: string | null;
   preferred_start_time?: string | null;
-  preferred_end_time?: string | null;
   timing_flexibility?: string | null;
   scheduled_date?: string | null;
   scheduled_start_time?: string | null;
@@ -182,8 +181,8 @@ function formatShortDate(dateString: string) {
 
 function formatTimingFlexibility(value: string | null | undefined) {
   if (!value) return null;
-  if (value === "exact") return "Exact time";
-  if (value === "flexible") return "Flexible";
+  if (value === "exact") return "Exact start time";
+  if (value === "flexible") return "Flexible start";
   if (value === "anytime") return "Anytime";
   return value;
 }
@@ -191,21 +190,10 @@ function formatTimingFlexibility(value: string | null | undefined) {
 function formatPreferredTiming(request: {
   preferred_date?: string | null;
   preferred_start_time?: string | null;
-  preferred_end_time?: string | null;
   timing_flexibility?: string | null;
 }) {
   if (request.timing_flexibility === "anytime") {
-    return "Anytime";
-  }
-
-  if (
-    request.preferred_date &&
-    request.preferred_start_time &&
-    request.preferred_end_time
-  ) {
-    return `${formatShortDate(request.preferred_date)} • ${formatTime(
-      String(request.preferred_start_time).slice(0, 5)
-    )} - ${formatTime(String(request.preferred_end_time).slice(0, 5))}`;
+    return "Anytime — pro will suggest";
   }
 
   if (request.preferred_date && request.preferred_start_time) {
@@ -1428,7 +1416,7 @@ export default function RequestsPage() {
    <div className="mt-6 grid gap-4 md:grid-cols-5">
   <div className="rounded-2xl border border-neutral-200 p-4">
     <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-      Preferred time
+      Requested start
     </p>
     <p className="mt-2 text-sm font-medium text-neutral-900">
       {formatPreferredTiming(request)}
@@ -1785,7 +1773,7 @@ export default function RequestsPage() {
 <div className="mt-5 grid gap-4 md:grid-cols-5">
   <div className="rounded-2xl border border-neutral-200 p-4">
     <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-      Preferred time
+      Requested start
     </p>
     <p className="mt-2 text-sm font-medium text-neutral-900">
       {formatPreferredTiming(request)}

@@ -238,33 +238,38 @@ export default function RespondToRequestPage() {
       ? request.preferred_start_time || null
       : proposedStartTime || null;
 
-    const finalProposedEndTime = isMatchingTime
-      ? request.preferred_end_time || null
-      : proposedEndTime || null;
+    const finalProposedEndTime = proposedEndTime || null;
 
-    if (!isMatchingTime) {
+    if (isMatchingTime) {
       if (!finalProposedDate || !finalProposedStartTime) {
-        setMessage("Please provide a proposed date and start time.");
+        setMessage("This request does not include a customer date and start time. Suggest a different time instead.");
         return;
       }
 
-      if (
-        finalProposedEndTime &&
-        finalProposedEndTime <= finalProposedStartTime
-      ) {
-        setMessage("End time must be later than start time.");
+      if (!finalProposedEndTime) {
+        setMessage("Please add an end time so this can be added to your calendar if accepted.");
+        return;
+      }
+    } else {
+      if (!finalProposedDate || !finalProposedStartTime || !finalProposedEndTime) {
+        setMessage("Please provide a proposed date, start time, and end time.");
         return;
       }
     }
 
+    if (finalProposedEndTime <= finalProposedStartTime) {
+      setMessage("End time must be later than start time.");
+      return;
+    }
+
     let finalMessage = offerMessage.trim();
 
-    if (!isMatchingTime && finalProposedDate && finalProposedStartTime) {
-      finalMessage = `${finalMessage}\n\nAlternative time offered: ${formatDateOnly(
+    if (!isMatchingTime && finalProposedDate && finalProposedStartTime && finalProposedEndTime) {
+      finalMessage = `${finalMessage}
+
+Alternative time offered: ${formatDateOnly(
         finalProposedDate
-      )} • ${formatTime(finalProposedStartTime)}${
-        finalProposedEndTime ? ` - ${formatTime(finalProposedEndTime)}` : ""
-      }`;
+      )} • ${formatTime(finalProposedStartTime)} - ${formatTime(finalProposedEndTime)}`;
     }
 
     setSubmitting(true);
@@ -496,36 +501,73 @@ export default function RespondToRequestPage() {
                 </label>
 
                 <div className="space-y-4">
-                  <label className="flex items-center gap-3 rounded-2xl border border-neutral-200 p-4 text-sm text-neutral-900">
-                    <input
-                      type="radio"
-                      name="timing-mode"
-                      checked={timingMode === "match"}
-                      onChange={() => setTimingMode("match")}
-                    />
-                    <div>
-                      <p className="font-medium">Use customer’s requested time</p>
-                      <p className="text-neutral-500">{customerTimingLabel}</p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center gap-3 rounded-2xl border border-neutral-200 p-4 text-sm text-neutral-900">
-                    <input
-                      type="radio"
-                      name="timing-mode"
-                      checked={timingMode === "different"}
-                      onChange={() => setTimingMode("different")}
-                    />
-                    <div>
-                      <p className="font-medium">Offer a different time</p>
-                      <p className="text-neutral-500">
-                        Use this only if the requested time does not work for you.
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTimingMode("match");
+                        if (request.preferred_date) setProposedDate(request.preferred_date);
+                        if (request.preferred_start_time) {
+                          setProposedStartTime(String(request.preferred_start_time).slice(0, 5));
+                        }
+                      }}
+                      className={`rounded-2xl border p-4 text-left transition ${
+                        timingMode === "match"
+                          ? "border-black bg-black text-white"
+                          : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400"
+                      }`}
+                    >
+                      <p className="font-semibold">Confirm customer’s time</p>
+                      <p className={`mt-2 text-sm ${timingMode === "match" ? "text-white/70" : "text-neutral-500"}`}>
+                        {customerTimingLabel}
                       </p>
-                    </div>
-                  </label>
+                      <p className={`mt-2 text-xs ${timingMode === "match" ? "text-white/60" : "text-neutral-400"}`}>
+                        Add an end time so it can go on your calendar if accepted.
+                      </p>
+                    </button>
 
-                  {timingMode === "different" ? (
-                    <div className="grid gap-5 md:grid-cols-3">
+                    <button
+                      type="button"
+                      onClick={() => setTimingMode("different")}
+                      className={`rounded-2xl border p-4 text-left transition ${
+                        timingMode === "different"
+                          ? "border-black bg-black text-white"
+                          : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400"
+                      }`}
+                    >
+                      <p className="font-semibold">Suggest a different time</p>
+                      <p className={`mt-2 text-sm ${timingMode === "different" ? "text-white/70" : "text-neutral-500"}`}>
+                        Choose a new date, start time, and end time.
+                      </p>
+                    </button>
+                  </div>
+
+                  {timingMode === "match" ? (
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                      <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                        Customer start time
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-neutral-900">
+                        {customerTimingLabel}
+                      </p>
+
+                      <div className="mt-4">
+                        <label className="mb-2 block text-sm font-medium text-neutral-700">
+                          Your end time
+                        </label>
+                        <input
+                          type="time"
+                          value={proposedEndTime}
+                          onChange={(e) => setProposedEndTime(e.target.value)}
+                          className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 outline-none transition focus:border-neutral-900"
+                        />
+                        <p className="mt-2 text-xs text-neutral-500">
+                          This is what blocks your calendar after the customer accepts.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-3">
                       <div>
                         <label className="mb-2 block text-sm font-medium text-neutral-700">
                           Proposed date
@@ -540,7 +582,7 @@ export default function RespondToRequestPage() {
 
                       <div>
                         <label className="mb-2 block text-sm font-medium text-neutral-700">
-                          Proposed start time
+                          Start time
                         </label>
                         <input
                           type="time"
@@ -552,7 +594,7 @@ export default function RespondToRequestPage() {
 
                       <div>
                         <label className="mb-2 block text-sm font-medium text-neutral-700">
-                          Proposed end time
+                          End time
                         </label>
                         <input
                           type="time"
@@ -562,7 +604,7 @@ export default function RespondToRequestPage() {
                         />
                       </div>
                     </div>
-                  ) : null}
+                  )}
                 </div>
               </div>
 

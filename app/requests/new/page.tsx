@@ -90,7 +90,6 @@ function NewRequestPageContent() {
 
   const [preferredDate, setPreferredDate] = useState("");
   const [preferredStartTime, setPreferredStartTime] = useState("");
-  const [preferredEndTime, setPreferredEndTime] = useState("");
   const [timingFlexibility, setTimingFlexibility] = useState("exact");
 
   const [submitting, setSubmitting] = useState(false);
@@ -412,10 +411,6 @@ function NewRequestPageContent() {
         return;
       }
 
-      if (preferredEndTime && preferredEndTime <= preferredStartTime) {
-        setMessage("End time must be later than start time.");
-        return;
-      }
     }
 
     setSubmitting(true);
@@ -451,8 +446,7 @@ function NewRequestPageContent() {
             preferred_date: timingFlexibility === "anytime" ? null : preferredDate || null,
             preferred_start_time:
               timingFlexibility === "anytime" ? null : preferredStartTime || null,
-            preferred_end_time:
-              timingFlexibility === "anytime" ? null : preferredEndTime || null,
+            preferred_end_time: null,
             timing_flexibility: timingFlexibility,
           },
         ])
@@ -657,46 +651,65 @@ function NewRequestPageContent() {
             When do you want this done?
           </label>
 
-          <div className="space-y-3">
-            <select
-              value={timingFlexibility}
-              onChange={(e) => setTimingFlexibility(e.target.value)}
-              className="w-full rounded border p-3"
-            >
-              <option value="exact">Exact time</option>
-              <option value="flexible">Flexible around a time</option>
-              <option value="anytime">Anytime</option>
-            </select>
-
-            {timingFlexibility !== "anytime" ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <input
-                  type="date"
-                  value={preferredDate}
-                  onChange={(e) => setPreferredDate(e.target.value)}
-                  className="rounded border p-3"
-                />
-
-                <input
-                  type="time"
-                  value={preferredStartTime}
-                  onChange={(e) => setPreferredStartTime(e.target.value)}
-                  className="rounded border p-3"
-                />
-
-                <input
-                  type="time"
-                  value={preferredEndTime}
-                  onChange={(e) => setPreferredEndTime(e.target.value)}
-                  className="rounded border p-3"
-                />
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Timing preference
+                </label>
+                <select
+                  value={timingFlexibility}
+                  onChange={(e) => {
+                    setTimingFlexibility(e.target.value);
+                    if (e.target.value === "anytime") {
+                      setPreferredDate("");
+                      setPreferredStartTime("");
+                    }
+                  }}
+                  className="w-full rounded-xl border border-neutral-300 bg-white p-3"
+                >
+                  <option value="exact">Exact date and start time</option>
+                  <option value="flexible">Flexible around this time</option>
+                  <option value="anytime">Anytime / let pros suggest times</option>
+                </select>
               </div>
-            ) : null}
 
-            <p className="text-sm text-neutral-500">
-              Barbers and other professionals can match this time or send an offer
-              with a different time slot.
-            </p>
+              {timingFlexibility !== "anytime" ? (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Preferred date
+                    </label>
+                    <input
+                      type="date"
+                      value={preferredDate}
+                      onChange={(e) => setPreferredDate(e.target.value)}
+                      className="w-full rounded-xl border border-neutral-300 bg-white p-3"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Preferred start time
+                    </label>
+                    <input
+                      type="time"
+                      value={preferredStartTime}
+                      onChange={(e) => setPreferredStartTime(e.target.value)}
+                      className="w-full rounded-xl border border-neutral-300 bg-white p-3"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-neutral-200 bg-white p-3 text-sm text-neutral-600">
+                  Pros will suggest available times in their offers.
+                </div>
+              )}
+
+              <p className="text-sm leading-6 text-neutral-500">
+                This is your preferred start time. The professional will include the end time in their offer, and once you accept it, it becomes a confirmed calendar booking.
+              </p>
+            </div>
           </div>
         </div>
 

@@ -200,6 +200,11 @@ export default function RequestDetailPage() {
     return `${twelveHour}:${minute} ${suffix}`;
   }
 
+  function timeToMinutes(timeString: string) {
+    const [hours, minutes] = String(timeString).slice(0, 5).split(":").map(Number);
+    return hours * 60 + minutes;
+  }
+
   function getStatusLabel(status: string) {
     if (status === "open") return "Open";
     if (status === "accepted") return "Accepted";
@@ -666,8 +671,67 @@ export default function RequestDetailPage() {
       return;
     }
 
-    if (!acceptedOffer.proposed_date || !acceptedOffer.proposed_start_time) {
-      setMessage("This offer does not include a valid time yet.");
+    if (
+      !acceptedOffer.proposed_date ||
+      !acceptedOffer.proposed_start_time ||
+      !acceptedOffer.proposed_end_time
+    ) {
+      setMessage("This offer needs a date, start time, and end time before it can be accepted.");
+      setAcceptingOfferId(null);
+      return;
+    }
+
+    const proposedStart = String(acceptedOffer.proposed_start_time).slice(0, 5);
+    const proposedEnd = String(acceptedOffer.proposed_end_time).slice(0, 5);
+
+    if (proposedEnd <= proposedStart) {
+      setMessage("Offer end time must be later than the start time.");
+      setAcceptingOfferId(null);
+      return;
+    }
+
+    const { data: existingBookings, error: bookingsCheckError } = await supabase
+      .from("bookings")
+      .select("id, start_time, end_time, status")
+      .eq("professional_id", acceptedOffer.professional_id)
+      .eq("booking_date", acceptedOffer.proposed_date)
+      .in("status", ["confirmed", "completion_requested", "completed"]);
+
+    if (bookingsCheckError) {
+      setMessage(bookingsCheckError.message);
+      setAcceptingOfferId(null);
+      return;
+    }
+
+    const proposedStartMinutes = timeToMinutes(proposedStart);
+    const proposedEndMinutes = timeToMinutes(proposedEnd);
+
+    const hasBookingConflict = (existingBookings || []).some((booking) => {
+      const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
+      const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
+      return proposedStartMinutes < bookingEnd && proposedEndMinutes > bookingStart;
+    });
+
+    if (hasBookingConflict) {
+      setMessage("That professional already has a booking at this time. Please choose another offer or ask them to send a new time.");
+      setAcceptingOfferId(null);
+      return;
+    }
+
+const { error: createBookingError } = await supabase.from("bookings").insert([
+  {
+    professional_id: acceptedOffer.professional_id,
+    customer_id: request.client_id,
+    booking_date: acceptedOffer.proposed_date,
+    start_time: proposedStart,
+    end_time: proposedEnd,
+    status: "confirmed",
+    service_name: request.service_detail || request.title,
+  },
+]);
+
+    if (createBookingError) {
+      setMessage(createBookingError.message);
       setAcceptingOfferId(null);
       return;
     }
@@ -707,8 +771,8 @@ export default function RequestDetailPage() {
         status: "accepted",
         accepted_professional_id: acceptedOffer.professional_id,
         scheduled_date: acceptedOffer.proposed_date,
-        scheduled_start_time: acceptedOffer.proposed_start_time,
-        scheduled_end_time: acceptedOffer.proposed_end_time,
+        scheduled_start_time: proposedStart,
+        scheduled_end_time: proposedEnd,
       })
       .eq("id", request.id);
 
@@ -725,13 +789,7 @@ export default function RequestDetailPage() {
           sender_id: currentUserId,
           message: `Offer accepted. Scheduled for ${formatDateOnly(
             acceptedOffer.proposed_date
-          )} at ${formatTime(
-            String(acceptedOffer.proposed_start_time).slice(0, 5)
-          )}${
-            acceptedOffer.proposed_end_time
-              ? ` - ${formatTime(String(acceptedOffer.proposed_end_time).slice(0, 5))}`
-              : ""
-          }. You can now chat here to coordinate details.`,
+          )} at ${formatTime(proposedStart)} - ${formatTime(proposedEnd)}. You can now chat here to coordinate details.`,
         },
       ]);
     }
@@ -750,8 +808,8 @@ export default function RequestDetailPage() {
             status: "accepted",
             accepted_professional_id: acceptedOffer.professional_id,
             scheduled_date: acceptedOffer.proposed_date ?? null,
-            scheduled_start_time: acceptedOffer.proposed_start_time ?? null,
-            scheduled_end_time: acceptedOffer.proposed_end_time ?? null,
+            scheduled_start_time: proposedStart,
+            scheduled_end_time: proposedEnd,
           }
         : prev
     );
@@ -875,6 +933,13 @@ export default function RequestDetailPage() {
       return;
     }
 
+    await supabase
+      .from("bookings")
+      .update({ status: "completion_requested" })
+      .eq("request_id", request.id)
+      .eq("professional_id", currentUserId)
+      .eq("status", "confirmed");
+
     if (currentUserId) {
       await supabase.from("request_messages").insert([
         {
@@ -914,6 +979,13 @@ export default function RequestDetailPage() {
       setMessage(error.message);
       return;
     }
+
+    await supabase
+      .from("bookings")
+      .update({ status: "completed" })
+      .eq("request_id", request.id)
+      .eq("customer_id", currentUserId)
+      .in("status", ["confirmed", "completion_requested"]);
 
     if (currentUserId) {
       await supabase.from("request_messages").insert([
@@ -1327,174 +1399,119 @@ export default function RequestDetailPage() {
                   </div>
                 ) : (
                   <div className="mt-6 space-y-4">
-                    {sortedOffers.map((offer) => (
-                      <div
-                        key={offer.id}
-                        className={`rounded-[1.5rem] border p-5 ${
-                          offer.status === "accepted"
-                            ? "border-black bg-black text-white"
-                            : "border-neutral-200 bg-neutral-50"
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <Link
-                            href={`/profile/${offer.professional_id}`}
-                            className="flex items-center gap-3 transition hover:opacity-80"
-                          >
-                            <div
-                              className={`h-12 w-12 overflow-hidden rounded-full border ${
-                                offer.status === "accepted"
-                                  ? "border-white/15 bg-white/10"
-                                  : "border-neutral-200 bg-white"
-                              }`}
-                            >
-                              {offer.professional_avatar_url ? (
-                                <img
-                                  src={offer.professional_avatar_url}
-                                  alt={offer.professional_name || "Professional"}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div
-                                  className={`flex h-full w-full items-center justify-center text-xs font-medium ${
-                                    offer.status === "accepted"
-                                      ? "text-white/80"
-                                      : "text-neutral-500"
-                                  }`}
-                                >
-                                  {offer.professional_name?.charAt(0).toUpperCase() || "P"}
-                                </div>
-                              )}
-                            </div>
+                    {sortedOffers.map((offer) => {
+                      const isAccepted = offer.status === "accepted";
+                      const offerTiming = getOfferTimingSummary(offer);
 
-                            <div>
-                              <p
-                                className={`text-lg font-semibold ${
-                                  offer.status === "accepted"
-                                    ? "text-white"
-                                    : "text-neutral-900"
-                                }`}
-                              >
-                                {offer.professional_name || "Professional"}
-                              </p>
-                              <p
-                                className={`text-sm ${
-                                  offer.status === "accepted"
-                                    ? "text-white/70"
-                                    : "text-neutral-500"
-                                }`}
-                              >
-                                {formatProfessionalType(offer.professional_type)}
-                              </p>
-
-                              <div
-                                className={`mt-1 text-sm ${
-                                  offer.status === "accepted"
-                                    ? "text-white/80"
-                                    : "text-neutral-600"
-                                }`}
-                              >
-                                {formatRating(offer.average_rating, offer.review_count)}
-                              </div>
-                            </div>
-                          </Link>
-
-                          <div className="text-right">
-                            <div className="flex flex-wrap justify-end gap-2">
-                              {isCustomer && unreadOfferIds.includes(offer.id) ? (
-                                <span
-                                  className={`rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide ${
-                                    offer.status === "accepted"
-                                      ? "bg-white text-black"
-                                      : "bg-black text-white"
-                                  }`}
-                                >
-                                  New
-                                </span>
-                              ) : null}
-
-                              <span
-                                className={`rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wide ${
-                                  offer.status === "accepted"
-                                    ? "bg-white/10 text-white"
-                                    : "bg-white text-neutral-700"
-                                }`}
-                              >
-                                {getStatusLabel(offer.status)}
-                              </span>
-                            </div>
-
-                            <p
-                              className={`mt-3 text-2xl font-semibold ${
-                                offer.status === "accepted"
-                                  ? "text-white"
-                                  : "text-neutral-900"
-                              }`}
-                            >
-                              {offer.proposed_price || "Price not provided"}
-                            </p>
-
-                            {getOfferTimingSummary(offer) ? (
-                              <p
-                                className={`mt-2 text-sm ${
-                                  offer.status === "accepted"
-                                    ? "text-white/80"
-                                    : "text-neutral-600"
-                                }`}
-                              >
-                                {offer.matches_requested_time
-                                  ? "Matches requested time • "
-                                  : "Offered time • "}
-                                {getOfferTimingSummary(offer)}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        {offer.message ? (
-                          <p
-                            className={`mt-4 leading-7 ${
-                              offer.status === "accepted"
-                                ? "text-white/80"
-                                : "text-neutral-600"
-                            }`}
-                          >
-                            {offer.message}
-                          </p>
-                        ) : null}
-
-                        {offer.status === "declined" &&
-                        offer.customer_response_message ? (
-                          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                            <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
-                              Customer feedback
-                            </p>
-                            <p className="mt-2 text-sm leading-6 text-amber-900">
-                              {offer.customer_response_message}
-                            </p>
-                          </div>
-                        ) : null}
-
+                      return (
                         <div
-                          className={`mt-4 flex flex-wrap items-center justify-between gap-3 text-xs ${
-                            offer.status === "accepted"
-                              ? "text-white/60"
-                              : "text-neutral-500"
+                          key={offer.id}
+                          className={`overflow-hidden rounded-[1.75rem] border shadow-sm ${
+                            isAccepted
+                              ? "border-black bg-black text-white"
+                              : "border-neutral-200 bg-white text-neutral-900"
                           }`}
                         >
-                          <p>Submitted {formatDate(offer.created_at)}</p>
+                          <div className="p-5 sm:p-6">
+                            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                              <Link
+                                href={`/profile/${offer.professional_id}`}
+                                className="flex min-w-0 items-center gap-3 transition hover:opacity-80"
+                              >
+                                <div
+                                  className={`h-14 w-14 shrink-0 overflow-hidden rounded-full border ${
+                                    isAccepted
+                                      ? "border-white/15 bg-white/10"
+                                      : "border-neutral-200 bg-neutral-100"
+                                  }`}
+                                >
+                                  {offer.professional_avatar_url ? (
+                                    <img
+                                      src={offer.professional_avatar_url}
+                                      alt={offer.professional_name || "Professional"}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div
+                                      className={`flex h-full w-full items-center justify-center text-sm font-semibold ${
+                                        isAccepted ? "text-white/80" : "text-neutral-500"
+                                      }`}
+                                    >
+                                      {offer.professional_name?.charAt(0).toUpperCase() || "P"}
+                                    </div>
+                                  )}
+                                </div>
 
-                          <Link
-                            href={`/profile/${offer.professional_id}`}
-                            className={`font-medium ${
-                              offer.status === "accepted"
-                                ? "text-white"
-                                : "text-neutral-900"
-                            }`}
-                          >
-                            View profile
-                          </Link>
-                        </div>
+                                <div className="min-w-0">
+                                  <p className={`text-xl font-semibold ${isAccepted ? "text-white" : "text-neutral-900"}`}>
+                                    {offer.professional_name || "Professional"}
+                                  </p>
+                                  <p className={`mt-1 text-sm ${isAccepted ? "text-white/65" : "text-neutral-500"}`}>
+                                    {formatProfessionalType(offer.professional_type)}
+                                  </p>
+                                  <p className={`mt-1 text-sm ${isAccepted ? "text-white/75" : "text-neutral-600"}`}>
+                                    {formatRating(offer.average_rating, offer.review_count)}
+                                  </p>
+                                </div>
+                              </Link>
+
+                              <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+                                <div className="flex flex-wrap gap-2 sm:justify-end">
+                                  {isCustomer && unreadOfferIds.includes(offer.id) ? (
+                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isAccepted ? "bg-white text-black" : "bg-black text-white"}`}>
+                                      New
+                                    </span>
+                                  ) : null}
+
+                                  <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isAccepted ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-700"}`}>
+                                    {getStatusLabel(offer.status)}
+                                  </span>
+                                </div>
+
+                                <p className={`text-3xl font-semibold tracking-tight ${isAccepted ? "text-white" : "text-neutral-900"}`}>
+                                  {offer.proposed_price || "Price not provided"}
+                                </p>
+                              </div>
+                            </div>
+
+                            {offerTiming ? (
+                              <div className={`mt-5 rounded-2xl border p-4 ${isAccepted ? "border-white/10 bg-white/10" : "border-neutral-200 bg-neutral-50"}`}>
+                                <p className={`text-xs font-semibold uppercase tracking-wide ${isAccepted ? "text-white/55" : "text-neutral-500"}`}>
+                                  {offer.matches_requested_time ? "Confirmed customer time" : "Suggested time"}
+                                </p>
+                                <p className={`mt-2 text-sm font-semibold ${isAccepted ? "text-white" : "text-neutral-900"}`}>
+                                  {offerTiming}
+                                </p>
+                              </div>
+                            ) : null}
+
+                            {offer.message ? (
+                              <div className={`mt-4 rounded-2xl p-4 text-sm leading-7 ${isAccepted ? "bg-white/10 text-white/80" : "bg-neutral-50 text-neutral-600"}`}>
+                                {offer.message}
+                              </div>
+                            ) : null}
+
+                            {offer.status === "declined" && offer.customer_response_message ? (
+                              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                                <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                                  Customer feedback
+                                </p>
+                                <p className="mt-2 text-sm leading-6 text-amber-900">
+                                  {offer.customer_response_message}
+                                </p>
+                              </div>
+                            ) : null}
+
+                            <div className={`mt-4 flex flex-wrap items-center justify-between gap-3 text-xs ${isAccepted ? "text-white/50" : "text-neutral-500"}`}>
+                              <p>Submitted {formatDate(offer.created_at)}</p>
+                              <Link
+                                href={`/profile/${offer.professional_id}`}
+                                className={`font-semibold ${isAccepted ? "text-white" : "text-neutral-900"}`}
+                              >
+                                View profile
+                              </Link>
+                            </div>
+                          </div>
 
                         {isProfessional &&
                         request.status === "open" &&
@@ -1635,7 +1652,8 @@ export default function RequestDetailPage() {
                           </div>
                         ) : null}
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 )}
               </section>
