@@ -444,7 +444,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 sm:py-10">
+    <main className="min-h-screen overflow-x-hidden bg-white px-4 py-8 text-neutral-900 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-7xl">
         <Navbar />
 
@@ -493,8 +493,8 @@ export default function CalendarPage() {
                 </div>
               </div>
 
-              <div className="mt-6 block md:hidden">
-                <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible scroll-smooth px-1 pb-3 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="-mx-4 mt-6 block overflow-hidden md:hidden">
+                <div className="flex w-full snap-x snap-mandatory gap-4 overflow-x-auto overflow-y-visible scroll-smooth px-4 pb-4 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {mobileCalendarDays.map((date) => {
                     const dateKey = getDateKey(date);
                     const dayBookings = bookingsByDate[dateKey] || [];
@@ -509,10 +509,10 @@ export default function CalendarPage() {
                         }}
                         type="button"
                         onClick={() => setSelectedDate(dateKey)}
-                        className="flex min-w-[62px] snap-center flex-col items-center gap-2 rounded-3xl px-1 py-1 text-center transition active:scale-[0.97]"
+                        className="flex min-w-[70px] snap-center flex-col items-center gap-2 rounded-3xl px-1 py-1 text-center transition active:scale-[0.97]"
                       >
                         <span
-                          className={`relative flex h-14 w-14 items-center justify-center rounded-full border text-lg font-semibold transition-all ${
+                          className={`relative flex h-16 w-16 items-center justify-center rounded-full border text-xl font-semibold transition-all ${
                             isSelected
                               ? "border-black bg-black text-white shadow-md ring-2 ring-black ring-offset-2"
                               : isToday
@@ -529,8 +529,12 @@ export default function CalendarPage() {
                         </span>
                         <span className="flex h-5 items-center justify-center gap-1">
                           {dayBookings.length > 0 ? (
-                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isSelected ? "bg-black text-white" : "bg-neutral-100 text-neutral-600"}`}>
-                              {dayBookings.length}
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
+                                isSelected ? "bg-black text-white" : "bg-neutral-100 text-neutral-600"
+                              }`}
+                            >
+                              {dayBookings.length} booked
                             </span>
                           ) : (
                             <span className="h-1.5 w-1.5 rounded-full bg-neutral-200" />
@@ -613,7 +617,7 @@ export default function CalendarPage() {
             </div>
 
             <div className="space-y-6">
-              <div className="flex max-h-[680px] min-h-0 flex-col rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 xl:max-h-[58vh]">
+              <div className="flex h-[54vh] min-h-[420px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 xl:h-[58vh]">
                 <div className="shrink-0 flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-2xl font-semibold tracking-tight">{selectedDateLabel}</h2>
@@ -624,7 +628,7 @@ export default function CalendarPage() {
                 </div>
 
                 {selectedDateBookings.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">No bookings for this day.</div>
+                  <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">No bookings for this day.</div>
                 ) : (
                   <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {selectedDateBookings.map((booking) => (
@@ -635,7 +639,7 @@ export default function CalendarPage() {
               </div>
 
               <div className="grid gap-6 lg:grid-cols-3 xl:grid-cols-1">
-                <div className="flex max-h-[520px] min-h-0 flex-col rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 xl:max-h-[38vh]">
+                <div className="flex h-[38vh] min-h-[320px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 xl:h-[38vh]">
                   <h2 className="shrink-0 text-xl font-semibold tracking-tight">Upcoming</h2>
                   {upcomingBookings.length === 0 ? (
                     <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">No upcoming bookings.</div>
@@ -648,7 +652,7 @@ export default function CalendarPage() {
                   )}
                 </div>
 
-                <div className="flex max-h-[520px] min-h-0 flex-col rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 xl:max-h-[38vh]">
+                <div className="flex h-[38vh] min-h-[320px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 xl:h-[38vh]">
                   <h2 className="shrink-0 text-xl font-semibold tracking-tight">Awaiting confirmation</h2>
                   {completionRequestedBookings.length === 0 ? (
                     <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">No bookings awaiting completion confirmation.</div>
@@ -661,7 +665,7 @@ export default function CalendarPage() {
                   )}
                 </div>
 
-                <div className="flex max-h-[520px] min-h-0 flex-col rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 xl:max-h-[38vh]">
+                <div className="flex h-[38vh] min-h-[320px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 xl:h-[38vh]">
                   <h2 className="shrink-0 text-xl font-semibold tracking-tight">Recently completed</h2>
                   {completedBookings.length === 0 ? (
                     <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-sm text-neutral-600">No completed bookings yet.</div>
