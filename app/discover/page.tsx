@@ -12,6 +12,7 @@ type ProfileRow = {
   banner_url: string | null;
   role: string | null;
   professional_type: string | null;
+  professional_types?: string[] | null;
   location: string | null;
   bio: string | null;
   instagram_handle: string | null;
@@ -81,17 +82,21 @@ type DiscoverCard = {
 };
 
 const categoryOptions = [
-  "all",
-  "barber",
-  "hairstylist",
-  "nail_tech",
-  "lash_artist",
-  "brow_artist",
-  "esthetician",
-  "makeup_artist",
+  { label: "All", value: "all" },
+  { label: "Barber", value: "barber" },
+  { label: "Hair", value: "hairstylist" },
+  { label: "Nails", value: "nail_artist" },
+  { label: "Lashes", value: "lash_artist" },
+  { label: "Brows", value: "brow_artist" },
+  { label: "Makeup", value: "makeup_artist" },
+  { label: "Waxing", value: "wax_technician" },
 ] as const;
 
-const serviceModeOptions = ["at_home", "in_shop", "home_studio"] as const;
+const serviceModeOptions = [
+  { label: "At home", value: "at_home" },
+  { label: "In shop", value: "in_shop" },
+  { label: "Studio", value: "home_studio" },
+] as const;
 
 function normalizeRole(role: string | null | undefined) {
   return String(role || "").toLowerCase().trim();
@@ -102,24 +107,20 @@ function isProfessionalRole(role: string | null | undefined) {
   return !!normalized && !normalized.includes("customer");
 }
 
-function formatProfessionalType(value: string | null) {
+function formatLabel(value: string | null | undefined) {
   if (!value) return "Professional";
-
-  return value
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  if (value === "nail_tech") return "Nail Artist";
+  return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function formatServiceModes(value: string[] | string | null) {
-  if (!value) return [];
+function getProfessionalTypes(profile: ProfileRow) {
+  const multi = Array.isArray(profile.professional_types)
+    ? profile.professional_types.filter(Boolean)
+    : [];
 
-  const modes = Array.isArray(value) ? value : [value];
+  if (multi.length > 0) return multi;
 
-  return modes.map((mode) =>
-    String(mode)
-      .replaceAll("_", " ")
-      .replace(/\b\w/g, (char) => char.toUpperCase())
-  );
+  return profile.professional_type ? [profile.professional_type] : [];
 }
 
 function getPlainServiceModes(value: string[] | string | null) {
@@ -135,18 +136,11 @@ function formatDateKey(date: Date) {
 }
 
 function timeToMinutes(time: string) {
-  const [hours, minutes] = String(time)
-    .slice(0, 5)
-    .split(":")
-    .map(Number);
+  const [hours, minutes] = String(time).slice(0, 5).split(":").map(Number);
   return hours * 60 + minutes;
 }
 
-function hasOpenThisWeek(
-  profile: ProfileRow,
-  availability: AvailabilityRow[],
-  bookings: BookingRow[]
-) {
+function hasOpenThisWeek(profile: ProfileRow, availability: AvailabilityRow[], bookings: BookingRow[]) {
   if (!profile.direct_booking_enabled || !profile.public_availability_enabled) return false;
 
   const activeAvailability = availability.filter((row) => row.is_active);
@@ -168,15 +162,10 @@ function hasOpenThisWeek(
       const startMinutes = timeToMinutes(window.start_time);
       const endMinutes = timeToMinutes(window.end_time);
 
-      if (endMinutes <= startMinutes) continue;
-
-      const hasAnyWindowSpace = endMinutes - startMinutes >= 30;
-      if (!hasAnyWindowSpace) continue;
+      if (endMinutes <= startMinutes || endMinutes - startMinutes < 30) continue;
 
       const overlappingBookings = bookings.filter(
-        (booking) =>
-          booking.booking_date === dateKey &&
-          booking.status !== "cancelled"
+        (booking) => booking.booking_date === dateKey && booking.status !== "cancelled"
       );
 
       if (overlappingBookings.length === 0) return true;
@@ -191,15 +180,11 @@ function hasOpenThisWeek(
         .sort((a, b) => a.start - b.start);
 
       for (const booking of sortedBookings) {
-        if (booking.start - cursor >= 30) {
-          return true;
-        }
+        if (booking.start - cursor >= 30) return true;
         cursor = Math.max(cursor, booking.end);
       }
 
-      if (endMinutes - cursor >= 30) {
-        return true;
-      }
+      if (endMinutes - cursor >= 30) return true;
     }
   }
 
@@ -213,55 +198,30 @@ function buildTags(params: {
   averageRatingNumber: number | null;
   availability: AvailabilityRow[];
   bookings: BookingRow[];
-  portfolioPreview: PortfolioItem | null;
 }) {
-  const { profile, services, reviewCount, averageRatingNumber, availability, bookings, portfolioPreview } =
-    params;
-
+  const { profile, services, reviewCount, averageRatingNumber, availability, bookings } = params;
   const tags: string[] = [];
-  const modes = getPlainServiceModes(profile.service_modes);
 
-  const hasBookableServices = services.length > 0;
-  const hasPortfolio = !!portfolioPreview;
-  const hasReviews = reviewCount > 0;
+  const modes = getPlainServiceModes(profile.service_modes);
   const isOpenThisWeek = hasOpenThisWeek(profile, availability, bookings);
 
-  if (profile.direct_booking_enabled) tags.push("Direct booking");
+  if (profile.direct_booking_enabled) tags.push("Direct");
   if (isOpenThisWeek) tags.push("Open this week");
   if (averageRatingNumber !== null && averageRatingNumber >= 4.7 && reviewCount >= 3) {
     tags.push("Highly rated");
   }
-  if (hasReviews) tags.push("Verified reviews");
-  if (modes.includes("at_home")) tags.push("At-home available");
-  if (modes.includes("in_shop")) tags.push("In-shop available");
-  if (modes.includes("home_studio")) tags.push("Home studio");
-  if (hasBookableServices && hasPortfolio && (hasReviews || isOpenThisWeek)) {
-    tags.push("Active on LineUp");
-  }
-  if (reviewCount > 0 && reviewCount <= 2 && hasBookableServices) {
-    tags.push("New to LineUp");
-  }
+  if (modes.includes("at_home")) tags.push("At-home");
+  if (services.length > 0) tags.push(`${services.length} services`);
 
-  const uniqueCustomers = new Set(
-    bookings
-      .filter((booking) => booking.customer_id)
-      .map((booking) => booking.customer_id)
-  );
-  if (uniqueCustomers.size >= 2 && bookings.length >= 3) {
-    tags.push("Returning clients");
-  }
-
-  return tags.slice(0, 5);
+  return tags.slice(0, 3);
 }
 
 export default function DiscoverPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
-
   const [cards, setCards] = useState<DiscoverCard[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] =
-    useState<(typeof categoryOptions)[number]>("all");
+  const [selectedCategory, setSelectedCategory] = useState<(typeof categoryOptions)[number]["value"]>("all");
   const [selectedModes, setSelectedModes] = useState<string[]>([]);
 
   useEffect(() => {
@@ -273,7 +233,7 @@ export default function DiscoverPage() {
         const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
           .select(
-            "id, full_name, avatar_url, banner_url, role, professional_type, location, bio, instagram_handle, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
+            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, bio, instagram_handle, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
           );
 
         if (profilesError) {
@@ -298,9 +258,7 @@ export default function DiscoverPage() {
           await Promise.all([
             supabase
               .from("professional_services")
-              .select(
-                "id, professional_id, service_name, duration_minutes, is_active, is_bookable, created_at"
-              )
+              .select("id, professional_id, service_name, duration_minutes, is_active, is_bookable, created_at")
               .in("professional_id", professionalIds)
               .eq("is_active", true)
               .order("created_at", { ascending: true }),
@@ -325,7 +283,7 @@ export default function DiscoverPage() {
               .from("bookings")
               .select("id, professional_id, customer_id, booking_date, start_time, end_time, status")
               .in("professional_id", professionalIds)
-              .in("status", ["confirmed", "completion_requested", "completed"])
+              .in("status", ["confirmed", "completion_requested", "completed"]),
           ]);
 
         const servicesData = (servicesResult.data || []) as ProfessionalService[];
@@ -406,7 +364,6 @@ export default function DiscoverPage() {
             averageRatingNumber,
             availability: proAvailability,
             bookings: proBookings,
-            portfolioPreview: proPortfolio[0] || null,
           });
 
           return {
@@ -439,18 +396,17 @@ export default function DiscoverPage() {
 
     return cards.filter((card) => {
       const { profile, services, tagBadges } = card;
+      const roles = getProfessionalTypes(profile);
 
-      const matchesCategory =
-        selectedCategory === "all" || profile.professional_type === selectedCategory;
+      const matchesCategory = selectedCategory === "all" || roles.includes(selectedCategory);
 
       const plainModes = getPlainServiceModes(profile.service_modes);
       const matchesModes =
-        selectedModes.length === 0 ||
-        selectedModes.every((mode) => plainModes.includes(mode));
+        selectedModes.length === 0 || selectedModes.every((mode) => plainModes.includes(mode));
 
       const searchableText = [
         profile.full_name || "",
-        profile.professional_type || "",
+        ...roles,
         profile.location || "",
         profile.bio || "",
         ...(profile.specialties || []),
@@ -467,94 +423,95 @@ export default function DiscoverPage() {
     });
   }, [cards, search, selectedCategory, selectedModes]);
 
+  const featuredCards = useMemo(() => {
+    return filteredCards
+      .filter((card) => card.portfolioPreview?.image_url || card.profile.banner_url)
+      .slice(0, 6);
+  }, [filteredCards]);
+
   function toggleMode(mode: string) {
     setSelectedModes((prev) =>
       prev.includes(mode) ? prev.filter((item) => item !== mode) : [...prev, mode]
     );
   }
 
+  function getCardImage(card: DiscoverCard) {
+    return card.portfolioPreview?.image_url || card.profile.banner_url || null;
+  }
+
   return (
-    <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+    <main className="min-h-screen bg-white text-neutral-900">
       <Navbar />
 
-      <div className="mx-auto max-w-6xl py-10">
-        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-              Browse professionals
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-neutral-500">
+              Browse
             </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
-              Find someone you’d book again.
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-5xl">
+              Discover pros
             </h1>
-            <p className="mt-4 max-w-2xl text-lg leading-8 text-neutral-600">
-              Browse professionals on LineUp, or post a request and let the right one come to you.
+            <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-500 sm:text-base">
+              Scroll, search, and tap into profiles when someone catches your eye.
             </p>
           </div>
 
           <Link
             href="/requests/new"
-            className="inline-flex rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+            className="inline-flex w-fit rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
           >
             Post a request
           </Link>
         </div>
 
-        <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-          <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-neutral-700">
-                Search
-              </label>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, specialty, service, location, or tag..."
-                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
-              />
-            </div>
+        <div className="sticky top-0 z-20 -mx-4 mt-5 border-y border-neutral-100 bg-white/95 px-4 py-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+          <div className="rounded-[1.5rem] border border-neutral-200 bg-white p-3 shadow-sm sm:p-4">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search pros, lashes, brows, nails..."
+              className="w-full rounded-full border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"
+            />
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-neutral-700">
-                Category
-              </label>
-              <select
-                value={selectedCategory}
-                onChange={(e) =>
-                  setSelectedCategory(e.target.value as (typeof categoryOptions)[number])
-                }
-                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
-              >
-                <option value="all">All categories</option>
-                <option value="barber">Barber</option>
-                <option value="hairstylist">Hairstylist</option>
-                <option value="nail_tech">Nail Tech</option>
-                <option value="lash_artist">Lash Artist</option>
-                <option value="brow_artist">Brow Artist</option>
-                <option value="esthetician">Esthetician</option>
-                <option value="makeup_artist">Makeup Artist</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <p className="mb-3 text-sm font-medium text-neutral-700">Service mode</p>
-            <div className="flex flex-wrap gap-3">
-              {serviceModeOptions.map((mode) => {
-                const selected = selectedModes.includes(mode);
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {categoryOptions.map((category) => {
+                const selected = selectedCategory === category.value;
 
                 return (
                   <button
-                    key={mode}
+                    key={category.value}
                     type="button"
-                    onClick={() => toggleMode(mode)}
-                    className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                    onClick={() => setSelectedCategory(category.value)}
+                    className={`shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition ${
                       selected
-                        ? "border-neutral-900 bg-neutral-900 text-white"
-                        : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50"
+                        ? "border-black bg-black text-white"
+                        : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400"
                     }`}
                   >
-                    {mode.replaceAll("_", " ")}
+                    {category.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {serviceModeOptions.map((mode) => {
+                const selected = selectedModes.includes(mode.value);
+
+                return (
+                  <button
+                    key={mode.value}
+                    type="button"
+                    onClick={() => toggleMode(mode.value)}
+                    className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
+                      selected
+                        ? "border-neutral-900 bg-neutral-900 text-white"
+                        : "border-neutral-200 bg-neutral-50 text-neutral-600 hover:border-neutral-400"
+                    }`}
+                  >
+                    {mode.label}
                   </button>
                 );
               })}
@@ -569,185 +526,168 @@ export default function DiscoverPage() {
         ) : null}
 
         {loading ? (
-          <div className="mt-10 rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-neutral-600">
+          <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
             Loading professionals...
           </div>
         ) : filteredCards.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-neutral-200 bg-neutral-50 p-6 text-neutral-600">
+          <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
             No professionals matched those filters.
           </div>
         ) : (
-          <div className="mt-10 grid gap-6 md:grid-cols-2">
-            {filteredCards.map((card) => {
-              const { profile, services, averageRating, reviewCount, portfolioPreview, tagBadges } =
-                card;
-              const formattedModes = formatServiceModes(profile.service_modes);
-              const previewServices = services.slice(0, 4);
+          <>
+            {featuredCards.length > 0 ? (
+              <section className="mt-8">
+                <div className="mb-3 flex items-end justify-between">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.22em] text-neutral-500">
+                      Featured
+                    </p>
+                    <h2 className="mt-1 text-xl font-semibold tracking-tight">
+                      Active this week
+                    </h2>
+                  </div>
+                  <span className="text-xs text-neutral-400">Swipe</span>
+                </div>
 
-              return (
-                <Link
-                  key={profile.id}
-                  href={`/profile/${profile.id}`}
-                  className="group overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                >
-                  <div className="relative h-52 w-full overflow-hidden bg-neutral-100">
-                    {portfolioPreview?.image_url ? (
-                      <img
-                        src={portfolioPreview.image_url}
-                        alt={portfolioPreview.caption || profile.full_name || "Professional"}
-                        className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                      />
-                    ) : profile.banner_url ? (
-                      <img
-                        src={profile.banner_url}
-                        alt={profile.full_name || "Professional"}
-                        className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm text-neutral-400">
-                        No preview
-                      </div>
-                    )}
+                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {featuredCards.map((card) => {
+                    const image = getCardImage(card);
+                    const roles = getProfessionalTypes(card.profile);
 
-                    <div className="absolute bottom-4 left-4 flex items-center gap-3 rounded-full bg-white/95 px-3 py-2 shadow-sm">
-                      <div className="h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
-                        {profile.avatar_url ? (
+                    return (
+                      <Link
+                        key={`featured-${card.profile.id}`}
+                        href={`/profile/${card.profile.id}`}
+                        className="group relative h-56 w-40 shrink-0 overflow-hidden rounded-[1.75rem] bg-neutral-100 sm:h-72 sm:w-52"
+                      >
+                        {image ? (
                           <img
-                            src={profile.avatar_url}
-                            alt={profile.full_name || "Professional"}
-                            className="h-full w-full object-cover"
+                            src={image}
+                            alt={card.profile.full_name || "Professional"}
+                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">
-                            {profile.full_name?.charAt(0).toUpperCase() || "P"}
+                          <div className="flex h-full w-full items-center justify-center text-sm text-neutral-400">
+                            No preview
                           </div>
                         )}
-                      </div>
 
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-neutral-900">
-                          {profile.full_name || "Professional"}
-                        </p>
-                        <p className="truncate text-xs text-neutral-500">
-                          {formatProfessionalType(profile.professional_type)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
 
-                  <div className="p-6">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-                        {formatProfessionalType(profile.professional_type)}
-                      </span>
-
-                      {averageRating ? (
-                        <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
-                          {averageRating} / 5 · {reviewCount} review{reviewCount === 1 ? "" : "s"}
-                        </span>
-                      ) : (
-                        <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
-                          No reviews yet
-                        </span>
-                      )}
-                    </div>
-
-                    {tagBadges.length > 0 ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {tagBadges.map((tag) => {
-                          const emphasized =
-                            tag === "Direct booking" ||
-                            tag === "Open this week" ||
-                            tag === "Highly rated";
-
-                          return (
-                            <span
-                              key={tag}
-                              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                                emphasized
-                                  ? "bg-black text-white"
-                                  : "border border-neutral-200 bg-neutral-50 text-neutral-700"
-                              }`}
-                            >
-                              {tag}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-
-                    {profile.location ? (
-                      <p className="mt-4 text-sm text-neutral-600">{profile.location}</p>
-                    ) : null}
-
-                    {profile.bio ? (
-                      <p className="mt-3 line-clamp-3 text-sm leading-7 text-neutral-600">
-                        {profile.bio}
-                      </p>
-                    ) : null}
-
-                    {profile.specialties && profile.specialties.length > 0 ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {profile.specialties.slice(0, 4).map((specialty) => (
-                          <span
-                            key={specialty}
-                            className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-700"
-                          >
-                            {specialty}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {formattedModes.length > 0 ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {formattedModes.map((mode) => (
-                          <span
-                            key={mode}
-                            className="rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs text-neutral-600"
-                          >
-                            {mode}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    <div className="mt-5 rounded-[1.25rem] border border-neutral-200 bg-neutral-50 p-4">
-                      <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                        Services preview
-                      </p>
-
-                      {previewServices.length === 0 ? (
-                        <p className="mt-3 text-sm text-neutral-500">
-                          No bookable services listed yet.
-                        </p>
-                      ) : (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {previewServices.map((service) => (
-                            <span
-                              key={service.id}
-                              className="rounded-full bg-white px-3 py-1 text-xs text-neutral-700"
-                            >
-                              {service.service_name}
-                            </span>
-                          ))}
+                        <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                          <p className="truncate text-sm font-semibold">
+                            {card.profile.full_name || "Professional"}
+                          </p>
+                          <p className="mt-1 truncate text-xs text-white/75">
+                            {roles.map(formatLabel).join(" • ")}
+                          </p>
+                          <p className="mt-2 text-xs text-white/85">
+                            {card.averageRating ? `${card.averageRating}★` : "New"}{" "}
+                            {card.reviewCount > 0 ? `· ${card.reviewCount} reviews` : ""}
+                          </p>
                         </div>
-                      )}
-                    </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
 
-                    <div className="mt-5 flex items-center justify-between">
-                      <span className="text-sm font-medium text-neutral-900">
-                        View profile
-                      </span>
-                      <span className="text-sm text-neutral-500 transition group-hover:text-neutral-900">
-                        →
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+            <section className="mt-8">
+              <div className="mb-3 flex items-end justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-[0.22em] text-neutral-500">
+                    Explore
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold tracking-tight">
+                    {filteredCards.length} professional{filteredCards.length === 1 ? "" : "s"}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {filteredCards.map((card) => {
+                  const image = getCardImage(card);
+                  const roles = getProfessionalTypes(card.profile);
+                  const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
+                  const secondaryText =
+                    roles.length > 1
+                      ? `${roles.length} services`
+                      : card.profile.location || primaryRole;
+
+                  return (
+                    <Link
+                      key={card.profile.id}
+                      href={`/profile/${card.profile.id}`}
+                      className="group overflow-hidden rounded-[1.35rem] border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    >
+                      <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
+                        {image ? (
+                          <img
+                            src={image}
+                            alt={card.profile.full_name || "Professional"}
+                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-xs text-neutral-400">
+                            No preview
+                          </div>
+                        )}
+
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-transparent opacity-90" />
+
+                        {card.tagBadges[0] ? (
+                          <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-neutral-900 shadow-sm">
+                            {card.tagBadges[0]}
+                          </span>
+                        ) : null}
+
+                        <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 rounded-full bg-white/95 p-1.5 shadow-sm">
+                          <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-neutral-100">
+                            {card.profile.avatar_url ? (
+                              <img
+                                src={card.profile.avatar_url}
+                                alt={card.profile.full_name || "Professional"}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
+                                {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold text-neutral-900">
+                              {card.profile.full_name || "Professional"}
+                            </p>
+                            <p className="truncate text-[11px] text-neutral-500">
+                              {primaryRole}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-sm font-semibold text-neutral-900">
+                            {primaryRole}
+                          </p>
+                          <p className="shrink-0 text-xs text-neutral-500">
+                            {card.averageRating ? `${card.averageRating}★` : "New"}
+                          </p>
+                        </div>
+
+                        <p className="mt-1 truncate text-xs text-neutral-500">
+                          {secondaryText}
+                        </p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          </>
         )}
       </div>
     </main>
