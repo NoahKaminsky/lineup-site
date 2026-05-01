@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { baseEmailTemplate, escapeHtml, sendEmail } from "@/app/lib/email";
+import { sendEmail } from "@/app/lib/email";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
 function normalize(value: string | null | undefined) {
@@ -42,6 +42,7 @@ export async function POST(req: Request) {
     }
 
     const { data: professionals } = await professionalsQuery;
+
     const targetSet = new Set(targetProfessions.map(normalize));
 
     const matches = (professionals || []).filter((profile: any) => {
@@ -65,26 +66,23 @@ export async function POST(req: Request) {
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-    const href = `${siteUrl}/requests/${request.id}`;
+    const requestUrl = `${siteUrl}/requests/${request.id}`;
 
-    const body = `
+    const html = `
+      <h2>New matching request</h2>
       <p>A new request matching your services was posted.</p>
-      <p><strong>Request:</strong> ${escapeHtml(
-        request.service_detail || request.title || "New request"
-      )}</p>
+      <p><strong>Request:</strong> ${request.service_detail || request.title || "New request"}</p>
       <p>You can turn these emails off from your profile settings.</p>
+      <p><a href="${requestUrl}">View request</a></p>
     `;
 
-    await sendEmail({
-      to: emails,
-      subject: "New matching request on LineUp",
-      html: baseEmailTemplate({
-        title: "New matching request",
-        body,
-        ctaHref: href,
-        ctaLabel: "View request",
-      }),
-    });
+    for (const email of emails) {
+      await sendEmail({
+        to: email,
+        subject: "New matching request on LineUp",
+        html,
+      });
+    }
 
     return NextResponse.json({ ok: true, sent: emails.length });
   } catch (error: any) {

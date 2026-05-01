@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { baseEmailTemplate, escapeHtml, sendEmail } from "@/app/lib/email";
-import { getProfileEmail, getServiceSupabase } from "@/app/lib/serverSupabase";
+import { sendEmail } from "@/app/lib/email";
+import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
-function formatDate(date: string) {
-  return new Date(`${date}T00:00:00`).toLocaleDateString("en-CA", {
+function formatDate(dateString?: string | null) {
+  if (!dateString) return "Date not provided";
+
+  return new Date(`${dateString}T00:00:00`).toLocaleDateString("en-CA", {
     weekday: "long",
     month: "short",
     day: "numeric",
@@ -11,68 +13,85 @@ function formatDate(date: string) {
   });
 }
 
-function formatTime(time: string) {
-  const [hourString, minute = "00"] = String(time).slice(0, 5).split(":");
+function formatTime(timeString?: string | null) {
+  if (!timeString) return "Time not provided";
+
+  const [hourString, minuteString = "00"] = String(timeString).slice(0, 5).split(":");
   const hour = Number(hourString);
   const suffix = hour >= 12 ? "PM" : "AM";
   const twelveHour = hour % 12 || 12;
-  return `${twelveHour}:${minute} ${suffix}`;
+
+  return `${twelveHour}:${minuteString} ${suffix}`;
 }
 
 export async function POST(req: Request) {
   try {
     const { bookingId } = await req.json();
-    if (!bookingId) return NextResponse.json({ error: "Missing bookingId" }, { status: 400 });
+
+    if (!bookingId) {
+      return NextResponse.json({ error: "Missing bookingId" }, { status: 400 });
+    }
 
     const supabase = getServiceSupabase();
 
-    const { data: booking, error } = await supabase
+    const { data: booking, error: bookingError } = await supabase
       .from("bookings")
-      .select("id, professional_id, customer_id, booking_date, start_time, end_time, service_name, formatted_address")
+      .select("*")
       .eq("id", bookingId)
       .single();
 
-    if (error || !booking) {
-      return NextResponse.json({ error: error?.message || "Booking not found" }, { status: 404 });
+    if (bookingError || !booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    const [customer, professional] = await Promise.all([
-      getProfileEmail(supabase, booking.customer_id),
-      getProfileEmail(supabase, booking.professional_id),
-    ]);
+    const { data: customer } = await supabase
+      .from("profiles")
+      .select("id, email, full_name")
+      .eq("id", booking.customer_id)
+      .single();
+
+    const { data: professional } = await supabase
+      .from("profiles")
+      .select("id, email, full_name")
+      .eq("id", booking.professional_id)
+      .single();
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-    const href = `${siteUrl}/bookings/${booking.id}`;
-    const service = escapeHtml(booking.service_name || "Booked service");
-    const when = `${formatDate(booking.booking_date)} • ${formatTime(booking.start_time)} - ${formatTime(booking.end_time)}`;
-    const location = escapeHtml(booking.formatted_address || "Location not provided");
+    const bookingUrl = `${siteUrl}/bookings/${booking.id}`;
 
-    const body = `
-      <p><strong>Service:</strong> ${service}</p>
-      <p><strong>When:</strong> ${escapeHtml(when)}</p>
-      <p><strong>Location:</strong> ${location}</p>
+    const serviceName = booking.service_name || "Booked service";
+    const date = formatDate(booking.booking_date);
+    const start = formatTime(booking.start_time);
+    const end = formatTime(booking.end_time);
+    const locationLine = booking.formatted_address
+      ? `<p><strong>Location:</strong> ${booking.formatted_address}</p>`
+      : "";
+
+    const html = `
+      <h2>Booking confirmed</h2>
+      <p>Your LineUp booking is confirmed.</p>
+      <p><strong>Service:</strong> ${serviceName}</p>
+      <p><strong>Time:</strong> ${date} · ${start} - ${end}</p>
+      ${locationLine}
+      <p><a href="${bookingUrl}">View booking</a></p>
     `;
 
-    await Promise.all([
-      customer.email
-        ? sendEmail({
-            to: customer.email,
-            subject: "Your LineUp booking is confirmed",
-            html: baseEmailTemplate({ title: "Booking confirmed", body, ctaHref: href, ctaLabel: "View booking" }),
-          })
-        : null,
-      professional.email
-        ? sendEmail({
-            to: professional.email,
-            subject: "New LineUp booking confirmed",
-            html: baseEmailTemplate({ title: "New booking confirmed", body, ctaHref: href, ctaLabel: "View booking" }),
-          })
-        : null,
-    ]);
+    const recipients = [customer?.email, professional?.email].filter(Boolean) as string[];
 
-    return NextResponse.json({ ok: true });
+    for (const email of recipients) {
+      await sendEmail({
+        to: email,
+        subject: "Your LineUp booking is confirmed",
+        html,
+      });
+    }
+
+    return NextResponse.json({ ok: true, sent: recipients.length });
   } catch (error: any) {
     console.error("booking-confirmed notification failed:", error);
-    return NextResponse.json({ error: error?.message || "Notification failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: error?.message || "Notification failed" },
+      { status: 500 }
+    );
   }
 }

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import { baseEmailTemplate, escapeHtml, sendEmail } from "@/app/lib/email";
-import { getProfileEmail, getServiceSupabase } from "@/app/lib/serverSupabase";
+import { sendEmail } from "@/app/lib/email";
+import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
 export const dynamic = "force-dynamic";
 
-function formatDate(date: string) {
-  return new Date(`${date}T00:00:00`).toLocaleDateString("en-CA", {
+function formatDate(dateString?: string | null) {
+  if (!dateString) return "Date not provided";
+
+  return new Date(`${dateString}T00:00:00`).toLocaleDateString("en-CA", {
     weekday: "long",
     month: "short",
     day: "numeric",
@@ -13,12 +15,15 @@ function formatDate(date: string) {
   });
 }
 
-function formatTime(time: string) {
-  const [hourString, minute = "00"] = String(time).slice(0, 5).split(":");
+function formatTime(timeString?: string | null) {
+  if (!timeString) return "Time not provided";
+
+  const [hourString, minuteString = "00"] = String(timeString).slice(0, 5).split(":");
   const hour = Number(hourString);
   const suffix = hour >= 12 ? "PM" : "AM";
   const twelveHour = hour % 12 || 12;
-  return `${twelveHour}:${minute} ${suffix}`;
+
+  return `${twelveHour}:${minuteString} ${suffix}`;
 }
 
 function bookingStartDate(booking: any) {
@@ -34,38 +39,47 @@ async function sendReminderEmail({
   booking: any;
   reminderLabel: string;
 }) {
-  const customer = await getProfileEmail(supabase, booking.customer_id);
-  const professional = await getProfileEmail(supabase, booking.professional_id);
+  const { data: customer } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("id", booking.customer_id)
+    .single();
 
-  const recipients = [customer.email, professional.email].filter(Boolean) as string[];
+  const { data: professional } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("id", booking.professional_id)
+    .single();
+
+  const recipients = [customer?.email, professional?.email].filter(Boolean) as string[];
+
   if (recipients.length === 0) return false;
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const href = `${siteUrl}/bookings/${booking.id}`;
+  const bookingUrl = `${siteUrl}/bookings/${booking.id}`;
 
-  const body = `
-    <p>This is your ${escapeHtml(reminderLabel)} appointment reminder.</p>
-    <p><strong>Service:</strong> ${escapeHtml(booking.service_name || "Booked service")}</p>
-    <p><strong>Time:</strong> ${escapeHtml(formatDate(booking.booking_date))} · ${escapeHtml(
-      formatTime(booking.start_time)
-    )} - ${escapeHtml(formatTime(booking.end_time))}</p>
+  const html = `
+    <h2>Appointment reminder</h2>
+    <p>This is your ${reminderLabel} appointment reminder.</p>
+    <p><strong>Service:</strong> ${booking.service_name || "Booked service"}</p>
+    <p><strong>Time:</strong> ${formatDate(booking.booking_date)} · ${formatTime(
+      booking.start_time
+    )} - ${formatTime(booking.end_time)}</p>
     ${
       booking.formatted_address
-        ? `<p><strong>Location:</strong> ${escapeHtml(booking.formatted_address)}</p>`
+        ? `<p><strong>Location:</strong> ${booking.formatted_address}</p>`
         : ""
     }
+    <p><a href="${bookingUrl}">View booking</a></p>
   `;
 
-  await sendEmail({
-    to: recipients,
-    subject: `LineUp appointment reminder: ${reminderLabel}`,
-    html: baseEmailTemplate({
-      title: "Appointment reminder",
-      body,
-      ctaHref: href,
-      ctaLabel: "View booking",
-    }),
-  });
+  for (const email of recipients) {
+    await sendEmail({
+      to: email,
+      subject: `LineUp appointment reminder: ${reminderLabel}`,
+      html,
+    });
+  }
 
   return true;
 }
