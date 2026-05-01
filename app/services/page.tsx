@@ -9,10 +9,14 @@ type Profile = {
   id: string;
   role: string | null;
   professional_type: string | null;
-  service_modes: string[] | null;
+  service_modes: string[] | string | null;
   direct_booking_enabled: boolean | null;
   public_availability_enabled: boolean | null;
   default_appointment_duration: number | null;
+  formatted_address?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
+  location_place_id?: string | null;
 };
 
 type AvailabilityWindow = {
@@ -143,6 +147,44 @@ function formatTime(time: string) {
   return `${twelveHour}:${minute} ${suffix}`;
 }
 
+function formatModeLabel(mode: string) {
+  if (mode === "at_home") return "At-home services";
+  if (mode === "in_shop") return "In-shop services";
+  if (mode === "home_studio") return "Home studio";
+  return mode.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatShortAddress(address: string | null | undefined) {
+  if (!address?.trim()) return null;
+
+  const parts = address
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    return {
+      primary: parts[0],
+      secondary: parts.slice(1, 3).join(", "),
+      full: address,
+    };
+  }
+
+  return { primary: address, secondary: null, full: address };
+}
+
+function getMapsUrl(lat?: number | null, lng?: number | null, address?: string | null) {
+  if (typeof lat === "number" && typeof lng === "number") {
+    return `https://www.google.com/maps?q=${lat},${lng}`;
+  }
+
+  if (address?.trim()) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  }
+
+  return null;
+}
+
 function getGroupedAvailability(windows: AvailabilityWindow[]) {
   return dayLabels.map((day, dayIndex) => ({
     day,
@@ -151,6 +193,168 @@ function getGroupedAvailability(windows: AvailabilityWindow[]) {
       .filter((window) => window.day_of_week === dayIndex)
       .sort((a, b) => a.start_time.localeCompare(b.start_time)),
   }));
+}
+
+type LocationSuggestion = {
+  placeId: string;
+  text: string;
+};
+
+type SelectedLocation = {
+  placeId: string;
+  formattedAddress: string;
+  lat: number | null;
+  lng: number | null;
+  name?: string | null;
+};
+
+function LocationAutocomplete({
+  label = "Location",
+  placeholder = "Start typing an address...",
+  value = "",
+  onSelect,
+  onInputChange,
+}: {
+  label?: string;
+  placeholder?: string;
+  value?: string;
+  onSelect: (location: SelectedLocation) => void;
+  onInputChange?: (value: string) => void;
+}) {
+  const [input, setInput] = useState(value);
+  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setInput(value || "");
+  }, [value]);
+
+  useEffect(() => {
+    const timeout = setTimeout(async () => {
+      if (!input || input.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const res = await fetch("/api/places/autocomplete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input }),
+        });
+
+        const data = await res.json();
+        setSuggestions(data.suggestions || []);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [input]);
+
+  async function handleSelect(suggestion: LocationSuggestion) {
+    setInput(suggestion.text);
+    setSuggestions([]);
+
+    try {
+      const res = await fetch("/api/places/details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId: suggestion.placeId }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Could not load place details");
+      }
+
+      const rawLat =
+        data.lat ??
+        data.latitude ??
+        data.location?.latitude ??
+        data.location?.lat ??
+        data.geometry?.location?.lat;
+
+      const rawLng =
+        data.lng ??
+        data.longitude ??
+        data.location?.longitude ??
+        data.location?.lng ??
+        data.geometry?.location?.lng;
+
+      const lat = Number.isFinite(Number(rawLat)) ? Number(rawLat) : null;
+      const lng = Number.isFinite(Number(rawLng)) ? Number(rawLng) : null;
+      const formattedAddress =
+        data.formattedAddress ??
+        data.formatted_address ??
+        data.address ??
+        data.displayName?.text ??
+        suggestion.text;
+      const placeId = data.placeId ?? data.place_id ?? suggestion.placeId;
+
+      setInput(formattedAddress);
+
+      onSelect({
+        placeId,
+        formattedAddress,
+        lat,
+        lng,
+        name: data.name ?? data.displayName?.text ?? null,
+      });
+    } catch {
+      onSelect({
+        placeId: suggestion.placeId,
+        formattedAddress: suggestion.text,
+        lat: null,
+        lng: null,
+        name: null,
+      });
+    }
+  }
+
+  return (
+    <div className="relative w-full">
+      <label className="mb-2 block text-sm font-semibold text-neutral-900">
+        {label}
+      </label>
+
+      <input
+        value={input}
+        onChange={(e) => {
+          setInput(e.target.value);
+          onInputChange?.(e.target.value);
+        }}
+        placeholder={placeholder}
+        className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-black"
+      />
+
+      {loading ? (
+        <p className="mt-2 text-xs text-neutral-500">Searching...</p>
+      ) : null}
+
+      {suggestions.length > 0 ? (
+        <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl">
+          {suggestions.map((suggestion) => (
+            <button
+              key={suggestion.placeId}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => handleSelect(suggestion)}
+              className="block w-full px-4 py-3 text-left text-sm text-neutral-800 hover:bg-neutral-50"
+            >
+              {suggestion.text}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export default function ServicesPage() {
@@ -168,6 +372,10 @@ export default function ServicesPage() {
   const [publicAvailabilityEnabled, setPublicAvailabilityEnabled] = useState(false);
   const [defaultAppointmentDuration, setDefaultAppointmentDuration] = useState(60);
   const [availabilityWindows, setAvailabilityWindows] = useState<AvailabilityWindow[]>([]);
+  const [location, setLocation] = useState("");
+  const [locationLat, setLocationLat] = useState<number | null>(null);
+  const [locationLng, setLocationLng] = useState<number | null>(null);
+  const [locationPlaceId, setLocationPlaceId] = useState("");
 
   const [newServiceName, setNewServiceName] = useState("");
   const [newServiceDuration, setNewServiceDuration] = useState(45);
@@ -178,6 +386,13 @@ export default function ServicesPage() {
     () => getGroupedAvailability(availabilityWindows),
     [availabilityWindows]
   );
+
+  const needsBusinessLocation =
+    serviceModes.includes("in_shop") || serviceModes.includes("home_studio");
+  const hasGoogleBusinessLocation = !!locationPlaceId;
+  const hasBusinessCoordinates = typeof locationLat === "number" && typeof locationLng === "number";
+  const displayedBusinessAddress = formatShortAddress(location);
+  const businessMapsUrl = getMapsUrl(locationLat, locationLng, location);
 
   useEffect(() => {
     async function loadPage() {
@@ -194,7 +409,7 @@ export default function ServicesPage() {
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select(
-          "id, role, professional_type, service_modes, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
+          "id, role, professional_type, service_modes, direct_booking_enabled, public_availability_enabled, default_appointment_duration, formatted_address, location_lat, location_lng, location_place_id"
         )
         .eq("id", user.id)
         .single();
@@ -205,16 +420,29 @@ export default function ServicesPage() {
         return;
       }
 
-      if (profileData.role !== "professional") {
+      const normalizedRole = String(profileData.role || "").toLowerCase().trim();
+      const isProfessional = !!normalizedRole && !normalizedRole.includes("customer");
+
+      if (!isProfessional) {
         router.push("/account");
         return;
       }
 
       setProfile(profileData as Profile);
-      setServiceModes(profileData.service_modes || []);
+      setServiceModes(
+        Array.isArray(profileData.service_modes)
+          ? profileData.service_modes
+          : profileData.service_modes
+          ? [profileData.service_modes]
+          : []
+      );
       setDirectBookingEnabled(Boolean(profileData.direct_booking_enabled));
       setPublicAvailabilityEnabled(Boolean(profileData.public_availability_enabled));
       setDefaultAppointmentDuration(Number(profileData.default_appointment_duration || 60));
+      setLocation(profileData.formatted_address || "");
+      setLocationLat(profileData.location_lat ?? null);
+      setLocationLng(profileData.location_lng ?? null);
+      setLocationPlaceId(profileData.location_place_id || "");
 
       const { data: availabilityData, error: availabilityError } = await supabase
         .from("professional_availability")
@@ -469,10 +697,37 @@ export default function ServicesPage() {
       }
     }
 
+    if (needsBusinessLocation && !location.trim()) {
+      setSaving(false);
+      setMessage("Please enter your shop or studio address before saving.");
+      return;
+    }
+
+    if (needsBusinessLocation && !locationPlaceId) {
+      setSaving(false);
+      setMessage("Please select your shop or studio from the Google suggestions before saving so maps and distance work correctly.");
+      return;
+    }
+
+    if (needsBusinessLocation && (!Number.isFinite(locationLat) || !Number.isFinite(locationLng))) {
+      setSaving(false);
+      setMessage("Google did not return coordinates for that selection. Please choose a more specific Google suggestion so map preview and distance can work.");
+      return;
+    }
+
+    const savedFormattedAddress = location.trim() || null;
+    const savedLocationLat = Number.isFinite(locationLat) ? locationLat : null;
+    const savedLocationLng = Number.isFinite(locationLng) ? locationLng : null;
+    const savedLocationPlaceId = locationPlaceId || null;
+
     const { error: profileError } = await supabase
       .from("profiles")
       .update({
         service_modes: serviceModes,
+        formatted_address: savedFormattedAddress,
+        location_lat: savedLocationLat,
+        location_lng: savedLocationLng,
+        location_place_id: savedLocationPlaceId,
         direct_booking_enabled: directBookingEnabled,
         public_availability_enabled: publicAvailabilityEnabled,
         default_appointment_duration: defaultAppointmentDuration,
@@ -528,6 +783,10 @@ export default function ServicesPage() {
         ? {
             ...prev,
             service_modes: serviceModes,
+            formatted_address: savedFormattedAddress,
+            location_lat: savedLocationLat,
+            location_lng: savedLocationLng,
+            location_place_id: savedLocationPlaceId,
             direct_booking_enabled: directBookingEnabled,
             public_availability_enabled: publicAvailabilityEnabled,
             default_appointment_duration: defaultAppointmentDuration,
@@ -536,7 +795,13 @@ export default function ServicesPage() {
     );
 
     setSaving(false);
-    setMessage("Services and availability updated.");
+    setMessage(
+      savedLocationLat !== null && savedLocationLng !== null
+        ? "Services and availability updated. Business location saved with map coordinates."
+        : savedLocationPlaceId
+        ? "Services and availability updated. Google location saved, but coordinates are missing, so map preview will not show yet."
+        : "Services and availability updated. Business address saved; select a Google suggestion later for map previews."
+    );
   }
 
   if (loading) {
@@ -701,6 +966,104 @@ export default function ServicesPage() {
 
         <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+            Business location
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+            Shop or studio address
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">
+            This is used for in-shop and home studio bookings. Customers should only see the exact address after a booking is confirmed.
+          </p>
+
+          <div className="mt-6">
+            <LocationAutocomplete
+              label="Where do you operate from?"
+              placeholder="Enter your shop, studio, or business address"
+              value={location}
+              onInputChange={(value) => {
+                setLocation(value);
+
+                // Only clear the saved Google selection when the professional manually types.
+                // Selecting a Google suggestion runs onSelect below and should stay locked.
+                if (value !== location) {
+                  setLocationLat(null);
+                  setLocationLng(null);
+                  setLocationPlaceId("");
+                }
+
+                if (value.trim()) {
+                  setMessage("Address updated. Select a Google suggestion for map previews and distance accuracy, or save as typed.");
+                }
+              }}
+              onSelect={(selected) => {
+                const safeAddress = selected.formattedAddress || location;
+                const safePlaceId = selected.placeId || locationPlaceId;
+                const safeLat = Number.isFinite(selected.lat) ? selected.lat : null;
+                const safeLng = Number.isFinite(selected.lng) ? selected.lng : null;
+
+                setLocation(safeAddress);
+                setLocationPlaceId(safePlaceId);
+                setLocationLat(safeLat);
+                setLocationLng(safeLng);
+                setMessage(
+                  safeLat !== null && safeLng !== null
+                    ? "Google location selected with map coordinates. Save services & availability to keep it."
+                    : "Google location selected, but coordinates were not returned. Save still works, but map preview needs coordinates."
+                );
+              }}
+            />
+          </div>
+
+          {hasGoogleBusinessLocation && displayedBusinessAddress ? (
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <p className="text-sm font-semibold text-emerald-900">
+                {hasBusinessCoordinates ? "Google location selected with coordinates" : "Google location selected"}
+              </p>
+              <p className="mt-1 text-sm text-emerald-800">
+                📍 {displayedBusinessAddress.primary}
+              </p>
+              {displayedBusinessAddress.secondary ? (
+                <p className="mt-0.5 text-xs text-emerald-700">
+                  {displayedBusinessAddress.secondary}
+                </p>
+              ) : null}
+              {hasBusinessCoordinates ? (
+                <p className="mt-2 text-xs text-emerald-700">
+                  Map coordinates saved: {locationLat?.toFixed(5)}, {locationLng?.toFixed(5)}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-amber-700">
+                  Coordinates are missing, so map previews cannot show yet.
+                </p>
+              )}
+              {businessMapsUrl ? (
+                <a
+                  href={businessMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex rounded-full border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100"
+                >
+                  Open in Maps
+                </a>
+              ) : null}
+            </div>
+          ) : needsBusinessLocation ? (
+            <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              Enter a business address. Selecting a Google suggestion gives the best maps and distance accuracy.
+            </p>
+          ) : location.trim() ? (
+            <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              This address can be saved. Select a Google suggestion if you want map previews and distance accuracy.
+            </p>
+          ) : (
+            <p className="mt-3 text-sm text-neutral-500">
+              Optional unless you offer in-shop or home studio services.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
             Service modes
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
@@ -717,7 +1080,7 @@ export default function ServicesPage() {
                       : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50"
                   }`}
                 >
-                  {mode.replaceAll("_", " ")}
+                  {formatModeLabel(mode)}
                 </button>
               );
             })}
@@ -849,6 +1212,12 @@ export default function ServicesPage() {
             >
               {saving ? "Saving..." : "Save services & availability"}
             </button>
+
+            {message ? (
+              <p className="mt-3 max-w-2xl rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+                {message}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>

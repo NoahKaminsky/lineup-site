@@ -14,6 +14,9 @@ type ProfileRow = {
   professional_type: string | null;
   professional_types?: string[] | null;
   location: string | null;
+  formatted_address?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
   bio: string | null;
   instagram_handle: string | null;
   service_modes: string[] | string | null;
@@ -111,6 +114,41 @@ function formatLabel(value: string | null | undefined) {
   if (!value) return "Professional";
   if (value === "nail_tech") return "Nail Artist";
   return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+
+function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getCardDistanceKm(
+  card: DiscoverCard,
+  userLocation: { lat: number; lng: number } | null
+) {
+  if (
+    !userLocation ||
+    typeof card.profile.location_lat !== "number" ||
+    typeof card.profile.location_lng !== "number"
+  ) {
+    return null;
+  }
+
+  return getDistanceKm(
+    userLocation.lat,
+    userLocation.lng,
+    card.profile.location_lat,
+    card.profile.location_lng
+  );
 }
 
 function getProfessionalTypes(profile: ProfileRow) {
@@ -223,6 +261,35 @@ export default function DiscoverPage() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<(typeof categoryOptions)[number]["value"]>("all");
   const [selectedModes, setSelectedModes] = useState<string[]>([]);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationPermissionStatus, setLocationPermissionStatus] = useState<
+    "idle" | "allowed" | "denied" | "unsupported"
+  >("idle");
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocationPermissionStatus("unsupported");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setLocationPermissionStatus("allowed");
+      },
+      () => {
+        setLocationPermissionStatus("denied");
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 1000 * 60 * 10,
+      }
+    );
+  }, []);
 
   useEffect(() => {
     async function loadDiscoverPage() {
@@ -233,7 +300,7 @@ export default function DiscoverPage() {
         const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
           .select(
-            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, bio, instagram_handle, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
+            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, bio, instagram_handle, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
           );
 
         if (profilesError) {
@@ -394,7 +461,7 @@ export default function DiscoverPage() {
   const filteredCards = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return cards.filter((card) => {
+    const filtered = cards.filter((card) => {
       const { profile, services, tagBadges } = card;
       const roles = getProfessionalTypes(profile);
 
@@ -407,6 +474,7 @@ export default function DiscoverPage() {
       const searchableText = [
         profile.full_name || "",
         ...roles,
+        profile.formatted_address || "",
         profile.location || "",
         profile.bio || "",
         ...(profile.specialties || []),
@@ -421,7 +489,20 @@ export default function DiscoverPage() {
 
       return matchesCategory && matchesModes && matchesSearch;
     });
-  }, [cards, search, selectedCategory, selectedModes]);
+
+    if (!userLocation) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      const distanceA = getCardDistanceKm(a, userLocation);
+      const distanceB = getCardDistanceKm(b, userLocation);
+
+      if (distanceA === null && distanceB === null) return 0;
+      if (distanceA === null) return 1;
+      if (distanceB === null) return -1;
+
+      return distanceA - distanceB;
+    });
+  }, [cards, search, selectedCategory, selectedModes, userLocation]);
 
   const featuredCards = useMemo(() => {
     return filteredCards
@@ -516,6 +597,16 @@ export default function DiscoverPage() {
                 );
               })}
             </div>
+
+            <p className="mt-3 text-xs text-neutral-500">
+              {userLocation
+                ? "Sorted by distance from you."
+                : locationPermissionStatus === "denied"
+                ? "Allow location access to sort nearby professionals first."
+                : locationPermissionStatus === "unsupported"
+                ? "Location sorting is not supported in this browser."
+                : "Allow location access to see nearby professionals first."}
+            </p>
           </div>
         </div>
 
@@ -584,6 +675,9 @@ export default function DiscoverPage() {
                           <p className="mt-2 text-xs text-white/85">
                             {card.averageRating ? `${card.averageRating}★` : "New"}{" "}
                             {card.reviewCount > 0 ? `· ${card.reviewCount} reviews` : ""}
+                            {getCardDistanceKm(card, userLocation) !== null
+                              ? ` · ${getCardDistanceKm(card, userLocation)!.toFixed(1)} km away`
+                              : ""}
                           </p>
                         </div>
                       </Link>
@@ -610,10 +704,13 @@ export default function DiscoverPage() {
                   const image = getCardImage(card);
                   const roles = getProfessionalTypes(card.profile);
                   const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
+                  const distanceKm = getCardDistanceKm(card, userLocation);
                   const secondaryText =
-                    roles.length > 1
+                    distanceKm !== null
+                      ? `${distanceKm.toFixed(1)} km away`
+                      : roles.length > 1
                       ? `${roles.length} services`
-                      : card.profile.location || primaryRole;
+                      : card.profile.formatted_address || card.profile.location || primaryRole;
 
                   return (
                     <Link

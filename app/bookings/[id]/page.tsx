@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Navbar from "@/app/components/AppNavbar";
+import BookingChat from "@/app/components/BookingChat";
 
 type BookingStatus =
   | "confirmed"
@@ -23,11 +24,17 @@ type BookingRow = {
   created_at: string;
   service_id: string | null;
   service_name: string | null;
+  service_mode?: string | null;
+  source?: string | null;
   duration_minutes: number | null;
   cancelled_by: string | null;
   cancelled_at: string | null;
   completion_requested_at: string | null;
   completed_at: string | null;
+  formatted_address: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
+  location_place_id?: string | null;
 };
 
 type ProfileRow = {
@@ -74,11 +81,90 @@ function formatTime(time: string) {
   return `${twelveHour}:${minute} ${suffix}`;
 }
 
+function formatServiceMode(value: string | null | undefined) {
+  if (!value) return "Not specified";
+  if (value === "in_shop") return "In shop";
+  if (value === "home_studio") return "Home studio";
+  if (value === "at_home") return "At home";
+  return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatStatus(value: BookingStatus) {
+  if (value === "completion_requested") return "Awaiting client confirmation";
+  return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function formatProfessionalType(value: string | null | undefined) {
   if (!value) return "Beauty professional";
   return value
     .replaceAll("_", " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatDisplayAddress(address: string | null | undefined) {
+  const rawAddress = String(address || "").trim();
+  return rawAddress || "Location not provided";
+}
+
+function toValidCoordinate(value: number | string | null | undefined) {
+  const numberValue = typeof value === "string" ? Number(value) : value;
+  return typeof numberValue === "number" && Number.isFinite(numberValue)
+    ? numberValue
+    : null;
+}
+
+function hasUsableCoordinates(lat: number | string | null | undefined, lng: number | string | null | undefined) {
+  const cleanLat = toValidCoordinate(lat);
+  const cleanLng = toValidCoordinate(lng);
+
+  // Google defaults to the world map when it receives empty/bad coords.
+  // 0,0 is also not a valid real booking location for LineUp.
+  if (cleanLat === null || cleanLng === null) return false;
+  if (cleanLat === 0 && cleanLng === 0) return false;
+
+  return true;
+}
+
+function getGoogleMapsUrl(
+  lat: number | string | null | undefined,
+  lng: number | string | null | undefined,
+  address?: string | null
+) {
+  if (hasUsableCoordinates(lat, lng)) {
+    return `https://www.google.com/maps?q=${toValidCoordinate(lat)},${toValidCoordinate(lng)}`;
+  }
+
+  if (address?.trim()) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      address.trim()
+    )}`;
+  }
+
+  return null;
+}
+
+function getGoogleMapsEmbedUrl(
+  lat: number | string | null | undefined,
+  lng: number | string | null | undefined,
+  address?: string | null
+) {
+  // Use the old maps.google.com embed URL. It is more reliable for no-key iframe embeds
+  // than google.com/maps?...&output=embed, which can fall back to the world map.
+  const cleanAddress = address?.trim();
+
+  if (cleanAddress) {
+    return `https://maps.google.com/maps?hl=en&q=${encodeURIComponent(
+      cleanAddress
+    )}&z=16&output=embed`;
+  }
+
+  if (hasUsableCoordinates(lat, lng)) {
+    return `https://maps.google.com/maps?hl=en&q=${toValidCoordinate(lat)},${toValidCoordinate(
+      lng
+    )}&z=16&output=embed`;
+  }
+
+  return null;
 }
 
 export default function BookingDetailPage() {
@@ -133,7 +219,7 @@ export default function BookingDetailPage() {
         const { data: bookingData, error: bookingError } = await supabase
           .from("bookings")
           .select(
-            "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at"
+            "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
           )
           .eq("id", bookingId)
           .single();
@@ -371,6 +457,18 @@ export default function BookingDetailPage() {
     );
   }
 
+  const bookingAddress = formatDisplayAddress(booking.formatted_address);
+  const mapsUrl = getGoogleMapsUrl(
+    booking.location_lat,
+    booking.location_lng,
+    booking.formatted_address
+  );
+  const mapEmbedUrl = getGoogleMapsEmbedUrl(
+    booking.location_lat,
+    booking.location_lng,
+    booking.formatted_address
+  );
+
   return (
     <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
       <div className="mx-auto max-w-5xl">
@@ -412,13 +510,35 @@ export default function BookingDetailPage() {
               </span>
 
               <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-                {booking.status === "completion_requested"
-                  ? "Awaiting confirmation"
-                  : booking.status}
+                {formatStatus(booking.status)}
               </span>
             </div>
 
             <div className="mt-8 grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Service
+                </p>
+                <p className="mt-3 text-lg font-semibold text-neutral-900">
+                  {booking.service_name || "Booked service"}
+                </p>
+                <p className="mt-1 text-sm text-neutral-500">
+                  {booking.duration_minutes ? `${booking.duration_minutes} min` : "Duration not provided"}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Appointment type
+                </p>
+                <p className="mt-3 text-lg font-semibold text-neutral-900">
+                  {formatServiceMode(booking.service_mode)}
+                </p>
+                <p className="mt-1 text-sm text-neutral-500">
+                  {booking.source === "direct_booking" ? "Direct booking" : booking.source || "Booking"}
+                </p>
+              </div>
+
               <div className="rounded-2xl border border-neutral-200 p-5">
                 <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
                   Professional
@@ -479,12 +599,50 @@ export default function BookingDetailPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-neutral-200 p-5">
+              <div className="rounded-2xl border border-neutral-200 p-5 md:col-span-2">
                 <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                  Duration
+                  Location
                 </p>
                 <p className="mt-3 text-lg font-medium text-neutral-900">
-                  {booking.duration_minutes ? `${booking.duration_minutes} min` : "Not provided"}
+                  📍 {bookingAddress}
+                </p>
+
+                {mapEmbedUrl ? (
+                  <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
+                    <iframe
+                      title="Booking location map"
+                      src={mapEmbedUrl}
+                      width="100%"
+                      height="220"
+                      loading="lazy"
+                      allowFullScreen
+                      referrerPolicy="no-referrer-when-downgrade"
+                      className="block w-full border-0"
+                    />
+                  </div>
+                ) : null}
+
+                {mapsUrl ? (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-flex rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                  >
+                    Open in Google Maps
+                  </a>
+                ) : null}
+              </div>
+
+              <div className="rounded-2xl border border-neutral-200 p-5">
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Time
+                </p>
+                <p className="mt-3 text-lg font-medium text-neutral-900">
+                  {formatBookingDate(booking.booking_date)}
+                </p>
+                <p className="mt-1 text-sm text-neutral-500">
+                  {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
                 </p>
               </div>
 
@@ -571,6 +729,22 @@ export default function BookingDetailPage() {
                 </Link>
               ) : null}
             </div>
+          </div>
+
+          <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                Chat
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+                Booking conversation
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-neutral-500">
+                Keep messages about this appointment here so the details stay attached to the booking.
+              </p>
+            </div>
+
+            <BookingChat bookingId={booking.id} viewerId={viewerId} />
           </div>
         </div>
       </div>

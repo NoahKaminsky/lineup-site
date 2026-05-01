@@ -13,6 +13,10 @@ type ServiceRequest = {
   title: string;
   description: string | null;
   location: string | null;
+  formatted_address?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
+  location_place_id?: string | null;
   service_mode: string | null;
   budget: string | null;
   status: string;
@@ -110,6 +114,13 @@ export default function RespondToRequestPage() {
       setUserId(user.id);
       setRequest(requestData);
 
+      const canUseCustomerTime =
+        requestData.timing_flexibility !== "anytime" &&
+        !!requestData.preferred_date &&
+        !!requestData.preferred_start_time;
+
+      setTimingMode(canUseCustomerTime ? "match" : "different");
+
       if (requestData.preferred_date) {
         setProposedDate(requestData.preferred_date);
       }
@@ -159,6 +170,15 @@ export default function RespondToRequestPage() {
     return `${twelveHour}:${minute} ${suffix}`;
   }
 
+  function formatDisplayAddress(currentRequest: ServiceRequest | null) {
+    const rawAddress =
+      currentRequest?.formatted_address || currentRequest?.location || "";
+
+    if (!rawAddress.trim()) return "Not provided";
+
+    return rawAddress;
+  }
+
   const customerTimingLabel = useMemo(() => {
     if (!request) return "Not provided";
 
@@ -199,6 +219,31 @@ export default function RespondToRequestPage() {
     return request.timing_flexibility;
   }, [request]);
 
+  const canConfirmCustomerTime = useMemo(() => {
+    return (
+      request?.timing_flexibility !== "anytime" &&
+      !!request?.preferred_date &&
+      !!request?.preferred_start_time
+    );
+  }, [request]);
+
+  async function sendOfferCreatedEmail(offerId: string) {
+    try {
+      const response = await fetch("/api/notifications/offer-created", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ offerId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        console.error("Offer email route failed:", data || response.statusText);
+      }
+    } catch (notificationError) {
+      console.error("Offer email failed:", notificationError);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMessage("");
@@ -228,7 +273,7 @@ export default function RespondToRequestPage() {
       return;
     }
 
-    const isMatchingTime = timingMode === "match";
+    const isMatchingTime = timingMode === "match" && canConfirmCustomerTime;
 
     const finalProposedDate = isMatchingTime
       ? request.preferred_date || null
@@ -274,7 +319,7 @@ Alternative time offered: ${formatDateOnly(
 
     setSubmitting(true);
 
-    const { error: offerError } = await supabase
+    const { data: createdOffer, error: offerError } = await supabase
       .from("request_offers")
       .insert([
         {
@@ -289,7 +334,9 @@ Alternative time offered: ${formatDateOnly(
           proposed_end_time: finalProposedEndTime,
           matches_requested_time: isMatchingTime,
         },
-      ]);
+      ])
+      .select("id")
+      .single();
 
     if (offerError) {
       console.error("Offer insert error:", offerError);
@@ -302,6 +349,10 @@ Alternative time offered: ${formatDateOnly(
 
       setSubmitting(false);
       return;
+    }
+
+    if (createdOffer?.id) {
+      await sendOfferCreatedEmail(createdOffer.id);
     }
 
     router.push(`/requests/${requestId}`);
@@ -410,7 +461,7 @@ Alternative time offered: ${formatDateOnly(
                 Location
               </p>
               <p className="mt-2 font-medium text-neutral-900">
-                {request.location || "Not provided"}
+                {formatDisplayAddress(request)}
               </p>
             </div>
 
@@ -444,8 +495,8 @@ Alternative time offered: ${formatDateOnly(
           </h2>
 
           <p className="mt-4 leading-7 text-neutral-600">
-            Include your exact price, explain why you’re a fit, and either match
-            the customer’s requested timing or offer a different slot.
+            Include your exact price, explain why you’re a fit, and propose the
+            date and time that works for your schedule.
           </p>
 
           {request.status !== "open" ? (
@@ -501,30 +552,32 @@ Alternative time offered: ${formatDateOnly(
                 </label>
 
                 <div className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTimingMode("match");
-                        if (request.preferred_date) setProposedDate(request.preferred_date);
-                        if (request.preferred_start_time) {
-                          setProposedStartTime(String(request.preferred_start_time).slice(0, 5));
-                        }
-                      }}
-                      className={`rounded-2xl border p-4 text-left transition ${
-                        timingMode === "match"
-                          ? "border-black bg-black text-white"
-                          : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400"
-                      }`}
-                    >
-                      <p className="font-semibold">Confirm customer’s time</p>
-                      <p className={`mt-2 text-sm ${timingMode === "match" ? "text-white/70" : "text-neutral-500"}`}>
-                        {customerTimingLabel}
-                      </p>
-                      <p className={`mt-2 text-xs ${timingMode === "match" ? "text-white/60" : "text-neutral-400"}`}>
-                        Add an end time so it can go on your calendar if accepted.
-                      </p>
-                    </button>
+                  <div className={`grid gap-3 ${canConfirmCustomerTime ? "sm:grid-cols-2" : "sm:grid-cols-1"}`}>
+                    {canConfirmCustomerTime ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTimingMode("match");
+                          if (request.preferred_date) setProposedDate(request.preferred_date);
+                          if (request.preferred_start_time) {
+                            setProposedStartTime(String(request.preferred_start_time).slice(0, 5));
+                          }
+                        }}
+                        className={`rounded-2xl border p-4 text-left transition ${
+                          timingMode === "match"
+                            ? "border-black bg-black text-white"
+                            : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400"
+                        }`}
+                      >
+                        <p className="font-semibold">Confirm customer’s time</p>
+                        <p className={`mt-2 text-sm ${timingMode === "match" ? "text-white/70" : "text-neutral-500"}`}>
+                          {customerTimingLabel}
+                        </p>
+                        <p className={`mt-2 text-xs ${timingMode === "match" ? "text-white/60" : "text-neutral-400"}`}>
+                          Add an end time so it can go on your calendar if accepted.
+                        </p>
+                      </button>
+                    ) : null}
 
                     <button
                       type="button"
@@ -535,14 +588,14 @@ Alternative time offered: ${formatDateOnly(
                           : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400"
                       }`}
                     >
-                      <p className="font-semibold">Suggest a different time</p>
+                      <p className="font-semibold">Propose your time</p>
                       <p className={`mt-2 text-sm ${timingMode === "different" ? "text-white/70" : "text-neutral-500"}`}>
-                        Choose a new date, start time, and end time.
+                        Choose the date, start time, and end time you can offer.
                       </p>
                     </button>
                   </div>
 
-                  {timingMode === "match" ? (
+                  {timingMode === "match" && canConfirmCustomerTime ? (
                     <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                       <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
                         Customer start time

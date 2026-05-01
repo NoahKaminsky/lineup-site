@@ -28,6 +28,10 @@ type BookingRow = {
   cancelled_at: string | null;
   completion_requested_at: string | null;
   completed_at: string | null;
+  formatted_address: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
+  location_place_id: string | null;
 };
 
 type CalendarBooking = BookingRow & {
@@ -101,7 +105,37 @@ function isEveningBooking(booking: CalendarBooking) {
   return hour >= 16;
 }
 
+function formatDisplayAddress(address: string | null) {
+  if (!address?.trim()) return null;
+
+  const parts = address
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    return parts.slice(0, 2).join(", " );
+  }
+
+  return address;
+}
+
+function getGoogleMapsUrl(booking: CalendarBooking) {
+  if (typeof booking.location_lat === "number" && typeof booking.location_lng === "number") {
+    return `https://www.google.com/maps?q=${booking.location_lat},${booking.location_lng}`;
+  }
+
+  if (booking.formatted_address?.trim()) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(booking.formatted_address)}`;
+  }
+
+  return null;
+}
+
 function BookingCard({ booking, compact = false }: { booking: CalendarBooking; compact?: boolean }) {
+  const displayAddress = formatDisplayAddress(booking.formatted_address);
+  const mapsUrl = getGoogleMapsUrl(booking);
+
   return (
     <Link
       href={`/bookings/${booking.id}`}
@@ -129,6 +163,16 @@ function BookingCard({ booking, compact = false }: { booking: CalendarBooking; c
           <p className="mt-1 text-sm text-neutral-600">
             Client: {booking.client_name || "Not available"}
           </p>
+
+          {displayAddress ? (
+            <p className="mt-1 text-sm text-neutral-600">
+              📍 {displayAddress}
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-neutral-400">
+              Location not provided
+            </p>
+          )}
         </div>
 
         <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white sm:h-14 sm:w-14">
@@ -169,10 +213,32 @@ function BookingCard({ booking, compact = false }: { booking: CalendarBooking; c
         </div>
       ) : null}
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap gap-2">
         <span className="inline-flex rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900">
           View booking
         </span>
+
+        {mapsUrl ? (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              window.open(mapsUrl, "_blank", "noopener,noreferrer");
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                event.stopPropagation();
+                window.open(mapsUrl, "_blank", "noopener,noreferrer");
+              }
+            }}
+            className="inline-flex rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-white"
+          >
+            Open in Maps
+          </span>
+        ) : null}
       </div>
     </Link>
   );
@@ -241,7 +307,7 @@ export default function CalendarPage() {
       const { data: bookingsData, error: bookingsError } = await supabase
         .from("bookings")
         .select(
-          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at"
+          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
         )
         .eq("professional_id", user.id)
         .in("status", ["confirmed", "completion_requested", "completed"])

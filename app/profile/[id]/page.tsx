@@ -24,6 +24,10 @@ type Profile = {
   professional_type: string | null;
   professional_types?: string[] | null;
   location: string | null;
+  formatted_address?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
+  location_place_id?: string | null;
   bio: string | null;
   instagram_handle: string | null;
   service_modes: string | string[] | null;
@@ -81,6 +85,12 @@ type BookingRow = {
   service_id?: string | null;
   service_name?: string | null;
   duration_minutes?: number | null;
+  service_mode?: string | null;
+  source?: string | null;
+  formatted_address?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
+  location_place_id?: string | null;
 };
 
 type ProfessionalService = {
@@ -103,6 +113,13 @@ type GeneratedSlot = {
   duration_minutes: number;
 };
 
+type PendingBookingChoice = {
+  service: ProfessionalService;
+  slot: GeneratedSlot;
+  mode: string;
+  address: string | null;
+};
+
 const dayLabels = [
   "Sunday",
   "Monday",
@@ -112,6 +129,189 @@ const dayLabels = [
   "Friday",
   "Saturday",
 ];
+
+type Suggestion = {
+  placeId: string;
+  text: string;
+};
+
+type SelectedLocation = {
+  placeId: string;
+  formattedAddress: string;
+  lat: number;
+  lng: number;
+  name?: string | null;
+};
+
+function LocationAutocomplete({
+  label = "Location",
+  placeholder = "Start typing an address...",
+  value = "",
+  onSelect,
+  onInputChange,
+}: {
+  label?: string;
+  placeholder?: string;
+  value?: string;
+  onSelect: (location: SelectedLocation) => void;
+  onInputChange?: (value: string) => void;
+}) {
+  const [input, setInput] = useState(value);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setInput(value);
+  }, [value]);
+
+  useEffect(() => {
+    const timeout = setTimeout(async () => {
+      if (!input || input.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const res = await fetch("/api/places/autocomplete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input }),
+        });
+
+        const data = await res.json();
+        setSuggestions(data.suggestions || []);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [input]);
+
+  async function handleSelect(suggestion: Suggestion) {
+    setInput(suggestion.text);
+    setSuggestions([]);
+
+    const res = await fetch("/api/places/details", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ placeId: suggestion.placeId }),
+    });
+
+    const data = await res.json();
+
+    onSelect({
+      placeId: data.placeId,
+      formattedAddress: data.formattedAddress,
+      lat: data.lat,
+      lng: data.lng,
+      name: data.name,
+    });
+  }
+
+  return (
+    <div className="relative w-full">
+      <label className="mb-2 block text-sm font-medium text-neutral-900">
+        {label}
+      </label>
+
+      <input
+        value={input}
+        onChange={(e) => {
+          setInput(e.target.value);
+          onInputChange?.(e.target.value);
+        }}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-neutral-300 px-4 py-2 text-sm outline-none transition focus:border-neutral-900"
+      />
+
+      {loading ? <p className="mt-2 text-xs text-neutral-500">Searching...</p> : null}
+
+      {suggestions.length > 0 ? (
+        <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl">
+          {suggestions.map((suggestion) => (
+            <button
+              key={suggestion.placeId}
+              type="button"
+              onClick={() => handleSelect(suggestion)}
+              className="block w-full px-4 py-3 text-left text-sm text-neutral-800 hover:bg-neutral-50"
+            >
+              {suggestion.text}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function getDistanceKm(
+  lat1?: number | null,
+  lng1?: number | null,
+  lat2?: number | null,
+  lng2?: number | null
+) {
+  if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return null;
+
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistance(km: number | null) {
+  if (km == null || !Number.isFinite(km)) return null;
+  if (km < 1) return "<1 km away";
+  return `${km.toFixed(1)} km away`;
+}
+
+function formatDisplayAddress(address: string | null | undefined) {
+  if (!address?.trim()) return null;
+
+  const parts = address
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) return parts.slice(0, 2).join(", ");
+  return address;
+}
+
+
+function getPlainServiceModes(value: string | string[] | null | undefined) {
+  if (!value) return [];
+  return Array.isArray(value) ? value.filter(Boolean) : [value].filter(Boolean);
+}
+
+function formatModeLabel(mode: string) {
+  if (mode === "in_shop") return "In shop";
+  if (mode === "home_studio") return "Home studio";
+  if (mode === "at_home") return "At home";
+  return mode.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getGoogleMapsUrl(lat?: number | null, lng?: number | null, address?: string | null) {
+  if (typeof lat === "number" && typeof lng === "number") {
+    return `https://www.google.com/maps?q=${lat},${lng}`;
+  }
+
+  if (address?.trim()) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  }
+
+  return null;
+}
 
 export default function ProfessionalProfilePage() {
   const params = useParams();
@@ -134,7 +334,13 @@ export default function ProfessionalProfilePage() {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [selectedServiceMode, setSelectedServiceMode] = useState<string | null>(null);
   const [locationInput, setLocationInput] = useState("");
+  const [locationPlaceId, setLocationPlaceId] = useState("");
+  const [locationLat, setLocationLat] = useState<number | null>(null);
+  const [locationLng, setLocationLng] = useState<number | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [bookingSlotKey, setBookingSlotKey] = useState<string | null>(null);
+  const [pendingBookingChoice, setPendingBookingChoice] = useState<PendingBookingChoice | null>(null);
+  const [confirmedBooking, setConfirmedBooking] = useState<BookingRow | null>(null);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const dateScrollerRef = useRef<HTMLDivElement | null>(null);
   const dateButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -148,7 +354,7 @@ export default function ProfessionalProfilePage() {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select(
-            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, bio, instagram_handle, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
+            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
           )
           .eq("id", profileId)
           .single();
@@ -254,7 +460,7 @@ export default function ProfessionalProfilePage() {
         const { data: bookingsData, error: bookingsError } = await supabase
           .from("bookings")
           .select(
-            "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes"
+            "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes, service_mode, source, formatted_address, location_lat, location_lng, location_place_id"
           )
           .eq("professional_id", profileId)
           .in("status", ["confirmed", "completion_requested", "completed"])
@@ -347,6 +553,32 @@ export default function ProfessionalProfilePage() {
       loadProfilePage();
     }
   }, [profileId]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+      },
+      () => {}
+    );
+  }, []);
+
+  const profileDistanceLabel = useMemo(() => {
+    if (!userLocation || !profile?.location_lat || !profile?.location_lng) return null;
+    return formatDistance(
+      getDistanceKm(
+        userLocation.lat,
+        userLocation.lng,
+        profile.location_lat,
+        profile.location_lng
+      )
+    );
+  }, [userLocation, profile?.location_lat, profile?.location_lng]);
 
   const averageRating = useMemo(() => {
     if (reviews.length === 0) return null;
@@ -666,7 +898,58 @@ export default function ProfessionalProfilePage() {
     return `${first.dayLabel} ${first.dateLabel} • ${formatTime(first.start_time)}`;
   }
 
-  async function handleBookServiceInSlot(service: ProfessionalService) {
+  function handleStartBookingConfirmation(service: ProfessionalService) {
+    setMessage("");
+
+    if (!viewerUserId || !viewerIsCustomer) {
+      setMessage("You need to be signed in as a customer to book a time.");
+      return;
+    }
+
+    if (!profile || !selectedSlot) return;
+
+    if (!selectedServiceMode) {
+      setMessage("Please select in-shop or home-studio before choosing a service.");
+      return;
+    }
+
+    const usesProfessionalLocation =
+      selectedServiceMode === "in_shop" || selectedServiceMode === "home_studio";
+
+    if (!usesProfessionalLocation) {
+      setMessage(
+        "Direct booking is only available for in-shop or home-studio appointments. Use Request service for at-home jobs."
+      );
+      return;
+    }
+
+    const professionalAddress = profile.formatted_address || profile.location || null;
+
+    if (!professionalAddress?.trim()) {
+      setMessage(
+        "This professional needs to add their shop or studio address before direct bookings can be accepted."
+      );
+      return;
+    }
+
+    setPendingBookingChoice({
+      service,
+      slot: selectedSlot,
+      mode: selectedServiceMode,
+      address: professionalAddress,
+    });
+  }
+
+  async function handleBookServiceInSlot(
+    service: ProfessionalService,
+    slotOverride?: GeneratedSlot,
+    modeOverride?: string
+  ) {
+    if (bookingSlotKey) return;
+
+    const activeSlot = slotOverride || selectedSlot;
+    const activeMode = modeOverride || selectedServiceMode;
+
     try {
       setMessage("");
 
@@ -675,80 +958,99 @@ export default function ProfessionalProfilePage() {
         return;
       }
 
-      if (!profile || !selectedSlot) return;
+      if (!profile || !activeSlot) return;
 
-      setBookingSlotKey(selectedSlot.key);
+      setBookingSlotKey(activeSlot.key);
 
-      const slotStart = timeToMinutes(selectedSlot.start_time);
-      const slotEnd = timeToMinutes(selectedSlot.end_time);
-
-      const { data: existingBookings } = await supabase
-        .from("bookings")
-        .select("id, start_time, end_time, status")
-        .eq("professional_id", profile.id)
-        .eq("booking_date", selectedSlot.date)
-        .in("status", ["confirmed", "completion_requested", "completed"]);
-
-      const hasConflict = (existingBookings || []).some((booking) => {
-        const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
-        const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
-        return slotStart < bookingEnd && slotEnd > bookingStart;
-      });
-
-      if (hasConflict) {
-        setMessage("That time was just taken. Please choose another one.");
-        setSelectedSlot(null);
-setSelectedServiceMode(null);
-setLocationInput("");
+      if (!activeMode) {
+        setMessage("Please select in-shop or home-studio before choosing a service.");
         return;
       }
+
+      const usesProfessionalLocation =
+        activeMode === "in_shop" || activeMode === "home_studio";
+
+      if (!usesProfessionalLocation) {
+        setMessage(
+          "Direct booking is only available for in-shop or home-studio appointments. Use Request service for at-home jobs."
+        );
+        return;
+      }
+
+      const professionalAddress = profile.formatted_address || profile.location || null;
+
+      if (!professionalAddress?.trim()) {
+        setMessage(
+          "This professional needs to add their shop or studio address before direct bookings can be accepted."
+        );
+        return;
+      }
+
+      const bookingLocation = {
+        formatted_address: professionalAddress,
+        location_place_id: profile.location_place_id || null,
+        location_lat: typeof profile.location_lat === "number" ? profile.location_lat : null,
+        location_lng: typeof profile.location_lng === "number" ? profile.location_lng : null,
+      };
+
+      const payload = {
+        professional_id: profile.id,
+        customer_id: viewerUserId,
+        booking_date: activeSlot.date,
+        start_time: activeSlot.start_time,
+        end_time: activeSlot.end_time,
+        status: "confirmed",
+        service_mode: activeMode,
+        source: "direct_booking",
+        formatted_address: bookingLocation.formatted_address,
+        location_place_id: bookingLocation.location_place_id,
+        location_lat: bookingLocation.location_lat,
+        location_lng: bookingLocation.location_lng,
+        service_id: service.id,
+        service_name: service.service_name,
+        duration_minutes: service.duration_minutes,
+      };
+
+      console.log("DIRECT BOOKING INSERT PAYLOAD", payload);
 
       const { data, error } = await supabase
         .from("bookings")
-.insert({
-  professional_id: profile.id,
-  customer_id: viewerUserId,
-  booking_date: selectedSlot.date,
-  start_time: selectedSlot.start_time,
-  end_time: selectedSlot.end_time,
-  status: "confirmed",
-
-  // 🔥 NEW FIELDS
-  source: "booking",
-  service_mode: selectedServiceMode,
-  location: locationInput || null,
-
-  service_id: service.id,
-  service_name: service.service_name,
-  duration_minutes: service.duration_minutes,
-})
+        .insert(payload)
         .select(
-          "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes"
+          "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes, service_mode, source, formatted_address, location_lat, location_lng, location_place_id"
         )
         .single();
 
+      console.log("DIRECT BOOKING INSERT RESULT", { data, error });
+
       if (error) {
-        setMessage(error.message);
+        setMessage(error.message || "Could not create booking.");
         return;
       }
 
-      if (data) {
-        const normalized = {
-          ...data,
-          start_time: String(data.start_time).slice(0, 5),
-          end_time: String(data.end_time).slice(0, 5),
-        } as BookingRow;
-
-        setBookings((prev) => [...prev, normalized]);
+      if (!data?.id) {
+        setMessage("Booking may have been created, but the booking ID was not returned. Check Supabase RLS/select policies.");
+        return;
       }
 
-      setMessage(
-        `Booked ${service.service_name} for ${selectedSlot.dayLabel} ${selectedSlot.dateLabel} at ${formatTime(selectedSlot.start_time)}.`
-      );
+      const normalized = {
+        ...data,
+        start_time: String(data.start_time).slice(0, 5),
+        end_time: String(data.end_time).slice(0, 5),
+      } as BookingRow;
+
+      setBookings((prev) => [...prev, normalized]);
+      setConfirmedBooking(normalized);
+      setMessage("");
       setSelectedSlot(null);
-    } catch (error) {
-      console.error(error);
-      setMessage("Something went wrong booking that time.");
+      setSelectedServiceMode(null);
+      setLocationInput("");
+      setLocationPlaceId("");
+      setLocationLat(null);
+      setLocationLng(null);
+    } catch (error: any) {
+      console.error("DIRECT BOOKING ERROR", error);
+      setMessage(error?.message || "Something went wrong booking that time.");
     } finally {
       setBookingSlotKey(null);
     }
@@ -794,6 +1096,17 @@ setLocationInput("");
     averageRating ? "Highly rated" : null,
     reviews.length >= 3 ? "Trusted by clients" : null,
   ].filter(Boolean) as string[];
+
+  const directBookingModes = getPlainServiceModes(profile.service_modes).filter((mode) =>
+    ["in_shop", "home_studio"].includes(mode)
+  );
+
+  const professionalBookingAddress = profile.formatted_address || profile.location || null;
+  const professionalMapsUrl = getGoogleMapsUrl(
+    profile.location_lat,
+    profile.location_lng,
+    professionalBookingAddress
+  );
 
   return (
     <>
@@ -884,10 +1197,17 @@ setLocationInput("");
                     ) : null}
 
                     <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-600">
-                      {profile.location ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <MapPin className="h-4 w-4" />
-                          {profile.location}
+                      {profile.formatted_address || profile.location ? (
+                        <span className="inline-flex flex-col items-start gap-0.5">
+                          <span className="inline-flex items-center gap-1.5">
+                            <MapPin className="h-4 w-4" />
+                            {formatDisplayAddress(profile.formatted_address || profile.location)}
+                          </span>
+                          {profileDistanceLabel ? (
+                            <span className="ml-5 text-xs text-neutral-500">
+                              {profileDistanceLabel}
+                            </span>
+                          ) : null}
                         </span>
                       ) : null}
 
@@ -1338,8 +1658,11 @@ setLocationInput("");
                                       }
                                       onClick={() => {
                                         setSelectedSlot(slot);
-                                        setSelectedServiceMode(null);
+                                        setSelectedServiceMode(directBookingModes.length === 1 ? directBookingModes[0] : null);
                                         setLocationInput("");
+                                        setLocationPlaceId("");
+                                        setLocationLat(null);
+                                        setLocationLng(null);
                                         setMessage("");
                                       }}
                                       className={`min-w-0 rounded-2xl border px-3 py-3 text-left transition-all duration-150 ${
@@ -1419,6 +1742,9 @@ setLocationInput("");
                               setSelectedSlot(null);
                               setSelectedServiceMode(null);
                               setLocationInput("");
+                              setLocationPlaceId("");
+                              setLocationLat(null);
+                              setLocationLng(null);
                             }}
                             className="mt-4 rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
                           >
@@ -1434,40 +1760,85 @@ setLocationInput("");
                           <div className="mt-4 space-y-4">
                             <div>
                               <p className="text-sm font-medium text-neutral-900">
-                                Service mode
+                                Appointment location
+                              </p>
+                              <p className="mt-1 text-xs leading-5 text-neutral-500">
+                                Direct bookings are for appointments at the professional’s shop or studio. For at-home work, post a request instead.
                               </p>
 
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {["in_shop", "home_studio", "at_home"].map((mode) => (
-                                  <button
-                                    key={mode}
-                                    type="button"
-                                    onClick={() => setSelectedServiceMode(mode)}
-                                    className={`rounded-full border px-4 py-2 text-sm transition ${
-                                      selectedServiceMode === mode
-                                        ? "border-black bg-black text-white"
-                                        : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
-                                    }`}
-                                  >
-                                    {mode.replaceAll("_", " ")}
-                                  </button>
-                                ))}
+                              {directBookingModes.length > 0 ? (
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {directBookingModes.map((mode) => (
+                                    <button
+                                      key={mode}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedServiceMode(mode);
+                                        setLocationInput("");
+                                        setLocationPlaceId("");
+                                        setLocationLat(null);
+                                        setLocationLng(null);
+                                        setMessage("");
+                                      }}
+                                      className={`rounded-full border px-4 py-2 text-sm transition ${
+                                        selectedServiceMode === mode
+                                          ? "border-black bg-black text-white"
+                                          : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
+                                      }`}
+                                    >
+                                      {formatModeLabel(mode)}
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                                  This professional has not enabled in-shop or home-studio direct booking yet.
+                                </div>
+                              )}
+                            </div>
+
+                            {selectedServiceMode === "in_shop" || selectedServiceMode === "home_studio" ? (
+                              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600">
+                                <p className="font-medium text-neutral-900">
+                                  {formatModeLabel(selectedServiceMode)} appointment
+                                </p>
+                                <p className="mt-1">
+                                  This booking will use the professional’s saved business location.
+                                </p>
+
+                                {professionalBookingAddress ? (
+                                  <div className="mt-3 rounded-xl border border-neutral-200 bg-white p-3">
+                                    <p className="font-medium text-neutral-900">
+                                      📍 {formatDisplayAddress(professionalBookingAddress)}
+                                    </p>
+                                    {profileDistanceLabel ? (
+                                      <p className="mt-1 text-xs font-medium text-neutral-500">
+                                        {profileDistanceLabel}
+                                      </p>
+                                    ) : null}
+
+                                    {professionalMapsUrl ? (
+                                      <a
+                                        href={professionalMapsUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="mt-3 inline-flex rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-800 transition hover:bg-neutral-50"
+                                      >
+                                        Open in Maps
+                                      </a>
+                                    ) : null}
+                                  </div>
+                                ) : (
+                                  <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
+                                    This professional still needs to add a shop/studio address in Services.
+                                  </p>
+                                )}
                               </div>
-                            </div>
-
-                            <div>
-                              <p className="text-sm font-medium text-neutral-900">
-                                Location
-                              </p>
-
-                              <input
-                                type="text"
-                                value={locationInput}
-                                onChange={(e) => setLocationInput(e.target.value)}
-                                placeholder="Address, studio name, etc."
-                                className="mt-2 w-full rounded-xl border border-neutral-300 px-4 py-2 text-sm outline-none transition focus:border-neutral-900"
-                              />
-                            </div>
+                            ) : directBookingModes.length > 0 ? (
+                              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-500">
+                                Select where you want to book the appointment.
+                              </div>
+                            ) : null}
 
                             <div>
                               <p className="text-sm font-medium text-neutral-900">
@@ -1484,7 +1855,7 @@ setLocationInput("");
                                         setMessage("Please select a service mode.");
                                         return;
                                       }
-                                      handleBookServiceInSlot(service);
+                                      handleStartBookingConfirmation(service);
                                     }}
                                     disabled={bookingSlotKey === selectedSlot.key}
                                     className="w-full rounded-2xl border border-neutral-200 bg-white p-4 text-left transition hover:border-black hover:bg-neutral-50 disabled:opacity-60"
@@ -1655,6 +2026,145 @@ setLocationInput("");
           ) : null}
         </div>
       </main>
+
+      {pendingBookingChoice ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 text-2xl">
+              📅
+            </div>
+
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900">
+              Confirm booking
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-neutral-600">
+              Make sure the service, time, and location are right before confirming.
+            </p>
+
+            <div className="mt-4 space-y-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Service
+                </p>
+                <p className="mt-1 font-semibold text-neutral-900">
+                  {pendingBookingChoice.service.service_name}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Date & time
+                </p>
+                <p className="mt-1 font-semibold text-neutral-900">
+                  {formatDate(pendingBookingChoice.slot.date)} · {formatTime(pendingBookingChoice.slot.start_time)} - {formatTime(pendingBookingChoice.slot.end_time)}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  Appointment type
+                </p>
+                <p className="mt-1 font-semibold text-neutral-900">
+                  {formatModeLabel(pendingBookingChoice.mode)}
+                </p>
+              </div>
+
+              {pendingBookingChoice.address ? (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    Location
+                  </p>
+                  <p className="mt-1 font-semibold text-neutral-900">
+                    📍 {formatDisplayAddress(pendingBookingChoice.address)}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => {
+                  const choice = pendingBookingChoice;
+                  setPendingBookingChoice(null);
+                  handleBookServiceInSlot(choice.service, choice.slot, choice.mode);
+                }}
+                disabled={bookingSlotKey === pendingBookingChoice.slot.key}
+                className="inline-flex flex-1 items-center justify-center rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+              >
+                {bookingSlotKey === pendingBookingChoice.slot.key ? "Booking..." : "Confirm booking"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingBookingChoice(null)}
+                disabled={bookingSlotKey === pendingBookingChoice.slot.key}
+                className="inline-flex flex-1 items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmedBooking ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-2xl">
+              ✓
+            </div>
+
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900">
+              Booking confirmed
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-neutral-600">
+              Your appointment is booked. You can view the full details, location, and directions from the booking page.
+            </p>
+
+            <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+              <p className="font-semibold text-neutral-900">
+                {confirmedBooking.service_name || "Appointment"}
+              </p>
+              <p className="mt-1">
+                {formatDate(confirmedBooking.booking_date)} · {formatTime(confirmedBooking.start_time)} - {formatTime(confirmedBooking.end_time)}
+              </p>
+              {confirmedBooking.formatted_address ? (
+                <div className="mt-2 text-neutral-600">
+                  <p>📍 {formatDisplayAddress(confirmedBooking.formatted_address)}</p>
+                  {userLocation && confirmedBooking.location_lat && confirmedBooking.location_lng ? (
+                    <p className="mt-1 text-xs text-neutral-500">
+                      {formatDistance(
+                        getDistanceKm(
+                          userLocation.lat,
+                          userLocation.lng,
+                          confirmedBooking.location_lat,
+                          confirmedBooking.location_lng
+                        )
+                      )}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href={`/bookings/${confirmedBooking.id}`}
+                className="inline-flex flex-1 items-center justify-center rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+              >
+                View booking
+              </Link>
+              <button
+                type="button"
+                onClick={() => setConfirmedBooking(null)}
+                className="inline-flex flex-1 items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+              >
+                Stay here
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showBannerPreview && profile.banner_url ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">

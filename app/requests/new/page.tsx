@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
-
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
@@ -56,6 +55,183 @@ const serviceDetailOptions: Record<string, string[]> = {
   ],
 };
 
+type Suggestion = {
+  placeId: string;
+  text: string;
+};
+
+type SelectedLocation = {
+  placeId: string;
+  formattedAddress: string;
+  lat: number;
+  lng: number;
+  name?: string | null;
+};
+
+function LocationAutocomplete({
+  label = "Location",
+  placeholder = "Start typing an address...",
+  value = "",
+  onSelect,
+  onInputChange,
+}: {
+  label?: string;
+  placeholder?: string;
+  value?: string;
+  onSelect: (location: SelectedLocation) => void;
+  onInputChange?: (value: string) => void;
+}) {
+  const [input, setInput] = useState(value);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setInput(value);
+  }, [value]);
+
+  useEffect(() => {
+    const timeout = setTimeout(async () => {
+      if (!input || input.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const res = await fetch("/api/places/autocomplete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input }),
+        });
+
+        const data = await res.json();
+        setSuggestions(data.suggestions || []);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [input]);
+
+  async function handleSelect(suggestion: Suggestion) {
+    setInput(suggestion.text);
+    setSuggestions([]);
+
+    try {
+      const res = await fetch("/api/places/details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId: suggestion.placeId }),
+      });
+
+      const data = await res.json();
+
+      console.log("PLACE DETAILS RESPONSE:", data);
+
+      if (!res.ok) {
+        console.error("Place details route error:", data);
+      }
+
+      const rawLat =
+        data.lat ??
+        data.latitude ??
+        data.location?.latitude ??
+        data.location?.lat ??
+        data.geometry?.location?.lat;
+
+      const rawLng =
+        data.lng ??
+        data.longitude ??
+        data.location?.longitude ??
+        data.location?.lng ??
+        data.geometry?.location?.lng;
+
+      const lat = Number(rawLat);
+      const lng = Number(rawLng);
+
+      const formattedAddress =
+        data.formattedAddress ??
+        data.formatted_address ??
+        data.address ??
+        data.displayName?.text ??
+        suggestion.text;
+
+      const placeId = data.placeId ?? data.place_id ?? suggestion.placeId;
+
+      if (!placeId) {
+        onSelect({
+          placeId: suggestion.placeId,
+          formattedAddress: suggestion.text,
+          lat: Number.NaN,
+          lng: Number.NaN,
+          name: data.name ?? null,
+        });
+        return;
+      }
+
+      setInput(formattedAddress);
+
+      onSelect({
+        placeId,
+        formattedAddress,
+        lat,
+        lng,
+        name: data.name ?? data.displayName?.text ?? null,
+      });
+    } catch {
+      onSelect({
+        placeId: suggestion.placeId,
+        formattedAddress: suggestion.text,
+        lat: Number.NaN,
+        lng: Number.NaN,
+        name: null,
+      });
+    }
+  }
+
+  return (
+    <div className="relative w-full">
+      <label className="mb-2 block text-sm font-semibold text-neutral-900">
+        {label}
+      </label>
+
+      <input
+        value={input}
+        onChange={(e) => {
+          setInput(e.target.value);
+          onInputChange?.(e.target.value);
+        }}
+        placeholder={placeholder}
+        className="w-full rounded border p-3 text-neutral-900 outline-none transition focus:border-black"
+      />
+
+      {loading ? (
+        <p className="mt-2 text-xs text-neutral-500">Searching...</p>
+      ) : null}
+
+      {suggestions.length > 0 ? (
+        <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xl">
+          {suggestions.map((suggestion) => (
+            <button
+              key={suggestion.placeId}
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => handleSelect(suggestion)}
+              className="block w-full px-4 py-3 text-left text-sm text-neutral-800 hover:bg-neutral-50"
+            >
+              {suggestion.text}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 type ReferencePhotoItem = {
   id: string;
   file: File;
@@ -85,6 +261,10 @@ function NewRequestPageContent() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
+  const [locationPlaceId, setLocationPlaceId] = useState("");
+  const [locationSelectedFromGoogle, setLocationSelectedFromGoogle] = useState(false);
+  const [locationLat, setLocationLat] = useState<number | null>(null);
+  const [locationLng, setLocationLng] = useState<number | null>(null);
   const [serviceMode, setServiceMode] = useState("");
   const [budget, setBudget] = useState("");
 
@@ -400,6 +580,18 @@ function NewRequestPageContent() {
       return;
     }
 
+    if (!serviceMode) {
+      setMessage("Please select where the service will happen.");
+      return;
+    }
+
+    if (serviceMode === "at_home") {
+      if (!location.trim()) {
+        setMessage("Please enter the address or area where you need the service.");
+        return;
+      }
+    }
+
     if (timingFlexibility !== "anytime") {
       if (!preferredDate) {
         setMessage("Please select a preferred date.");
@@ -424,6 +616,15 @@ function NewRequestPageContent() {
       const referencePhotoUrls = await uploadReferencePhotos(userId);
 
       const directRebook = isRebook && !!preferredProfessionalId;
+      const shouldUseCustomerLocation = serviceMode === "at_home";
+
+      console.log("REQUEST LOCATION BEFORE INSERT:", {
+        location,
+        locationPlaceId,
+        locationSelectedFromGoogle,
+        locationLat,
+        locationLng,
+      });
 
       const { data: insertedRequest, error: insertRequestError } = await supabase
         .from("service_requests")
@@ -434,7 +635,17 @@ function NewRequestPageContent() {
             service_detail: finalServiceDetail || null,
             title: title.trim(),
             description: description.trim() || null,
-            location: location.trim() || null,
+            location: shouldUseCustomerLocation ? location.trim() || null : null,
+            formatted_address: shouldUseCustomerLocation ? location.trim() || null : null,
+            location_place_id: shouldUseCustomerLocation ? locationPlaceId || null : null,
+            location_lat:
+              shouldUseCustomerLocation && Number.isFinite(locationLat)
+                ? locationLat
+                : null,
+            location_lng:
+              shouldUseCustomerLocation && Number.isFinite(locationLng)
+                ? locationLng
+                : null,
             service_mode: serviceMode || null,
             budget: budget.trim() || null,
             status: "open",
@@ -611,29 +822,102 @@ function NewRequestPageContent() {
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium">Location</label>
-          <input
-            type="text"
-            placeholder="Winnipeg, MB"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            className="w-full rounded border p-3"
-          />
-        </div>
-
-        <div>
           <label className="mb-2 block text-sm font-medium">Service mode</label>
           <select
             value={serviceMode}
-            onChange={(e) => setServiceMode(e.target.value)}
+            onChange={(e) => {
+              const nextMode = e.target.value;
+              setServiceMode(nextMode);
+
+              if (nextMode !== "at_home") {
+                setLocation("");
+                setLocationPlaceId("");
+                setLocationSelectedFromGoogle(false);
+                setLocationLat(null);
+                setLocationLng(null);
+              }
+            }}
             className="w-full rounded border p-3"
           >
             <option value="">Select mode</option>
-            <option value="in_shop">In shop</option>
-            <option value="at_home">At home</option>
-            <option value="home_studio">Home studio</option>
+            <option value="at_home">At my location</option>
+            <option value="in_shop">At the professional’s shop</option>
+            <option value="home_studio">At the professional’s home studio</option>
           </select>
         </div>
+
+        {serviceMode === "at_home" ? (
+          <div className="space-y-3">
+            <LocationAutocomplete
+              label="Where do you need the service?"
+              placeholder="Enter your address or area"
+              value={location}
+              onInputChange={(value) => {
+                setLocation(value);
+
+                // Only clear Google data when the user manually changes the typed value.
+                // Selecting a dropdown suggestion runs onSelect below and should stay locked.
+                if (value !== location) {
+                  setLocationPlaceId("");
+                  setLocationSelectedFromGoogle(false);
+                  setLocationLat(null);
+                  setLocationLng(null);
+                }
+              }}
+              onSelect={(selected) => {
+                console.log("GOOGLE SELECTED LOCATION:", selected);
+
+                const safeAddress = selected.formattedAddress || location;
+                const safePlaceId = selected.placeId || "";
+                const safeLat = Number.isFinite(selected.lat) ? selected.lat : null;
+                const safeLng = Number.isFinite(selected.lng) ? selected.lng : null;
+
+                setLocation(safeAddress);
+                setLocationPlaceId(safePlaceId);
+                setLocationSelectedFromGoogle(!!safePlaceId);
+                setLocationLat(safeLat);
+                setLocationLng(safeLng);
+
+                if (!safePlaceId) {
+                  setMessage("Google returned an address but no place ID. Try selecting a more specific suggestion.");
+                  return;
+                }
+
+                if (safeLat === null || safeLng === null) {
+                  setMessage("Google selected the address, but coordinates did not come back. The request will still save, but map preview may not show.");
+                  return;
+                }
+
+                setMessage("");
+              }}
+            />
+
+            {locationSelectedFromGoogle && locationPlaceId ? (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                <p className="font-medium">Location selected from Google:</p>
+                <p className="mt-1">{location}</p>
+                {locationLat !== null && locationLng !== null ? (
+                  <p className="mt-1 text-xs text-emerald-700">
+                    Coordinates saved for map preview.
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs text-amber-700">
+                    Address saved, but coordinates are missing — map preview may not show.
+                  </p>
+                )}
+              </div>
+            ) : location ? (
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700">
+                Address entered. Selecting a Google suggestion gives the best map/distance accuracy.
+              </div>
+            ) : null}
+          </div>
+        ) : serviceMode === "in_shop" || serviceMode === "home_studio" ? (
+          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600">
+            The professional’s saved business location will be used for this request if they accept or send an offer.
+            You do not need to enter your address for this service mode.
+          </div>
+        ) : null}
 
         <div>
           <label className="mb-2 block text-sm font-medium">Budget</label>

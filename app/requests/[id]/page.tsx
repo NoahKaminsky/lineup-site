@@ -14,6 +14,10 @@ type ServiceRequest = {
   title: string;
   description: string | null;
   location: string | null;
+  formatted_address?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
+  location_place_id?: string | null;
   service_mode: string | null;
   budget: string | null;
   status: "open" | "accepted" | "completion_requested" | "completed" | string;
@@ -90,6 +94,8 @@ export default function RequestDetailPage() {
 
   const [role, setRole] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [viewerLat, setViewerLat] = useState<number | null>(null);
+  const [viewerLng, setViewerLng] = useState<number | null>(null);
 
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [offers, setOffers] = useState<RequestOffer[]>([]);
@@ -227,6 +233,89 @@ export default function RequestDetailPage() {
     return "No reviews yet";
   }
 
+  function formatDisplayAddress(currentRequest: ServiceRequest | null) {
+    const rawAddress =
+      currentRequest?.formatted_address || currentRequest?.location || "";
+
+    if (!rawAddress.trim()) return "Not provided";
+
+    return rawAddress.trim();
+  }
+
+  function getGoogleMapsUrl(
+    lat?: number | null,
+    lng?: number | null,
+    address?: string | null
+  ) {
+    if (typeof lat === "number" && typeof lng === "number") {
+      return `https://www.google.com/maps?q=${lat},${lng}`;
+    }
+
+    if (address?.trim()) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        address.trim()
+      )}`;
+    }
+
+    return null;
+  }
+
+  function getGoogleMapsEmbedUrl(
+    lat?: number | null,
+    lng?: number | null,
+    address?: string | null
+  ) {
+    if (typeof lat === "number" && typeof lng === "number") {
+      return `https://www.google.com/maps?q=${lat},${lng}&z=16&output=embed`;
+    }
+
+    if (address?.trim()) {
+      return `https://www.google.com/maps?q=${encodeURIComponent(address.trim())}&z=16&output=embed`;
+    }
+
+    return null;
+  }
+
+  function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLng / 2) ** 2;
+
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function getDistanceLabel(currentRequest: ServiceRequest | null) {
+    if (
+      typeof viewerLat !== "number" ||
+      typeof viewerLng !== "number" ||
+      typeof currentRequest?.location_lat !== "number" ||
+      typeof currentRequest?.location_lng !== "number"
+    ) {
+      return null;
+    }
+
+    const distance = getDistanceKm(
+      viewerLat,
+      viewerLng,
+      currentRequest.location_lat,
+      currentRequest.location_lng
+    );
+
+    if (!Number.isFinite(distance)) return null;
+
+    if (distance < 1) {
+      return `${Math.round(distance * 1000)} m away`;
+    }
+
+    return `${distance.toFixed(1)} km away`;
+  }
+
   function getScheduledSummary(currentRequest: ServiceRequest | null) {
     if (
       !currentRequest?.scheduled_date ||
@@ -298,6 +387,22 @@ export default function RequestDetailPage() {
     return null;
   }
 
+  useEffect(() => {
+    if (typeof viewerLat === "number" && typeof viewerLng === "number") return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setViewerLat(position.coords.latitude);
+        setViewerLng(position.coords.longitude);
+      },
+      () => {
+        // Browser location is optional. Professionals with a saved business
+        // location will still see distance based on their profile coordinates.
+      }
+    );
+  }, [viewerLat, viewerLng]);
+
   const loadRequestLive = useCallback(async () => {
     if (!requestId) return;
 
@@ -318,7 +423,7 @@ export default function RequestDetailPage() {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("role, professional_type")
+      .select("role, professional_type, location_lat, location_lng")
       .eq("id", user.id)
       .single();
 
@@ -329,6 +434,14 @@ export default function RequestDetailPage() {
     }
 
     setRole(profile.role);
+
+    if (typeof (profile as any).location_lat === "number") {
+      setViewerLat((profile as any).location_lat);
+    }
+
+    if (typeof (profile as any).location_lng === "number") {
+      setViewerLng((profile as any).location_lng);
+    }
 
     const { data: requestData, error: requestError } = await supabase
       .from("service_requests")
@@ -718,17 +831,74 @@ export default function RequestDetailPage() {
       return;
     }
 
-const { error: createBookingError } = await supabase.from("bookings").insert([
-  {
-    professional_id: acceptedOffer.professional_id,
-    customer_id: request.client_id,
-    booking_date: acceptedOffer.proposed_date,
-    start_time: proposedStart,
-    end_time: proposedEnd,
-    status: "confirmed",
-    service_name: request.service_detail || request.title,
-  },
-]);
+    const usesProfessionalLocation =
+      request.service_mode === "in_shop" || request.service_mode === "home_studio";
+
+    let bookingLocation = {
+      formatted_address: request.formatted_address || request.location || null,
+      location_place_id: request.location_place_id || null,
+      location_lat: request.location_lat ?? null,
+      location_lng: request.location_lng ?? null,
+    };
+
+    if (usesProfessionalLocation) {
+      const { data: professionalLocation, error: professionalLocationError } =
+        await supabase
+          .from("profiles")
+          .select("formatted_address, location_place_id, location_lat, location_lng")
+          .eq("id", acceptedOffer.professional_id)
+          .single();
+
+      if (professionalLocationError) {
+        setMessage("Could not load the professional's business location.");
+        setAcceptingOfferId(null);
+        return;
+      }
+
+      if (
+        !professionalLocation?.formatted_address ||
+        typeof professionalLocation.location_lat !== "number" ||
+        typeof professionalLocation.location_lng !== "number"
+      ) {
+        setMessage(
+          "This professional needs to add their shop or studio location before this offer can be accepted."
+        );
+        setAcceptingOfferId(null);
+        return;
+      }
+
+      bookingLocation = {
+        formatted_address: professionalLocation.formatted_address,
+        location_place_id: professionalLocation.location_place_id || null,
+        location_lat: professionalLocation.location_lat,
+        location_lng: professionalLocation.location_lng,
+      };
+    }
+
+    if (request.service_mode === "at_home") {
+      if (!bookingLocation.formatted_address) {
+        setMessage("Please add a customer location before accepting this offer.");
+        setAcceptingOfferId(null);
+        return;
+      }
+    }
+
+    const { error: createBookingError } = await supabase.from("bookings").insert([
+      {
+        request_id: request.id,
+        professional_id: acceptedOffer.professional_id,
+        customer_id: request.client_id,
+        booking_date: acceptedOffer.proposed_date,
+        start_time: proposedStart,
+        end_time: proposedEnd,
+        status: "confirmed",
+        service_name: request.service_detail || request.title,
+        formatted_address: bookingLocation.formatted_address,
+        location_place_id: bookingLocation.location_place_id,
+        location_lat: bookingLocation.location_lat,
+        location_lng: bookingLocation.location_lng,
+      },
+    ]);
 
     if (createBookingError) {
       setMessage(createBookingError.message);
@@ -1131,6 +1301,14 @@ const { error: createBookingError } = await supabase.from("bookings").insert([
 
   const scheduledSummary = getScheduledSummary(request);
   const preferredSummary = getPreferredSummary(request);
+  const displayAddress = formatDisplayAddress(request);
+  const distanceLabel = getDistanceLabel(request);
+  const mapsUrl = getGoogleMapsUrl(request.location_lat, request.location_lng, request.formatted_address || request.location);
+  const mapEmbedUrl = getGoogleMapsEmbedUrl(
+    request.location_lat,
+    request.location_lng,
+    request.formatted_address || request.location
+  );
 
   return (
     <>
@@ -1215,51 +1393,87 @@ const { error: createBookingError } = await supabase.from("bookings").insert([
               ) : null}
             </div>
 
-            <div className="grid gap-4 px-6 py-6 md:grid-cols-2 xl:grid-cols-4 md:px-8">
-              <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                  Preferred time
-                </p>
-                <p className="mt-2 text-sm font-medium text-neutral-900">
-                  {preferredSummary || "Not provided"}
-                </p>
+            <div className="grid items-start gap-4 px-4 py-5 sm:px-6 md:px-8 lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+                <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
+                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    Preferred time
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-neutral-900">
+                    {preferredSummary || "Not provided"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
+                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    Service mode
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-neutral-900">
+                    {formatMode(request.service_mode)}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
+                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    Budget
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-neutral-900">
+                    {request.budget || "Not provided"}
+                  </p>
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                  Location
-                </p>
-                <p className="mt-2 text-sm font-medium text-neutral-900">
-                  {request.location || "Not provided"}
-                </p>
-              </div>
+              <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Location
+                    </p>
+                    <p className="mt-2 break-words text-sm font-semibold leading-6 text-neutral-900">
+                      📍 {displayAddress}
+                    </p>
+                    {distanceLabel ? (
+                      <p className="mt-1 text-xs font-medium text-neutral-500">
+                        {distanceLabel}
+                      </p>
+                    ) : null}
+                  </div>
 
-              <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                  Service mode
-                </p>
-                <p className="mt-2 text-sm font-medium text-neutral-900">
-                  {formatMode(request.service_mode)}
-                </p>
-              </div>
+                  {mapsUrl ? (
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex shrink-0 justify-center rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50"
+                    >
+                      Open in Maps
+                    </a>
+                  ) : null}
+                </div>
 
-              <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                  Budget
-                </p>
-                <p className="mt-2 text-sm font-medium text-neutral-900">
-                  {request.budget || "Not provided"}
-                </p>
+                {mapEmbedUrl ? (
+                  <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
+                    <iframe
+                      title="Request location map"
+                      src={mapEmbedUrl}
+                      width="100%"
+                      height="180"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      className="block h-[150px] w-full border-0 sm:h-[190px] lg:h-[210px]"
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
 
             {scheduledSummary ? (
-              <div className="px-6 pb-6 md:px-8">
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+              <div className="px-4 pb-5 sm:px-6 md:px-8">
+                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 sm:p-5">
                   <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
                     Scheduled service time
                   </p>
-                  <p className="mt-2 text-sm font-medium text-neutral-900">
+                  <p className="mt-2 text-sm font-semibold text-neutral-900">
                     {scheduledSummary}
                   </p>
                 </div>
@@ -1477,7 +1691,11 @@ const { error: createBookingError } = await supabase.from("bookings").insert([
                             {offerTiming ? (
                               <div className={`mt-5 rounded-2xl border p-4 ${isAccepted ? "border-white/10 bg-white/10" : "border-neutral-200 bg-neutral-50"}`}>
                                 <p className={`text-xs font-semibold uppercase tracking-wide ${isAccepted ? "text-white/55" : "text-neutral-500"}`}>
-                                  {offer.matches_requested_time ? "Confirmed customer time" : "Suggested time"}
+                                  {request.timing_flexibility === "anytime"
+                                    ? "Suggested time"
+                                    : offer.matches_requested_time
+                                    ? "Confirmed customer time"
+                                    : "Suggested time"}
                                 </p>
                                 <p className={`mt-2 text-sm font-semibold ${isAccepted ? "text-white" : "text-neutral-900"}`}>
                                   {offerTiming}
