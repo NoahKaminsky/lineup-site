@@ -1039,6 +1039,14 @@ export default function ProfessionalProfilePage() {
         end_time: String(data.end_time).slice(0, 5),
       } as BookingRow;
 
+      await fetch("/api/notifications/booking-confirmed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId: normalized.id }),
+      }).catch((notificationError) => {
+        console.error("Booking confirmation email failed:", notificationError);
+      });
+
       setBookings((prev) => [...prev, normalized]);
       setConfirmedBooking(normalized);
       setMessage("");

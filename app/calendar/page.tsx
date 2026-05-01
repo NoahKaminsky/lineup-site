@@ -85,6 +85,36 @@ function formatTime(time: string) {
   return `${twelveHour}:${minute} ${suffix}`;
 }
 
+function getDistanceKm(
+  lat1?: number | null,
+  lng1?: number | null,
+  lat2?: number | null,
+  lng2?: number | null
+) {
+  if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) {
+    return null;
+  }
+
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function formatDistance(km: number | null) {
+  if (km == null) return null;
+  if (km < 1) return "<1 km away";
+  return `${km.toFixed(1)} km away`;
+}
+
 function getDateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
     date.getDate()
@@ -132,9 +162,22 @@ function getGoogleMapsUrl(booking: CalendarBooking) {
   return null;
 }
 
-function BookingCard({ booking, compact = false }: { booking: CalendarBooking; compact?: boolean }) {
+function BookingCard({
+  booking,
+  compact = false,
+  userLat,
+  userLng,
+}: {
+  booking: CalendarBooking;
+  compact?: boolean;
+  userLat?: number | null;
+  userLng?: number | null;
+}) {
   const displayAddress = formatDisplayAddress(booking.formatted_address);
   const mapsUrl = getGoogleMapsUrl(booking);
+  const distance = formatDistance(
+    getDistanceKm(userLat, userLng, booking.location_lat, booking.location_lng)
+  );
 
   return (
     <Link
@@ -165,9 +208,14 @@ function BookingCard({ booking, compact = false }: { booking: CalendarBooking; c
           </p>
 
           {displayAddress ? (
-            <p className="mt-1 text-sm text-neutral-600">
-              📍 {displayAddress}
-            </p>
+            <div className="mt-1">
+              <p className="text-sm text-neutral-600">📍 {displayAddress}</p>
+              {distance ? (
+                <p className="mt-0.5 text-xs font-medium text-neutral-500">
+                  {distance}
+                </p>
+              ) : null}
+            </div>
           ) : (
             <p className="mt-1 text-sm text-neutral-400">
               Location not provided
@@ -256,6 +304,10 @@ export default function CalendarPage() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedDate, setSelectedDate] = useState<string>(getTodayKey());
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   const hasLoadedOnceRef = useRef(false);
   const reloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -369,6 +421,22 @@ export default function CalendarPage() {
   useEffect(() => {
     loadCalendarData();
   }, [loadCalendarData]);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {
+        // Distance is optional. Calendar still works without browser location.
+      }
+    );
+  }, []);
 
   useEffect(() => {
     if (!role) return;
@@ -680,7 +748,7 @@ export default function CalendarPage() {
 
                       <div className="relative border-l border-neutral-200 pl-4">
                         <span className="absolute -left-[5px] top-3 h-2.5 w-2.5 rounded-full bg-black" />
-                        <BookingCard booking={booking} compact />
+                        <BookingCard booking={booking} compact userLat={userLocation?.lat} userLng={userLocation?.lng} />
                       </div>
                     </div>
                   ))}
@@ -704,7 +772,7 @@ export default function CalendarPage() {
                 ) : (
                   <div className="mt-5 max-h-[420px] space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {upcomingBookings.map((booking) => (
-                      <BookingCard booking={booking} compact key={booking.id} />
+                      <BookingCard booking={booking} compact key={booking.id} userLat={userLocation?.lat} userLng={userLocation?.lng} />
                     ))}
                   </div>
                 )}
@@ -725,7 +793,7 @@ export default function CalendarPage() {
                 ) : (
                   <div className="mt-5 max-h-[420px] space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {completionRequestedBookings.map((booking) => (
-                      <BookingCard booking={booking} compact key={booking.id} />
+                      <BookingCard booking={booking} compact key={booking.id} userLat={userLocation?.lat} userLng={userLocation?.lng} />
                     ))}
                   </div>
                 )}
@@ -746,7 +814,7 @@ export default function CalendarPage() {
                 ) : (
                   <div className="mt-5 max-h-[420px] space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {completedBookings.map((booking) => (
-                      <BookingCard booking={booking} compact key={booking.id} />
+                      <BookingCard booking={booking} compact key={booking.id} userLat={userLocation?.lat} userLng={userLocation?.lng} />
                     ))}
                   </div>
                 )}
@@ -922,7 +990,7 @@ export default function CalendarPage() {
                 ) : (
                   <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {selectedDateBookings.map((booking) => (
-                      <BookingCard booking={booking} key={booking.id} />
+                      <BookingCard booking={booking} key={booking.id} userLat={userLocation?.lat} userLng={userLocation?.lng} />
                     ))}
                   </div>
                 )}
@@ -938,7 +1006,7 @@ export default function CalendarPage() {
                   ) : (
                     <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {upcomingBookings.map((booking) => (
-                        <BookingCard booking={booking} compact key={booking.id} />
+                        <BookingCard booking={booking} compact key={booking.id} userLat={userLocation?.lat} userLng={userLocation?.lng} />
                       ))}
                     </div>
                   )}
@@ -955,7 +1023,7 @@ export default function CalendarPage() {
                   ) : (
                     <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {completionRequestedBookings.map((booking) => (
-                        <BookingCard booking={booking} compact key={booking.id} />
+                        <BookingCard booking={booking} compact key={booking.id} userLat={userLocation?.lat} userLng={userLocation?.lng} />
                       ))}
                     </div>
                   )}
@@ -972,7 +1040,7 @@ export default function CalendarPage() {
                   ) : (
                     <div className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {completedBookings.map((booking) => (
-                        <BookingCard booking={booking} compact key={booking.id} />
+                        <BookingCard booking={booking} compact key={booking.id} userLat={userLocation?.lat} userLng={userLocation?.lng} />
                       ))}
                     </div>
                   )}

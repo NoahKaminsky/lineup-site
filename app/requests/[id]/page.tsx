@@ -883,27 +883,43 @@ export default function RequestDetailPage() {
       }
     }
 
-    const { error: createBookingError } = await supabase.from("bookings").insert([
-      {
-        request_id: request.id,
-        professional_id: acceptedOffer.professional_id,
-        customer_id: request.client_id,
-        booking_date: acceptedOffer.proposed_date,
-        start_time: proposedStart,
-        end_time: proposedEnd,
-        status: "confirmed",
-        service_name: request.service_detail || request.title,
-        formatted_address: bookingLocation.formatted_address,
-        location_place_id: bookingLocation.location_place_id,
-        location_lat: bookingLocation.location_lat,
-        location_lng: bookingLocation.location_lng,
-      },
-    ]);
+    const { data: createdBooking, error: createBookingError } = await supabase
+      .from("bookings")
+      .insert([
+        {
+          request_id: request.id,
+          professional_id: acceptedOffer.professional_id,
+          customer_id: request.client_id,
+          booking_date: acceptedOffer.proposed_date,
+          start_time: proposedStart,
+          end_time: proposedEnd,
+          status: "confirmed",
+          service_name: request.service_detail || request.title,
+          service_mode: request.service_mode,
+          source: "request",
+          formatted_address: bookingLocation.formatted_address,
+          location_place_id: bookingLocation.location_place_id,
+          location_lat: bookingLocation.location_lat,
+          location_lng: bookingLocation.location_lng,
+        },
+      ])
+      .select("id")
+      .single();
 
     if (createBookingError) {
       setMessage(createBookingError.message);
       setAcceptingOfferId(null);
       return;
+    }
+
+    if (createdBooking?.id) {
+      await fetch("/api/notifications/booking-confirmed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingId: createdBooking.id }),
+      }).catch((notificationError) => {
+        console.error("Booking confirmation email failed:", notificationError);
+      });
     }
 
     const { error: acceptSelectedError } = await supabase

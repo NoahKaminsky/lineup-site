@@ -14,10 +14,10 @@ export default function MarkRequestNotificationRead({
         data: { user },
       } = await supabase.auth.getUser();
 
-      console.log("MARK READ DEBUG requestId:", requestId);
-      console.log("MARK READ DEBUG user:", user);
+      console.log("MARK READ requestId:", requestId);
+      console.log("MARK READ userId:", user?.id);
 
-      if (!user) return;
+      if (!user || !requestId) return;
 
       const { data, error } = await supabase
         .from("notifications")
@@ -27,13 +27,11 @@ export default function MarkRequestNotificationRead({
         .eq("is_read", false)
         .select("*");
 
-      console.log("MARK READ DEBUG updated rows:", data);
-      console.log("MARK READ DEBUG error:", error);
+      console.log("MARK READ updated rows:", data);
+      console.log("MARK READ error:", error);
     };
 
-    if (requestId) {
-      markRead();
-    }
+    markRead();
   }, [requestId]);
 
   return null;

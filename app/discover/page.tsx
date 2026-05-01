@@ -131,6 +131,25 @@ function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function formatDistanceLabel(distanceKm: number | null) {
+  if (distanceKm === null || !Number.isFinite(distanceKm)) return null;
+  if (distanceKm < 1) return "<1 km away";
+  return `${distanceKm.toFixed(1)} km away`;
+}
+
+function formatLocationFallback(profile: ProfileRow, fallback: string) {
+  const address = profile.formatted_address || profile.location;
+  if (!address?.trim()) return fallback;
+
+  const parts = address
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 2) return parts.slice(0, 2).join(", ");
+  return address;
+}
+
 function getCardDistanceKm(
   card: DiscoverCard,
   userLocation: { lat: number; lng: number } | null
@@ -675,8 +694,8 @@ export default function DiscoverPage() {
                           <p className="mt-2 text-xs text-white/85">
                             {card.averageRating ? `${card.averageRating}★` : "New"}{" "}
                             {card.reviewCount > 0 ? `· ${card.reviewCount} reviews` : ""}
-                            {getCardDistanceKm(card, userLocation) !== null
-                              ? ` · ${getCardDistanceKm(card, userLocation)!.toFixed(1)} km away`
+                            {formatDistanceLabel(getCardDistanceKm(card, userLocation))
+                              ? ` · ${formatDistanceLabel(getCardDistanceKm(card, userLocation))}`
                               : ""}
                           </p>
                         </div>
@@ -706,11 +725,10 @@ export default function DiscoverPage() {
                   const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
                   const distanceKm = getCardDistanceKm(card, userLocation);
                   const secondaryText =
-                    distanceKm !== null
-                      ? `${distanceKm.toFixed(1)} km away`
-                      : roles.length > 1
+                    formatDistanceLabel(distanceKm) ||
+                    (roles.length > 1
                       ? `${roles.length} services`
-                      : card.profile.formatted_address || card.profile.location || primaryRole;
+                      : formatLocationFallback(card.profile, primaryRole));
 
                   return (
                     <Link

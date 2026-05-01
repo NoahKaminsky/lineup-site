@@ -14,6 +14,10 @@ type ServiceRequest = {
   title: string;
   description: string | null;
   location: string | null;
+  formatted_address?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
+  location_place_id?: string | null;
   service_mode: string | null;
   budget: string | null;
   status: string;
@@ -65,6 +69,10 @@ type BookingRow = {
   cancelled_at: string | null;
   completion_requested_at: string | null;
   completed_at: string | null;
+  formatted_address?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
+  location_place_id?: string | null;
 };
 
 type EnrichedBooking = BookingRow & {
@@ -89,6 +97,9 @@ type UnifiedProfessionalWorkItem =
       client_name: string | null;
       client_avatar_url: string | null;
       location: string | null;
+      formatted_address?: string | null;
+      location_lat?: number | null;
+      location_lng?: number | null;
       service_mode: string | null;
       budget: string | null;
       created_at: string;
@@ -107,6 +118,8 @@ type UnifiedProfessionalWorkItem =
       client_name: string | null;
       client_avatar_url: string | null;
       location: string | null;
+      location_lat?: number | null;
+      location_lng?: number | null;
       service_mode: null;
       budget: null;
       created_at: string;
@@ -122,6 +135,8 @@ type ProfileRow = {
   professional_type?: string | null;
   full_name?: string | null;
   avatar_url?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
 };
 
 function normalizeRole(role: string | null | undefined) {
@@ -250,12 +265,199 @@ function isDateInRange(date: Date, start: Date, end: Date) {
   return date.getTime() >= start.getTime() && date.getTime() < end.getTime();
 }
 
+function getDistanceKm(
+  lat1?: number | null,
+  lng1?: number | null,
+  lat2?: number | null,
+  lng2?: number | null
+) {
+  if (
+    typeof lat1 !== "number" ||
+    typeof lng1 !== "number" ||
+    typeof lat2 !== "number" ||
+    typeof lng2 !== "number"
+  ) {
+    return null;
+  }
+
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+
+  const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Number.isFinite(distance) ? distance : null;
+}
+
+function formatDistanceLabel(distanceKm: number | null) {
+  if (distanceKm === null) return null;
+  if (distanceKm < 1) return `${Math.max(1, Math.round(distanceKm * 1000))} m away`;
+  return `${distanceKm.toFixed(1)} km away`;
+}
+
+function formatDisplayAddress(address: string | null | undefined) {
+  if (!address?.trim()) return null;
+
+  const parts = address
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length >= 3) {
+    return {
+      primary: parts[0],
+      secondary: parts.slice(1, 3).join(", "),
+      full: address,
+    };
+  }
+
+  if (parts.length === 2) {
+    return {
+      primary: parts[0],
+      secondary: parts[1],
+      full: address,
+    };
+  }
+
+  return {
+    primary: address,
+    secondary: null,
+    full: address,
+  };
+}
+
+function getMapsUrl(lat?: number | null, lng?: number | null, address?: string | null) {
+  if (typeof lat === "number" && typeof lng === "number") {
+    return `https://www.google.com/maps?q=${lat},${lng}`;
+  }
+
+  if (address?.trim()) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  }
+
+  return null;
+}
+
+function getStaticMapUrl(lat?: number | null, lng?: number | null) {
+  if (typeof lat !== "number" || typeof lng !== "number") return null;
+
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  if (!key) return null;
+
+  return `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=14&size=600x240&scale=2&markers=color:black%7C${lat},${lng}&key=${key}`;
+}
+
+function UberLocationCard({
+  address,
+  lat,
+  lng,
+  compact = false,
+  interactive = true,
+  userLat = null,
+  userLng = null,
+}: {
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  compact?: boolean;
+  interactive?: boolean;
+  userLat?: number | null;
+  userLng?: number | null;
+}) {
+  const displayAddress = formatDisplayAddress(address);
+  const mapsUrl = getMapsUrl(lat, lng, address);
+  const staticMapUrl = getStaticMapUrl(lat, lng);
+  const distanceLabel = formatDistanceLabel(getDistanceKm(userLat, userLng, lat, lng));
+
+  if (!displayAddress) return null;
+
+  return (
+    <div className={`overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 ${compact ? "mt-3" : "mt-5"}`}>
+      <div className="flex items-stretch">
+        <div className="flex min-w-0 flex-1 gap-3 p-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black text-sm text-white">
+            📍
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              Location
+            </p>
+            <p className="mt-1 truncate text-sm font-semibold text-neutral-900">
+              {displayAddress.primary}
+            </p>
+            {displayAddress.secondary ? (
+              <p className="mt-0.5 truncate text-xs text-neutral-500">
+                {displayAddress.secondary}
+              </p>
+            ) : null}
+            {distanceLabel ? (
+              <p className="mt-1 text-xs font-medium text-neutral-500">
+                {distanceLabel}
+              </p>
+            ) : null}
+            {mapsUrl && interactive ? (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex text-xs font-semibold text-neutral-900 underline-offset-4 hover:underline"
+                onClick={(event) => event.stopPropagation()}
+              >
+                Open in Maps
+              </a>
+            ) : mapsUrl ? (
+              <span className="mt-2 inline-flex text-xs font-semibold text-neutral-900">
+                Tap card for details
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        {staticMapUrl && mapsUrl && interactive ? (
+          <a
+            href={mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden w-32 shrink-0 overflow-hidden border-l border-neutral-200 bg-neutral-100 sm:block"
+            onClick={(event) => event.stopPropagation()}
+            aria-label="Open location in Google Maps"
+          >
+            <img
+              src={staticMapUrl}
+              alt="Map preview"
+              className="h-full min-h-[112px] w-full object-cover"
+            />
+          </a>
+        ) : staticMapUrl ? (
+          <div className="hidden w-32 shrink-0 overflow-hidden border-l border-neutral-200 bg-neutral-100 sm:block">
+            <img
+              src={staticMapUrl}
+              alt="Map preview"
+              className="h-full min-h-[112px] w-full object-cover"
+            />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function RequestsPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
 
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [bookings, setBookings] = useState<EnrichedBooking[]>([]);
@@ -327,7 +529,7 @@ export default function RequestsPage() {
       await supabase
         .from("bookings")
         .select(
-          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at"
+          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
         )
         .eq("customer_id", userId)
         .order("booking_date", { ascending: false })
@@ -485,7 +687,7 @@ export default function RequestsPage() {
       await supabase
         .from("bookings")
         .select(
-          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at"
+          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
         )
         .eq("professional_id", userId)
         .in("status", ["confirmed", "completion_requested", "completed"])
@@ -569,7 +771,7 @@ export default function RequestsPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, professional_type, full_name")
+        .select("role, professional_type, full_name, location_lat, location_lng")
         .eq("id", user.id)
         .single();
 
@@ -583,6 +785,16 @@ export default function RequestsPage() {
       const userRole = typedProfile.role;
       setRole(userRole);
       setUserName(typedProfile.full_name ?? null);
+
+      if (
+        typeof typedProfile.location_lat === "number" &&
+        typeof typedProfile.location_lng === "number"
+      ) {
+        setUserLocation({
+          lat: typedProfile.location_lat,
+          lng: typedProfile.location_lng,
+        });
+      }
 
       try {
         if (isCustomerRole(userRole)) {
@@ -603,6 +815,24 @@ export default function RequestsPage() {
     },
     [hydrateCustomerData, hydrateProfessionalData, router]
   );
+
+  useEffect(() => {
+    if (userLocation) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {
+        // Distance is optional. If browser location is denied and the user
+        // does not have saved profile coordinates, cards still work normally.
+      }
+    );
+  }, [userLocation]);
 
   useEffect(() => {
     loadRequestsLive();
@@ -893,7 +1123,10 @@ export default function RequestsPage() {
         description: request.description || null,
         client_name: null,
         client_avatar_url: null,
-        location: request.location || null,
+        location: request.formatted_address || request.location || null,
+        formatted_address: request.formatted_address || null,
+        location_lat: request.location_lat ?? null,
+        location_lng: request.location_lng ?? null,
         service_mode: request.service_mode || null,
         budget: request.budget || null,
         created_at: request.created_at,
@@ -919,7 +1152,9 @@ export default function RequestsPage() {
         description: null,
         client_name: booking.client_name || null,
         client_avatar_url: booking.client_avatar_url || null,
-        location: null,
+        location: booking.formatted_address || null,
+        location_lat: booking.location_lat ?? null,
+        location_lng: booking.location_lng ?? null,
         service_mode: null,
         budget: null,
         created_at: booking.created_at,
@@ -956,7 +1191,10 @@ export default function RequestsPage() {
         description: request.description || null,
         client_name: null,
         client_avatar_url: null,
-        location: request.location || null,
+        location: request.formatted_address || request.location || null,
+        formatted_address: request.formatted_address || null,
+        location_lat: request.location_lat ?? null,
+        location_lng: request.location_lng ?? null,
         service_mode: request.service_mode || null,
         budget: request.budget || null,
         created_at: request.created_at,
@@ -978,7 +1216,9 @@ export default function RequestsPage() {
         description: null,
         client_name: booking.client_name || null,
         client_avatar_url: booking.client_avatar_url || null,
-        location: null,
+        location: booking.formatted_address || null,
+        location_lat: booking.location_lat ?? null,
+        location_lng: booking.location_lng ?? null,
         service_mode: null,
         budget: null,
         created_at: booking.created_at,
@@ -1254,6 +1494,15 @@ export default function RequestsPage() {
                                 <p className="mt-2 text-neutral-600">
                                   With {booking.professional_name || "Professional"}
                                 </p>
+
+                                <UberLocationCard
+                                  address={booking.formatted_address}
+                                  lat={booking.location_lat}
+                                  lng={booking.location_lng}
+                                  compact
+                              userLat={userLocation?.lat}
+                              userLng={userLocation?.lng}
+                                />
                               </div>
                             </div>
 
@@ -1437,7 +1686,7 @@ export default function RequestsPage() {
       Location
     </p>
     <p className="mt-2 text-sm font-medium text-neutral-900">
-      {request.location || "Not provided"}
+      {request.formatted_address || request.location || "Not provided"}
     </p>
   </div>
 
@@ -1459,6 +1708,15 @@ export default function RequestsPage() {
     </p>
   </div>
 </div>
+
+<UberLocationCard
+  address={request.formatted_address || request.location}
+  lat={request.location_lat}
+  lng={request.location_lng}
+  interactive={false}
+  userLat={userLocation?.lat}
+  userLng={userLocation?.lng}
+/>
 
 <div className="mt-4">
   <div className="rounded-2xl border border-neutral-200 p-4">
@@ -1542,6 +1800,15 @@ export default function RequestsPage() {
                               <p className="mt-2 text-neutral-600">
                                 With {booking.professional_name || "Professional"}
                               </p>
+
+                              <UberLocationCard
+                                address={booking.formatted_address}
+                                lat={booking.location_lat}
+                                lng={booking.location_lng}
+                                compact
+                              userLat={userLocation?.lat}
+                              userLng={userLocation?.lng}
+                              />
                             </div>
                           </div>
 
@@ -1693,6 +1960,15 @@ export default function RequestsPage() {
                                 Client: {item.client_name}
                               </p>
                             ) : null}
+
+                            <UberLocationCard
+                              address={item.location}
+                              lat={item.location_lat}
+                              lng={item.location_lng}
+                              compact
+                              userLat={userLocation?.lat}
+                              userLng={userLocation?.lng}
+                            />
                           </div>
 
                           <div className="flex shrink-0 items-center gap-2">
@@ -1794,7 +2070,7 @@ export default function RequestsPage() {
       Location
     </p>
     <p className="mt-2 text-sm font-medium text-neutral-900">
-      {request.location || "Not provided"}
+      {request.formatted_address || request.location || "Not provided"}
     </p>
   </div>
 
@@ -1816,6 +2092,15 @@ export default function RequestsPage() {
     </p>
   </div>
 </div>
+
+                        <UberLocationCard
+                          address={request.formatted_address || request.location}
+                          lat={request.location_lat}
+                          lng={request.location_lng}
+                          interactive={false}
+                          userLat={userLocation?.lat}
+                          userLng={userLocation?.lng}
+                        />
 
                         <div className="mt-5">
                           {respondedRequestIds.includes(request.id) ? (
@@ -1936,6 +2221,15 @@ export default function RequestsPage() {
                                   Client: {item.client_name}
                                 </p>
                               ) : null}
+
+                              <UberLocationCard
+                                address={item.location}
+                                lat={item.location_lat}
+                                lng={item.location_lng}
+                                compact
+                              userLat={userLocation?.lat}
+                              userLng={userLocation?.lng}
+                              />
                             </div>
                           </div>
 

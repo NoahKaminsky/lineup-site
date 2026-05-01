@@ -704,6 +704,14 @@ function NewRequestPageContent() {
         }
       }
 
+      await fetch("/api/notifications/request-created", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId: insertedRequest.id }),
+      }).catch((notificationError) => {
+        console.error("Request match email failed:", notificationError);
+      });
+
       setMessage("Request posted successfully.");
       router.push("/requests");
     } catch (error: any) {

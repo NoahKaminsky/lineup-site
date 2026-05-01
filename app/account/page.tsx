@@ -8,6 +8,7 @@ import Navbar from "../components/AppNavbar";
 type Profile = {
   id: string;
   email: string | null;
+  email_request_notifications?: boolean | null;
   full_name: string | null;
   role: string | null;
   professional_type: string | null;
@@ -156,6 +157,7 @@ export default function AccountPage() {
   const [specialties, setSpecialties] = useState<string[]>([]);
   const [professionalTypes, setProfessionalTypes] = useState<string[]>([]);
   const [newSpecialty, setNewSpecialty] = useState("");
+  const [emailRequestNotifications, setEmailRequestNotifications] = useState(true);
 
   const isProfessional = profile?.role === "professional";
 
@@ -196,6 +198,7 @@ export default function AccountPage() {
           ? [data.professional_type]
           : []
       );
+      setEmailRequestNotifications(data.email_request_notifications ?? true);
 
       const { data: portfolioData, error: portfolioError } = await supabase
         .from("professional_portfolio")
@@ -838,6 +841,7 @@ export default function AccountPage() {
     setInstagramHandle(profile.instagram_handle || "");
     setSpecialties(profile.specialties || []);
     setProfessionalTypes(getProfessionalTypes(profile));
+    setEmailRequestNotifications(profile.email_request_notifications ?? true);
     setAvatarFile(null);
     setBannerFile(null);
     setNewSpecialty("");
@@ -867,6 +871,8 @@ export default function AccountPage() {
         profile.role === "professional"
           ? cleanProfessionalTypes[0] || profile.professional_type || null
           : null,
+      email_request_notifications:
+        profile.role === "professional" ? emailRequestNotifications : false,
     };
 
     const { error } = await supabase
@@ -1077,6 +1083,22 @@ export default function AccountPage() {
                     </p>
                     <p className="mt-3 text-neutral-700">{profile.email}</p>
                   </div>
+
+                  {isProfessional ? (
+                    <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                        Email notifications
+                      </p>
+                      <p className="mt-3 text-neutral-700">
+                        {profile.email_request_notifications === false
+                          ? "New matching request emails are off."
+                          : "New matching request emails are on."}
+                      </p>
+                      <p className="mt-2 text-sm text-neutral-500">
+                        Booking confirmations and appointment reminders are always sent.
+                      </p>
+                    </div>
+                  ) : null}
 
                   {message ? (
                     <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
@@ -1325,6 +1347,30 @@ export default function AccountPage() {
                         ) : null}
                       </div>
                     </>
+                  ) : null}
+
+                  {isProfessional ? (
+                    <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
+                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                        Email notifications
+                      </p>
+                      <label className="mt-4 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
+                        <input
+                          type="checkbox"
+                          checked={emailRequestNotifications}
+                          onChange={(e) => setEmailRequestNotifications(e.target.checked)}
+                          className="mt-1 h-4 w-4 accent-black"
+                        />
+                        <span>
+                          <span className="block text-sm font-semibold text-neutral-900">
+                            Email me when new matching requests are posted
+                          </span>
+                          <span className="mt-1 block text-sm leading-6 text-neutral-500">
+                            You can turn this off if request emails get too frequent. Booking confirmations and appointment reminders are always sent.
+                          </span>
+                        </span>
+                      </label>
+                    </div>
                   ) : null}
 
                   <div className="flex flex-wrap gap-3 pt-2">
