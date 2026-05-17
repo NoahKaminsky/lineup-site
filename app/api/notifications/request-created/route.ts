@@ -47,6 +47,7 @@ export async function POST(req: Request) {
 
     const matches = (professionals || []).filter((profile: any) => {
       if (!profile.email) return false;
+      if (!profile.email_request_notifications) return false;
       if (request.preferred_professional_id) return true;
       if (targetSet.size === 0) return false;
 
