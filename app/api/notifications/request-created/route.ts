@@ -1,9 +1,32 @@
 import { NextResponse } from "next/server";
-import { sendEmail } from "@/app/lib/email";
+import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
 function normalize(value: string | null | undefined) {
   return String(value || "").toLowerCase().replaceAll(" ", "_");
+}
+
+function formatCategory(value: string | null | undefined) {
+  if (!value) return "Service";
+
+  return String(value)
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function detailRow(label: string, value: string | null | undefined) {
+  if (!value) return "";
+
+  return `
+    <tr>
+      <td style="padding:12px 0;border-bottom:1px solid #eeeeee;color:#737373;font-size:14px;">
+        ${escapeHtml(label)}
+      </td>
+      <td align="right" style="padding:12px 0;border-bottom:1px solid #eeeeee;color:#111111;font-size:14px;font-weight:600;">
+        ${escapeHtml(value)}
+      </td>
+    </tr>
+  `;
 }
 
 export async function POST(req: Request) {
@@ -60,34 +83,70 @@ export async function POST(req: Request) {
       return types.some((type: string) => targetSet.has(normalize(type)));
     });
 
-    const emails = matches.map((profile: any) => profile.email).filter(Boolean);
-
-    if (emails.length === 0) {
+    if (matches.length === 0) {
       return NextResponse.json({ ok: true, sent: 0 });
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const requestUrl = `${siteUrl}/requests/${request.id}`;
 
-    const html = `
-      <h2>New matching request</h2>
-      <p>A new request matching your services was posted.</p>
-      <p><strong>Request:</strong> ${request.service_detail || request.title || "New request"}</p>
-      <p>You can turn these emails off from your profile settings.</p>
-      <p><a href="${requestUrl}">View request</a></p>
-    `;
+    const requestTitle = request.title || request.service_detail || "New request";
+    const category = formatCategory(request.category);
+    const serviceDetail = request.service_detail || null;
+    const isDirectRequest = Boolean(request.preferred_professional_id);
 
-    for (const email of emails) {
+    let sent = 0;
+
+    for (const profile of matches) {
+      const firstName = profile.full_name?.split(" ")[0] || "there";
+
+      const html = createEmailLayout({
+        title: isDirectRequest ? "You received a direct request" : "New matching request",
+        preview: `${requestTitle} is available on LineUp.`,
+        ctaLabel: "View request",
+        ctaUrl: requestUrl,
+        content: `
+          <p style="margin:0 0 16px 0;">Hey ${escapeHtml(firstName)},</p>
+
+          <p style="margin:0 0 16px 0;">
+            ${
+              isDirectRequest
+                ? "A client sent a request directly to you on LineUp."
+                : "A new request matching your services was posted on LineUp."
+            }
+          </p>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border-collapse:collapse;">
+            ${detailRow("Request", requestTitle)}
+            ${detailRow("Category", category)}
+            ${detailRow("Service detail", serviceDetail)}
+          </table>
+
+          <p style="margin:20px 0 0 0;color:#525252;">
+            Review the request details and send an offer if it fits your schedule.
+          </p>
+
+          <p style="margin:18px 0 0 0;color:#737373;font-size:13px;line-height:22px;">
+            You can turn new request emails off from your profile settings.
+          </p>
+        `,
+      });
+
       await sendEmail({
-        to: email,
-        subject: "New matching request on LineUp",
+        to: profile.email,
+        subject: isDirectRequest
+          ? "You received a direct request on LineUp"
+          : "New matching request on LineUp",
         html,
       });
+
+      sent += 1;
     }
 
-    return NextResponse.json({ ok: true, sent: emails.length });
+    return NextResponse.json({ ok: true, sent });
   } catch (error: any) {
     console.error("request-created notification failed:", error);
+
     return NextResponse.json(
       { error: error?.message || "Notification failed" },
       { status: 500 }
