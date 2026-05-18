@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
+import Navbar from "@/app/components/AppNavbar";
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
@@ -54,6 +55,57 @@ const serviceDetailOptions: Record<string, string[]> = {
     "Other",
   ],
 };
+
+
+function NewRequestLoadingSkeleton() {
+  return (
+    <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <Navbar />
+
+      <div className="mx-auto max-w-2xl py-8">
+        <div className="max-w-xl">
+          <div className="h-4 w-32 animate-pulse rounded-full bg-neutral-200" />
+          <div className="mt-5 h-12 w-full max-w-md animate-pulse rounded-2xl bg-neutral-200 md:h-14" />
+          <div className="mt-5 h-5 w-full max-w-lg animate-pulse rounded-full bg-neutral-100" />
+          <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
+        </div>
+
+        <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+          <div className="space-y-5">
+            {[1, 2, 3, 4].map((item) => (
+              <div key={item}>
+                <div className="h-4 w-28 animate-pulse rounded-full bg-neutral-200" />
+                <div className="mt-2 h-12 w-full animate-pulse rounded-xl bg-neutral-100" />
+              </div>
+            ))}
+
+            <div>
+              <div className="h-4 w-32 animate-pulse rounded-full bg-neutral-200" />
+              <div className="mt-2 h-32 w-full animate-pulse rounded-xl bg-neutral-100" />
+            </div>
+
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+              <div className="h-4 w-36 animate-pulse rounded-full bg-neutral-200" />
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="h-12 animate-pulse rounded-xl bg-neutral-100" />
+                <div className="h-12 animate-pulse rounded-xl bg-neutral-100" />
+              </div>
+              <div className="mt-4 h-4 w-4/5 animate-pulse rounded-full bg-neutral-100" />
+            </div>
+
+            <div>
+              <div className="h-4 w-32 animate-pulse rounded-full bg-neutral-200" />
+              <div className="mt-2 h-32 w-full animate-pulse rounded-xl bg-neutral-100" />
+            </div>
+
+            <div className="h-12 w-full animate-pulse rounded bg-neutral-200" />
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 
 type Suggestion = {
   placeId: string;
@@ -725,12 +777,7 @@ function NewRequestPageContent() {
   }
 
   if (loading) {
-    return (
-      <main className="mx-auto max-w-2xl p-10">
-        <p>Loading...</p>
-        {message ? <p className="mt-4 text-sm text-red-600">{message}</p> : null}
-      </main>
-    );
+    return <NewRequestLoadingSkeleton />;
   }
 
   return (
@@ -1097,11 +1144,7 @@ function NewRequestPageContent() {
 export default function NewRequestPage() {
   return (
     <Suspense
-      fallback={
-        <main className="mx-auto max-w-2xl p-10">
-          <p>Loading...</p>
-        </main>
-      }
+      fallback={<NewRequestLoadingSkeleton />}
     >
       <NewRequestPageContent />
     </Suspense>
