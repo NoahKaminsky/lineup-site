@@ -18,9 +18,15 @@ export const metadata: Metadata = {
   description: "Beauty marketplace for trusted on-demand services.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.png?v=2",
-    shortcut: "/favicon.png?v=2",
-    apple: "/apple-touch-icon.png?v=2",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/lineup-apple-touch-icon.png",
+    other: [
+      {
+        rel: "apple-touch-icon",
+        url: "/lineup-apple-touch-icon.png",
+      },
+    ],
   },
   appleWebApp: {
     capable: true,
