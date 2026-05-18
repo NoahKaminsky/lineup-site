@@ -365,7 +365,7 @@ function NavbarComponent() {
 
       {navItems.length > 0 ? (
         <>
-          <div className="h-24 sm:hidden" aria-hidden="true" />
+          <div className="h-36 sm:hidden" aria-hidden="true" />
 
           <nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden">
             <div className="mx-auto max-w-md rounded-[2rem] border border-neutral-200 bg-white/92 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur-xl">
