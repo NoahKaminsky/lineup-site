@@ -167,6 +167,72 @@ function getGoogleMapsEmbedUrl(
   return null;
 }
 
+
+function BookingLoadingSkeleton() {
+  return (
+    <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <Navbar />
+
+      <div className="mx-auto max-w-5xl py-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="max-w-2xl">
+            <div className="h-4 w-28 animate-pulse rounded-full bg-neutral-200" />
+            <div className="mt-5 h-12 w-full max-w-xl animate-pulse rounded-2xl bg-neutral-200 md:h-16" />
+            <div className="mt-5 h-5 w-full max-w-2xl animate-pulse rounded-full bg-neutral-100" />
+            <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
+          </div>
+
+          <div className="h-11 w-24 animate-pulse rounded-full bg-neutral-100" />
+        </div>
+
+        <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+          <div className="flex flex-wrap gap-3">
+            <div className="h-7 w-24 animate-pulse rounded-full bg-neutral-100" />
+            <div className="h-7 w-36 animate-pulse rounded-full bg-neutral-100" />
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            {[1, 2, 3, 4].map((item) => (
+              <div
+                key={item}
+                className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5"
+              >
+                <div className="h-4 w-28 animate-pulse rounded-full bg-neutral-200" />
+                <div className="mt-3 h-6 w-48 animate-pulse rounded-xl bg-neutral-100" />
+                <div className="mt-2 h-4 w-32 animate-pulse rounded-full bg-neutral-100" />
+              </div>
+            ))}
+
+            <div className="rounded-2xl border border-neutral-200 p-5 md:col-span-2">
+              <div className="h-4 w-24 animate-pulse rounded-full bg-neutral-200" />
+              <div className="mt-3 h-6 w-72 animate-pulse rounded-xl bg-neutral-100" />
+              <div className="mt-4 h-56 w-full animate-pulse rounded-2xl bg-neutral-100" />
+            </div>
+
+            {[1, 2, 3, 4].map((item) => (
+              <div
+                key={`detail-${item}`}
+                className="rounded-2xl border border-neutral-200 p-5"
+              >
+                <div className="h-4 w-32 animate-pulse rounded-full bg-neutral-200" />
+                <div className="mt-3 h-6 w-44 animate-pulse rounded-xl bg-neutral-100" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+          <div className="h-4 w-20 animate-pulse rounded-full bg-neutral-200" />
+          <div className="mt-3 h-8 w-56 animate-pulse rounded-xl bg-neutral-200" />
+          <div className="mt-3 h-4 w-full max-w-lg animate-pulse rounded-full bg-neutral-100" />
+          <div className="mt-6 h-40 w-full animate-pulse rounded-2xl bg-neutral-100" />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+
 export default function BookingDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -430,16 +496,7 @@ export default function BookingDetailPage() {
   }
 
   if (loading) {
-    return (
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
-        <div className="mx-auto max-w-5xl">
-          <Navbar />
-          <div className="py-16">
-            <p className="text-neutral-500">Loading booking...</p>
-          </div>
-        </div>
-      </main>
-    );
+    return <BookingLoadingSkeleton />;
   }
 
   if (!booking) {

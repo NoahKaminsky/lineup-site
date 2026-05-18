@@ -1138,15 +1138,77 @@ export default function ProfessionalProfilePage() {
     }
   }
 
-  if (loading) {
-    return (
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
-        <div className="mx-auto max-w-6xl py-16">
-          <p className="text-neutral-500">Loading profile...</p>
+if (loading) {
+  return (
+    <main className="min-h-screen bg-white px-6 py-10">
+      <div className="mx-auto max-w-6xl animate-pulse">
+        {/* Top Nav */}
+        <div className="flex items-center justify-between border-b border-neutral-200 pb-6">
+          <div className="h-8 w-32 rounded bg-neutral-200" />
+          <div className="h-10 w-28 rounded-full bg-neutral-200" />
         </div>
-      </main>
-    );
-  }
+
+        {/* Hero */}
+        <div className="mt-10 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white">
+          <div className="h-56 w-full bg-neutral-200 md:h-72" />
+
+          <div className="px-8 pb-8 pt-6">
+            <div className="flex flex-col gap-5 md:flex-row">
+              <div className="h-28 w-28 rounded-[1.5rem] bg-neutral-200" />
+
+              <div className="flex-1">
+                <div className="h-12 w-72 rounded bg-neutral-200" />
+
+                <div className="mt-4 h-5 w-48 rounded bg-neutral-200" />
+
+                <div className="mt-6 h-4 w-96 max-w-full rounded bg-neutral-200" />
+
+                <div className="mt-3 h-4 w-80 max-w-[90%] rounded bg-neutral-200" />
+
+                <div className="mt-5 flex gap-2">
+                  <div className="h-8 w-24 rounded-full bg-neutral-200" />
+                  <div className="h-8 w-24 rounded-full bg-neutral-200" />
+                  <div className="h-8 w-24 rounded-full bg-neutral-200" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="mt-8 grid gap-6">
+          <div className="rounded-[2rem] border border-neutral-200 bg-white p-6">
+            <div className="h-7 w-52 rounded bg-neutral-200" />
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="h-40 rounded-2xl bg-neutral-200" />
+              <div className="h-40 rounded-2xl bg-neutral-200" />
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-neutral-200 bg-white p-6">
+            <div className="h-7 w-40 rounded bg-neutral-200" />
+
+            <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3">
+              <div className="aspect-square rounded-2xl bg-neutral-200" />
+              <div className="aspect-square rounded-2xl bg-neutral-200" />
+              <div className="aspect-square rounded-2xl bg-neutral-200" />
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-neutral-200 bg-white p-6">
+            <div className="h-7 w-44 rounded bg-neutral-200" />
+
+            <div className="mt-6 space-y-4">
+              <div className="h-24 rounded-2xl bg-neutral-200" />
+              <div className="h-24 rounded-2xl bg-neutral-200" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
 
   if (!profile) {
     return (
