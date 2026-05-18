@@ -18,9 +18,16 @@ export const metadata: Metadata = {
   description: "Beauty marketplace for trusted on-demand services.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/favicon.png",
-    apple: "/apple-touch-icon.png",
+    icon: "/favicon.png?v=2",
+    shortcut: "/favicon.png?v=2",
+    apple: "/apple-touch-icon.png?v=2",
   },
+  appleWebApp: {
+    capable: true,
+    title: "LineUp",
+    statusBarStyle: "default",
+  },
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({
