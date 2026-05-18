@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Navbar from "@/app/components/AppNavbar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,8 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "LineUp",
   description: "Beauty marketplace for trusted on-demand services.",
+  manifest: "/manifest.json",
   icons: {
     icon: "/favicon.png",
+    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -28,9 +31,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-      suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning={true}
+        className={`${geistSans.variable} ${geistMono.variable} bg-white antialiased`}
       >
+        <Navbar />
         {children}
       </body>
     </html>
