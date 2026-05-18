@@ -524,9 +524,51 @@ export default function DiscoverPage() {
   }, [cards, search, selectedCategory, selectedModes, userLocation]);
 
   const featuredCards = useMemo(() => {
-    return filteredCards
+    return [...filteredCards]
       .filter((card) => card.portfolioPreview?.image_url || card.profile.banner_url)
-      .slice(0, 6);
+      .sort((a, b) => {
+        const score = (card: DiscoverCard) => {
+          const hasImage = card.portfolioPreview?.image_url || card.profile.banner_url ? 2 : 0;
+          const ratingScore = card.averageRatingNumber ? card.averageRatingNumber * 8 : 0;
+          const reviewScore = Math.min(card.reviewCount, 20);
+          const serviceScore = Math.min(card.services.length, 8) * 2;
+          const directScore = card.profile.direct_booking_enabled ? 8 : 0;
+          const openScore = hasOpenThisWeek(card.profile, card.availability, card.bookings) ? 8 : 0;
+          const portfolioScore = card.portfolioPreview?.image_url ? 6 : 0;
+
+          return (
+            hasImage +
+            ratingScore +
+            reviewScore +
+            serviceScore +
+            directScore +
+            openScore +
+            portfolioScore
+          );
+        };
+
+        return score(b) - score(a);
+      })
+      .slice(0, 8);
+  }, [filteredCards]);
+
+  const topProfessionalCards = useMemo(() => {
+    return [...filteredCards]
+      .sort((a, b) => {
+        const score = (card: DiscoverCard) => {
+          const ratingScore = card.averageRatingNumber ? card.averageRatingNumber * 10 : 0;
+          const reviewScore = Math.min(card.reviewCount, 25);
+          const serviceScore = Math.min(card.services.length, 10) * 2;
+          const directScore = card.profile.direct_booking_enabled ? 6 : 0;
+          const openScore = hasOpenThisWeek(card.profile, card.availability, card.bookings) ? 6 : 0;
+          const imageScore = card.portfolioPreview?.image_url || card.profile.banner_url ? 4 : 0;
+
+          return ratingScore + reviewScore + serviceScore + directScore + openScore + imageScore;
+        };
+
+        return score(b) - score(a);
+      })
+      .slice(0, 4);
   }, [filteredCards]);
 
   function toggleMode(mode: string) {
@@ -537,6 +579,84 @@ export default function DiscoverPage() {
 
   function getCardImage(card: DiscoverCard) {
     return card.portfolioPreview?.image_url || card.profile.banner_url || null;
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+        <Navbar />
+
+        <div className="mx-auto max-w-6xl py-8">
+          <div className="max-w-3xl">
+            <div className="h-4 w-28 animate-pulse rounded-full bg-neutral-200" />
+            <div className="mt-5 h-12 w-full max-w-xl animate-pulse rounded-2xl bg-neutral-200 md:h-16" />
+            <div className="mt-5 h-5 w-full max-w-2xl animate-pulse rounded-full bg-neutral-100" />
+            <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
+          </div>
+
+          <div className="mt-8 rounded-[1.5rem] border border-neutral-200 bg-white p-4 shadow-sm">
+            <div className="h-12 w-full animate-pulse rounded-full bg-neutral-100" />
+
+            <div className="mt-3 flex gap-2 overflow-hidden">
+              {[1, 2, 3, 4, 5, 6].map((item) => (
+                <div
+                  key={item}
+                  className="h-10 w-24 shrink-0 animate-pulse rounded-full bg-neutral-100"
+                />
+              ))}
+            </div>
+
+            <div className="mt-3 flex gap-2 overflow-hidden">
+              {[1, 2, 3].map((item) => (
+                <div
+                  key={item}
+                  className="h-8 w-20 shrink-0 animate-pulse rounded-full bg-neutral-100"
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <div className="mb-3 flex items-end justify-between">
+              <div>
+                <div className="h-4 w-24 animate-pulse rounded-full bg-neutral-200" />
+                <div className="mt-3 h-7 w-48 animate-pulse rounded-xl bg-neutral-200" />
+              </div>
+              <div className="h-4 w-12 animate-pulse rounded-full bg-neutral-100" />
+            </div>
+
+            <div className="flex gap-3 overflow-hidden">
+              {[1, 2, 3, 4].map((item) => (
+                <div
+                  key={item}
+                  className="h-72 w-52 shrink-0 animate-pulse rounded-[1.75rem] bg-neutral-100"
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => (
+              <div
+                key={item}
+                className="overflow-hidden rounded-[1.35rem] border border-neutral-200 bg-white shadow-sm"
+              >
+                <div className="aspect-[4/5] animate-pulse bg-neutral-100" />
+
+                <div className="p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="h-4 w-24 animate-pulse rounded-full bg-neutral-200" />
+                    <div className="h-4 w-10 animate-pulse rounded-full bg-neutral-100" />
+                  </div>
+
+                  <div className="mt-2 h-3 w-32 animate-pulse rounded-full bg-neutral-100" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -550,10 +670,10 @@ export default function DiscoverPage() {
               Browse
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-5xl">
-              Discover pros
+              Explore services
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-500 sm:text-base">
-              Scroll, search, and tap into profiles when someone catches your eye.
+              Browse top professionals, portfolio work, and bookable services in one place.
             </p>
           </div>
 
@@ -635,11 +755,7 @@ export default function DiscoverPage() {
           </div>
         ) : null}
 
-        {loading ? (
-          <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
-            Loading professionals...
-          </div>
-        ) : filteredCards.length === 0 ? (
+        {filteredCards.length === 0 ? (
           <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
             No professionals matched those filters.
           </div>
@@ -650,10 +766,10 @@ export default function DiscoverPage() {
                 <div className="mb-3 flex items-end justify-between">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-[0.22em] text-neutral-500">
-                      Featured
+                      Spotlight
                     </p>
                     <h2 className="mt-1 text-xl font-semibold tracking-tight">
-                      Active this week
+                      Top professionals
                     </h2>
                   </div>
                   <span className="text-xs text-neutral-400">Swipe</span>

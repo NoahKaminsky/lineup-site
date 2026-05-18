@@ -9,6 +9,7 @@ type Profile = {
   id: string;
   email: string | null;
   email_request_notifications?: boolean | null;
+  email_offer_notifications?: boolean | null;
   full_name: string | null;
   role: string | null;
   professional_type: string | null;
@@ -158,6 +159,7 @@ export default function AccountPage() {
   const [professionalTypes, setProfessionalTypes] = useState<string[]>([]);
   const [newSpecialty, setNewSpecialty] = useState("");
   const [emailRequestNotifications, setEmailRequestNotifications] = useState(true);
+  const [emailOfferNotifications, setEmailOfferNotifications] = useState(true);
 
   const isProfessional = profile?.role === "professional";
 
@@ -199,6 +201,7 @@ export default function AccountPage() {
           : []
       );
       setEmailRequestNotifications(data.email_request_notifications ?? true);
+      setEmailOfferNotifications(data.email_offer_notifications ?? true);
 
       const { data: portfolioData, error: portfolioError } = await supabase
         .from("professional_portfolio")
@@ -842,6 +845,7 @@ export default function AccountPage() {
     setSpecialties(profile.specialties || []);
     setProfessionalTypes(getProfessionalTypes(profile));
     setEmailRequestNotifications(profile.email_request_notifications ?? true);
+    setEmailOfferNotifications(profile.email_offer_notifications ?? true);
     setAvatarFile(null);
     setBannerFile(null);
     setNewSpecialty("");
@@ -873,6 +877,8 @@ export default function AccountPage() {
           : null,
       email_request_notifications:
         profile.role === "professional" ? emailRequestNotifications : false,
+      email_offer_notifications:
+        profile.role === "professional" ? false : emailOfferNotifications,
     };
 
     const { error } = await supabase
@@ -894,9 +900,68 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-6 py-10">
-        <div className="mx-auto max-w-5xl py-16">
-          <p className="text-neutral-500">Loading account...</p>
+      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+        <Navbar />
+
+        <div className="mx-auto max-w-6xl py-8">
+          <div className="max-w-3xl">
+            <div className="h-4 w-28 animate-pulse rounded-full bg-neutral-200" />
+            <div className="mt-5 h-12 w-full max-w-xl animate-pulse rounded-2xl bg-neutral-200 md:h-16" />
+            <div className="mt-5 h-5 w-full max-w-2xl animate-pulse rounded-full bg-neutral-100" />
+            <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
+          </div>
+
+          <div className="mt-8 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
+            <div className="h-56 w-full animate-pulse bg-neutral-100 md:h-72" />
+
+            <div className="relative px-6 pb-6 pt-20 md:px-8 md:pt-24">
+              <div className="absolute -top-16 left-6 h-32 w-32 animate-pulse rounded-full border-4 border-white bg-neutral-100 shadow md:left-8 md:h-40 md:w-40" />
+
+              <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="h-12 w-72 animate-pulse rounded-2xl bg-neutral-200" />
+                  <div className="mt-4 h-5 w-52 animate-pulse rounded-full bg-neutral-100" />
+
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <div className="h-9 w-28 animate-pulse rounded-full bg-neutral-100" />
+                    <div className="h-9 w-36 animate-pulse rounded-full bg-neutral-100" />
+                    <div className="h-9 w-24 animate-pulse rounded-full bg-neutral-100" />
+                  </div>
+                </div>
+
+                <div className="h-11 w-28 animate-pulse rounded-full bg-neutral-100" />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-4">
+            {[1, 2, 3].map((item) => (
+              <div
+                key={item}
+                className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm"
+              >
+                <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                  <div className="flex min-w-0 flex-1 gap-4">
+                    <div className="h-12 w-12 shrink-0 animate-pulse rounded-2xl bg-neutral-100" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex gap-2">
+                        <div className="h-6 w-24 animate-pulse rounded-full bg-neutral-100" />
+                        <div className="h-6 w-28 animate-pulse rounded-full bg-neutral-100" />
+                      </div>
+                      <div className="mt-4 h-7 w-2/3 animate-pulse rounded-xl bg-neutral-200" />
+                      <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-neutral-100" />
+                      <div className="mt-3 h-4 w-3/4 animate-pulse rounded-full bg-neutral-100" />
+                    </div>
+                  </div>
+
+                  <div className="flex w-full flex-col gap-3 md:w-52">
+                    <div className="h-10 animate-pulse rounded-full bg-neutral-100" />
+                    <div className="h-10 animate-pulse rounded-full bg-neutral-100" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </main>
     );
@@ -1084,21 +1149,23 @@ export default function AccountPage() {
                     <p className="mt-3 text-neutral-700">{profile.email}</p>
                   </div>
 
-                  {isProfessional ? (
-                    <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                        Email notifications
-                      </p>
-                      <p className="mt-3 text-neutral-700">
-                        {profile.email_request_notifications === false
+                  <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      Email notifications
+                    </p>
+                    <p className="mt-3 text-neutral-700">
+                      {isProfessional
+                        ? profile.email_request_notifications === false
                           ? "New matching request emails are off."
-                          : "New matching request emails are on."}
-                      </p>
-                      <p className="mt-2 text-sm text-neutral-500">
-                        Booking confirmations and appointment reminders are always sent.
-                      </p>
-                    </div>
-                  ) : null}
+                          : "New matching request emails are on."
+                        : profile.email_offer_notifications === false
+                        ? "New offer emails are off."
+                        : "New offer emails are on."}
+                    </p>
+                    <p className="mt-2 text-sm text-neutral-500">
+                      Booking confirmations and appointment reminders are always sent.
+                    </p>
+                  </div>
 
                   {message ? (
                     <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
@@ -1349,11 +1416,12 @@ export default function AccountPage() {
                     </>
                   ) : null}
 
-                  {isProfessional ? (
-                    <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
-                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                        Email notifications
-                      </p>
+                  <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
+                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      Email notifications
+                    </p>
+
+                    {isProfessional ? (
                       <label className="mt-4 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
                         <input
                           type="checkbox"
@@ -1370,8 +1438,25 @@ export default function AccountPage() {
                           </span>
                         </span>
                       </label>
-                    </div>
-                  ) : null}
+                    ) : (
+                      <label className="mt-4 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
+                        <input
+                          type="checkbox"
+                          checked={emailOfferNotifications}
+                          onChange={(e) => setEmailOfferNotifications(e.target.checked)}
+                          className="mt-1 h-4 w-4 accent-black"
+                        />
+                        <span>
+                          <span className="block text-sm font-semibold text-neutral-900">
+                            Email me when professionals send offers
+                          </span>
+                          <span className="mt-1 block text-sm leading-6 text-neutral-500">
+                            You can turn this off if offer emails get too frequent. Booking confirmations and appointment reminders are always sent.
+                          </span>
+                        </span>
+                      </label>
+                    )}
+                  </div>
 
                   <div className="flex flex-wrap gap-3 pt-2">
                     <button

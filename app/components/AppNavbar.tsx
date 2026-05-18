@@ -119,6 +119,14 @@ function NavbarComponent() {
     router.push("/");
   }
 
+  function handleNavClick() {
+    setAccountMenuOpen(false);
+
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    });
+  }
+
   const role = profile?.role || null;
 
   const isProfessional =
@@ -168,6 +176,7 @@ function NavbarComponent() {
           <Link
             href={hasUser ? "/requests" : "/"}
             prefetch
+            onClick={handleNavClick}
             className="shrink-0 text-2xl font-semibold tracking-tight"
           >
             LineUp
@@ -211,6 +220,7 @@ function NavbarComponent() {
                       <Link
                         href="/account"
                         prefetch
+                        onClick={handleNavClick}
                         className={`block rounded-xl px-3 py-3 text-sm font-medium transition ${
                           isActive("/account")
                             ? "bg-black text-white"
@@ -223,6 +233,7 @@ function NavbarComponent() {
                       <Link
                         href="/work"
                         prefetch
+                        onClick={handleNavClick}
                         className={`mt-1 block rounded-xl px-3 py-3 text-sm font-medium transition ${
                           isActive("/work")
                             ? "bg-black text-white"
@@ -236,6 +247,7 @@ function NavbarComponent() {
                         <Link
                           href="/services"
                           prefetch
+                          onClick={handleNavClick}
                           className={`mt-1 block rounded-xl px-3 py-3 text-sm font-medium transition ${
                             isActive("/services")
                               ? "bg-black text-white"
@@ -279,7 +291,7 @@ function NavbarComponent() {
                   key={item.href}
                   href={item.href}
                   prefetch
-                  scroll={false}
+                  onClick={handleNavClick}
                   className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition-colors duration-150 ${
                     isActive(item.href)
                       ? "border-black bg-black text-white"

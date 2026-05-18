@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   CalendarDays,
@@ -85,6 +85,7 @@ type BookingRow = {
   service_id?: string | null;
   service_name?: string | null;
   duration_minutes?: number | null;
+  service_price?: number | null;
   service_mode?: string | null;
   source?: string | null;
   formatted_address?: string | null;
@@ -98,6 +99,8 @@ type ProfessionalService = {
   professional_id: string;
   service_name: string;
   duration_minutes: number;
+  price: number | null;
+  description: string | null;
   is_active: boolean;
   is_bookable: boolean;
   created_at: string;
@@ -301,6 +304,76 @@ function formatModeLabel(mode: string) {
   return mode.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function formatPrice(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return null;
+
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) return null;
+
+  return new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+    maximumFractionDigits: 0,
+  }).format(numericValue);
+}
+
+function AccordionSection({
+  id,
+  title,
+  subtitle,
+  summary,
+  defaultOpen = false,
+  children,
+}: {
+  id?: string;
+  title: string;
+  subtitle?: string;
+  summary?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <section
+      id={id}
+      className="mt-6 scroll-mt-24 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm"
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between gap-4 px-5 py-5 text-left transition hover:bg-neutral-50 sm:px-6"
+      >
+        <div className="min-w-0">
+          {subtitle ? (
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
+              {subtitle}
+            </p>
+          ) : null}
+
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+            {title}
+          </h2>
+
+          {summary ? (
+            <p className="mt-1 text-sm leading-6 text-neutral-500">{summary}</p>
+          ) : null}
+        </div>
+
+        <span
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-200 text-2xl font-light transition ${
+            open ? "rotate-45 bg-black text-white" : "bg-white text-neutral-900"
+          }`}
+        >
+          +
+        </span>
+      </button>
+
+      {open ? <div className="border-t border-neutral-100 p-5 sm:p-6">{children}</div> : null}
+    </section>
+  );
+}
+
 function getGoogleMapsUrl(lat?: number | null, lng?: number | null, address?: string | null) {
   if (typeof lat === "number" && typeof lng === "number") {
     return `https://www.google.com/maps?q=${lat},${lng}`;
@@ -418,7 +491,7 @@ export default function ProfessionalProfilePage() {
         const { data: servicesData, error: servicesError } = await supabase
           .from("professional_services")
           .select(
-            "id, professional_id, service_name, duration_minutes, is_active, is_bookable, created_at"
+            "id, professional_id, service_name, duration_minutes, price, description, is_active, is_bookable, created_at"
           )
           .eq("professional_id", profileId)
           .eq("is_active", true)
@@ -460,7 +533,7 @@ export default function ProfessionalProfilePage() {
         const { data: bookingsData, error: bookingsError } = await supabase
           .from("bookings")
           .select(
-            "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes, service_mode, source, formatted_address, location_lat, location_lng, location_place_id"
+            "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes, service_price, service_mode, source, formatted_address, location_lat, location_lng, location_place_id"
           )
           .eq("professional_id", profileId)
           .in("status", ["confirmed", "completion_requested", "completed"])
@@ -1009,6 +1082,7 @@ export default function ProfessionalProfilePage() {
         service_id: service.id,
         service_name: service.service_name,
         duration_minutes: service.duration_minutes,
+        service_price: service.price,
       };
 
       console.log("DIRECT BOOKING INSERT PAYLOAD", payload);
@@ -1017,7 +1091,7 @@ export default function ProfessionalProfilePage() {
         .from("bookings")
         .insert(payload)
         .select(
-          "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes, service_mode, source, formatted_address, location_lat, location_lng, location_place_id"
+          "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes, service_price, service_mode, source, formatted_address, location_lat, location_lng, location_place_id"
         )
         .single();
 
@@ -1295,72 +1369,80 @@ export default function ProfessionalProfilePage() {
           </section>
 
           {isProfessional && services.length > 0 ? (
-            <section className="mb-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    Services
-                  </p>
-                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                    What you can book
-                  </h2>
-                </div>
-
-                <div className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                  {services.length} service{services.length === 1 ? "" : "s"}
-                </div>
-              </div>
-
-              <div className="mt-6 grid gap-3">
+            <AccordionSection
+              title="What you can book"
+              subtitle="Services"
+              summary={`${services.length} service${services.length === 1 ? "" : "s"} available`}
+              defaultOpen
+            >
+              <div className="grid gap-3">
                 {services.map((service) => (
                   <div
                     key={service.id}
-                    className="flex flex-col gap-3 rounded-[1.5rem] border border-neutral-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between"
+                    className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-4"
                   >
-                    <div>
-                      <p className="text-lg font-semibold text-neutral-900">
-                        {service.service_name}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-neutral-500">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Clock3 className="h-4 w-4" />
-                          {service.duration_minutes} min
-                        </span>
-                        <span className="inline-flex items-center gap-1.5">
-                          <ShieldCheck className="h-4 w-4" />
-                          {service.is_bookable ? "Bookable" : "Request only"}
-                        </span>
-                      </div>
-                    </div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-lg font-semibold text-neutral-900">
+                            {service.service_name}
+                          </p>
 
-                    {profile.direct_booking_enabled && profile.public_availability_enabled ? (
-                      <a
-                        href="#availability"
-                        className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                      >
-                        View times
-                      </a>
-                    ) : (
-                      <Link
-                        href={`/requests/new?rebook=1&pro=${profile.id}`}
-                        className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                      >
-                        Request service
-                      </Link>
-                    )}
+                          {formatPrice(service.price) ? (
+                            <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-neutral-900 ring-1 ring-neutral-200">
+                              {formatPrice(service.price)}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-neutral-500">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Clock3 className="h-4 w-4" />
+                            {service.duration_minutes} min
+                          </span>
+                          <span className="inline-flex items-center gap-1.5">
+                            <ShieldCheck className="h-4 w-4" />
+                            {service.is_bookable ? "Bookable" : "Request only"}
+                          </span>
+                        </div>
+
+                        {service.description ? (
+                          <p className="mt-3 line-clamp-2 text-sm leading-6 text-neutral-600">
+                            {service.description}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      {profile.direct_booking_enabled && profile.public_availability_enabled ? (
+                        <a
+                          href="#availability"
+                          className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
+                        >
+                          View times
+                        </a>
+                      ) : (
+                        <Link
+                          href={`/requests/new?rebook=1&pro=${profile.id}`}
+                          className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
+                        >
+                          Request service
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
-            </section>
+            </AccordionSection>
           ) : null}
 
-          <div className={`grid gap-8 ${isProfessional ? "lg:grid-cols-[1.15fr_0.85fr]" : ""}`}>
-            <div className="rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <AccordionSection
+              title="About"
+              subtitle="Profile"
+              summary={profile.bio?.trim() ? "Bio, categories, specialties, and Instagram" : "No bio added yet"}
+            >
               <div>
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                  About
-                </p>
-                <p className="mt-4 max-w-3xl text-lg leading-8 text-neutral-600">
+                <p className="max-w-3xl text-base leading-8 text-neutral-600">
                   {profile.bio?.trim() || "No bio added yet."}
                 </p>
               </div>
@@ -1383,9 +1465,7 @@ export default function ProfessionalProfilePage() {
                 </div>
               ) : null}
 
-              {isProfessional &&
-              profile.specialties &&
-              profile.specialties.length > 0 ? (
+              {isProfessional && profile.specialties && profile.specialties.length > 0 ? (
                 <div className="mt-8">
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
                     Specialties
@@ -1418,19 +1498,16 @@ export default function ProfessionalProfilePage() {
                   </a>
                 </div>
               ) : null}
-            </div>
+            </AccordionSection>
 
             {isProfessional ? (
-              <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-neutral-500" />
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    Trust snapshot
-                  </p>
-                </div>
-
-                <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-neutral-200 bg-white p-5">
+              <AccordionSection
+                title="Trust snapshot"
+                subtitle="Trust"
+                summary={`${averageRating || "No"} rating · ${reviews.length} review${reviews.length === 1 ? "" : "s"}`}
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
                     <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
                       Average rating
                     </p>
@@ -1439,7 +1516,7 @@ export default function ProfessionalProfilePage() {
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-neutral-200 bg-white p-5">
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
                     <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
                       Reviews
                     </p>
@@ -1448,7 +1525,7 @@ export default function ProfessionalProfilePage() {
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-neutral-200 bg-white p-5">
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
                     <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
                       Bookable services
                     </p>
@@ -1457,7 +1534,7 @@ export default function ProfessionalProfilePage() {
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-neutral-200 bg-white p-5">
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
                     <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
                       Next opening
                     </p>
@@ -1471,40 +1548,25 @@ export default function ProfessionalProfilePage() {
                   <div className="mt-4">
                     <Link
                       href={`/requests/new?rebook=1&pro=${profile.id}`}
-                      className="inline-flex w-full items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-white"
+                      className="inline-flex w-full items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
                     >
                       {hasBookedBefore ? "Request again" : "Start a request"}
                     </Link>
                   </div>
                 ) : null}
-              </div>
+              </AccordionSection>
             ) : null}
           </div>
 
           {isProfessional &&
           profile.direct_booking_enabled &&
           profile.public_availability_enabled ? (
-            <section
+            <AccordionSection
               id="availability"
-              className="mt-10 scroll-mt-24 overflow-visible rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm sm:p-6 md:p-8"
+              title="Book a time"
+              subtitle="Availability"
+              summary={getNextOpeningText() ? `Next opening: ${getNextOpeningText()}` : "View available times"}
             >
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    Availability
-                  </p>
-                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                    Book a time
-                  </h2>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">
-                    Pick a day first, then choose one of the available times for that day.
-                  </p>
-                </div>
-
-                <div className="w-fit rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                  {slotBlockMinutes} min open blocks
-                </div>
-              </div>
 
               {services.length === 0 ? (
                 <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
@@ -1873,7 +1935,13 @@ export default function ProfessionalProfilePage() {
                                     </p>
                                     <p className="mt-1 text-sm text-neutral-500">
                                       {service.duration_minutes} min
+                                      {formatPrice(service.price) ? ` · ${formatPrice(service.price)}` : ""}
                                     </p>
+                                    {service.description ? (
+                                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-600">
+                                        {service.description}
+                                      </p>
+                                    ) : null}
                                   </button>
                                 ))}
                               </div>
@@ -1891,25 +1959,19 @@ export default function ProfessionalProfilePage() {
                   </div>
                 </div>
               )}
-            </section>
+            </AccordionSection>
           ) : null}
 
           {isProfessional ? (
-            <section className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    Portfolio
-                  </p>
-                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">Past work</h2>
-                </div>
-
-                {portfolioItems.length > 0 ? (
-                  <div className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                    {portfolioItems.length} item{portfolioItems.length === 1 ? "" : "s"}
-                  </div>
-                ) : null}
-              </div>
+            <AccordionSection
+              title="Past work"
+              subtitle="Portfolio"
+              summary={
+                portfolioItems.length > 0
+                  ? `${portfolioItems.length} item${portfolioItems.length === 1 ? "" : "s"}`
+                  : "No portfolio items yet"
+              }
+            >
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {portfolioItems.map((item, index) => (
@@ -1947,25 +2009,19 @@ export default function ProfessionalProfilePage() {
                   </div>
                 ) : null}
               </div>
-            </section>
+            </AccordionSection>
           ) : null}
 
           {isProfessional ? (
-            <section className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-              <div className="flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    Reviews
-                  </p>
-                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">Client feedback</h2>
-                </div>
-
-                {reviews.length > 0 ? (
-                  <div className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
-                    {reviews.length} review{reviews.length === 1 ? "" : "s"}
-                  </div>
-                ) : null}
-              </div>
+            <AccordionSection
+              title="Client feedback"
+              subtitle="Reviews"
+              summary={
+                reviews.length > 0
+                  ? `${reviews.length} review${reviews.length === 1 ? "" : "s"}`
+                  : "No reviews yet"
+              }
+            >
 
               {reviews.length === 0 ? (
                 <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
@@ -2030,7 +2086,7 @@ export default function ProfessionalProfilePage() {
                   ) : null}
                 </>
               )}
-            </section>
+            </AccordionSection>
           ) : null}
         </div>
       </main>
@@ -2058,6 +2114,17 @@ export default function ProfessionalProfilePage() {
                   {pendingBookingChoice.service.service_name}
                 </p>
               </div>
+
+              {formatPrice(pendingBookingChoice.service.price) ? (
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    Price
+                  </p>
+                  <p className="mt-1 font-semibold text-neutral-900">
+                    {formatPrice(pendingBookingChoice.service.price)}
+                  </p>
+                </div>
+              ) : null}
 
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">

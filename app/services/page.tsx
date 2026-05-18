@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Navbar from "../components/AppNavbar";
@@ -34,10 +34,40 @@ type ProfessionalService = {
   professional_id: string;
   service_name: string;
   duration_minutes: number;
+  price: number | null;
+  description: string | null;
   is_active: boolean;
   is_bookable: boolean;
   created_at: string;
 };
+
+type ServiceDraft = {
+  service_name: string;
+  duration_minutes: string;
+  price: string;
+  description: string;
+};
+
+function makeBlankServiceDraft(): ServiceDraft {
+  return {
+    service_name: "",
+    duration_minutes: "45",
+    price: "",
+    description: "",
+  };
+}
+
+function serviceToDraft(service: ProfessionalService): ServiceDraft {
+  return {
+    service_name: service.service_name || "",
+    duration_minutes: String(service.duration_minutes || 45),
+    price:
+      service.price === null || service.price === undefined
+        ? ""
+        : String(service.price),
+    description: service.description || "",
+  };
+}
 
 type ServiceTemplate = {
   name: string;
@@ -145,6 +175,19 @@ function formatTime(time: string) {
   const suffix = hour >= 12 ? "PM" : "AM";
   const twelveHour = hour % 12 || 12;
   return `${twelveHour}:${minute} ${suffix}`;
+}
+
+function formatPrice(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") return "Price not set";
+
+  const numericValue = Number(value);
+  if (Number.isNaN(numericValue)) return "Price not set";
+
+  return new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+    maximumFractionDigits: 0,
+  }).format(numericValue);
 }
 
 function formatModeLabel(mode: string) {
@@ -357,6 +400,59 @@ function LocationAutocomplete({
   );
 }
 
+
+function AccordionSection({
+  title,
+  subtitle,
+  summary,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  summary?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <section className="mt-5 overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="flex w-full items-center justify-between gap-4 px-5 py-5 text-left transition hover:bg-neutral-50 sm:px-6"
+      >
+        <div className="min-w-0">
+          {subtitle ? (
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
+              {subtitle}
+            </p>
+          ) : null}
+
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+            {title}
+          </h2>
+
+          {summary ? (
+            <p className="mt-1 text-sm leading-6 text-neutral-500">{summary}</p>
+          ) : null}
+        </div>
+
+        <span
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-200 text-2xl font-light transition ${
+            open ? "rotate-45 bg-black text-white" : "bg-white text-neutral-900"
+          }`}
+        >
+          +
+        </span>
+      </button>
+
+      {open ? <div className="border-t border-neutral-100 p-5 sm:p-6">{children}</div> : null}
+    </section>
+  );
+}
+
 export default function ServicesPage() {
   const router = useRouter();
 
@@ -379,6 +475,9 @@ export default function ServicesPage() {
 
   const [newServiceName, setNewServiceName] = useState("");
   const [newServiceDuration, setNewServiceDuration] = useState(45);
+  const [newServicePrice, setNewServicePrice] = useState("");
+  const [newServiceDescription, setNewServiceDescription] = useState("");
+  const [serviceDrafts, setServiceDrafts] = useState<Record<string, ServiceDraft>>({});
 
   const normalizedType = normalizeProfessionalType(profile?.professional_type);
   const presetServices = suggestedServiceTemplatesByType[normalizedType] || [];
@@ -468,7 +567,7 @@ export default function ServicesPage() {
       const { data: servicesData, error: servicesError } = await supabase
         .from("professional_services")
         .select(
-          "id, professional_id, service_name, duration_minutes, is_active, is_bookable, created_at"
+          "id, professional_id, service_name, duration_minutes, price, description, is_active, is_bookable, created_at"
         )
         .eq("professional_id", user.id)
         .order("created_at", { ascending: true });
@@ -482,6 +581,18 @@ export default function ServicesPage() {
 
     loadPage();
   }, [router]);
+
+  useEffect(() => {
+    setServiceDrafts((prev) => {
+      const next: Record<string, ServiceDraft> = {};
+
+      services.forEach((service) => {
+        next[service.id] = prev[service.id] || serviceToDraft(service);
+      });
+
+      return next;
+    });
+  }, [services]);
 
   const presetServicesWithExistingState = useMemo(() => {
     return presetServices.map((template) => {
@@ -556,11 +667,13 @@ export default function ServicesPage() {
           professional_id: profile.id,
           service_name: cleanName,
           duration_minutes: newServiceDuration,
+          price: newServicePrice.trim() ? Number(newServicePrice) : null,
+          description: newServiceDescription.trim() || null,
           is_active: true,
           is_bookable: true,
         })
         .select(
-          "id, professional_id, service_name, duration_minutes, is_active, is_bookable, created_at"
+          "id, professional_id, service_name, duration_minutes, price, description, is_active, is_bookable, created_at"
         )
         .single();
 
@@ -572,6 +685,8 @@ export default function ServicesPage() {
       if (data) setServices((prev) => [...prev, data as ProfessionalService]);
       setNewServiceName("");
       setNewServiceDuration(45);
+      setNewServicePrice("");
+      setNewServiceDescription("");
       setMessage("Service added.");
     } catch (error) {
       console.error(error);
@@ -603,11 +718,13 @@ export default function ServicesPage() {
           professional_id: profile.id,
           service_name: template.name,
           duration_minutes: template.duration,
+          price: null,
+          description: null,
           is_active: true,
           is_bookable: true,
         })
         .select(
-          "id, professional_id, service_name, duration_minutes, is_active, is_bookable, created_at"
+          "id, professional_id, service_name, duration_minutes, price, description, is_active, is_bookable, created_at"
         )
         .single();
 
@@ -623,6 +740,82 @@ export default function ServicesPage() {
       setMessage("Something went wrong adding that preset service.");
     } finally {
       setServiceSaving(false);
+    }
+  }
+
+  function updateServiceDraft(
+    serviceId: string,
+    field: keyof ServiceDraft,
+    value: string
+  ) {
+    setServiceDrafts((prev) => ({
+      ...prev,
+      [serviceId]: {
+        ...makeBlankServiceDraft(),
+        ...(prev[serviceId] || {}),
+        [field]: value,
+      },
+    }));
+  }
+
+  async function handleUpdateService(serviceId: string) {
+    const draft = serviceDrafts[serviceId];
+
+    if (!draft) return;
+
+    const cleanName = draft.service_name.trim();
+    const duration = Number(draft.duration_minutes);
+    const price = draft.price.trim() ? Number(draft.price) : null;
+
+    if (!cleanName) {
+      setMessage("Service name cannot be empty.");
+      return;
+    }
+
+    if (!Number.isFinite(duration) || duration <= 0) {
+      setMessage("Service duration must be valid.");
+      return;
+    }
+
+    if (price !== null && (!Number.isFinite(price) || price < 0)) {
+      setMessage("Service price must be valid.");
+      return;
+    }
+
+    try {
+      setMessage("");
+
+      const { data, error } = await supabase
+        .from("professional_services")
+        .update({
+          service_name: cleanName,
+          duration_minutes: duration,
+          price,
+          description: draft.description.trim() || null,
+        })
+        .eq("id", serviceId)
+        .select(
+          "id, professional_id, service_name, duration_minutes, price, description, is_active, is_bookable, created_at"
+        )
+        .single();
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      if (data) {
+        setServices((prev) =>
+          prev.map((service) =>
+            service.id === serviceId ? (data as ProfessionalService) : service
+          )
+        );
+      }
+
+      setMessage("Service updated.");
+    } catch (error) {
+      console.error(error);
+      setMessage("Something went wrong updating this service.");
     }
   }
 
@@ -816,10 +1009,10 @@ export default function ServicesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+    <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 sm:py-10">
       <Navbar />
 
-      <div className="mx-auto max-w-6xl py-10">
+      <div className="mx-auto max-w-6xl py-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
@@ -828,7 +1021,19 @@ export default function ServicesPage() {
             <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
               Manage your bookable setup
             </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">
+              Keep your services, location, booking settings, and weekly availability organized in one place.
+            </p>
           </div>
+
+          <button
+            type="button"
+            onClick={handleSaveSettings}
+            disabled={saving}
+            className="w-full rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60 sm:w-auto"
+          >
+            {saving ? "Saving..." : "Save changes"}
+          </button>
         </div>
 
         {message ? (
@@ -837,43 +1042,161 @@ export default function ServicesPage() {
           </div>
         ) : null}
 
-        {presetServices.length > 0 ? (
-          <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-              Quick add
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-              Common services
-            </h2>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              {presetServicesWithExistingState.map((template) => (
-                <button
-                  key={template.name}
-                  type="button"
-                  disabled={serviceSaving || template.exists}
-                  onClick={() => handleAddPresetService(template)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                    template.exists
-                      ? "cursor-not-allowed border border-neutral-200 bg-white text-neutral-400"
-                      : "border border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
-                  }`}
-                >
-                  {template.exists
-                    ? `${template.name} added`
-                    : `${template.name} • ${template.duration} min`}
-                </button>
-              ))}
+        <AccordionSection
+          title="Services offered"
+          subtitle="Services"
+          summary={`${services.length} service${services.length === 1 ? "" : "s"} added`}
+          defaultOpen
+        >
+          {services.length === 0 ? (
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
+              No services added yet.
             </div>
-          </div>
-        ) : null}
+          ) : (
+            <div className="grid gap-4">
+              {services.map((service) => {
+                const draft = serviceDrafts[service.id] || serviceToDraft(service);
 
-        <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-            Add service
-          </p>
+                return (
+                  <div
+                    key={service.id}
+                    className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-base font-semibold text-neutral-900">
+                          {service.service_name}
+                        </p>
+                        <p className="mt-1 text-sm text-neutral-500">
+                          {service.duration_minutes} minutes · {formatPrice(service.price)}
+                        </p>
+                        {service.description ? (
+                          <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-600">
+                            {service.description}
+                          </p>
+                        ) : null}
+                      </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-[1.4fr_0.8fr_auto]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleBookable(service.id, !service.is_bookable)}
+                          className={`rounded-full px-4 py-2 text-xs font-medium transition ${
+                            service.is_bookable
+                              ? "bg-black text-white hover:opacity-90"
+                              : "border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+                          }`}
+                        >
+                          {service.is_bookable ? "Bookable" : "Hidden"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteService(service.id)}
+                          className="rounded-full border border-red-200 bg-white px-4 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4">
+                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
+                        Edit details
+                      </p>
+
+                      <div className="mt-4 grid gap-4 md:grid-cols-[1.25fr_0.65fr_0.65fr_auto]">
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-neutral-700">
+                            Service name
+                          </label>
+                          <input
+                            type="text"
+                            value={draft.service_name}
+                            onChange={(e) =>
+                              updateServiceDraft(service.id, "service_name", e.target.value)
+                            }
+                            className="w-full rounded-2xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-neutral-700">
+                            Duration
+                          </label>
+                          <select
+                            value={draft.duration_minutes}
+                            onChange={(e) =>
+                              updateServiceDraft(service.id, "duration_minutes", e.target.value)
+                            }
+                            className="w-full rounded-2xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                          >
+                            {[15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150, 180].map(
+                              (minutes) => (
+                                <option key={minutes} value={minutes}>
+                                  {minutes} min
+                                </option>
+                              )
+                            )}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-sm font-medium text-neutral-700">
+                            Price
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={draft.price}
+                            onChange={(e) =>
+                              updateServiceDraft(service.id, "price", e.target.value)
+                            }
+                            placeholder="50"
+                            className="w-full rounded-2xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                          />
+                        </div>
+
+                        <div className="flex items-end">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateService(service.id)}
+                            className="w-full rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <label className="mb-2 block text-sm font-medium text-neutral-700">
+                          Description
+                        </label>
+                        <textarea
+                          value={draft.description}
+                          onChange={(e) =>
+                            updateServiceDraft(service.id, "description", e.target.value)
+                          }
+                          placeholder="Optional short description shown on your public profile."
+                          rows={3}
+                          className="w-full rounded-2xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </AccordionSection>
+
+        <AccordionSection
+          title="Add a custom service"
+          subtitle="Add service"
+          summary="Create a new bookable service with duration and price"
+        >
+          <div className="grid gap-4 md:grid-cols-[1.2fr_0.55fr_0.55fr_auto]">
             <div>
               <label className="mb-2 block text-sm font-medium text-neutral-700">
                 Service name
@@ -897,9 +1220,26 @@ export default function ServicesPage() {
                 className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
               >
                 {[15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150, 180].map((minutes) => (
-                  <option key={minutes} value={minutes}>{minutes} min</option>
+                  <option key={minutes} value={minutes}>
+                    {minutes} min
+                  </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-neutral-700">
+                Price
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={newServicePrice}
+                onChange={(e) => setNewServicePrice(e.target.value)}
+                placeholder="50"
+                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+              />
             </div>
 
             <div className="flex items-end">
@@ -913,65 +1253,61 @@ export default function ServicesPage() {
               </button>
             </div>
           </div>
-        </div>
 
-        <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-            Services
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-            Services offered
-          </h2>
+          <div className="mt-4">
+            <label className="mb-2 block text-sm font-medium text-neutral-700">
+              Description
+            </label>
+            <textarea
+              value={newServiceDescription}
+              onChange={(e) => setNewServiceDescription(e.target.value)}
+              placeholder="Optional short description shown on your public profile."
+              rows={3}
+              className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+            />
+          </div>
+        </AccordionSection>
 
-          {services.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
-              No services added yet.
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {services.map((service) => (
-                <div key={service.id} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-lg font-semibold text-neutral-900">{service.service_name}</p>
-                      <p className="mt-1 text-sm text-neutral-500">{service.duration_minutes} minutes</p>
-                    </div>
-                    <button type="button" onClick={() => handleDeleteService(service.id)} className="text-sm font-medium text-red-600 transition hover:text-red-700">
-                      Delete
-                    </button>
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-4 py-3">
-                    <div>
-                      <p className="text-sm font-medium text-neutral-900">Bookable on profile</p>
-                      <p className="mt-1 text-xs text-neutral-500">Controls whether customers can select this service after clicking an open time.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleToggleBookable(service.id, !service.is_bookable)}
-                      className={`rounded-full px-4 py-2 text-xs font-medium transition ${
-                        service.is_bookable
-                          ? "bg-black text-white hover:opacity-90"
-                          : "border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
-                      }`}
-                    >
-                      {service.is_bookable ? "Bookable" : "Hidden"}
-                    </button>
-                  </div>
-                </div>
+        {presetServices.length > 0 ? (
+          <AccordionSection
+            title="Common services"
+            subtitle="Quick add"
+            summary="Add popular services for your category"
+          >
+            <div className="flex flex-wrap gap-3">
+              {presetServicesWithExistingState.map((template) => (
+                <button
+                  key={template.name}
+                  type="button"
+                  disabled={serviceSaving || template.exists}
+                  onClick={() => handleAddPresetService(template)}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    template.exists
+                      ? "cursor-not-allowed border border-neutral-200 bg-white text-neutral-400"
+                      : "border border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
+                  }`}
+                >
+                  {template.exists
+                    ? `${template.name} added`
+                    : `${template.name} • ${template.duration} min`}
+                </button>
               ))}
             </div>
-          )}
-        </div>
+          </AccordionSection>
+        ) : null}
 
-        <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-            Business location
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-            Shop or studio address
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">
+        <AccordionSection
+          title="Shop or studio address"
+          subtitle="Business location"
+          summary={
+            displayedBusinessAddress
+              ? displayedBusinessAddress.primary
+              : needsBusinessLocation
+              ? "Required for in-shop or home studio bookings"
+              : "Optional unless you offer location-based bookings"
+          }
+        >
+          <p className="max-w-2xl text-sm leading-6 text-neutral-500">
             This is used for in-shop and home studio bookings. Customers should only see the exact address after a booking is confirmed.
           </p>
 
@@ -983,8 +1319,6 @@ export default function ServicesPage() {
               onInputChange={(value) => {
                 setLocation(value);
 
-                // Only clear the saved Google selection when the professional manually types.
-                // Selecting a Google suggestion runs onSelect below and should stay locked.
                 if (value !== location) {
                   setLocationLat(null);
                   setLocationLng(null);
@@ -992,7 +1326,9 @@ export default function ServicesPage() {
                 }
 
                 if (value.trim()) {
-                  setMessage("Address updated. Select a Google suggestion for map previews and distance accuracy, or save as typed.");
+                  setMessage(
+                    "Address updated. Select a Google suggestion for map previews and distance accuracy, or save as typed."
+                  );
                 }
               }}
               onSelect={(selected) => {
@@ -1060,15 +1396,21 @@ export default function ServicesPage() {
               Optional unless you offer in-shop or home studio services.
             </p>
           )}
-        </div>
+        </AccordionSection>
 
-        <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-            Service modes
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
+        <AccordionSection
+          title="Service modes"
+          subtitle="Where you work"
+          summary={
+            serviceModes.length > 0
+              ? serviceModes.map(formatModeLabel).join(" • ")
+              : "Choose how customers can book you"
+          }
+        >
+          <div className="flex flex-wrap gap-3">
             {modeOptions.map((mode) => {
               const selected = serviceModes.includes(mode);
+
               return (
                 <button
                   key={mode}
@@ -1085,66 +1427,93 @@ export default function ServicesPage() {
               );
             })}
           </div>
-        </div>
+        </AccordionSection>
 
-        <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-            Booking settings
-          </p>
-
-          <div className="mt-6 space-y-4">
+        <AccordionSection
+          title="Booking settings"
+          subtitle="Direct booking"
+          summary={
+            directBookingEnabled && publicAvailabilityEnabled
+              ? "Instant booking is enabled"
+              : "Control direct booking and public availability"
+          }
+        >
+          <div className="space-y-4">
             <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4">
               <div className="pr-4">
                 <p className="text-sm font-medium text-neutral-900">Allow instant booking</p>
-                <p className="mt-1 text-sm text-neutral-500">Customers can book from open times on your profile.</p>
+                <p className="mt-1 text-sm text-neutral-500">
+                  Customers can book from open times on your profile.
+                </p>
               </div>
-              <input type="checkbox" checked={directBookingEnabled} onChange={(e) => setDirectBookingEnabled(e.target.checked)} className="h-5 w-5 accent-black" />
+              <input
+                type="checkbox"
+                checked={directBookingEnabled}
+                onChange={(e) => setDirectBookingEnabled(e.target.checked)}
+                className="h-5 w-5 accent-black"
+              />
             </label>
 
             <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4">
               <div className="pr-4">
                 <p className="text-sm font-medium text-neutral-900">Show availability publicly</p>
-                <p className="mt-1 text-sm text-neutral-500">Display your open times on your public profile.</p>
+                <p className="mt-1 text-sm text-neutral-500">
+                  Display your open times on your public profile.
+                </p>
               </div>
-              <input type="checkbox" checked={publicAvailabilityEnabled} onChange={(e) => setPublicAvailabilityEnabled(e.target.checked)} className="h-5 w-5 accent-black" />
+              <input
+                type="checkbox"
+                checked={publicAvailabilityEnabled}
+                onChange={(e) => setPublicAvailabilityEnabled(e.target.checked)}
+                className="h-5 w-5 accent-black"
+              />
             </label>
 
             <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-              <label className="mb-2 block text-sm font-medium text-neutral-900">Default slot length shown on profile</label>
+              <label className="mb-2 block text-sm font-medium text-neutral-900">
+                Default slot length shown on profile
+              </label>
               <select
                 value={defaultAppointmentDuration}
                 onChange={(e) => setDefaultAppointmentDuration(Number(e.target.value))}
                 className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
               >
                 {[30, 45, 60, 75, 90, 120].map((minutes) => (
-                  <option key={minutes} value={minutes}>{minutes} minutes</option>
+                  <option key={minutes} value={minutes}>
+                    {minutes} minutes
+                  </option>
                 ))}
               </select>
             </div>
           </div>
-        </div>
+        </AccordionSection>
 
-        <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">Weekly availability</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight">Set your open windows</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">
-                Add multiple windows per day if your schedule is split up. For example, Monday 9–12 and Monday 3–6.
-              </p>
-            </div>
-          </div>
+        <AccordionSection
+          title="Set your open windows"
+          subtitle="Weekly availability"
+          summary={`${availabilityWindows.length} saved availability window${
+            availabilityWindows.length === 1 ? "" : "s"
+          }`}
+        >
+          <p className="max-w-2xl text-sm leading-6 text-neutral-500">
+            Add multiple windows per day if your schedule is split up. For example, Monday 9–12 and Monday 3–6.
+          </p>
 
           <div className="mt-6 space-y-4">
             {groupedAvailability.map((group) => (
-              <div key={group.dayIndex} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+              <div
+                key={group.dayIndex}
+                className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+              >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-[140px]">
                     <p className="text-base font-semibold text-neutral-900">{group.day}</p>
                     <p className="mt-1 text-sm text-neutral-500">
                       {group.windows.length === 0
                         ? "Closed"
-                        : `${group.windows.length} open ${group.windows.length === 1 ? "window" : "windows"}`}
+                        : `${group.windows.length} open ${
+                            group.windows.length === 1 ? "window" : "windows"
+                          }`}
                     </p>
                   </div>
 
@@ -1155,23 +1524,42 @@ export default function ServicesPage() {
                       </div>
                     ) : (
                       group.windows.map((window) => (
-                        <div key={window.local_id} className="rounded-2xl border border-neutral-200 bg-white p-4">
+                        <div
+                          key={window.local_id}
+                          className="rounded-2xl border border-neutral-200 bg-white p-4"
+                        >
                           <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
                             <div>
-                              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-500">Start</label>
+                              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-500">
+                                Start
+                              </label>
                               <input
                                 type="time"
                                 value={window.start_time}
-                                onChange={(e) => updateAvailabilityWindow(window.local_id, "start_time", e.target.value)}
+                                onChange={(e) =>
+                                  updateAvailabilityWindow(
+                                    window.local_id,
+                                    "start_time",
+                                    e.target.value
+                                  )
+                                }
                                 className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
                               />
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-500">End</label>
+                              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-500">
+                                End
+                              </label>
                               <input
                                 type="time"
                                 value={window.end_time}
-                                onChange={(e) => updateAvailabilityWindow(window.local_id, "end_time", e.target.value)}
+                                onChange={(e) =>
+                                  updateAvailabilityWindow(
+                                    window.local_id,
+                                    "end_time",
+                                    e.target.value
+                                  )
+                                }
                                 className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
                               />
                             </div>
@@ -1202,23 +1590,24 @@ export default function ServicesPage() {
               </div>
             ))}
           </div>
+        </AccordionSection>
 
-          <div className="mt-8">
-            <button
-              type="button"
-              onClick={handleSaveSettings}
-              disabled={saving}
-              className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-            >
-              {saving ? "Saving..." : "Save services & availability"}
-            </button>
-
-            {message ? (
-              <p className="mt-3 max-w-2xl rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-                {message}
-              </p>
-            ) : null}
+        <div className="mt-8 flex flex-col gap-3 rounded-[1.75rem] border border-neutral-200 bg-neutral-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-neutral-900">Ready to save?</p>
+            <p className="mt-1 text-sm text-neutral-500">
+              Save after changing services, location, booking settings, or weekly availability.
+            </p>
           </div>
+
+          <button
+            type="button"
+            onClick={handleSaveSettings}
+            disabled={saving}
+            className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+          >
+            {saving ? "Saving..." : "Save services & availability"}
+          </button>
         </div>
       </div>
     </main>

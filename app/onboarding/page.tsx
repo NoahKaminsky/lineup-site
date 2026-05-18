@@ -53,7 +53,7 @@ export default function OnboardingPage() {
           `
         )
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
       if (!error && profile) {
         const savedProfessionalTypes =
@@ -66,6 +66,8 @@ export default function OnboardingPage() {
         const hasCompletedProfile =
           !!profile.full_name &&
           !!profile.role &&
+          !!profile.terms_accepted &&
+          !!profile.privacy_accepted &&
           (profile.role !== "professional" || savedProfessionalTypes.length > 0);
 
         if (hasCompletedProfile) {
@@ -74,8 +76,8 @@ export default function OnboardingPage() {
         }
 
         setName(profile.full_name || "");
-        setRole(profile.role || "");
-        setProfessionalTypes(savedProfessionalTypes);
+        setRole("");
+        setProfessionalTypes([]);
         setAcceptedTerms(!!profile.terms_accepted);
         setAcceptedPrivacy(!!profile.privacy_accepted);
         setMarketingConsent(!!profile.marketing_consent);
@@ -151,9 +153,7 @@ export default function OnboardingPage() {
         email: user.email,
         full_name: name.trim(),
         role,
-        // Keep old field populated so existing pages that still read professional_type do not break.
         professional_type: primaryProfessionalType,
-        // New multi-select field. Add this column in Supabase if you have not yet.
         professional_types: role === "professional" ? professionalTypes : [],
         terms_accepted: acceptedTerms,
         terms_accepted_at: acceptedTerms ? now : null,
