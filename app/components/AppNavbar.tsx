@@ -201,10 +201,30 @@ function NavbarComponent() {
     }
 
     return [
-      { href: "/requests", label: "Dashboard", shortLabel: "Home", icon: "dashboard" },
-      { href: "/work", label: "My Services", shortLabel: "Work", icon: "work" },
-      { href: "/discover", label: "Browse", shortLabel: "Browse", icon: "browse" },
-      { href: "/account", label: "Account", shortLabel: "You", icon: "account" },
+      {
+        href: "/requests",
+        label: "Dashboard",
+        shortLabel: "Home",
+        icon: "dashboard",
+      },
+      {
+        href: "/work",
+        label: "Activity",
+        shortLabel: "Activity",
+        icon: "calendar",
+      },
+      {
+        href: "/discover",
+        label: "Browse",
+        shortLabel: "Browse",
+        icon: "browse",
+      },
+      {
+        href: "/account",
+        label: "Account",
+        shortLabel: "You",
+        icon: "account",
+      },
     ];
   }, [loading, hasUser, profile, isProfessional]);
 
@@ -294,7 +314,7 @@ function NavbarComponent() {
                               : "text-neutral-900 hover:bg-neutral-50"
                           }`}
                         >
-                          {isProfessional ? "Work" : "My Services"}
+                          {isProfessional ? "Work" : "Activity"}
                         </Link>
 
                         {isProfessional ? (
