@@ -209,8 +209,8 @@ function NavbarComponent() {
       },
       {
         href: "/work",
-        label: "Activity",
-        shortLabel: "Activity",
+        label: "Bookings",
+        shortLabel: "Bookings",
         icon: "calendar",
       },
       {
@@ -314,7 +314,7 @@ function NavbarComponent() {
                               : "text-neutral-900 hover:bg-neutral-50"
                           }`}
                         >
-                          {isProfessional ? "Work" : "Activity"}
+                          {isProfessional ? "Work" : "Bookings"}
                         </Link>
 
                         {isProfessional ? (
