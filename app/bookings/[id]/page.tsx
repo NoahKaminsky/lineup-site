@@ -15,6 +15,7 @@ type BookingStatus =
 
 type BookingRow = {
   id: string;
+  request_id?: string | null;
   professional_id: string;
   customer_id: string;
   booking_date: string;
@@ -285,7 +286,7 @@ export default function BookingDetailPage() {
         const { data: bookingData, error: bookingError } = await supabase
           .from("bookings")
           .select(
-            "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
+            "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
           )
           .eq("id", bookingId)
           .single();
@@ -351,6 +352,19 @@ export default function BookingDetailPage() {
   const isViewerCustomer = !!booking && viewerId === booking.customer_id;
   const isViewerProfessional = !!booking && viewerId === booking.professional_id;
   const viewerIsCustomerRole = isCustomerRole(viewerRole);
+
+  function scrollToBookingChat() {
+    requestAnimationFrame(() => {
+      const chatSection = document.getElementById("booking-chat");
+
+      if (chatSection) {
+        chatSection.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+    });
+  }
 
   async function handleConfirmCompletion() {
     if (!booking || !isViewerCustomer || booking.status !== "completion_requested") {
@@ -475,6 +489,16 @@ export default function BookingDetailPage() {
         return;
       }
 
+      if (booking.request_id) {
+        await supabase
+          .from("service_requests")
+          .update({
+            status: "cancelled",
+          })
+          .eq("id", booking.request_id)
+          .eq("client_id", booking.customer_id);
+      }
+
       setBooking((prev) =>
         prev
           ? {
@@ -486,7 +510,7 @@ export default function BookingDetailPage() {
           : prev
       );
 
-      setMessage("Booking cancelled.");
+      setMessage("Booking cancelled. It will no longer appear in active dashboards.");
     } catch (error) {
       console.error(error);
       setMessage("Something went wrong cancelling this booking.");
@@ -785,23 +809,60 @@ export default function BookingDetailPage() {
                   View client
                 </Link>
               ) : null}
+
+              {booking.status === "confirmed" || booking.status === "completion_requested" ? (
+                <button
+                  type="button"
+                  onClick={scrollToBookingChat}
+                  className="inline-flex rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                >
+                  {isViewerCustomer ? "Message professional" : "Message client"}
+                </button>
+              ) : null}
             </div>
           </div>
 
-          <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-            <div>
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                Chat
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-                Booking conversation
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-neutral-500">
-                Keep messages about this appointment here so the details stay attached to the booking.
-              </p>
+          <div
+            id="booking-chat"
+            className="mt-10 scroll-mt-28 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                  Messaging
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+                  {isViewerCustomer ? "Message professional" : "Message client"}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-neutral-500">
+                  Keep arrival details, prep notes, timing changes, and questions attached to this booking.
+                </p>
+              </div>
+
+              {booking.status === "confirmed" || booking.status === "completion_requested" ? (
+                <span className="w-fit rounded-full bg-black px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
+                  Active chat
+                </span>
+              ) : booking.status === "cancelled" ? (
+                <span className="w-fit rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-red-700">
+                  Cancelled
+                </span>
+              ) : (
+                <span className="w-fit rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                  {formatStatus(booking.status)}
+                </span>
+              )}
             </div>
 
-            <BookingChat bookingId={booking.id} viewerId={viewerId} />
+            <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600">
+              {isViewerCustomer
+                ? "Use this chat to message the professional after your booking is confirmed."
+                : "Use this chat to message the client after the booking is confirmed."}
+            </div>
+
+            <div className="mt-6">
+              <BookingChat bookingId={booking.id} viewerId={viewerId} />
+            </div>
           </div>
         </div>
       </div>

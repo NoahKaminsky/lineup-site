@@ -125,6 +125,8 @@ export default function RequestDetailPage() {
   const [newChatMessage, setNewChatMessage] = useState("");
   const [sendingChatMessage, setSendingChatMessage] = useState(false);
 
+  const [showBookingSuccessModal, setShowBookingSuccessModal] = useState(false);
+
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -1001,7 +1003,8 @@ export default function RequestDetailPage() {
     );
 
     setAcceptingOfferId(null);
-    setMessage("Offer accepted.");
+    setShowBookingSuccessModal(true);
+    setMessage("");
   }
 
   async function handleDeclineOffer(offerId: string) {
@@ -1936,7 +1939,10 @@ export default function RequestDetailPage() {
                 </section>
               ) : null}
 
-              <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+              <section
+                id="request-chat"
+                className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm"
+              >
                 <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
                   Chat
                 </p>
@@ -2295,6 +2301,86 @@ export default function RequestDetailPage() {
           </div>
         </div>
       ) : null}
+      {showBookingSuccessModal ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-6">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-7 shadow-2xl">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black text-white">
+              <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none">
+                <path
+                  d="M5 13l4 4L19 7"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+
+            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-neutral-900">
+              Booking confirmed
+            </h2>
+
+            <p className="mt-3 text-sm leading-7 text-neutral-600">
+              Your booking has been confirmed successfully.
+              You can now message the professional directly to coordinate
+              arrival details, preparation, timing, or questions.
+            </p>
+
+            {acceptedOffer ? (
+              <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <p className="text-sm font-semibold text-neutral-900">
+                  {acceptedOffer.professional_name || "Professional"}
+                </p>
+
+                <p className="mt-1 text-sm text-neutral-500">
+                  {acceptedOffer.proposed_price || "Price not provided"}
+                </p>
+
+                {getOfferTimingSummary(acceptedOffer) ? (
+                  <p className="mt-2 text-sm text-neutral-600">
+                    {getOfferTimingSummary(acceptedOffer)}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="mt-7 flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBookingSuccessModal(false);
+
+                  requestAnimationFrame(() => {
+                    const chatSection = document.getElementById("request-chat");
+
+                    if (chatSection) {
+                      chatSection.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }
+                  });
+                }}
+                className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+              >
+                Message professional
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBookingSuccessModal(false);
+                  router.push("/work");
+                }}
+                className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+              >
+                View bookings
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
     </>
   );
 }
