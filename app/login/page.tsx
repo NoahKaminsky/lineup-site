@@ -8,14 +8,13 @@ import { supabase } from "../../lib/supabaseClient";
 type AuthMode = "signin" | "signup" | "forgot";
 
 function getSiteUrl() {
+  // Use current origin so local dev emails point to localhost, production emails point to production
+  if (typeof window !== "undefined") return window.location.origin;
   return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 }
 
 function getAuthCallbackUrl(nextPath?: string) {
-  const nextQuery = nextPath
-    ? `?next=${encodeURIComponent(nextPath)}`
-    : "";
-
+  const nextQuery = nextPath ? `?next=${encodeURIComponent(nextPath)}` : "";
   return `${getSiteUrl()}/auth/callback${nextQuery}`;
 }
 
@@ -26,9 +25,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<AuthMode>("signin");
   const [message, setMessage] = useState("");
-  const [messageTone, setMessageTone] = useState<
-    "error" | "success"
-  >("error");
+  const [messageTone, setMessageTone] = useState<"error" | "success">("error");
   const [loading, setLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [resending, setResending] = useState(false);
@@ -39,9 +36,19 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
 
-    if (params.get("reset") === "1") {
-      setMessage("Your password was updated. You can sign in now.");
+    if (params.get("mode") === "signup") {
+      setMode("signup");
+    }
+
+    if (params.get("confirmed") === "1") {
       setMessageTone("success");
+      setMessage("Email confirmed successfully. Sign in to continue setup.");
+      setMode("signin");
+    }
+
+    if (params.get("reset") === "1") {
+      setMessageTone("success");
+      setMessage("Your password was updated. You can sign in now.");
       setMode("signin");
     }
   }, []);
@@ -78,7 +85,7 @@ export default function LoginPage() {
         !!profile?.professional_type ||
         professionalTypes.length > 0);
 
-    router.push(hasCompletedProfile ? "/account" : "/onboarding");
+    router.push(hasCompletedProfile ? "/requests" : "/onboarding");
   }
 
   async function handleResendConfirmation() {
@@ -96,7 +103,7 @@ export default function LoginPage() {
         type: "signup",
         email,
         options: {
-          emailRedirectTo: getAuthCallbackUrl("/onboarding"),
+          emailRedirectTo: getAuthCallbackUrl("/login?confirmed=1"),
         },
       });
 
@@ -113,9 +120,7 @@ export default function LoginPage() {
     }
   }
 
-  async function handleAuth(
-    e: React.FormEvent<HTMLFormElement>
-  ) {
+  async function handleAuth(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     setMessage("");
@@ -124,11 +129,9 @@ export default function LoginPage() {
 
     try {
       if (isForgot) {
-        const { error } =
-          await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo:
-              getAuthCallbackUrl("/reset-password"),
-          });
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: getAuthCallbackUrl("/reset-password"),
+        });
 
         if (error) {
           setMessageTone("error");
@@ -137,10 +140,7 @@ export default function LoginPage() {
         }
 
         setMessageTone("success");
-        setMessage(
-          "Check your email for a password reset link."
-        );
-
+        setMessage("Check your email for a password reset link.");
         return;
       }
 
@@ -149,8 +149,7 @@ export default function LoginPage() {
           email,
           password,
           options: {
-            emailRedirectTo:
-              getAuthCallbackUrl("/onboarding"),
+            emailRedirectTo: getAuthCallbackUrl("/login?confirmed=1"),
           },
         });
 
@@ -161,23 +160,17 @@ export default function LoginPage() {
         }
 
         setMessageTone("success");
-
-        setMessage(
-          "Check your email to confirm your LineUp account."
-        );
-
+        setMessage("Check your email to confirm your LineUp account.");
         setShowConfirmModal(true);
         setMode("signin");
         setPassword("");
-
         return;
       }
 
-      const { error } =
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
       if (error) {
         setMessageTone("error");
@@ -204,10 +197,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
       <div className="mx-auto flex max-w-6xl items-center justify-between border-b border-neutral-200 pb-6">
-        <Link
-          href="/"
-          className="text-2xl font-semibold tracking-tight"
-        >
+        <Link href="/" className="text-2xl font-semibold tracking-tight">
           LineUp
         </Link>
 
@@ -222,11 +212,7 @@ export default function LoginPage() {
       <div className="mx-auto grid max-w-6xl gap-10 py-16 md:grid-cols-2 md:items-center">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-            {isForgot
-              ? "Reset password"
-              : isSignup
-              ? "Create account"
-              : "Sign in"}
+            {isForgot ? "Reset password" : isSignup ? "Create account" : "Sign in"}
           </p>
 
           <h1 className="mt-4 max-w-xl text-5xl font-semibold tracking-tight md:text-6xl">
@@ -241,16 +227,13 @@ export default function LoginPage() {
             {isForgot
               ? "Enter your email and we’ll send you a secure password reset link."
               : isSignup
-              ? "Create an account, confirm your email, then finish account setup."
+              ? "Create an account, confirm your email, then sign in to finish setup."
               : "Access your LineUp account with your email and password."}
           </p>
         </div>
 
         <div className="rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-          <form
-            onSubmit={handleAuth}
-            className="space-y-4"
-          >
+          <form onSubmit={handleAuth} className="space-y-4">
             <div>
               <label className="mb-2 block text-sm font-medium text-neutral-700">
                 Email
@@ -260,11 +243,9 @@ export default function LoginPage() {
                 type="email"
                 required
                 value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
-                }
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
-                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
               />
             </div>
 
@@ -279,15 +260,9 @@ export default function LoginPage() {
                   required
                   minLength={6}
                   value={password}
-                  onChange={(e) =>
-                    setPassword(e.target.value)
-                  }
-                  placeholder={
-                    isSignup
-                      ? "Create a password"
-                      : "Enter your password"
-                  }
-                  className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={isSignup ? "Create a password" : "Enter your password"}
+                  className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
                 />
               </div>
             ) : null}
@@ -295,7 +270,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-2xl bg-black py-3 text-white transition hover:opacity-90 disabled:opacity-60"
+              className="w-full rounded-full bg-black py-3 text-white transition hover:opacity-90 disabled:opacity-60"
             >
               {loading
                 ? "Loading..."
@@ -309,11 +284,7 @@ export default function LoginPage() {
             {!isForgot ? (
               <button
                 type="button"
-                onClick={() =>
-                  switchMode(
-                    isSignup ? "signin" : "signup"
-                  )
-                }
+                onClick={() => switchMode(isSignup ? "signin" : "signup")}
                 className="w-full text-sm font-medium text-neutral-600 underline underline-offset-4"
               >
                 {isSignup
@@ -325,16 +296,10 @@ export default function LoginPage() {
             {!isSignup ? (
               <button
                 type="button"
-                onClick={() =>
-                  switchMode(
-                    isForgot ? "signin" : "forgot"
-                  )
-                }
+                onClick={() => switchMode(isForgot ? "signin" : "forgot")}
                 className="w-full text-sm font-medium text-neutral-600 underline underline-offset-4"
               >
-                {isForgot
-                  ? "Back to sign in"
-                  : "Forgot password?"}
+                {isForgot ? "Back to sign in" : "Forgot password?"}
               </button>
             ) : null}
 
@@ -366,11 +331,8 @@ export default function LoginPage() {
 
             <p className="mt-4 text-center text-sm leading-6 text-neutral-600">
               We sent a confirmation link to{" "}
-              <span className="font-semibold text-neutral-900">
-                {email}
-              </span>
-              . Click the link, then you’ll finish
-              setting up your account.
+              <span className="font-semibold text-neutral-900">{email}</span>.
+              Click the link, then sign in to finish setting up your account.
             </p>
 
             <div className="mt-6 space-y-3">
@@ -380,16 +342,12 @@ export default function LoginPage() {
                 disabled={resending}
                 className="w-full rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-60"
               >
-                {resending
-                  ? "Sending..."
-                  : "Resend confirmation email"}
+                {resending ? "Sending..." : "Resend confirmation email"}
               </button>
 
               <button
                 type="button"
-                onClick={() =>
-                  setShowConfirmModal(false)
-                }
+                onClick={() => setShowConfirmModal(false)}
                 className="w-full rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
               >
                 Back to sign in

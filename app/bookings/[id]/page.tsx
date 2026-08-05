@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-import Navbar from "@/app/components/AppNavbar";
 import BookingChat from "@/app/components/BookingChat";
+import { getCached, setCached } from "@/app/lib/pageCache";
 
 type BookingStatus =
   | "confirmed"
@@ -46,12 +46,25 @@ type ProfileRow = {
   professional_type?: string | null;
 };
 
+type BookingDetailCache = {
+  viewerId: string | null;
+  viewerRole: string | null;
+  booking: BookingRow | null;
+  professional: ProfileRow | null;
+  customer: ProfileRow | null;
+};
+
 function normalizeRole(role: string | null | undefined) {
   return role?.toLowerCase().trim() || "";
 }
 
 function isCustomerRole(role: string | null | undefined) {
   return normalizeRole(role).includes("customer");
+}
+
+function isServiceOver(bookingDate: string, endTime: string) {
+  const end = new Date(`${bookingDate}T${String(endTime).slice(0, 5)}:00`);
+  return new Date() >= end;
 }
 
 function formatBookingDate(dateString: string) {
@@ -172,7 +185,7 @@ function getGoogleMapsEmbedUrl(
 function BookingLoadingSkeleton() {
   return (
     <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
-      <Navbar />
+
 
       <div className="mx-auto max-w-5xl py-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -239,17 +252,25 @@ export default function BookingDetailPage() {
   const params = useParams();
   const bookingId = params.id as string;
 
-  const [loading, setLoading] = useState(true);
+  const cacheKey = `booking-detail-${bookingId}`;
+  const cached = getCached<BookingDetailCache>(cacheKey);
+
+  const [loading, setLoading] = useState(() => !cached);
   const [message, setMessage] = useState("");
 
-  const [viewerId, setViewerId] = useState<string | null>(null);
-  const [viewerRole, setViewerRole] = useState<string | null>(null);
+  const [viewerId, setViewerId] = useState<string | null>(() => cached?.viewerId ?? null);
+  const [viewerRole, setViewerRole] = useState<string | null>(() => cached?.viewerRole ?? null);
 
-  const [booking, setBooking] = useState<BookingRow | null>(null);
-  const [professional, setProfessional] = useState<ProfileRow | null>(null);
-  const [customer, setCustomer] = useState<ProfileRow | null>(null);
+  const [booking, setBooking] = useState<BookingRow | null>(() => cached?.booking ?? null);
+  const [professional, setProfessional] = useState<ProfileRow | null>(() => cached?.professional ?? null);
+  const [customer, setCustomer] = useState<ProfileRow | null>(() => cached?.customer ?? null);
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   useEffect(() => {
     async function loadBooking() {
@@ -328,13 +349,19 @@ export default function BookingDetailPage() {
             .single(),
         ]);
 
-        if (professionalRes.data) {
-          setProfessional(professionalRes.data as ProfileRow);
-        }
+        const resolvedProfessional = professionalRes.data ? (professionalRes.data as ProfileRow) : null;
+        const resolvedCustomer = customerRes.data ? (customerRes.data as ProfileRow) : null;
 
-        if (customerRes.data) {
-          setCustomer(customerRes.data as ProfileRow);
-        }
+        if (resolvedProfessional) setProfessional(resolvedProfessional);
+        if (resolvedCustomer) setCustomer(resolvedCustomer);
+
+        setCached<BookingDetailCache>(cacheKey, {
+          viewerId: user.id,
+          viewerRole: viewerProfile.role,
+          booking: normalizedBooking,
+          professional: resolvedProfessional,
+          customer: resolvedCustomer,
+        });
 
         setLoading(false);
       } catch (error) {
@@ -402,12 +429,44 @@ export default function BookingDetailPage() {
           : prev
       );
 
-      setMessage("Booking marked as completed.");
+      const { data: existingReview } = await supabase
+        .from("professional_reviews")
+        .select("id")
+        .eq("professional_id", booking.professional_id)
+        .eq("reviewer_id", viewerId)
+        .maybeSingle();
+
+      if (!existingReview) {
+        setShowReviewModal(true);
+      } else {
+        setMessage("Booking marked as completed.");
+      }
     } catch (error) {
       console.error(error);
       setMessage("Something went wrong confirming completion.");
     } finally {
       setActionLoading(null);
+    }
+  }
+
+  async function handleSubmitReview() {
+    if (!booking || !viewerId || reviewRating === 0) return;
+
+    setReviewSubmitting(true);
+
+    try {
+      await supabase.from("professional_reviews").insert({
+        professional_id: booking.professional_id,
+        reviewer_id: viewerId,
+        rating: reviewRating,
+        comment: reviewComment.trim() || null,
+      });
+    } catch {
+      // Review is best-effort — don't block the user on failure
+    } finally {
+      setReviewSubmitting(false);
+      setShowReviewModal(false);
+      setMessage("Booking completed. Thanks for your review!");
     }
   }
 
@@ -465,38 +524,35 @@ export default function BookingDetailPage() {
       return;
     }
 
-    const confirmed = window.confirm("Cancel this booking?");
-    if (!confirmed) return;
+    if (!confirmingCancel) {
+      setConfirmingCancel(true);
+      return;
+    }
+
+    setConfirmingCancel(false);
 
     try {
       setActionLoading("cancel");
       setMessage("");
 
-      const cancelledAt = new Date().toISOString();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status: "cancelled",
-          cancelled_by: viewerId,
-          cancelled_at: cancelledAt,
-        })
-        .eq("id", booking.id)
-        .in("status", ["confirmed", "completion_requested"]);
+      const response = await fetch("/api/bookings/cancel", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ bookingId: booking.id }),
+      });
 
-      if (error) {
-        setMessage(error.message);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMessage(data?.error || "Could not cancel this booking.");
         return;
-      }
-
-      if (booking.request_id) {
-        await supabase
-          .from("service_requests")
-          .update({
-            status: "cancelled",
-          })
-          .eq("id", booking.request_id)
-          .eq("client_id", booking.customer_id);
       }
 
       setBooking((prev) =>
@@ -505,7 +561,7 @@ export default function BookingDetailPage() {
               ...prev,
               status: "cancelled",
               cancelled_by: viewerId || null,
-              cancelled_at: cancelledAt,
+              cancelled_at: data.cancelledAt,
             }
           : prev
       );
@@ -527,7 +583,7 @@ export default function BookingDetailPage() {
     return (
       <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
         <div className="mx-auto max-w-5xl">
-          <Navbar />
+
           <div className="py-16">
             <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
               {message || "Booking not found."}
@@ -551,9 +607,10 @@ export default function BookingDetailPage() {
   );
 
   return (
+    <>
     <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
       <div className="mx-auto max-w-5xl">
-        <Navbar />
+
 
         <div className="py-16">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -736,37 +793,47 @@ export default function BookingDetailPage() {
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                  Completion requested
-                </p>
-                <p className="mt-3 text-lg font-medium text-neutral-900">
-                  {formatDateTime(booking.completion_requested_at)}
-                </p>
-              </div>
+              {booking.completion_requested_at ? (
+                <div className="rounded-2xl border border-neutral-200 p-5">
+                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    Completion requested
+                  </p>
+                  <p className="mt-3 text-lg font-medium text-neutral-900">
+                    {formatDateTime(booking.completion_requested_at)}
+                  </p>
+                </div>
+              ) : null}
 
-              <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                  Completed
-                </p>
-                <p className="mt-3 text-lg font-medium text-neutral-900">
-                  {formatDateTime(booking.completed_at)}
-                </p>
-              </div>
+              {booking.completed_at ? (
+                <div className="rounded-2xl border border-neutral-200 p-5">
+                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    Completed
+                  </p>
+                  <p className="mt-3 text-lg font-medium text-neutral-900">
+                    {formatDateTime(booking.completed_at)}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
               {isViewerProfessional && booking.status === "confirmed" ? (
-                <button
-                  type="button"
-                  onClick={handleRequestCompletion}
-                  disabled={actionLoading === "request-completion"}
-                  className="inline-flex rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-                >
-                  {actionLoading === "request-completion"
-                    ? "Requesting..."
-                    : "Request completion"}
-                </button>
+                isServiceOver(booking.booking_date, booking.end_time) ? (
+                  <button
+                    type="button"
+                    onClick={handleRequestCompletion}
+                    disabled={actionLoading === "request-completion"}
+                    className="inline-flex rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                  >
+                    {actionLoading === "request-completion"
+                      ? "Requesting..."
+                      : "Request completion"}
+                  </button>
+                ) : (
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-500">
+                    Available after {formatTime(booking.end_time)} when the service ends
+                  </div>
+                )
               ) : null}
 
               {isViewerCustomer && booking.status === "completion_requested" ? (
@@ -782,14 +849,35 @@ export default function BookingDetailPage() {
 
               {(booking.status === "confirmed" || booking.status === "completion_requested") &&
               (isViewerCustomer || isViewerProfessional) ? (
-                <button
-                  type="button"
-                  onClick={handleCancelBooking}
-                  disabled={actionLoading === "cancel"}
-                  className="inline-flex rounded-full border border-red-300 px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
-                >
-                  {actionLoading === "cancel" ? "Working..." : "Cancel booking"}
-                </button>
+                confirmingCancel ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-neutral-600">Cancel booking?</span>
+                    <button
+                      type="button"
+                      onClick={handleCancelBooking}
+                      disabled={actionLoading === "cancel"}
+                      className="inline-flex rounded-full border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                    >
+                      {actionLoading === "cancel" ? "Working..." : "Yes, cancel"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingCancel(false)}
+                      className="inline-flex rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-900 transition hover:bg-neutral-50"
+                    >
+                      Keep
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleCancelBooking}
+                    disabled={actionLoading === "cancel"}
+                    className="inline-flex rounded-full border border-red-300 px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                  >
+                    Cancel booking
+                  </button>
+                )
               ) : null}
 
               {isViewerCustomer && professional?.id ? (
@@ -867,5 +955,64 @@ export default function BookingDetailPage() {
         </div>
       </div>
     </main>
+
+    {showReviewModal ? (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4">
+        <div className="w-full max-w-md rounded-t-[2rem] bg-white p-6 shadow-2xl sm:rounded-[2rem]">
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+            Service complete
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+            How was {professional?.full_name?.split(" ")[0] ?? "your professional"}?
+          </h2>
+          <p className="mt-2 text-sm text-neutral-500">
+            Your review helps other customers and supports the professional.
+          </p>
+
+          <div className="mt-6 flex items-center gap-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => setReviewRating(star)}
+                className="text-3xl transition hover:scale-110"
+                aria-label={`Rate ${star} stars`}
+              >
+                <span className={star <= reviewRating ? "text-black" : "text-neutral-200"}>
+                  ★
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <textarea
+            value={reviewComment}
+            onChange={(e) => setReviewComment(e.target.value)}
+            placeholder="Share details about your experience (optional)"
+            rows={3}
+            className="mt-5 w-full resize-none rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+          />
+
+          <div className="mt-5 flex gap-3">
+            <button
+              type="button"
+              onClick={handleSubmitReview}
+              disabled={reviewRating === 0 || reviewSubmitting}
+              className="flex-1 rounded-full bg-black py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+            >
+              {reviewSubmitting ? "Submitting..." : "Submit review"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowReviewModal(false); setMessage("Booking completed."); }}
+              className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 }

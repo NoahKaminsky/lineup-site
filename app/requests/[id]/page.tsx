@@ -2,9 +2,18 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useElements,
+  useStripe,
+} from "@stripe/react-stripe-js";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import MarkRequestNotificationRead from "../../components/MarkRequestNotificationRead";
+import { getCached, setCached } from "@/app/lib/pageCache";
 
 type ServiceRequest = {
   id: string;
@@ -51,6 +60,7 @@ type RequestOffer = {
   professional_name: string | null;
   professional_avatar_url: string | null;
   professional_type: string | null;
+  professional_formatted_address?: string | null;
   average_rating?: number | null;
   review_count?: number;
 };
@@ -72,7 +82,7 @@ type ExistingReview = {
 
 type ChatMessage = {
   id: string;
-  request_id: string;
+  booking_id: string;
   sender_id: string;
   message: string;
   created_at: string;
@@ -84,12 +94,95 @@ type ChatParticipantProfile = {
   avatar_url: string | null;
 };
 
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+);
+
+function RequestOfferCheckoutForm({
+  offer,
+  onPaymentComplete,
+}: {
+  offer: RequestOffer;
+  onPaymentComplete: () => void | Promise<void>;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+
+  async function handlePaymentSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!stripe || !elements) {
+      setPaymentError("Stripe is still loading. Please try again.");
+      return;
+    }
+
+    setPaymentLoading(true);
+    setPaymentError("");
+
+    const result = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/work`,
+      },
+      redirect: "if_required",
+    });
+
+    if (result.error) {
+      setPaymentError(result.error.message || "Payment failed. Please try again.");
+      setPaymentLoading(false);
+      return;
+    }
+
+    await onPaymentComplete();
+    setPaymentLoading(false);
+  }
+
+  return (
+    <form onSubmit={handlePaymentSubmit} className="mt-6 space-y-5">
+      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+          Offer total
+        </p>
+        <p className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+          {offer.proposed_price || "Price not provided"}
+        </p>
+      </div>
+
+      <PaymentElement />
+
+      {paymentError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {paymentError}
+        </div>
+      ) : null}
+
+      <button
+        type="submit"
+        disabled={!stripe || !elements || paymentLoading}
+        className="w-full rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+      >
+        {paymentLoading ? "Processing..." : "Confirm and pay"}
+      </button>
+    </form>
+  );
+}
+
+type RequestDetailCache = {
+  request: ServiceRequest | null;
+  offers: RequestOffer[];
+};
+
 export default function RequestDetailPage() {
   const router = useRouter();
   const params = useParams();
   const requestId = params.id as string;
+  const cacheKey = `request-detail-${requestId}`;
+  const cached = getCached<RequestDetailCache>(cacheKey);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cached);
   const [message, setMessage] = useState("");
 
   const [role, setRole] = useState<string | null>(null);
@@ -97,8 +190,8 @@ export default function RequestDetailPage() {
   const [viewerLat, setViewerLat] = useState<number | null>(null);
   const [viewerLng, setViewerLng] = useState<number | null>(null);
 
-  const [request, setRequest] = useState<ServiceRequest | null>(null);
-  const [offers, setOffers] = useState<RequestOffer[]>([]);
+  const [request, setRequest] = useState<ServiceRequest | null>(() => cached?.request ?? null);
+  const [offers, setOffers] = useState<RequestOffer[]>(() => cached?.offers ?? []);
   const [requestOwner, setRequestOwner] = useState<RequestOwnerProfile | null>(
     null
   );
@@ -118,14 +211,22 @@ export default function RequestDetailPage() {
   const [reofferMessage, setReofferMessage] = useState("");
   const [reofferPrice, setReofferPrice] = useState("");
   const [reofferLoading, setReofferLoading] = useState(false);
+  const [withdrawingOfferId, setWithdrawingOfferId] = useState<string | null>(null);
+  const [cancelingRequest, setCancelingRequest] = useState(false);
+  const [confirmingCancelRequest, setConfirmingCancelRequest] = useState(false);
 
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [newChatMessage, setNewChatMessage] = useState("");
   const [sendingChatMessage, setSendingChatMessage] = useState(false);
+  const [chatBookingId, setChatBookingId] = useState<string | null>(null);
 
   const [showBookingSuccessModal, setShowBookingSuccessModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
+  const [selectedOfferForPayment, setSelectedOfferForPayment] =
+    useState<RequestOffer | null>(null);
 
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
@@ -216,6 +317,7 @@ export default function RequestDetailPage() {
   function getStatusLabel(status: string) {
     if (status === "open") return "Open";
     if (status === "accepted") return "Accepted";
+    if (status === "payment_pending") return "Payment pending";
     if (status === "completion_requested") return "Completion requested";
     if (status === "completed") return "Completed";
     return status.replaceAll("_", " ");
@@ -405,10 +507,12 @@ export default function RequestDetailPage() {
     );
   }, [viewerLat, viewerLng]);
 
-  const loadRequestLive = useCallback(async () => {
+  const loadRequestLive = useCallback(async (options?: { silent?: boolean }) => {
     if (!requestId) return;
 
-    setLoading(true);
+    const silent = options?.silent ?? false;
+
+    if (!silent) setLoading(true);
     setMessage("");
 
     const {
@@ -485,7 +589,8 @@ export default function RequestDetailPage() {
       const alreadyOffered = offersData.some(
         (offer) =>
           offer.professional_id === user.id &&
-          (offer.status === "pending" || offer.status === "accepted")
+          (offer.status === "pending" || offer.status === "accepted") &&
+          offer.status !== "withdrawn"
       );
 
       setHasSubmittedOffer(alreadyOffered);
@@ -500,6 +605,7 @@ export default function RequestDetailPage() {
           full_name: string | null;
           avatar_url: string | null;
           professional_type: string | null;
+          formatted_address: string | null;
         }
       >();
 
@@ -514,7 +620,7 @@ export default function RequestDetailPage() {
       if (professionalIds.length > 0) {
         const { data: profileData } = await supabase
           .from("profiles")
-          .select("id, full_name, avatar_url, professional_type")
+          .select("id, full_name, avatar_url, professional_type, formatted_address")
           .in("id", professionalIds);
 
         if (profileData) {
@@ -525,6 +631,7 @@ export default function RequestDetailPage() {
                 full_name: profileRow.full_name ?? null,
                 avatar_url: profileRow.avatar_url ?? null,
                 professional_type: profileRow.professional_type ?? null,
+                formatted_address: (profileRow as any).formatted_address ?? null,
               },
             ])
           );
@@ -561,7 +668,7 @@ export default function RequestDetailPage() {
         }
       }
 
-      enrichedOffers = offersData.map((offer) => {
+      enrichedOffers = offersData.filter((o) => o.status !== "withdrawn").map((offer) => {
         const pro = profilesMap.get(offer.professional_id);
         const ratingData = ratingsMap.get(offer.professional_id);
 
@@ -570,6 +677,7 @@ export default function RequestDetailPage() {
           professional_name: pro?.full_name ?? null,
           professional_avatar_url: pro?.avatar_url ?? null,
           professional_type: pro?.professional_type ?? null,
+          professional_formatted_address: pro?.formatted_address ?? null,
           average_rating: ratingData?.average_rating ?? null,
           review_count: ratingData?.review_count ?? 0,
         };
@@ -627,48 +735,64 @@ export default function RequestDetailPage() {
         user.id === requestData.accepted_professional_id);
 
     if (canAccessChatNow) {
-      const { data: messagesData, error: messagesError } = await supabase
-        .from("request_messages")
-        .select("id, request_id, sender_id, message, created_at")
+      const { data: bookingRow } = await supabase
+        .from("bookings")
+        .select("id")
         .eq("request_id", requestId)
-        .order("created_at", { ascending: true });
+        .maybeSingle();
 
-      if (!messagesError && messagesData) {
-        setChatMessages(messagesData);
+      const bookingIdForChat = bookingRow?.id ?? null;
+      setChatBookingId(bookingIdForChat);
 
-        const senderIds = [...new Set(messagesData.map((msg) => msg.sender_id))];
-        if (senderIds.length > 0) {
-          const { data: senderProfiles } = await supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url")
-            .in("id", senderIds);
+      if (bookingIdForChat) {
+        const { data: messagesData, error: messagesError } = await supabase
+          .from("booking_messages")
+          .select("id, booking_id, sender_id, message, created_at")
+          .eq("booking_id", bookingIdForChat)
+          .order("created_at", { ascending: true });
 
-          if (senderProfiles) {
-            const profileMap: Record<string, ChatParticipantProfile> = {};
-            senderProfiles.forEach((p) => {
-              profileMap[p.id] = {
-                id: p.id,
-                full_name: p.full_name ?? null,
-                avatar_url: p.avatar_url ?? null,
-              };
-            });
-            setChatProfiles(profileMap);
+        if (!messagesError && messagesData) {
+          setChatMessages(messagesData);
+
+          const senderIds = [...new Set(messagesData.map((msg) => msg.sender_id))];
+          if (senderIds.length > 0) {
+            const { data: senderProfiles } = await supabase
+              .from("profiles")
+              .select("id, full_name, avatar_url")
+              .in("id", senderIds);
+
+            if (senderProfiles) {
+              const profileMap: Record<string, ChatParticipantProfile> = {};
+              senderProfiles.forEach((p) => {
+                profileMap[p.id] = {
+                  id: p.id,
+                  full_name: p.full_name ?? null,
+                  avatar_url: p.avatar_url ?? null,
+                };
+              });
+              setChatProfiles(profileMap);
+            }
           }
+        } else {
+          setChatMessages([]);
+          setChatProfiles({});
         }
       } else {
         setChatMessages([]);
         setChatProfiles({});
       }
     } else {
+      setChatBookingId(null);
       setChatMessages([]);
       setChatProfiles({});
     }
 
+    setCached<RequestDetailCache>(cacheKey, { request: requestData, offers: enrichedOffers });
     setLoading(false);
-  }, [requestId, router, isCustomer, isProfessional]);
+  }, [requestId, router, isCustomer, isProfessional, cacheKey]);
 
   useEffect(() => {
-    loadRequestLive();
+    loadRequestLive({ silent: !!cached });
   }, [loadRequestLive]);
 
   useEffect(() => {
@@ -685,7 +809,7 @@ export default function RequestDetailPage() {
           filter: `id=eq.${requestId}`,
         },
         async () => {
-          await loadRequestLive();
+          await loadRequestLive({ silent: true });
         }
       )
       .on(
@@ -697,7 +821,7 @@ export default function RequestDetailPage() {
           filter: `request_id=eq.${requestId}`,
         },
         async () => {
-          await loadRequestLive();
+          await loadRequestLive({ silent: true });
         }
       )
       .subscribe();
@@ -708,7 +832,7 @@ export default function RequestDetailPage() {
   }, [requestId, loadRequestLive]);
 
   useEffect(() => {
-    if (!requestId || !currentUserId || !request?.accepted_professional_id) return;
+    if (!requestId || !currentUserId || !request?.accepted_professional_id || !chatBookingId) return;
 
     const canAccessCurrentChat =
       currentUserId === request.client_id ||
@@ -717,14 +841,14 @@ export default function RequestDetailPage() {
     if (!canAccessCurrentChat) return;
 
     const channel = supabase
-      .channel(`request-messages-${requestId}`)
+      .channel(`booking-messages-${chatBookingId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
-          table: "request_messages",
-          filter: `request_id=eq.${requestId}`,
+          table: "booking_messages",
+          filter: `booking_id=eq.${chatBookingId}`,
         },
         async (payload) => {
           const incoming = payload.new as ChatMessage;
@@ -765,6 +889,7 @@ export default function RequestDetailPage() {
     request?.accepted_professional_id,
     request?.client_id,
     chatProfiles,
+    chatBookingId,
   ]);
 
   useEffect(() => {
@@ -796,215 +921,52 @@ export default function RequestDetailPage() {
       return;
     }
 
-    const proposedStart = String(acceptedOffer.proposed_start_time).slice(0, 5);
-    const proposedEnd = String(acceptedOffer.proposed_end_time).slice(0, 5);
-
-    if (proposedEnd <= proposedStart) {
-      setMessage("Offer end time must be later than the start time.");
+    if (!acceptedOffer.proposed_price?.trim()) {
+      setMessage("This offer needs a valid price before it can be accepted.");
       setAcceptingOfferId(null);
       return;
     }
 
-    const { data: existingBookings, error: bookingsCheckError } = await supabase
-      .from("bookings")
-      .select("id, start_time, end_time, status")
-      .eq("professional_id", acceptedOffer.professional_id)
-      .eq("booking_date", acceptedOffer.proposed_date)
-      .in("status", ["confirmed", "completion_requested", "completed"]);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (bookingsCheckError) {
-      setMessage(bookingsCheckError.message);
-      setAcceptingOfferId(null);
-      return;
-    }
-
-    const proposedStartMinutes = timeToMinutes(proposedStart);
-    const proposedEndMinutes = timeToMinutes(proposedEnd);
-
-    const hasBookingConflict = (existingBookings || []).some((booking) => {
-      const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
-      const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
-      return proposedStartMinutes < bookingEnd && proposedEndMinutes > bookingStart;
-    });
-
-    if (hasBookingConflict) {
-      setMessage("That professional already has a booking at this time. Please choose another offer or ask them to send a new time.");
-      setAcceptingOfferId(null);
-      return;
-    }
-
-    const usesProfessionalLocation =
-      request.service_mode === "in_shop" || request.service_mode === "home_studio";
-
-    let bookingLocation = {
-      formatted_address: request.formatted_address || request.location || null,
-      location_place_id: request.location_place_id || null,
-      location_lat: request.location_lat ?? null,
-      location_lng: request.location_lng ?? null,
-    };
-
-    if (usesProfessionalLocation) {
-      const { data: professionalLocation, error: professionalLocationError } =
-        await supabase
-          .from("profiles")
-          .select("formatted_address, location_place_id, location_lat, location_lng")
-          .eq("id", acceptedOffer.professional_id)
-          .single();
-
-      if (professionalLocationError) {
-        setMessage("Could not load the professional's business location.");
-        setAcceptingOfferId(null);
-        return;
+      if (!session?.access_token) {
+        throw new Error("Not authenticated. Please log out and log back in.");
       }
 
-      if (
-        !professionalLocation?.formatted_address ||
-        typeof professionalLocation.location_lat !== "number" ||
-        typeof professionalLocation.location_lng !== "number"
-      ) {
-        setMessage(
-          "This professional needs to add their shop or studio location before this offer can be accepted."
-        );
-        setAcceptingOfferId(null);
-        return;
-      }
-
-      bookingLocation = {
-        formatted_address: professionalLocation.formatted_address,
-        location_place_id: professionalLocation.location_place_id || null,
-        location_lat: professionalLocation.location_lat,
-        location_lng: professionalLocation.location_lng,
-      };
-    }
-
-    if (request.service_mode === "at_home") {
-      if (!bookingLocation.formatted_address) {
-        setMessage("Please add a customer location before accepting this offer.");
-        setAcceptingOfferId(null);
-        return;
-      }
-    }
-
-    const { data: createdBooking, error: createBookingError } = await supabase
-      .from("bookings")
-      .insert([
-        {
-          request_id: request.id,
-          professional_id: acceptedOffer.professional_id,
-          customer_id: request.client_id,
-          booking_date: acceptedOffer.proposed_date,
-          start_time: proposedStart,
-          end_time: proposedEnd,
-          status: "confirmed",
-          service_name: request.service_detail || request.title,
-          service_mode: request.service_mode,
-          source: "request",
-          formatted_address: bookingLocation.formatted_address,
-          location_place_id: bookingLocation.location_place_id,
-          location_lat: bookingLocation.location_lat,
-          location_lng: bookingLocation.location_lng,
-        },
-      ])
-      .select("id")
-      .single();
-
-    if (createBookingError) {
-      setMessage(createBookingError.message);
-      setAcceptingOfferId(null);
-      return;
-    }
-
-    if (createdBooking?.id) {
-      await fetch("/api/notifications/booking-confirmed", {
+      const response = await fetch("/api/stripe/create-payment-intent", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId: createdBooking.id }),
-      }).catch((notificationError) => {
-        console.error("Booking confirmation email failed:", notificationError);
-      });
-    }
-
-    const { error: acceptSelectedError } = await supabase
-      .from("request_offers")
-      .update({ status: "accepted" })
-      .eq("id", offerId)
-      .eq("request_id", request.id);
-
-    if (acceptSelectedError) {
-      setMessage(acceptSelectedError.message);
-      setAcceptingOfferId(null);
-      return;
-    }
-
-    const otherOfferIds = offers
-      .filter((offer) => offer.id !== offerId)
-      .map((offer) => offer.id);
-
-    if (otherOfferIds.length > 0) {
-      const { error: declineOthersError } = await supabase
-        .from("request_offers")
-        .update({ status: "declined" })
-        .in("id", otherOfferIds);
-
-      if (declineOthersError) {
-        setMessage(declineOthersError.message);
-        setAcceptingOfferId(null);
-        return;
-      }
-    }
-
-    const { error: updateRequestError } = await supabase
-      .from("service_requests")
-      .update({
-        status: "accepted",
-        accepted_professional_id: acceptedOffer.professional_id,
-        scheduled_date: acceptedOffer.proposed_date,
-        scheduled_start_time: proposedStart,
-        scheduled_end_time: proposedEnd,
-      })
-      .eq("id", request.id);
-
-    if (updateRequestError) {
-      setMessage(updateRequestError.message);
-      setAcceptingOfferId(null);
-      return;
-    }
-
-    if (currentUserId) {
-      await supabase.from("request_messages").insert([
-        {
-          request_id: request.id,
-          sender_id: currentUserId,
-          message: `Offer accepted. Scheduled for ${formatDateOnly(
-            acceptedOffer.proposed_date
-          )} at ${formatTime(proposedStart)} - ${formatTime(proposedEnd)}. You can now chat here to coordinate details.`,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
         },
-      ]);
+        body: JSON.stringify({
+          flowType: "request_offer",
+          offerId: acceptedOffer.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Could not start payment.");
+      }
+
+      if (!data?.clientSecret) {
+        throw new Error("Payment was created without a client secret.");
+      }
+
+      setSelectedOfferForPayment(acceptedOffer);
+      setPaymentClientSecret(data.clientSecret);
+      setShowPaymentModal(true);
+      setMessage("");
+    } catch (error: any) {
+      setMessage(error?.message || "Something went wrong starting payment.");
+    } finally {
+      setAcceptingOfferId(null);
     }
-
-    setOffers((prev) =>
-      prev.map((offer) => ({
-        ...offer,
-        status: offer.id === offerId ? "accepted" : "declined",
-      }))
-    );
-
-    setRequest((prev) =>
-      prev
-        ? {
-            ...prev,
-            status: "accepted",
-            accepted_professional_id: acceptedOffer.professional_id,
-            scheduled_date: acceptedOffer.proposed_date ?? null,
-            scheduled_start_time: proposedStart,
-            scheduled_end_time: proposedEnd,
-          }
-        : prev
-    );
-
-    setAcceptingOfferId(null);
-    setShowBookingSuccessModal(true);
-    setMessage("");
   }
 
   async function handleDeclineOffer(offerId: string) {
@@ -1030,6 +992,8 @@ export default function RequestDetailPage() {
       setDeclineLoading(false);
       return;
     }
+
+    await supabase.from("notifications").delete().eq("offer_id", offerId);
 
     setOffers((prev) =>
       prev.map((offer) =>
@@ -1104,6 +1068,110 @@ export default function RequestDetailPage() {
     setMessage("Re-offer submitted.");
   }
 
+  async function handleWithdrawOffer(offerId: string) {
+    if (!currentUserId) return;
+
+    setWithdrawingOfferId(offerId);
+
+    const { error } = await supabase
+      .from("request_offers")
+      .update({ status: "withdrawn" })
+      .eq("id", offerId)
+      .eq("professional_id", currentUserId);
+
+    if (error) {
+      setMessage(error.message);
+      setWithdrawingOfferId(null);
+      return;
+    }
+
+    fetch("/api/notifications/clear-offer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offerId }),
+    }).catch(() => {});
+
+    setOffers((prev) => prev.filter((o) => o.id !== offerId));
+    setHasSubmittedOffer(false);
+    setWithdrawingOfferId(null);
+  }
+
+  async function handleCancelRequest() {
+    if (!request || !currentUserId || !isCustomer || request.status !== "open") return;
+
+    if (!confirmingCancelRequest) {
+      setConfirmingCancelRequest(true);
+      return;
+    }
+
+    setConfirmingCancelRequest(false);
+    setCancelingRequest(true);
+    setMessage("");
+
+    const { error } = await supabase
+      .from("service_requests")
+      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+      .eq("id", request.id)
+      .eq("client_id", currentUserId)
+      .eq("status", "open");
+
+    if (error) {
+      setMessage(error.message);
+      setCancelingRequest(false);
+      return;
+    }
+
+    const pendingOfferProfessionalIds = [
+      ...new Set(
+        offers.filter((offer) => offer.status === "pending").map((offer) => offer.professional_id)
+      ),
+    ];
+
+    if (pendingOfferProfessionalIds.length > 0) {
+      await supabase
+        .from("request_offers")
+        .update({
+          status: "declined",
+          customer_response_message: "The customer cancelled this request.",
+        })
+        .eq("request_id", request.id)
+        .eq("status", "pending");
+
+      await supabase.from("notifications").insert(
+        pendingOfferProfessionalIds.map((professionalId) => ({
+          user_id: professionalId,
+          request_id: request.id,
+          is_read: false,
+          type: "request_cancelled",
+          title: `A request you offered on was cancelled${
+            request.title ? `: ${request.title}` : ""
+          }`,
+        }))
+      );
+    }
+
+    // Clear the original "new request" pings for matching pros — the request no longer exists.
+    fetch("/api/notifications/clear-request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestId: request.id }),
+    }).catch(() => {});
+
+    // Clear our own now-stale "you received an offer" notifications for this request.
+    await supabase.from("notifications").delete().eq("request_id", request.id).eq("type", "offer");
+
+    setRequest((prev) => (prev ? { ...prev, status: "cancelled" } : prev));
+    setOffers((prev) =>
+      prev.map((offer) =>
+        offer.status === "pending"
+          ? { ...offer, status: "declined", customer_response_message: "The customer cancelled this request." }
+          : offer
+      )
+    );
+    setMessage("Request cancelled.");
+    setCancelingRequest(false);
+  }
+
   async function handleRequestCompletion() {
     if (!request || !isAcceptedProfessional || request.status !== "accepted") {
       return;
@@ -1129,10 +1197,10 @@ export default function RequestDetailPage() {
       .eq("professional_id", currentUserId)
       .eq("status", "confirmed");
 
-    if (currentUserId) {
-      await supabase.from("request_messages").insert([
+    if (currentUserId && chatBookingId) {
+      await supabase.from("booking_messages").insert([
         {
-          request_id: request.id,
+          booking_id: chatBookingId,
           sender_id: currentUserId,
           message: "Completion requested. Waiting for customer confirmation.",
         },
@@ -1176,10 +1244,10 @@ export default function RequestDetailPage() {
       .eq("customer_id", currentUserId)
       .in("status", ["confirmed", "completion_requested"]);
 
-    if (currentUserId) {
-      await supabase.from("request_messages").insert([
+    if (currentUserId && chatBookingId) {
+      await supabase.from("booking_messages").insert([
         {
-          request_id: request.id,
+          booking_id: chatBookingId,
           sender_id: currentUserId,
           message: "Service confirmed as completed.",
         },
@@ -1248,7 +1316,7 @@ export default function RequestDetailPage() {
 
   async function handleSendChatMessage() {
     if (!request || !currentUserId || !newChatMessage.trim()) return;
-    if (!canAccessChat) return;
+    if (!canAccessChat || !chatBookingId) return;
     if (request.status === "completed") return;
 
     setSendingChatMessage(true);
@@ -1257,9 +1325,9 @@ export default function RequestDetailPage() {
     const messageToSend = newChatMessage.trim();
     setNewChatMessage("");
 
-    const { error } = await supabase.from("request_messages").insert([
+    const { error } = await supabase.from("booking_messages").insert([
       {
-        request_id: request.id,
+        booking_id: chatBookingId,
         sender_id: currentUserId,
         message: messageToSend,
       },
@@ -1291,9 +1359,51 @@ export default function RequestDetailPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
-        <div className="mx-auto max-w-5xl py-16">
-          <p className="text-neutral-500">Loading request...</p>
+      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+
+
+        <div className="mx-auto max-w-6xl py-8">
+          <div className="max-w-3xl">
+            <div className="h-4 w-28 animate-pulse rounded-full bg-neutral-200" />
+            <div className="mt-5 h-12 w-full max-w-xl animate-pulse rounded-2xl bg-neutral-200 md:h-16" />
+            <div className="mt-5 h-5 w-full max-w-2xl animate-pulse rounded-full bg-neutral-100" />
+            <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
+          </div>
+
+          <div className="mt-8 grid grid-cols-3 gap-2 rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-2">
+            <div className="h-11 animate-pulse rounded-2xl bg-neutral-100" />
+            <div className="h-11 animate-pulse rounded-2xl bg-neutral-100" />
+            <div className="h-11 animate-pulse rounded-2xl bg-neutral-100" />
+          </div>
+
+          <div className="mt-8 grid gap-4">
+            {[1, 2, 3].map((item) => (
+              <div
+                key={item}
+                className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm"
+              >
+                <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                  <div className="flex min-w-0 flex-1 gap-4">
+                    <div className="h-12 w-12 shrink-0 animate-pulse rounded-2xl bg-neutral-100" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex gap-2">
+                        <div className="h-6 w-24 animate-pulse rounded-full bg-neutral-100" />
+                        <div className="h-6 w-28 animate-pulse rounded-full bg-neutral-100" />
+                      </div>
+                      <div className="mt-4 h-7 w-2/3 animate-pulse rounded-xl bg-neutral-200" />
+                      <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-neutral-100" />
+                      <div className="mt-3 h-4 w-3/4 animate-pulse rounded-full bg-neutral-100" />
+                    </div>
+                  </div>
+
+                  <div className="flex w-full flex-col gap-3 md:w-52">
+                    <div className="h-10 animate-pulse rounded-full bg-neutral-100" />
+                    <div className="h-10 animate-pulse rounded-full bg-neutral-100" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </main>
     );
@@ -1320,59 +1430,90 @@ export default function RequestDetailPage() {
 
   const scheduledSummary = getScheduledSummary(request);
   const preferredSummary = getPreferredSummary(request);
-  const displayAddress = formatDisplayAddress(request);
+
+  const usesProLocation =
+    request.service_mode === "in_shop" || request.service_mode === "home_studio";
+
+  const proLocationAddress = usesProLocation
+    ? acceptedOffer?.professional_formatted_address ?? null
+    : null;
+
+  const effectiveAddress = usesProLocation
+    ? proLocationAddress
+    : (request.formatted_address || request.location || null);
+
+  const displayAddress = usesProLocation
+    ? (proLocationAddress ?? null)
+    : formatDisplayAddress(request);
+
   const distanceLabel = getDistanceLabel(request);
-  const mapsUrl = getGoogleMapsUrl(request.location_lat, request.location_lng, request.formatted_address || request.location);
+  const mapsUrl = getGoogleMapsUrl(
+    usesProLocation ? null : request.location_lat,
+    usesProLocation ? null : request.location_lng,
+    effectiveAddress
+  );
   const mapEmbedUrl = getGoogleMapsEmbedUrl(
-    request.location_lat,
-    request.location_lng,
-    request.formatted_address || request.location
+    usesProLocation ? null : request.location_lat,
+    usesProLocation ? null : request.location_lng,
+    effectiveAddress
   );
 
   return (
     <>
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+
+      <main className="min-h-screen bg-white px-6 pb-10 pt-6 text-neutral-900">
         <MarkRequestNotificationRead requestId={requestId} />
 
-        <div className="mx-auto flex max-w-6xl items-center justify-between border-b border-neutral-200 pb-6">
-          <Link href="/" className="text-2xl font-semibold tracking-tight">
-            LineUp
-          </Link>
-
-          <div className="flex items-center gap-4">
-            <Link
-              href="/requests"
-              className="text-sm font-medium text-neutral-500 transition hover:text-neutral-900"
-            >
-              Back to requests
-            </Link>
-
-            <Link
-              href="/account"
-              className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-            >
-              View profile
-            </Link>
-          </div>
-        </div>
-
-        <div className="mx-auto max-w-6xl py-10">
+        <div className="mx-auto max-w-6xl py-6">
           <section className="overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
             <div className="bg-black px-6 py-8 text-white md:px-8 md:py-10">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                  {formatCategory(request.category)}
-                  {request.service_detail ? ` • ${request.service_detail}` : ""}
-                </span>
-
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-black">
-                  {getStatusLabel(request.status)}
-                </span>
-
-                {offers.length > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                    {offers.length} offer{offers.length === 1 ? "" : "s"}
+                    {formatCategory(request.category)}
+                    {request.service_detail ? ` • ${request.service_detail}` : ""}
                   </span>
+
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-black">
+                    {getStatusLabel(request.status)}
+                  </span>
+
+                  {offers.length > 0 ? (
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                      {offers.length} offer{offers.length === 1 ? "" : "s"}
+                    </span>
+                  ) : null}
+                </div>
+
+                {isCustomer && request.status === "open" ? (
+                  confirmingCancelRequest ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-white/70">Cancel this request?</span>
+                      <button
+                        type="button"
+                        onClick={handleCancelRequest}
+                        disabled={cancelingRequest}
+                        className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
+                      >
+                        {cancelingRequest ? "Cancelling..." : "Yes, cancel"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingCancelRequest(false)}
+                        className="rounded-full border border-white/30 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
+                      >
+                        Never mind
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleCancelRequest}
+                      className="rounded-full border border-white/30 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
+                    >
+                      Cancel request
+                    </button>
+                  )
                 ) : null}
               </div>
 
@@ -1446,12 +1587,18 @@ export default function RequestDetailPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      Location
+                      {usesProLocation ? "Professional's location" : "Location"}
                     </p>
-                    <p className="mt-2 break-words text-sm font-semibold leading-6 text-neutral-900">
-                      📍 {displayAddress}
-                    </p>
-                    {distanceLabel ? (
+                    {usesProLocation && !proLocationAddress ? (
+                      <p className="mt-2 text-sm text-neutral-500">
+                        Shown once an offer is accepted.
+                      </p>
+                    ) : (
+                      <p className="mt-2 break-words text-sm font-semibold leading-6 text-neutral-900">
+                        📍 {displayAddress}
+                      </p>
+                    )}
+                    {distanceLabel && !usesProLocation ? (
                       <p className="mt-1 text-xs font-medium text-neutral-500">
                         {distanceLabel}
                       </p>
@@ -1602,7 +1749,7 @@ export default function RequestDetailPage() {
                 </section>
               ) : null}
 
-              <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
+              <section id="offers" className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
                 <div className="flex items-end justify-between gap-4">
                   <div>
                     <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
@@ -1722,6 +1869,17 @@ export default function RequestDetailPage() {
                               </div>
                             ) : null}
 
+                            {usesProLocation && offer.professional_formatted_address ? (
+                              <div className={`mt-5 rounded-2xl border p-4 ${isAccepted ? "border-white/10 bg-white/10" : "border-neutral-200 bg-neutral-50"}`}>
+                                <p className={`text-xs font-semibold uppercase tracking-wide ${isAccepted ? "text-white/55" : "text-neutral-500"}`}>
+                                  Their location
+                                </p>
+                                <p className={`mt-2 text-sm font-semibold ${isAccepted ? "text-white" : "text-neutral-900"}`}>
+                                  📍 {offer.professional_formatted_address}
+                                </p>
+                              </div>
+                            ) : null}
+
                             {offer.message ? (
                               <div className={`mt-4 rounded-2xl p-4 text-sm leading-7 ${isAccepted ? "bg-white/10 text-white/80" : "bg-neutral-50 text-neutral-600"}`}>
                                 {offer.message}
@@ -1752,8 +1910,23 @@ export default function RequestDetailPage() {
 
                         {isProfessional &&
                         request.status === "open" &&
+                        offer.status === "pending" ? (
+                          <div className={`border-t px-5 py-4 sm:px-6 ${isAccepted ? "border-white/10" : "border-neutral-100"}`}>
+                            <button
+                              type="button"
+                              onClick={() => handleWithdrawOffer(offer.id)}
+                              disabled={withdrawingOfferId === offer.id}
+                              className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:opacity-60"
+                            >
+                              {withdrawingOfferId === offer.id ? "Withdrawing..." : "Withdraw offer"}
+                            </button>
+                          </div>
+                        ) : null}
+
+                        {isProfessional &&
+                        request.status === "open" &&
                         offer.status === "declined" ? (
-                          <div className="mt-5 space-y-3">
+                          <div className="border-t border-neutral-100 px-5 py-4 sm:px-6 space-y-3">
                             <button
                               type="button"
                               onClick={() => {
@@ -1823,8 +1996,8 @@ export default function RequestDetailPage() {
 
                         {isCustomer &&
                         request.status === "open" &&
-                        offer.status === "pending" ? (
-                          <div className="mt-5 space-y-3">
+                        (offer.status === "pending" || offer.status === "payment_pending") ? (
+                          <div className="border-t border-neutral-100 px-5 py-4 sm:px-6 space-y-3">
                             <div className="flex flex-wrap gap-3">
                               <button
                                 type="button"
@@ -1833,7 +2006,9 @@ export default function RequestDetailPage() {
                                 className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
                               >
                                 {acceptingOfferId === offer.id
-                                  ? "Accepting..."
+                                  ? "Preparing payment..."
+                                  : offer.status === "payment_pending"
+                                  ? "Continue payment"
                                   : "Accept offer"}
                               </button>
 
@@ -1953,7 +2128,7 @@ export default function RequestDetailPage() {
 
                 <p className="mt-4 leading-7 text-neutral-600">
                   {canAccessChat
-                    ? "Once an offer is accepted, both sides can message here in real time."
+                    ? "Message your match directly in real time."
                     : "Chat opens once an offer is accepted."}
                 </p>
 
@@ -2068,7 +2243,7 @@ export default function RequestDetailPage() {
                       <button
                         type="button"
                         onClick={handleSendChatMessage}
-                        disabled={isChatReadOnly || sendingChatMessage || !newChatMessage.trim()}
+                        disabled={isChatReadOnly || sendingChatMessage || !newChatMessage.trim() || !chatBookingId}
                         className="self-end rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
                       >
                         {isChatReadOnly ? "Completed" : sendingChatMessage ? "Sending..." : "Send"}
@@ -2078,30 +2253,28 @@ export default function RequestDetailPage() {
                 ) : null}
               </section>
 
-              {isCustomer ? (
+              {isCustomer && request.status === "completion_requested" ? (
                 <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
                   <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
                     Customer actions
                   </p>
 
                   <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-                    Manage your request
+                    Confirm completion
                   </h2>
 
                   <p className="mt-4 leading-7 text-neutral-600">
-                    Review offers, confirm completion, and manage the final result here.
+                    Your professional marked the service as done. Confirm to finalise the booking.
                   </p>
 
-                  <div className="mt-6 flex flex-wrap gap-3">
-                    {request.status === "completion_requested" ? (
-                      <button
-                        type="button"
-                        onClick={handleConfirmCompletion}
-                        className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-                      >
-                        Confirm completion
-                      </button>
-                    ) : null}
+                  <div className="mt-6">
+                    <button
+                      type="button"
+                      onClick={handleConfirmCompletion}
+                      className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                    >
+                      Confirm completion
+                    </button>
                   </div>
                 </section>
               ) : null}
@@ -2301,6 +2474,85 @@ export default function RequestDetailPage() {
           </div>
         </div>
       ) : null}
+      
+      {showPaymentModal && paymentClientSecret && selectedOfferForPayment ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4">
+          <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] bg-white p-6 shadow-2xl sm:rounded-[2rem]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                  Secure payment
+                </p>
+
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+                  Confirm your booking
+                </h2>
+
+                <p className="mt-3 text-sm leading-6 text-neutral-600">
+                  Payment is processed securely through Stripe. Your booking will be confirmed after payment succeeds.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setPaymentClientSecret(null);
+                  setSelectedOfferForPayment(null);
+                }}
+                className="shrink-0 rounded-full border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <Elements
+              stripe={stripePromise}
+              options={{
+                clientSecret: paymentClientSecret,
+                appearance: {
+                  theme: "stripe",
+                  variables: {
+                    borderRadius: "16px",
+                    colorText: "#111111",
+                    colorPrimary: "#111111",
+                  },
+                },
+              }}
+            >
+              <RequestOfferCheckoutForm
+                offer={selectedOfferForPayment}
+                onPaymentComplete={async () => {
+                  setShowPaymentModal(false);
+                  setPaymentClientSecret(null);
+                  setSelectedOfferForPayment(null);
+                  setMessage("Payment successful — confirming your booking...");
+
+                  // Poll until the webhook updates the request to "accepted"
+                  let confirmed = false;
+                  for (let i = 0; i < 15; i++) {
+                    await new Promise((r) => setTimeout(r, 2000));
+                    const { data: latest } = await supabase
+                      .from("service_requests")
+                      .select("status")
+                      .eq("id", requestId)
+                      .single();
+                    if (latest?.status === "accepted") {
+                      confirmed = true;
+                      break;
+                    }
+                  }
+
+                  await loadRequestLive({ silent: true });
+                  if (confirmed) setMessage("");
+                  setShowBookingSuccessModal(true);
+                }}
+              />
+            </Elements>
+          </div>
+        </div>
+      ) : null}
+
       {showBookingSuccessModal ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-6">
           <div className="w-full max-w-md rounded-[2rem] bg-white p-7 shadow-2xl">

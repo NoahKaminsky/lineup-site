@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import NavigationProgress from "./components/NavigationProgress";
+import NavbarWrapper from "./components/NavbarWrapper";
+import SplashScreen from "./components/SplashScreen";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,6 +39,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#ffffff",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -49,6 +53,9 @@ export default function RootLayout({
         suppressHydrationWarning={true}
         className={`${geistSans.variable} ${geistMono.variable} bg-white antialiased`}
       >
+        <SplashScreen />
+        <NavigationProgress />
+        <NavbarWrapper />
         {children}
       </body>
     </html>

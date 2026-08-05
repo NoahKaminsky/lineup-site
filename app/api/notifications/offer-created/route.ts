@@ -205,6 +205,15 @@ export async function POST(req: Request) {
       html,
     });
 
+    await supabase.from("notifications").insert([{
+      user_id: requestData.client_id,
+      request_id: requestData.id,
+      offer_id: offer.id,
+      is_read: false,
+      type: "offer",
+      title: `${professionalName} sent you an offer`,
+    }]);
+
     return NextResponse.json({
       ok: true,
       customerEmailFound: true,

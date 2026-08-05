@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
+type EmailProfile = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+};
+
 function formatDate(dateString?: string | null) {
   if (!dateString) return "Date not provided";
 
@@ -86,6 +92,30 @@ function bookingDetails({
   `;
 }
 
+async function getEmailProfile(
+  supabase: ReturnType<typeof getServiceSupabase>,
+  userId: string
+): Promise<EmailProfile> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, email, full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  let email = typeof profile?.email === "string" ? profile.email : null;
+
+  if (!email) {
+    const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+    email = authUser?.user?.email || null;
+  }
+
+  return {
+    id: profile?.id || userId,
+    email,
+    full_name: profile?.full_name || null,
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const { bookingId } = await req.json();
@@ -106,33 +136,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
-    const { data: customer } = await supabase
-      .from("profiles")
-      .select("id, email, full_name")
-      .eq("id", booking.customer_id)
-      .single();
-
-    const { data: professional } = await supabase
-      .from("profiles")
-      .select("id, email, full_name")
-      .eq("id", booking.professional_id)
-      .single();
+    const [customer, professional] = await Promise.all([
+      getEmailProfile(supabase, booking.customer_id),
+      getEmailProfile(supabase, booking.professional_id),
+    ]);
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const bookingUrl = `${siteUrl}/bookings/${booking.id}`;
 
     const serviceName = booking.service_name || "Booked service";
-    const price = formatPrice(booking.service_price);
+    const price = formatPrice(
+      booking.service_price || booking.price || booking.proposed_price || null
+    );
     const date = formatDate(booking.booking_date);
     const start = formatTime(booking.start_time);
     const end = formatTime(booking.end_time);
     const location = booking.formatted_address || null;
 
+    const professionalDisplayName = professional.full_name || "your professional";
+    const customerDisplayName = customer.full_name || "your client";
+
+    await supabase.from("notifications").insert([
+      {
+        user_id: booking.customer_id,
+        request_id: booking.request_id || null,
+        is_read: false,
+        type: "booking_confirmed",
+        title: `Booking confirmed with ${professionalDisplayName}`,
+      },
+      {
+        user_id: booking.professional_id,
+        request_id: booking.request_id || null,
+        is_read: false,
+        type: "booking_confirmed",
+        title: `New booking with ${customerDisplayName}`,
+      },
+    ]);
+
     let sent = 0;
 
-    if (customer?.email) {
+    if (customer.email) {
       const customerFirstName = customer.full_name?.split(" ")[0] || "there";
-      const professionalName = professional?.full_name || "your professional";
+      const professionalName = professional.full_name || "your professional";
 
       const customerHtml = createEmailLayout({
         title: "Your booking is confirmed",
@@ -158,7 +203,7 @@ export async function POST(req: Request) {
           })}
 
           <p style="margin:20px 0 0 0;color:#525252;">
-            You can view the booking details anytime from your LineUp account.
+            You can view the booking details and message the professional from your LineUp account.
           </p>
         `,
       });
@@ -172,9 +217,9 @@ export async function POST(req: Request) {
       sent += 1;
     }
 
-    if (professional?.email) {
+    if (professional.email) {
       const professionalFirstName = professional.full_name?.split(" ")[0] || "there";
-      const customerName = customer?.full_name || "your client";
+      const customerName = customer.full_name || "your client";
 
       const professionalHtml = createEmailLayout({
         title: "New booking confirmed",
@@ -214,7 +259,12 @@ export async function POST(req: Request) {
       sent += 1;
     }
 
-    return NextResponse.json({ ok: true, sent });
+    return NextResponse.json({
+      ok: true,
+      sent,
+      customerEmailFound: Boolean(customer.email),
+      professionalEmailFound: Boolean(professional.email),
+    });
   } catch (error: any) {
     console.error("booking-confirmed notification failed:", error);
 

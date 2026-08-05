@@ -1,9 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
-import Navbar from "../components/AppNavbar";
+import { getCached, setCached } from "@/app/lib/pageCache";
+
+function normalizeRole(role: string | null | undefined) {
+  return role?.toLowerCase().trim() || "";
+}
+
+function isProfessionalRole(role: string | null | undefined) {
+  const normalizedRole = normalizeRole(role);
+  return !normalizedRole.includes("customer") && !!normalizedRole;
+}
 
 type Profile = {
   id: string;
@@ -19,7 +29,14 @@ type Profile = {
   banner_url: string | null;
   bio: string | null;
   instagram_handle: string | null;
+  business_name?: string | null;
   specialties: string[] | null;
+  stripe_account_id?: string | null;
+  stripe_onboarding_complete?: boolean | null;
+  stripe_charges_enabled?: boolean | null;
+  stripe_payouts_enabled?: boolean | null;
+  subscription_status?: string | null;
+  subscription_plan?: string | null;
 };
 
 type PortfolioItem = {
@@ -73,26 +90,6 @@ type EnrichedBooking = BookingRow & {
   customer_avatar_url: string | null;
 };
 
-type CompletedRequestRow = {
-  id: string;
-  client_id: string | null;
-  accepted_professional_id: string | null;
-  title: string | null;
-  service_detail: string | null;
-  status: string | null;
-  created_at: string | null;
-  completed_at: string | null;
-};
-
-type CompletedServiceItem = {
-  id: string;
-  source: "booking" | "request";
-  title: string;
-  subtitle: string;
-  completed_at: string | null;
-  customer_name: string | null;
-  customer_avatar_url: string | null;
-};
 
 const suggestedSpecialtiesByType: Record<string, string[]> = {
   barber: ["Fades", "Beard work", "Line ups", "Scissor cuts", "Mobile cuts"],
@@ -124,44 +121,70 @@ function normalizeProfessionalType(value: string | null | undefined) {
     .replaceAll(" ", "_");
 }
 
+type AccountCache = {
+  profile: Profile;
+  portfolioItems: PortfolioItem[];
+  reviews: EnrichedReview[];
+  bookings: EnrichedBooking[];
+};
+
 export default function AccountPage() {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !getCached<AccountCache>("account-page"));
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [portfolioUploading, setPortfolioUploading] = useState(false);
   const [bookingActionLoadingId, setBookingActionLoadingId] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [stripeLoading, setStripeLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [showBannerPreview, setShowBannerPreview] = useState(false);
 
   const [message, setMessage] = useState("");
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(() => getCached<AccountCache>("account-page")?.profile ?? null);
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
 
-  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
-  const [reviews, setReviews] = useState<EnrichedReview[]>([]);
-  const [bookings, setBookings] = useState<EnrichedBooking[]>([]);
-  const [completedServices, setCompletedServices] = useState<CompletedServiceItem[]>([]);
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>(() => getCached<AccountCache>("account-page")?.portfolioItems ?? []);
+  const [reviews, setReviews] = useState<EnrichedReview[]>(() => getCached<AccountCache>("account-page")?.reviews ?? []);
+  const [bookings, setBookings] = useState<EnrichedBooking[]>(() => getCached<AccountCache>("account-page")?.bookings ?? []);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadCaption, setUploadCaption] = useState("");
 
-  const [fullName, setFullName] = useState("");
-  const [location, setLocation] = useState("");
-  const [bio, setBio] = useState("");
-  const [instagramHandle, setInstagramHandle] = useState("");
-  const [specialties, setSpecialties] = useState<string[]>([]);
-  const [professionalTypes, setProfessionalTypes] = useState<string[]>([]);
+  const [fullName, setFullName] = useState(() => getCached<AccountCache>("account-page")?.profile?.full_name ?? "");
+  const [location, setLocation] = useState(() => getCached<AccountCache>("account-page")?.profile?.location ?? "");
+  const [bio, setBio] = useState(() => getCached<AccountCache>("account-page")?.profile?.bio ?? "");
+  const [instagramHandle, setInstagramHandle] = useState(() => getCached<AccountCache>("account-page")?.profile?.instagram_handle ?? "");
+  const [businessName, setBusinessName] = useState(() => getCached<AccountCache>("account-page")?.profile?.business_name ?? "");
+  const [specialties, setSpecialties] = useState<string[]>(() => getCached<AccountCache>("account-page")?.profile?.specialties ?? []);
+  const [professionalTypes, setProfessionalTypes] = useState<string[]>(() => {
+    const cached = getCached<AccountCache>("account-page")?.profile;
+    if (!cached) return [];
+    return Array.isArray(cached.professional_types) && cached.professional_types.length > 0
+      ? cached.professional_types
+      : cached.professional_type ? [cached.professional_type] : [];
+  });
   const [newSpecialty, setNewSpecialty] = useState("");
-  const [emailRequestNotifications, setEmailRequestNotifications] = useState(true);
-  const [emailOfferNotifications, setEmailOfferNotifications] = useState(true);
+  const [emailRequestNotifications, setEmailRequestNotifications] = useState(() => getCached<AccountCache>("account-page")?.profile?.email_request_notifications ?? true);
+  const [emailOfferNotifications, setEmailOfferNotifications] = useState(() => getCached<AccountCache>("account-page")?.profile?.email_offer_notifications ?? true);
 
-  const isProfessional = profile?.role === "professional";
+  const isProfessional = isProfessionalRole(profile?.role);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!loading && profile) {
+      setCached<AccountCache>("account-page", { profile, portfolioItems, reviews, bookings });
+    }
+  }, [loading, profile, portfolioItems, reviews, bookings]);
 
   useEffect(() => {
     async function loadProfile() {
@@ -177,7 +200,7 @@ export default function AccountPage() {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, email, full_name, role, professional_type, professional_types, location, avatar_url, banner_url, bio, instagram_handle, business_name, specialties, stripe_account_id, stripe_onboarding_complete, stripe_charges_enabled, stripe_payouts_enabled, subscription_status, subscription_plan, email_request_notifications, email_offer_notifications")
         .eq("id", user.id)
         .single();
 
@@ -192,6 +215,7 @@ export default function AccountPage() {
       setLocation(data.location || "");
       setBio(data.bio || "");
       setInstagramHandle(data.instagram_handle || "");
+      setBusinessName(data.business_name || "");
       setSpecialties(data.specialties || []);
       setProfessionalTypes(
         Array.isArray(data.professional_types) && data.professional_types.length > 0
@@ -326,101 +350,6 @@ export default function AccountPage() {
         } else {
           setBookings([]);
         }
-
-        const { data: completedBookingsData } = await supabase
-          .from("bookings")
-          .select(
-            "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at"
-          )
-          .eq("professional_id", user.id)
-          .eq("status", "completed")
-          .order("completed_at", { ascending: false });
-
-        const { data: completedRequestsData } = await supabase
-          .from("service_requests")
-          .select(
-            "id, client_id, accepted_professional_id, title, service_detail, status, created_at, completed_at"
-          )
-          .eq("accepted_professional_id", user.id)
-          .eq("status", "completed")
-          .order("completed_at", { ascending: false });
-
-        const completedCustomerIds = [
-          ...new Set([
-            ...(completedBookingsData?.map((item) => item.customer_id).filter(Boolean) || []),
-            ...(completedRequestsData?.map((item) => item.client_id).filter(Boolean) || []),
-          ]),
-        ];
-
-        let completedCustomerMap = new Map<
-          string,
-          { full_name: string | null; avatar_url: string | null }
-        >();
-
-        if (completedCustomerIds.length > 0) {
-          const { data: completedCustomerProfiles } = await supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url")
-            .in("id", completedCustomerIds);
-
-          if (completedCustomerProfiles) {
-            completedCustomerMap = new Map(
-              completedCustomerProfiles.map((customer) => [
-                customer.id,
-                {
-                  full_name: customer.full_name ?? null,
-                  avatar_url: customer.avatar_url ?? null,
-                },
-              ])
-            );
-          }
-        }
-
-        const bookingCompletedItems: CompletedServiceItem[] = (completedBookingsData || []).map(
-          (booking) => {
-            const customer = completedCustomerMap.get(booking.customer_id);
-
-            return {
-              id: booking.id,
-              source: "booking",
-              title: booking.service_name || "Booked service",
-              subtitle: `${formatBookingDate(booking.booking_date)} • ${formatTime(
-                String(booking.start_time).slice(0, 5)
-              )} - ${formatTime(String(booking.end_time).slice(0, 5))}`,
-              completed_at: booking.completed_at || booking.created_at || null,
-              customer_name: customer?.full_name ?? null,
-              customer_avatar_url: customer?.avatar_url ?? null,
-            };
-          }
-        );
-
-        const requestCompletedItems: CompletedServiceItem[] = (
-          (completedRequestsData || []) as CompletedRequestRow[]
-        ).map((request) => {
-          const customer = request.client_id
-            ? completedCustomerMap.get(request.client_id)
-            : undefined;
-
-          return {
-            id: request.id,
-            source: "request",
-            title: request.title || request.service_detail || "Requested service",
-            subtitle: "Completed through request flow",
-            completed_at: request.completed_at || request.created_at || null,
-            customer_name: customer?.full_name ?? null,
-            customer_avatar_url: customer?.avatar_url ?? null,
-          };
-        });
-
-        const mergedCompleted = [...bookingCompletedItems, ...requestCompletedItems].sort(
-          (a, b) =>
-            new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime()
-        );
-
-        setCompletedServices(mergedCompleted);
-      } else {
-        setBookings([]);
-        setCompletedServices([]);
       }
 
       setLoading(false);
@@ -428,6 +357,12 @@ export default function AccountPage() {
 
     loadProfile();
   }, [router]);
+
+  useEffect(() => {
+    if (!profile || profile.role !== "professional") return;
+    refreshStripeAccountStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, profile?.role]);
 
   const averageRating = useMemo(() => {
     if (reviews.length === 0) return null;
@@ -520,15 +455,6 @@ export default function AccountPage() {
     });
   }
 
-  function formatCompletedDate(dateString: string | null) {
-    if (!dateString) return "Completed";
-    return new Date(dateString).toLocaleDateString("en-CA", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  }
-
   function getBookingStatusLabel(status: BookingStatus) {
     if (status === "completion_requested") return "completion requested";
     return status;
@@ -538,15 +464,19 @@ export default function AccountPage() {
     const file = e.target.files?.[0] ?? null;
     if (!file) return;
     setAvatarFile(file);
+    handleAvatarUpload(file);
   }
 
   function handleBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
     if (!file) return;
     setBannerFile(file);
+    handleBannerUpload(file);
   }
 
-  async function handleAvatarUpload() {
+  async function handleAvatarUpload(fileOverride?: File) {
+    const file = fileOverride ?? avatarFile;
+
     try {
       setAvatarUploading(true);
       setMessage("");
@@ -561,17 +491,17 @@ export default function AccountPage() {
         return;
       }
 
-      if (!avatarFile) {
+      if (!file) {
         setMessage("Please choose an image first.");
         return;
       }
 
-      const fileExt = avatarFile.name.split(".").pop();
+      const fileExt = file.name.split(".").pop();
       const filePath = `${user.id}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, avatarFile, {
+        .upload(filePath, file, {
           cacheControl: "3600",
           upsert: false,
         });
@@ -596,7 +526,6 @@ export default function AccountPage() {
 
       setProfile((prev) => (prev ? { ...prev, avatar_url: publicUrl } : prev));
       setAvatarFile(null);
-      setMessage("Profile photo updated.");
     } catch (error) {
       console.error(error);
       setMessage("Something went wrong uploading your photo.");
@@ -605,7 +534,9 @@ export default function AccountPage() {
     }
   }
 
-  async function handleBannerUpload() {
+  async function handleBannerUpload(fileOverride?: File) {
+    const file = fileOverride ?? bannerFile;
+
     try {
       setBannerUploading(true);
       setMessage("");
@@ -620,17 +551,17 @@ export default function AccountPage() {
         return;
       }
 
-      if (!bannerFile) {
+      if (!file) {
         setMessage("Please choose an image first.");
         return;
       }
 
-      const fileExt = bannerFile.name.split(".").pop();
+      const fileExt = file.name.split(".").pop();
       const filePath = `${user.id}/banner-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("profile-banners")
-        .upload(filePath, bannerFile, {
+        .upload(filePath, file, {
           cacheControl: "3600",
           upsert: false,
         });
@@ -658,7 +589,6 @@ export default function AccountPage() {
 
       setProfile((prev) => (prev ? { ...prev, banner_url: publicUrl } : prev));
       setBannerFile(null);
-      setMessage("Banner updated.");
     } catch (error) {
       console.error(error);
       setMessage("Something went wrong uploading your banner.");
@@ -835,6 +765,111 @@ export default function AccountPage() {
     }
   }
 
+  async function refreshStripeAccountStatus() {
+    if (!profile || profile.role !== "professional") return;
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        return;
+      }
+
+      const response = await fetch("/api/stripe/connect/account-status", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Stripe status check failed:", data?.error);
+        return;
+      }
+
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              stripe_account_id: data.stripeAccountId ?? prev.stripe_account_id ?? null,
+              stripe_onboarding_complete: data.onboardingComplete ?? false,
+              stripe_charges_enabled: data.chargesEnabled ?? false,
+              stripe_payouts_enabled: data.payoutsEnabled ?? false,
+            }
+          : prev
+      );
+    } catch (error) {
+      console.error("Stripe status check failed:", error);
+    }
+  }
+
+  async function handleConnectStripePayouts() {
+    if (!profile || profile.role !== "professional") return;
+
+    try {
+      setStripeLoading(true);
+      setMessage("");
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        setMessage("Please log out and log back in before connecting payouts.");
+        return;
+      }
+
+      const createAccountResponse = await fetch("/api/stripe/connect/create-account", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const createAccountData = await createAccountResponse.json();
+
+      if (!createAccountResponse.ok) {
+        throw new Error(createAccountData?.error || "Could not create Stripe account.");
+      }
+
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              stripe_account_id: createAccountData.stripeAccountId ?? prev.stripe_account_id,
+            }
+          : prev
+      );
+
+      const onboardingResponse = await fetch("/api/stripe/connect/onboarding-link", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const onboardingData = await onboardingResponse.json();
+
+      if (!onboardingResponse.ok) {
+        throw new Error(onboardingData?.error || "Could not start Stripe onboarding.");
+      }
+
+      if (!onboardingData?.url) {
+        throw new Error("Stripe did not return an onboarding link.");
+      }
+
+      window.location.href = onboardingData.url;
+    } catch (error: any) {
+      setMessage(error?.message || "Something went wrong connecting Stripe payouts.");
+    } finally {
+      setStripeLoading(false);
+    }
+  }
+
   function handleCancelEdit() {
     if (!profile) return;
 
@@ -842,6 +877,7 @@ export default function AccountPage() {
     setLocation(profile.location || "");
     setBio(profile.bio || "");
     setInstagramHandle(profile.instagram_handle || "");
+    setBusinessName(profile.business_name || "");
     setSpecialties(profile.specialties || []);
     setProfessionalTypes(getProfessionalTypes(profile));
     setEmailRequestNotifications(profile.email_request_notifications ?? true);
@@ -868,6 +904,7 @@ export default function AccountPage() {
       location,
       bio,
       instagram_handle: instagramHandle,
+      business_name: profile.role === "professional" ? (businessName.trim() || null) : null,
       specialties: profile.role === "professional" ? specialties : [],
       professional_types:
         profile.role === "professional" ? cleanProfessionalTypes : [],
@@ -898,10 +935,39 @@ export default function AccountPage() {
     setIsEditing(false);
   }
 
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    setMessage("");
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const res = await fetch("/api/delete-account", {
+        method: "DELETE",
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        setMessage(json.error || "Something went wrong. Please try again.");
+        setDeleting(false);
+        return;
+      }
+
+      await supabase.auth.signOut();
+      router.push("/");
+    } catch {
+      setMessage("Something went wrong. Please try again.");
+      setDeleting(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
-        <Navbar />
+
 
         <div className="mx-auto max-w-6xl py-8">
           <div className="max-w-3xl">
@@ -980,24 +1046,24 @@ export default function AccountPage() {
   return (
     <>
       <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
-        <Navbar />
+
 
         <div className="mx-auto max-w-6xl py-10">
           <div className="mb-6 rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
             <div className="relative">
+              {/* Banner — click to change */}
               <button
                 type="button"
-                onClick={() => profile.banner_url && setShowBannerPreview(true)}
-                className={`block w-full ${
-                  profile.banner_url ? "cursor-zoom-in" : "cursor-default"
-                }`}
+                onClick={() => bannerInputRef.current?.click()}
+                className="group relative block w-full"
+                aria-label="Change cover photo"
               >
                 <div className="h-56 w-full overflow-hidden rounded-t-[2rem] bg-neutral-100 md:h-72">
                   {profile.banner_url ? (
                     <img
                       src={profile.banner_url}
                       alt="Cover photo"
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover transition group-hover:brightness-90"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-sm text-neutral-400">
@@ -1005,22 +1071,57 @@ export default function AccountPage() {
                     </div>
                   )}
                 </div>
+                <div className="absolute inset-0 flex items-center justify-center rounded-t-[2rem] opacity-0 transition group-hover:opacity-100 group-active:opacity-100">
+                  <span className="rounded-full bg-black/60 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm">
+                    {bannerUploading ? "Uploading..." : "Change cover photo"}
+                  </span>
+                </div>
               </button>
+              <input
+                ref={bannerInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleBannerChange}
+              />
 
+              {/* Avatar — click to change */}
               <div className="absolute -bottom-16 left-6 md:left-8">
-                <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-neutral-100 shadow md:h-40 md:w-40">
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  aria-label="Change profile photo"
+                  className="group relative h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-neutral-100 shadow md:h-40 md:w-40"
+                >
                   {profile.avatar_url ? (
                     <img
                       src={profile.avatar_url}
                       alt={profile.full_name || "Profile"}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover transition group-hover:brightness-75"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-4xl font-semibold text-neutral-500">
                       {profile.full_name?.charAt(0).toUpperCase() || "P"}
                     </div>
                   )}
-                </div>
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100 group-active:opacity-100">
+                    {avatarUploading ? (
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="h-6 w-6 text-white" fill="none" aria-hidden="true">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+                        <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="1.8"/>
+                      </svg>
+                    )}
+                  </div>
+                </button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
               </div>
             </div>
 
@@ -1087,6 +1188,69 @@ export default function AccountPage() {
             </div>
           </div>
 
+{isProfessional ? (
+              <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      Stripe payouts
+                    </p>
+                    <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                      Get paid through LineUp
+                    </h2>
+                    <p className="mt-3 text-sm leading-6 text-neutral-600">
+                      Connect Stripe so customer payments can be paid out to your bank account after bookings.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3">
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                      <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                        Account status
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-neutral-900">
+                        {profile.stripe_payouts_enabled
+                          ? "Payouts enabled"
+                          : profile.stripe_account_id
+                          ? "Onboarding incomplete"
+                          : "Not connected"}
+                      </p>
+                    </div>
+
+                    {profile.stripe_account_id ? (
+                      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                          Stripe account
+                        </p>
+                        <p className="mt-2 break-all text-sm font-medium text-neutral-700">
+                          {profile.stripe_account_id}
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleConnectStripePayouts}
+                    disabled={stripeLoading}
+                    className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                  >
+                    {stripeLoading
+                      ? "Opening Stripe..."
+                      : profile.stripe_payouts_enabled
+                      ? "Manage Stripe payouts"
+                      : profile.stripe_account_id
+                      ? "Finish Stripe onboarding"
+                      : "Connect Stripe payouts"}
+                  </button>
+
+                  <p className="text-xs leading-5 text-neutral-500">
+                    Stripe handles bank details, identity verification, and payout setup securely.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
           <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
             <div className="rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
               {!isEditing ? (
@@ -1099,6 +1263,17 @@ export default function AccountPage() {
                       {profile.bio?.trim() || "No bio added yet."}
                     </p>
                   </div>
+
+                  {isProfessional && profile.business_name?.trim() ? (
+                    <div className="mt-8">
+                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                        Shop / studio
+                      </p>
+                      <p className="mt-3 text-base font-semibold text-neutral-900">
+                        {profile.business_name}
+                      </p>
+                    </div>
+                  ) : null}
 
                   {isProfessional ? (
                     <div className="mt-8">
@@ -1175,83 +1350,6 @@ export default function AccountPage() {
                 </>
               ) : (
                 <form id="account-edit-form" onSubmit={handleSave} className="space-y-6">
-                  <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                      Cover photo
-                    </p>
-
-                    <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-neutral-200 bg-neutral-100">
-                      <div className="h-40 w-full">
-                        {profile.banner_url ? (
-                          <img
-                            src={profile.banner_url}
-                            alt="Banner"
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-sm text-neutral-400">
-                            No banner
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleBannerChange}
-                      className="mt-4 block w-full text-sm text-neutral-600 file:mr-4 file:rounded-full file:border-0 file:bg-neutral-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:opacity-90"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={handleBannerUpload}
-                      disabled={!bannerFile || bannerUploading}
-                      className="mt-3 rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {bannerUploading ? "Uploading..." : "Upload cover photo"}
-                    </button>
-                  </div>
-
-                  <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                      Profile photo
-                    </p>
-
-                    <div className="mt-4 flex items-center gap-4">
-                      <div className="h-24 w-24 overflow-hidden rounded-full border border-neutral-200 bg-white">
-                        {profile.avatar_url ? (
-                          <img
-                            src={profile.avatar_url}
-                            alt="Profile"
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-sm text-neutral-500">
-                            No photo
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleAvatarChange}
-                          className="block w-full text-sm text-neutral-600 file:mr-4 file:rounded-full file:border-0 file:bg-neutral-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:opacity-90"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleAvatarUpload}
-                          disabled={!avatarFile || avatarUploading}
-                          className="mt-3 rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {avatarUploading ? "Uploading..." : "Upload profile photo"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
                   <div>
                     <label className="mb-2 block text-sm font-medium text-neutral-700">
                       Full name
@@ -1307,6 +1405,22 @@ export default function AccountPage() {
                             );
                           })}
                         </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-neutral-700">
+                          Shop or studio name <span className="text-neutral-400">(optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={businessName}
+                          onChange={(e) => setBusinessName(e.target.value)}
+                          placeholder="e.g. Fade District Barbershop"
+                          className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                        />
+                        <p className="mt-2 text-xs text-neutral-500">
+                          If you work out of a shop or studio, this shows alongside your location on your public profile.
+                        </p>
                       </div>
 
                       <div>
@@ -1550,19 +1664,23 @@ export default function AccountPage() {
                         </p>
                       </div>
 
-                      <div className="rounded-2xl border border-neutral-200 bg-white p-5">
+                      <Link
+                        href="/analytics"
+                        className="rounded-2xl border border-neutral-200 bg-white p-5 transition hover:border-neutral-300 hover:bg-neutral-50"
+                      >
                         <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                          Completed services
+                          Analytics
                         </p>
-                        <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                          {completedServices.length}
+                        <p className="mt-2 text-base font-semibold text-neutral-900">
+                          View history →
                         </p>
-                      </div>
+                      </Link>
                     </>
                   ) : null}
                 </div>
               </div>
             </div>
+
           </div>
 
           {isProfessional ? (
@@ -1807,79 +1925,6 @@ export default function AccountPage() {
             </div>
           ) : null}
 
-          {isProfessional ? (
-            <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    Completed services
-                  </p>
-                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                    Recent work
-                  </h2>
-                </div>
-              </div>
-
-              {completedServices.length === 0 ? (
-                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
-                  No completed services yet.
-                </div>
-              ) : (
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  {completedServices.map((item) => (
-                    <div
-                      key={`${item.source}-${item.id}`}
-                      className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5"
-                    >
-                      <div className="flex items-start gap-4">
-                        <div className="h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-white">
-                          {item.customer_avatar_url ? (
-                            <img
-                              src={item.customer_avatar_url}
-                              alt={item.customer_name || "Customer"}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
-                              {item.customer_name?.charAt(0).toUpperCase() || "C"}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-3">
-                            <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-                              {item.source}
-                            </span>
-
-                            <span className="rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                              Completed
-                            </span>
-                          </div>
-
-                          <h3 className="mt-3 text-lg font-semibold text-neutral-900">
-                            {item.title}
-                          </h3>
-
-                          <p className="mt-2 text-sm text-neutral-600">
-                            {item.subtitle}
-                          </p>
-
-                          <p className="mt-2 text-sm text-neutral-600">
-                            {item.customer_name || "Unknown client"}
-                          </p>
-
-                          <p className="mt-2 text-sm text-neutral-500">
-                            {formatCompletedDate(item.completed_at)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : null}
         </div>
       </main>
 
@@ -1935,6 +1980,125 @@ export default function AccountPage() {
           </div>
         </div>
       ) : null}
+
+      {isProfessional ? (
+        <div className="mx-auto mt-10 max-w-3xl">
+          <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                  Pro feature
+                </p>
+                <h2 className="mt-2 text-xl font-semibold tracking-tight text-neutral-900">
+                  Your shareable profile link
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-neutral-600">
+                  Share your link with clients so they can view your services, portfolio, and book directly.
+                </p>
+              </div>
+
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                </svg>
+              </div>
+            </div>
+
+            {profile.subscription_status === "active" || profile.subscription_status === "trialing" ? (
+              <div className="mt-5">
+                <div className="flex items-center gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
+                  <span className="flex-1 truncate text-sm text-neutral-700">
+                    {typeof window !== "undefined" ? `${window.location.origin}/profile/${profile.id}` : `/profile/${profile.id}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${window.location.origin}/profile/${profile.id}`;
+                      navigator.clipboard.writeText(url).then(() => {
+                        setLinkCopied(true);
+                        setTimeout(() => setLinkCopied(false), 2000);
+                      });
+                    }}
+                    className="shrink-0 rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90"
+                  >
+                    {linkCopied ? "Copied!" : "Copy link"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7a4.5 4.5 0 00-9 0v3.5M5.25 10.5h13.5A1.5 1.5 0 0120.25 12v7.5A1.5 1.5 0 0118.75 21H5.25A1.5 1.5 0 013.75 19.5V12a1.5 1.5 0 011.5-1.5z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-neutral-700">Requires an active subscription</p>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-neutral-500">
+                  Subscribe to LineUp to unlock your public profile and get discovered by new clients.
+                </p>
+                <a
+                  href="/subscription"
+                  className="mt-4 inline-flex items-center justify-center rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  View plans
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mx-auto mt-10 max-w-3xl">
+        <div className="rounded-[2rem] border border-red-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-red-600">Danger zone</h2>
+          <p className="mt-2 text-sm leading-6 text-neutral-500">
+            Permanently deletes your account, profile, bookings, and all uploaded content. This cannot be undone.
+          </p>
+
+          {deleteConfirmOpen ? (
+            <div className="mt-5 space-y-4">
+              <p className="text-sm font-medium text-neutral-900">
+                Type <span className="font-mono font-semibold">DELETE</span> to confirm
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-red-400"
+              />
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmText !== "DELETE" || deleting}
+                  className="rounded-full bg-red-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-40"
+                >
+                  {deleting ? "Deleting..." : "Delete my account"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDeleteConfirmOpen(false); setDeleteConfirmText(""); }}
+                  disabled={deleting}
+                  className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="mt-5 rounded-full border border-red-300 px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50"
+            >
+              Delete account
+            </button>
+          )}
+        </div>
+      </div>
 
       {showBannerPreview && profile.banner_url ? (
         <div

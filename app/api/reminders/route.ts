@@ -24,11 +24,29 @@ function formatTime(timeString?: string | null) {
   return `${twelveHour}:${minute} ${suffix}`;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (cronSecret) {
+    const authHeader = req.headers.get("authorization");
+
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
   try {
     const supabase = getServiceSupabase();
 
     const now = new Date();
+
+    // This cron runs once a day (see vercel.json). Matching a narrow time-of-day
+    // window (e.g. "23-24h out right now") only reliably reaches bookings whose
+    // start time happens to align with when the cron fires, silently skipping
+    // everyone else. Matching on calendar date instead guarantees every confirmed
+    // booking scheduled for tomorrow gets exactly one reminder from this run.
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const tomorrowDateString = tomorrow.toISOString().slice(0, 10);
 
     const { data: bookings } = await supabase
       .from("bookings")
@@ -37,27 +55,17 @@ export async function GET() {
         customer:customer_id ( email ),
         professional:professional_id ( email )
       `)
-      .eq("status", "confirmed");
+      .eq("status", "confirmed")
+      .eq("booking_date", tomorrowDateString);
 
     for (const booking of bookings || []) {
-      const start = new Date(
-        `${booking.booking_date}T${booking.start_time}`
-      );
-
-      const diffMinutes =
-        (start.getTime() - now.getTime()) / (1000 * 60);
-
       const emails = [
         booking.customer?.email,
         booking.professional?.email,
       ].filter(Boolean);
 
       // 🔹 24 HOUR REMINDER
-      if (
-        diffMinutes <= 1440 &&
-        diffMinutes > 1380 &&
-        !booking.reminder_24h_sent_at
-      ) {
+      if (!booking.reminder_24h_sent_at) {
         for (const email of emails) {
           await sendEmail({
             to: email,
@@ -75,33 +83,6 @@ export async function GET() {
           .from("bookings")
           .update({
             reminder_24h_sent_at: new Date().toISOString(),
-          })
-          .eq("id", booking.id);
-      }
-
-      // 🔹 2 HOUR REMINDER
-      if (
-        diffMinutes <= 120 &&
-        diffMinutes > 90 &&
-        !booking.reminder_2h_sent_at
-      ) {
-        for (const email of emails) {
-          await sendEmail({
-            to: email,
-            subject: "Appointment soon",
-            html: `
-              <h2>Reminder</h2>
-              <p>Your appointment is in 2 hours.</p>
-              <p><strong>${formatDate(booking.booking_date)}</strong></p>
-              <p>${formatTime(booking.start_time)}</p>
-            `,
-          });
-        }
-
-        await supabase
-          .from("bookings")
-          .update({
-            reminder_2h_sent_at: new Date().toISOString(),
           })
           .eq("id", booking.id);
       }

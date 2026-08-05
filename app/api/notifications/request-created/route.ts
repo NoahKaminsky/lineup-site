@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 
     const { data: request, error } = await supabase
       .from("service_requests")
-      .select("id, title, service_detail, category, target_professions, preferred_professional_id")
+      .select("id, title, service_detail, category, service_mode, target_professions, preferred_professional_id")
       .eq("id", requestId)
       .single();
 
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
 
     let professionalsQuery = supabase
       .from("profiles")
-      .select("id, email, full_name, professional_type, professional_types, email_request_notifications")
+      .select("id, email, full_name, professional_type, professional_types, service_modes, email_request_notifications")
       .eq("role", "professional")
       .eq("email_request_notifications", true)
       .not("email", "is", null);
@@ -80,7 +80,15 @@ export async function POST(req: Request) {
         ? [profile.professional_type]
         : [];
 
-      return types.some((type: string) => targetSet.has(normalize(type)));
+      if (!types.some((type: string) => targetSet.has(normalize(type)))) return false;
+
+      // If the pro has service modes configured and the request specifies a mode, must match
+      const proModes = Array.isArray(profile.service_modes) ? profile.service_modes : [];
+      if (proModes.length > 0 && request.service_mode) {
+        if (!proModes.includes(request.service_mode)) return false;
+      }
+
+      return true;
     });
 
     if (matches.length === 0) {
@@ -139,6 +147,18 @@ export async function POST(req: Request) {
           : "New matching request on LineUp",
         html,
       });
+
+      await supabase.from("notifications").insert([
+        {
+          user_id: profile.id,
+          request_id: request.id,
+          is_read: false,
+          type: "request",
+          title: isDirectRequest
+            ? "Direct request"
+            : requestTitle,
+        },
+      ]);
 
       sent += 1;
     }

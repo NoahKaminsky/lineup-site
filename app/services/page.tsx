@@ -2,8 +2,9 @@
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import Navbar from "../components/AppNavbar";
+import { getCached, setCached } from "@/app/lib/pageCache";
 
 type Profile = {
   id: string;
@@ -17,7 +18,15 @@ type Profile = {
   location_lat?: number | null;
   location_lng?: number | null;
   location_place_id?: string | null;
+  subscription_status?: string | null;
+  subscription_plan?: string | null;
 };
+
+function isSubscribedToSchedule(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {
+  const subscribed =
+    profile.subscription_status === "active" || profile.subscription_status === "trialing";
+  return subscribed && !!profile.subscription_plan && profile.subscription_plan !== "basic";
+}
 
 type AvailabilityWindow = {
   id?: string;
@@ -46,6 +55,20 @@ type ServiceDraft = {
   duration_minutes: string;
   price: string;
   description: string;
+};
+
+type ServicesCache = {
+  profile: Profile;
+  services: ProfessionalService[];
+  serviceModes: string[];
+  directBookingEnabled: boolean;
+  publicAvailabilityEnabled: boolean;
+  defaultAppointmentDuration: number;
+  availabilityWindows: AvailabilityWindow[];
+  location: string;
+  locationLat: number | null;
+  locationLng: number | null;
+  locationPlaceId: string;
 };
 
 function makeBlankServiceDraft(): ServiceDraft {
@@ -374,7 +397,7 @@ function LocationAutocomplete({
           onInputChange?.(e.target.value);
         }}
         placeholder={placeholder}
-        className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-black"
+        className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-black"
       />
 
       {loading ? (
@@ -456,7 +479,7 @@ function AccordionSection({
 export default function ServicesPage() {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !getCached<ServicesCache>("services-page"));
   const [saving, setSaving] = useState(false);
   const [serviceSaving, setServiceSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -486,6 +509,8 @@ export default function ServicesPage() {
     [availabilityWindows]
   );
 
+  const isSubscribed = profile ? isSubscribedToSchedule(profile) : false;
+
   const needsBusinessLocation =
     serviceModes.includes("in_shop") || serviceModes.includes("home_studio");
   const hasGoogleBusinessLocation = !!locationPlaceId;
@@ -494,6 +519,21 @@ export default function ServicesPage() {
   const businessMapsUrl = getMapsUrl(locationLat, locationLng, location);
 
   useEffect(() => {
+    const cached = getCached<ServicesCache>("services-page");
+    if (cached) {
+      setProfile(cached.profile);
+      setServices(cached.services);
+      setServiceModes(cached.serviceModes);
+      setDirectBookingEnabled(cached.directBookingEnabled);
+      setPublicAvailabilityEnabled(cached.publicAvailabilityEnabled);
+      setDefaultAppointmentDuration(cached.defaultAppointmentDuration);
+      setAvailabilityWindows(cached.availabilityWindows);
+      setLocation(cached.location);
+      setLocationLat(cached.locationLat);
+      setLocationLng(cached.locationLng);
+      setLocationPlaceId(cached.locationPlaceId);
+    }
+
     async function loadPage() {
       const {
         data: { user },
@@ -508,7 +548,7 @@ export default function ServicesPage() {
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select(
-          "id, role, professional_type, service_modes, direct_booking_enabled, public_availability_enabled, default_appointment_duration, formatted_address, location_lat, location_lng, location_place_id"
+          "id, role, professional_type, service_modes, direct_booking_enabled, public_availability_enabled, default_appointment_duration, formatted_address, location_lat, location_lng, location_place_id, subscription_status, subscription_plan"
         )
         .eq("id", user.id)
         .single();
@@ -527,14 +567,14 @@ export default function ServicesPage() {
         return;
       }
 
+      const resolvedServiceModes = Array.isArray(profileData.service_modes)
+        ? profileData.service_modes
+        : profileData.service_modes
+        ? [profileData.service_modes]
+        : [];
+
       setProfile(profileData as Profile);
-      setServiceModes(
-        Array.isArray(profileData.service_modes)
-          ? profileData.service_modes
-          : profileData.service_modes
-          ? [profileData.service_modes]
-          : []
-      );
+      setServiceModes(resolvedServiceModes);
       setDirectBookingEnabled(Boolean(profileData.direct_booking_enabled));
       setPublicAvailabilityEnabled(Boolean(profileData.public_availability_enabled));
       setDefaultAppointmentDuration(Number(profileData.default_appointment_duration || 60));
@@ -550,9 +590,8 @@ export default function ServicesPage() {
         .order("day_of_week", { ascending: true })
         .order("start_time", { ascending: true });
 
-      if (!availabilityError && availabilityData) {
-        setAvailabilityWindows(
-          availabilityData.map((row) => ({
+      const resolvedAvailability = !availabilityError && availabilityData
+        ? availabilityData.map((row) => ({
             id: row.id,
             professional_id: row.professional_id,
             day_of_week: Number(row.day_of_week),
@@ -561,8 +600,9 @@ export default function ServicesPage() {
             is_active: Boolean(row.is_active),
             local_id: row.id || makeLocalId(),
           }))
-        );
-      }
+        : [];
+
+      setAvailabilityWindows(resolvedAvailability);
 
       const { data: servicesData, error: servicesError } = await supabase
         .from("professional_services")
@@ -572,9 +612,25 @@ export default function ServicesPage() {
         .eq("professional_id", user.id)
         .order("created_at", { ascending: true });
 
-      if (!servicesError && servicesData) {
-        setServices(servicesData as ProfessionalService[]);
-      }
+      const resolvedServices = !servicesError && servicesData
+        ? (servicesData as ProfessionalService[])
+        : [];
+
+      setServices(resolvedServices);
+
+      setCached<ServicesCache>("services-page", {
+        profile: profileData as Profile,
+        services: resolvedServices,
+        serviceModes: resolvedServiceModes,
+        directBookingEnabled: Boolean(profileData.direct_booking_enabled),
+        publicAvailabilityEnabled: Boolean(profileData.public_availability_enabled),
+        defaultAppointmentDuration: Number(profileData.default_appointment_duration || 60),
+        availabilityWindows: resolvedAvailability,
+        location: profileData.formatted_address || "",
+        locationLat: profileData.location_lat ?? null,
+        locationLng: profileData.location_lng ?? null,
+        locationPlaceId: profileData.location_place_id || "",
+      });
 
       setLoading(false);
     }
@@ -999,10 +1055,22 @@ export default function ServicesPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
-        <Navbar />
-        <div className="mx-auto max-w-6xl py-16">
-          <p className="text-neutral-500">Loading services...</p>
+      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 sm:py-10">
+
+        <div className="mx-auto max-w-6xl py-8">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="h-3 w-36 animate-pulse rounded-full bg-neutral-200" />
+              <div className="mt-3 h-10 w-80 animate-pulse rounded-2xl bg-neutral-200 md:h-12" />
+              <div className="mt-3 h-4 w-full max-w-lg animate-pulse rounded-full bg-neutral-100" />
+            </div>
+            <div className="h-11 w-32 animate-pulse rounded-full bg-neutral-200" />
+          </div>
+          <div className="mt-8 space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 animate-pulse rounded-[1.5rem] bg-neutral-100" />
+            ))}
+          </div>
         </div>
       </main>
     );
@@ -1010,7 +1078,7 @@ export default function ServicesPage() {
 
   return (
     <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 sm:py-10">
-      <Navbar />
+
 
       <div className="mx-auto max-w-6xl py-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -1084,7 +1152,7 @@ export default function ServicesPage() {
                           className={`rounded-full px-4 py-2 text-xs font-medium transition ${
                             service.is_bookable
                               ? "bg-black text-white hover:opacity-90"
-                              : "border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+                              : "border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
                           }`}
                         >
                           {service.is_bookable ? "Bookable" : "Hidden"}
@@ -1116,7 +1184,7 @@ export default function ServicesPage() {
                             onChange={(e) =>
                               updateServiceDraft(service.id, "service_name", e.target.value)
                             }
-                            className="w-full rounded-2xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                            className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
                           />
                         </div>
 
@@ -1129,7 +1197,7 @@ export default function ServicesPage() {
                             onChange={(e) =>
                               updateServiceDraft(service.id, "duration_minutes", e.target.value)
                             }
-                            className="w-full rounded-2xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                            className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
                           >
                             {[15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150, 180].map(
                               (minutes) => (
@@ -1154,7 +1222,7 @@ export default function ServicesPage() {
                               updateServiceDraft(service.id, "price", e.target.value)
                             }
                             placeholder="50"
-                            className="w-full rounded-2xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                            className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
                           />
                         </div>
 
@@ -1180,7 +1248,7 @@ export default function ServicesPage() {
                           }
                           placeholder="Optional short description shown on your public profile."
                           rows={3}
-                          className="w-full rounded-2xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                          className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
                         />
                       </div>
                     </div>
@@ -1206,7 +1274,7 @@ export default function ServicesPage() {
                 value={newServiceName}
                 onChange={(e) => setNewServiceName(e.target.value)}
                 placeholder="Haircut, Beard Trim, Gel Set, Brow Wax..."
-                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
               />
             </div>
 
@@ -1217,7 +1285,7 @@ export default function ServicesPage() {
               <select
                 value={newServiceDuration}
                 onChange={(e) => setNewServiceDuration(Number(e.target.value))}
-                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
               >
                 {[15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150, 180].map((minutes) => (
                   <option key={minutes} value={minutes}>
@@ -1238,7 +1306,7 @@ export default function ServicesPage() {
                 value={newServicePrice}
                 onChange={(e) => setNewServicePrice(e.target.value)}
                 placeholder="50"
-                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
               />
             </div>
 
@@ -1263,7 +1331,7 @@ export default function ServicesPage() {
               onChange={(e) => setNewServiceDescription(e.target.value)}
               placeholder="Optional short description shown on your public profile."
               rows={3}
-              className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+              className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
             />
           </div>
         </AccordionSection>
@@ -1284,7 +1352,7 @@ export default function ServicesPage() {
                   className={`rounded-full px-4 py-2 text-sm font-medium transition ${
                     template.exists
                       ? "cursor-not-allowed border border-neutral-200 bg-white text-neutral-400"
-                      : "border border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
+                      : "border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-100"
                   }`}
                 >
                   {template.exists
@@ -1419,7 +1487,7 @@ export default function ServicesPage() {
                   className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
                     selected
                       ? "border-neutral-900 bg-neutral-900 text-white"
-                      : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50"
+                      : "border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50"
                   }`}
                 >
                   {formatModeLabel(mode)}
@@ -1476,7 +1544,7 @@ export default function ServicesPage() {
               <select
                 value={defaultAppointmentDuration}
                 onChange={(e) => setDefaultAppointmentDuration(Number(e.target.value))}
-                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
               >
                 {[30, 45, 60, 75, 90, 120].map((minutes) => (
                   <option key={minutes} value={minutes}>
@@ -1491,105 +1559,101 @@ export default function ServicesPage() {
         <AccordionSection
           title="Set your open windows"
           subtitle="Weekly availability"
-          summary={`${availabilityWindows.length} saved availability window${
-            availabilityWindows.length === 1 ? "" : "s"
-          }`}
+          summary={
+            isSubscribed
+              ? `${availabilityWindows.length} saved availability window${
+                  availabilityWindows.length === 1 ? "" : "s"
+                }`
+              : "Upgrade to set your schedule"
+          }
         >
+          {!isSubscribed ? (
+            <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-center">
+              <p className="text-sm font-semibold text-neutral-900">
+                The weekly availability schedule is a paid feature
+              </p>
+              <p className="mt-2 text-sm leading-6 text-neutral-500">
+                Upgrade from Basic to Apprentice, Pro, or Master to set your open hours and let customers book directly from your profile.
+              </p>
+              <Link
+                href="/subscription"
+                className="mt-4 inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+              >
+                View plans
+              </Link>
+            </div>
+          ) : (
+            <>
           <p className="max-w-2xl text-sm leading-6 text-neutral-500">
             Add multiple windows per day if your schedule is split up. For example, Monday 9–12 and Monday 3–6.
           </p>
 
-          <div className="mt-6 space-y-4">
-            {groupedAvailability.map((group) => (
-              <div
-                key={group.dayIndex}
-                className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-[140px]">
-                    <p className="text-base font-semibold text-neutral-900">{group.day}</p>
-                    <p className="mt-1 text-sm text-neutral-500">
+          <div className="mt-6 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+            {groupedAvailability.map((group, i) => (
+              <div key={group.dayIndex} className={i > 0 ? "border-t border-neutral-100" : ""}>
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-4">
+                    <p className="w-24 shrink-0 text-sm font-semibold text-neutral-900">{group.day}</p>
+                    <span className={`truncate text-xs font-medium ${group.windows.length > 0 ? "text-emerald-700" : "text-neutral-400"}`}>
                       {group.windows.length === 0
                         ? "Closed"
-                        : `${group.windows.length} open ${
-                            group.windows.length === 1 ? "window" : "windows"
-                          }`}
-                    </p>
+                        : group.windows.map((w) => `${formatTime(w.start_time)}–${formatTime(w.end_time)}`).join(" · ")}
+                    </span>
                   </div>
-
-                  <div className="flex-1 space-y-3">
-                    {group.windows.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-neutral-300 bg-white p-4 text-sm text-neutral-500">
-                        No windows yet.
-                      </div>
-                    ) : (
-                      group.windows.map((window) => (
-                        <div
-                          key={window.local_id}
-                          className="rounded-2xl border border-neutral-200 bg-white p-4"
-                        >
-                          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-                            <div>
-                              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-500">
-                                Start
-                              </label>
-                              <input
-                                type="time"
-                                value={window.start_time}
-                                onChange={(e) =>
-                                  updateAvailabilityWindow(
-                                    window.local_id,
-                                    "start_time",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
-                              />
-                            </div>
-                            <div>
-                              <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-neutral-500">
-                                End
-                              </label>
-                              <input
-                                type="time"
-                                value={window.end_time}
-                                onChange={(e) =>
-                                  updateAvailabilityWindow(
-                                    window.local_id,
-                                    "end_time",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => removeAvailabilityWindow(window.local_id)}
-                              className="rounded-full border border-red-200 px-4 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                          <p className="mt-3 text-xs text-neutral-500">
-                            {formatTime(window.start_time)} - {formatTime(window.end_time)}
-                          </p>
-                        </div>
-                      ))
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => addAvailabilityWindow(group.dayIndex)}
-                      className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
-                    >
-                      + Add window
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => addAvailabilityWindow(group.dayIndex)}
+                    className="shrink-0 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-100"
+                  >
+                    + Add
+                  </button>
                 </div>
+
+                {group.windows.length > 0 ? (
+                  <div className="space-y-2 px-4 pb-3">
+                    {group.windows.map((window) => (
+                      <div
+                        key={window.local_id}
+                        className="grid gap-2 rounded-xl border border-neutral-100 bg-neutral-50 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-center"
+                      >
+                        <div className="flex items-center gap-2">
+                          <label className="w-8 shrink-0 text-xs font-medium text-neutral-500">From</label>
+                          <input
+                            type="time"
+                            value={window.start_time}
+                            onChange={(e) =>
+                              updateAvailabilityWindow(window.local_id, "start_time", e.target.value)
+                            }
+                            className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-neutral-900"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="w-8 shrink-0 text-xs font-medium text-neutral-500">To</label>
+                          <input
+                            type="time"
+                            value={window.end_time}
+                            onChange={(e) =>
+                              updateAvailabilityWindow(window.local_id, "end_time", e.target.value)
+                            }
+                            className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-neutral-900"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeAvailabilityWindow(window.local_id)}
+                          className="rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>
+            </>
+          )}
         </AccordionSection>
 
         <div className="mt-8 flex flex-col gap-3 rounded-[1.75rem] border border-neutral-200 bg-neutral-50 p-5 sm:flex-row sm:items-center sm:justify-between">

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
-import Navbar from "../components/AppNavbar";
+import { getCached, setCached } from "@/app/lib/pageCache";
 
 type Profile = {
   id: string;
@@ -14,6 +14,7 @@ type Profile = {
   avatar_url: string | null;
   professional_type?: string | null;
   professional_types?: string[] | null;
+  service_modes?: string[] | null;
 };
 
 type BookingStatus =
@@ -62,6 +63,8 @@ type ServiceRequest = {
   target_professions: string[] | null;
   accepted_professional_id: string | null;
   created_at: string;
+  completed_at?: string | null;
+  cancelled_at?: string | null;
   completion_requested_at?: string | null;
   reference_photos: string[] | null;
   preferred_professional_id?: string | null;
@@ -125,6 +128,7 @@ type RequestAndOfferItem = {
   requestId: string;
   personName: string | null;
   personAvatarUrl: string | null;
+  cancelledAt?: string | null;
 };
 
 type TabKey = "booked" | "requests" | "completed";
@@ -140,6 +144,12 @@ function isCustomerRole(role: string | null | undefined) {
 function isProfessionalRole(role: string | null | undefined) {
   const normalizedRole = normalizeRole(role);
   return !normalizedRole.includes("customer") && !!normalizedRole;
+}
+
+function isServiceOver(date: string | null, endTime: string | null) {
+  if (!date || !endTime) return false;
+  const end = new Date(`${date}T${String(endTime).slice(0, 5)}:00`);
+  return new Date() >= end;
 }
 
 function formatCategory(category: string | null | undefined) {
@@ -259,27 +269,44 @@ function Avatar({ name, url }: { name: string | null; url: string | null }) {
   );
 }
 
+type WorkCache = {
+  profile: Profile;
+  bookedItems: BookedItem[];
+  requestAndOfferItems: RequestAndOfferItem[];
+};
+
 export default function WorkPage() {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !getCached<WorkCache>("work-page"));
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("booked");
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [bookedItems, setBookedItems] = useState<BookedItem[]>([]);
-  const [requestAndOfferItems, setRequestAndOfferItems] = useState<RequestAndOfferItem[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(() => getCached<WorkCache>("work-page")?.profile ?? null);
+  const [bookedItems, setBookedItems] = useState<BookedItem[]>(() => getCached<WorkCache>("work-page")?.bookedItems ?? []);
+  const [requestAndOfferItems, setRequestAndOfferItems] = useState<RequestAndOfferItem[]>(() => getCached<WorkCache>("work-page")?.requestAndOfferItems ?? []);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+  const [reviewItem, setReviewItem] = useState<BookedItem | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const isCustomer = isCustomerRole(profile?.role);
   const isProfessional = isProfessionalRole(profile?.role);
 
   useEffect(() => {
-    loadWork();
+    loadWork(!!getCached<WorkCache>("work-page"));
   }, []);
 
-  async function loadWork() {
+  useEffect(() => {
+    if (!loading && profile) {
+      setCached<WorkCache>("work-page", { profile, bookedItems, requestAndOfferItems });
+    }
+  }, [loading, profile, bookedItems, requestAndOfferItems]);
+
+  async function loadWork(silent = false) {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setMessage("");
 
       const {
@@ -294,7 +321,7 @@ export default function WorkPage() {
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("id, email, full_name, role, avatar_url, professional_type, professional_types")
+        .select("id, email, full_name, role, avatar_url, professional_type, professional_types, service_modes")
         .eq("id", user.id)
         .single();
 
@@ -407,6 +434,7 @@ export default function WorkPage() {
       requestId: request.id,
       personName: null,
       personAvatarUrl: null,
+      cancelledAt: request.cancelled_at || null,
     }));
 
     const offerItems: RequestAndOfferItem[] = offersReceived.map((offer) => {
@@ -484,6 +512,7 @@ export default function WorkPage() {
         "id, request_id, professional_id, message, proposed_price, proposed_date, proposed_start_time, proposed_end_time, status, created_at"
       )
       .eq("professional_id", userId)
+      .neq("status", "withdrawn")
       .order("created_at", { ascending: false });
 
     const allRequests = (allRequestsData || []) as ServiceRequest[];
@@ -497,11 +526,20 @@ export default function WorkPage() {
     const professionalType = currentProfile.professional_type ? [currentProfile.professional_type] : [];
     const allTypes = Array.from(new Set([...professionalTypes, ...professionalType]));
 
+    const proServiceModes = Array.isArray(currentProfile.service_modes)
+      ? currentProfile.service_modes
+      : [];
+
     const openRequests = allRequests.filter((request) => {
       if (request.status !== "open") return false;
       if (request.is_direct_rebook) return request.preferred_professional_id === userId;
       if (allTypes.length === 0) return true;
-      return allTypes.includes(request.category);
+      if (!allTypes.includes(request.category)) return false;
+      // If the pro has service modes set and the request specifies a mode, must match
+      if (proServiceModes.length > 0 && request.service_mode) {
+        if (!proServiceModes.includes(request.service_mode)) return false;
+      }
+      return true;
     });
 
     const offerRequestIds = Array.from(new Set(offersSent.map((offer) => offer.request_id)));
@@ -640,7 +678,7 @@ export default function WorkPage() {
       serviceMode: request.service_mode,
       price: request.budget,
       createdAt: request.created_at,
-      completedAt: request.created_at,
+      completedAt: request.completed_at || null,
       customerId: request.client_id,
       professionalId: request.accepted_professional_id,
       customerName: customer?.full_name || customer?.email || "Client",
@@ -686,7 +724,29 @@ export default function WorkPage() {
     try {
       const now = new Date().toISOString();
 
-      if (item.source === "booking") {
+      if (nextStatus === "cancelled") {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        const response = await fetch("/api/bookings/cancel", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify(
+            item.source === "booking" ? { bookingId: item.id } : { requestId: item.id }
+          ),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setMessage(data?.error || "Could not cancel this booking.");
+          return;
+        }
+      } else if (item.source === "booking") {
         const updates: Partial<BookingRow> = {
           status: nextStatus as BookingStatus,
         };
@@ -697,11 +757,6 @@ export default function WorkPage() {
 
         if (nextStatus === "completed") {
           updates.completed_at = now;
-        }
-
-        if (nextStatus === "cancelled") {
-          updates.cancelled_by = profile.id;
-          updates.cancelled_at = now;
         }
 
         let query = supabase.from("bookings").update(updates).eq("id", item.id);
@@ -756,7 +811,11 @@ export default function WorkPage() {
       if (nextStatus === "completion_requested") {
         setMessage("Completion requested. Waiting for customer confirmation.");
       } else if (nextStatus === "completed") {
-        setMessage("Service marked as completed.");
+        if (isCustomer) {
+          setReviewItem(item);
+        } else {
+          setMessage("Service marked as completed.");
+        }
       } else {
         setMessage("Service cancelled.");
       }
@@ -765,6 +824,30 @@ export default function WorkPage() {
       setMessage("Something went wrong updating this service.");
     } finally {
       setActionLoadingId(null);
+    }
+  }
+
+  async function handleSubmitReview() {
+    if (!reviewItem || reviewRating === 0) return;
+    const professionalId = reviewItem.professionalId;
+    if (!professionalId) return;
+
+    setReviewSubmitting(true);
+    try {
+      await supabase.from("professional_reviews").insert({
+        professional_id: professionalId,
+        reviewer_id: profile?.id,
+        rating: reviewRating,
+        comment: reviewComment.trim() || null,
+      });
+    } catch {
+      // best-effort
+    } finally {
+      setReviewSubmitting(false);
+      setReviewItem(null);
+      setReviewRating(0);
+      setReviewComment("");
+      setMessage("Service completed. Thanks for your review!");
     }
   }
 
@@ -800,8 +883,8 @@ export default function WorkPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
-        <Navbar />
+      <main className="min-h-dvh bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+
 
         <div className="mx-auto max-w-6xl py-8">
           <div className="max-w-3xl">
@@ -852,8 +935,8 @@ export default function WorkPage() {
 
   if (!profile) {
     return (
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
-        <Navbar />
+      <main className="min-h-dvh bg-white px-6 py-10 text-neutral-900">
+
         <div className="mx-auto max-w-6xl py-16">
           <p className="text-red-600">Could not load profile.</p>
         </div>
@@ -861,67 +944,74 @@ export default function WorkPage() {
     );
   }
 
+  const openRequestItems = requestAndOfferItems.filter(
+    (item) => (item.kind === "open_request" || item.kind === "posted_request") && item.status !== "Cancelled"
+  );
+  const offerItems = requestAndOfferItems.filter((item) => item.kind === "offer_sent" || item.kind === "offer_received");
+  const cancelledRequestItems = requestAndOfferItems.filter((item) => {
+    if ((item.kind !== "open_request" && item.kind !== "posted_request") || item.status !== "Cancelled") {
+      return false;
+    }
+    if (!item.cancelledAt) return false;
+    const cancelledAgeMs = Date.now() - new Date(item.cancelledAt).getTime();
+    return cancelledAgeMs <= 24 * 60 * 60 * 1000;
+  });
+
   return (
-    <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
-      <Navbar />
+    <>
+    <main className="min-h-dvh bg-white px-4 py-6 text-neutral-900 sm:px-6 sm:py-8 lg:px-8">
 
-      <div className="mx-auto max-w-6xl py-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-              {isProfessional ? "Work" : "My Services"}
-            </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
-              {isProfessional ? "Manage your work" : "Your services"}
-            </h1>
-            <p className="mt-3 max-w-2xl text-neutral-600">
-              {isProfessional
-                ? "Keep track of booked jobs, request activity, offers, and completed work."
-                : "Keep track of booked services, requests, offers, and completed appointments."}
-            </p>
-          </div>
-
-          <div className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-600">
-            {isProfessional ? "Professional view" : isCustomer ? "Customer view" : "Account view"}
-          </div>
+      <div className="mx-auto max-w-6xl py-4 sm:py-6">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-500">
+            {isProfessional ? "Work" : "My services"}
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:mt-3 md:text-5xl">
+            {isProfessional
+              ? `Hey, ${profile.full_name?.split(" ")[0] ?? "there"}`
+              : "Your services"}
+          </h1>
+          <p className="mt-2 max-w-xl text-sm text-neutral-500 sm:mt-3 sm:text-base">
+            {isProfessional
+              ? "Track your upcoming jobs, offers, and completed work."
+              : "Track your bookings, requests, and service history."}
+          </p>
         </div>
 
-        <div className="mt-8 grid grid-cols-3 gap-2 rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab("booked")}
-            className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
-              activeTab === "booked"
-                ? "bg-black text-white"
-                : "text-neutral-600 hover:bg-white"
-            }`}
-          >
-            Booked ({activeBookedItems.length})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("requests")}
-            className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
-              activeTab === "requests"
-                ? "bg-black text-white"
-                : "text-neutral-600 hover:bg-white"
-            }`}
-          >
-            Requests & Offers ({requestAndOfferItems.length})
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("completed")}
-            className={`rounded-2xl px-4 py-3 text-sm font-medium transition ${
-              activeTab === "completed"
-                ? "bg-black text-white"
-                : "text-neutral-600 hover:bg-white"
-            }`}
-          >
-            Completed ({completedItems.length})
-          </button>
+        <div className="mt-5 grid grid-cols-3 gap-1.5 rounded-[1.5rem] border border-neutral-200 bg-neutral-100 p-1.5 sm:mt-8">
+          {(["booked", "requests", "completed"] as TabKey[]).map((tab) => {
+            const labels: Record<TabKey, string> = {
+              booked: "Booked",
+              requests: "Activity",
+              completed: "History",
+            };
+            const counts: Record<TabKey, number> = {
+              booked: activeBookedItems.length,
+              requests: openRequestItems.length + offerItems.length,
+              completed: completedItems.length + cancelledRequestItems.length,
+            };
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className={`relative rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  activeTab === tab
+                    ? "bg-white text-neutral-900 shadow-sm"
+                    : "text-neutral-500 hover:text-neutral-700"
+                }`}
+              >
+                {labels[tab]}
+                {counts[tab] > 0 ? (
+                  <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                    activeTab === tab ? "bg-neutral-100 text-neutral-600" : "bg-neutral-200 text-neutral-500"
+                  }`}>
+                    {counts[tab]}
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
 
         {message ? (
@@ -930,90 +1020,79 @@ export default function WorkPage() {
           </div>
         ) : null}
 
-        <div className="mt-8">
+        <div className="mt-5 min-h-[60vh] sm:mt-8">
           {activeTab === "requests" ? (
             requestAndOfferItems.length === 0 ? (
-              <div className="rounded-[2rem] border border-dashed border-neutral-300 bg-white p-8 text-center text-neutral-500">
-                {getEmptyMessage()}
+              <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-10 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+                  <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
+                    <path d="M6 2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </div>
+                <p className="mt-4 font-semibold text-neutral-900">
+                  {isProfessional ? "No open requests yet" : "No requests posted yet"}
+                </p>
+                <p className="mt-1.5 text-sm text-neutral-500">
+                  {isProfessional
+                    ? "Matching client requests will appear here. Make sure your services and availability are set up."
+                    : "Post a request and professionals will send you offers to compare."}
+                </p>
+                {!isProfessional ? (
+                  <Link href="/requests/new" className="mt-5 inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90">
+                    Post a request
+                  </Link>
+                ) : null}
               </div>
             ) : (
-              <div className="grid gap-4">
-                {requestAndOfferItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm"
-                  >
-                    <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                      <div className="flex min-w-0 flex-1 gap-4">
-                        {item.personName ? (
-                          <Avatar name={item.personName} url={item.personAvatarUrl} />
-                        ) : (
-                          <div className="h-12 w-12 shrink-0 rounded-2xl border border-neutral-200 bg-neutral-50" />
-                        )}
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-                              {item.kind === "open_request"
-                                ? "Open request"
-                                : item.kind === "posted_request"
-                                  ? "Posted request"
-                                  : item.kind === "offer_sent"
-                                    ? "Offer sent"
-                                    : "Offer received"}
-                            </span>
-                            <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-                              {item.status}
-                            </span>
-                          </div>
-
-                          <h2 className="mt-3 text-xl font-semibold tracking-tight text-neutral-900">
-                            {item.title}
-                          </h2>
-
-                          <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-600">
-                            {item.subtitle}
-                          </p>
-
-                          <div className="mt-4 flex flex-wrap gap-2 text-sm text-neutral-600">
-                            {item.personName ? (
-                              <span className="rounded-full bg-neutral-50 px-3 py-1">
-                                {isProfessional ? "Client" : "Professional"}: {item.personName}
-                              </span>
-                            ) : null}
-
-                            {formatPrice(item.price) ? (
-                              <span className="rounded-full bg-neutral-50 px-3 py-1">
-                                {formatPrice(item.price)}
-                              </span>
-                            ) : null}
-
-                            {item.date ? (
-                              <span className="rounded-full bg-neutral-50 px-3 py-1">
-                                {formatDate(item.date)} {item.startTime ? `at ${formatTime(item.startTime)}` : ""}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-
-                      <Link
-                        href={`/requests/${item.requestId}`}
-                        className="rounded-full border border-neutral-300 px-4 py-2 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                      >
-                        View request
-                      </Link>
+              <div className="space-y-6">
+                {openRequestItems.length > 0 ? (
+                  <div>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                      {isProfessional ? "Open requests" : "Your requests"}
+                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{openRequestItems.length}</span>
+                    </p>
+                    <div className="grid gap-2.5 lg:grid-cols-2">
+                      {openRequestItems.map((item) => (
+                        <ActivityCard key={item.id} item={item} isProfessional={isProfessional} />
+                      ))}
                     </div>
                   </div>
-                ))}
+                ) : null}
+
+                {offerItems.length > 0 ? (
+                  <div>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                      {isProfessional ? "Offers sent" : "Offers received"}
+                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{offerItems.length}</span>
+                    </p>
+                    <div className="grid gap-2.5 lg:grid-cols-2">
+                      {offerItems.map((item) => (
+                        <ActivityCard key={item.id} item={item} isProfessional={isProfessional} />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             )
           ) : null}
 
           {activeTab === "booked" ? (
             activeBookedItems.length === 0 ? (
-              <div className="rounded-[2rem] border border-dashed border-neutral-300 bg-white p-8 text-center text-neutral-500">
-                {getEmptyMessage()}
+              <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-10 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+                  <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
+                    <path d="M6 2v2M14 2v2M3 8h14M4 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </div>
+                <p className="mt-4 font-semibold text-neutral-900">
+                  {isProfessional ? "No booked services" : "Nothing booked yet"}
+                </p>
+                <p className="mt-1.5 text-sm text-neutral-500">
+                  {isProfessional
+                    ? "Confirmed jobs and upcoming bookings will appear here."
+                    : "Once you accept an offer or make a direct booking, it'll show up here."}
+                </p>
               </div>
             ) : (
               <BookedList
@@ -1021,6 +1100,8 @@ export default function WorkPage() {
                 isProfessional={isProfessional}
                 isCustomer={isCustomer}
                 actionLoadingId={actionLoadingId}
+                cancelConfirmId={cancelConfirmId}
+                setCancelConfirmId={setCancelConfirmId}
                 getOtherPerson={getOtherPerson}
                 updateBookedItemStatus={updateBookedItemStatus}
               />
@@ -1028,24 +1109,167 @@ export default function WorkPage() {
           ) : null}
 
           {activeTab === "completed" ? (
-            completedItems.length === 0 ? (
-              <div className="rounded-[2rem] border border-dashed border-neutral-300 bg-white p-8 text-center text-neutral-500">
-                {getEmptyMessage()}
+            completedItems.length === 0 && cancelledRequestItems.length === 0 ? (
+              <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-10 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+                  <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
+                    <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5"/>
+                    <path d="M6.5 10.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <p className="mt-4 font-semibold text-neutral-900">No completed services yet</p>
+                <p className="mt-1.5 text-sm text-neutral-500">Your service history will build up here over time.</p>
               </div>
             ) : (
-              <BookedList
-                items={completedItems}
-                isProfessional={isProfessional}
-                isCustomer={isCustomer}
-                actionLoadingId={actionLoadingId}
-                getOtherPerson={getOtherPerson}
-                updateBookedItemStatus={updateBookedItemStatus}
-              />
+              <div className="space-y-6">
+                {completedItems.length > 0 ? (
+                  <BookedList
+                    items={completedItems}
+                    isProfessional={isProfessional}
+                    isCustomer={isCustomer}
+                    actionLoadingId={actionLoadingId}
+                    cancelConfirmId={cancelConfirmId}
+                    setCancelConfirmId={setCancelConfirmId}
+                    getOtherPerson={getOtherPerson}
+                    updateBookedItemStatus={updateBookedItemStatus}
+                  />
+                ) : null}
+
+                {cancelledRequestItems.length > 0 ? (
+                  <div>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                      Cancelled requests
+                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{cancelledRequestItems.length}</span>
+                    </p>
+                    <div className="grid gap-2.5 lg:grid-cols-2">
+                      {cancelledRequestItems.map((item) => (
+                        <ActivityCard key={item.id} item={item} isProfessional={isProfessional} />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             )
           ) : null}
         </div>
       </div>
     </main>
+
+    {reviewItem ? (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4">
+        <div className="w-full max-w-md rounded-t-[2rem] bg-white p-6 shadow-2xl sm:rounded-[2rem]">
+          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+            Service complete
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+            How was {reviewItem.professionalName?.split(" ")[0] ?? "your professional"}?
+          </h2>
+          <p className="mt-2 text-sm text-neutral-500">
+            Your review helps other customers and supports the professional.
+          </p>
+
+          <div className="mt-6 flex items-center gap-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => setReviewRating(star)}
+                className="text-3xl transition hover:scale-110"
+                aria-label={`Rate ${star} stars`}
+              >
+                <span className={star <= reviewRating ? "text-black" : "text-neutral-200"}>
+                  ★
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <textarea
+            value={reviewComment}
+            onChange={(e) => setReviewComment(e.target.value)}
+            placeholder="Share details about your experience (optional)"
+            rows={3}
+            className="mt-5 w-full resize-none rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+          />
+
+          <div className="mt-5 flex gap-3">
+            <button
+              type="button"
+              onClick={handleSubmitReview}
+              disabled={reviewRating === 0 || reviewSubmitting}
+              className="flex-1 rounded-full bg-black py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+            >
+              {reviewSubmitting ? "Submitting..." : "Submit review"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setReviewItem(null); setMessage("Service completed."); }}
+              className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
+    </>
+  );
+}
+
+function ActivityCard({ item, isProfessional }: { item: RequestAndOfferItem; isProfessional: boolean }) {
+  const isOffer = item.kind === "offer_sent" || item.kind === "offer_received";
+
+  const metaParts = [
+    item.personName || null,
+    item.date ? `${formatDate(item.date)}${item.startTime ? ` · ${formatTime(item.startTime)}` : ""}` : null,
+  ].filter(Boolean);
+
+  return (
+    <Link
+      href={`/requests/${item.requestId}`}
+      className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-3.5 transition hover:border-neutral-300 hover:bg-neutral-50"
+    >
+      {item.personName ? (
+        <Avatar name={item.personName} url={item.personAvatarUrl} />
+      ) : (
+        <div className="h-12 w-12 shrink-0 rounded-2xl border border-neutral-200 bg-neutral-50" />
+      )}
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+            isOffer
+              ? "bg-neutral-100 text-neutral-600"
+              : "bg-neutral-900 text-white"
+          }`}>
+            {item.kind === "open_request"
+              ? "New request"
+              : item.kind === "posted_request"
+              ? "Your request"
+              : item.kind === "offer_sent"
+              ? "Offer sent"
+              : "Offer received"}
+          </span>
+          <span className="text-[11px] text-neutral-400">{item.status}</span>
+        </div>
+
+        <h2 className="mt-1 line-clamp-1 text-sm font-semibold tracking-tight text-neutral-900">
+          {item.title}
+        </h2>
+
+        {metaParts.length > 0 ? (
+          <p className="mt-0.5 line-clamp-1 text-xs text-neutral-500">
+            {metaParts.join(" · ")}
+          </p>
+        ) : null}
+      </div>
+
+      {formatPrice(item.price) ? (
+        <span className="shrink-0 text-sm font-semibold text-neutral-900">
+          {formatPrice(item.price)}
+        </span>
+      ) : null}
+    </Link>
   );
 }
 
@@ -1054,6 +1278,8 @@ function BookedList({
   isProfessional,
   isCustomer,
   actionLoadingId,
+  cancelConfirmId,
+  setCancelConfirmId,
   getOtherPerson,
   updateBookedItemStatus,
 }: {
@@ -1061,6 +1287,8 @@ function BookedList({
   isProfessional: boolean;
   isCustomer: boolean;
   actionLoadingId: string | null;
+  cancelConfirmId: string | null;
+  setCancelConfirmId: (id: string | null) => void;
   getOtherPerson: (item: BookedItem) => {
     label: string;
     name: string | null;
@@ -1074,140 +1302,163 @@ function BookedList({
   ) => Promise<void>;
 }) {
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-3 lg:grid-cols-2">
       {items.map((item) => {
         const otherPerson = getOtherPerson(item);
         const isLoadingAction = actionLoadingId === `${item.source}-${item.id}`;
+        const actionKey = `${item.source}-${item.id}`;
+
+        const timeLabel = item.date
+          ? `${formatDate(item.date)}${item.startTime ? ` · ${formatTime(item.startTime)}` : ""}${item.endTime ? `–${formatTime(item.endTime)}` : ""}`
+          : "Time not set";
+
+        const metaLine = [
+          `${otherPerson.label}: ${otherPerson.name || "Unknown"}`,
+          timeLabel,
+          formatMode(item.serviceMode),
+        ]
+          .filter(Boolean)
+          .join(" · ");
 
         return (
           <div
-            key={`${item.source}-${item.id}`}
-            className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm"
+            key={actionKey}
+            className="rounded-2xl border border-neutral-200 bg-white p-4"
           >
-            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-              <div className="flex min-w-0 flex-1 gap-4">
-                <Avatar name={otherPerson.name} url={otherPerson.avatarUrl} />
+            <div className="flex items-start gap-3">
+              <Avatar name={otherPerson.name} url={otherPerson.avatarUrl} />
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-                      {item.source === "booking" ? "Direct booking" : "Accepted request"}
-                    </span>
-                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                      item.status === "completion_requested"
+                        ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                        : item.status === "completed"
+                        ? "bg-neutral-100 text-neutral-500"
+                        : "bg-neutral-900 text-white"
+                    }`}>
                       {statusLabel(item.status)}
                     </span>
+                    <span className="text-[11px] text-neutral-400">
+                      {item.source === "booking" ? "Direct booking" : "Accepted request"}
+                    </span>
                   </div>
 
-                  <h2 className="mt-3 text-xl font-semibold tracking-tight text-neutral-900">
-                    {item.title}
-                  </h2>
-
-                  <div className="mt-3 space-y-2 text-sm leading-6 text-neutral-600">
-                    <p>
-                      <span className="font-medium text-neutral-900">
-                        {otherPerson.label}:
-                      </span>{" "}
-                      {otherPerson.name || "Unknown"}
-                    </p>
-
-                    <p>
-                      <span className="font-medium text-neutral-900">Time:</span>{" "}
-                      {item.date ? formatDate(item.date) : "Time not set"}
-                      {item.startTime ? ` at ${formatTime(item.startTime)}` : ""}
-                      {item.endTime ? ` - ${formatTime(item.endTime)}` : ""}
-                    </p>
-
-                    {item.location ? (
-                      <p>
-                        <span className="font-medium text-neutral-900">Location:</span>{" "}
-                        {item.location}
-                      </p>
-                    ) : null}
-
-                    {formatMode(item.serviceMode) ? (
-                      <p>
-                        <span className="font-medium text-neutral-900">Service mode:</span>{" "}
-                        {formatMode(item.serviceMode)}
-                      </p>
-                    ) : null}
-
-                    {formatPrice(item.price) ? (
-                      <p>
-                        <span className="font-medium text-neutral-900">Budget:</span>{" "}
-                        {formatPrice(item.price)}
-                      </p>
-                    ) : null}
-
-                    {item.status === "completed" ? (
-                      <p>
-                        <span className="font-medium text-neutral-900">Completed:</span>{" "}
-                        {formatDateTime(item.completedAt)}
-                      </p>
-                    ) : null}
-                  </div>
+                  {formatPrice(item.price) ? (
+                    <span className="shrink-0 text-sm font-semibold text-neutral-900">
+                      {formatPrice(item.price)}
+                    </span>
+                  ) : null}
                 </div>
-              </div>
 
-              <div className="flex w-full flex-col gap-3 md:w-52">
-                {otherPerson.profileId ? (
-                  <Link
-                    href={`/profile/${otherPerson.profileId}`}
-                    className="rounded-full border border-neutral-300 px-4 py-2 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                  >
-                    {otherPerson.buttonText}
-                  </Link>
+                <h2 className="mt-1 line-clamp-1 text-base font-semibold tracking-tight text-neutral-900">
+                  {item.title}
+                </h2>
+
+                <p className="mt-1 line-clamp-1 text-xs text-neutral-500">
+                  {metaLine}
+                </p>
+
+                {item.location ? (
+                  <p className="mt-1 truncate text-xs text-neutral-400">
+                    📍 {item.location}
+                  </p>
                 ) : null}
 
-                <Link
-                  href={item.href}
-                  className="rounded-full border border-neutral-300 px-4 py-2 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                >
-                  View details
-                </Link>
+                {item.status === "completed" && item.completedAt ? (
+                  <p className="mt-1 text-xs text-neutral-400">
+                    Completed {formatDateTime(item.completedAt)}
+                  </p>
+                ) : null}
+              </div>
+            </div>
 
-                {(item.status === "accepted" || item.status === "confirmed") && isProfessional ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3">
+              <Link
+                href={item.href}
+                className="rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90"
+              >
+                View details
+              </Link>
+
+              {otherPerson.profileId ? (
+                <Link
+                  href={`/profile/${otherPerson.profileId}`}
+                  className="rounded-full border border-neutral-300 px-4 py-2 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50"
+                >
+                  {otherPerson.buttonText}
+                </Link>
+              ) : null}
+
+              {(item.status === "accepted" || item.status === "confirmed") && isProfessional ? (
+                isServiceOver(item.date, item.endTime) ? (
                   <button
                     type="button"
                     onClick={() => updateBookedItemStatus(item, "completion_requested")}
                     disabled={isLoadingAction}
-                    className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                    className="rounded-full border border-neutral-300 px-4 py-2 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-60"
                   >
                     {isLoadingAction ? "Working..." : "Request completion"}
                   </button>
-                ) : null}
+                ) : (
+                  <span className="rounded-full bg-neutral-50 px-3 py-2 text-xs text-neutral-400">
+                    Available after service ends
+                  </span>
+                )
+              ) : null}
 
-                {item.status === "completion_requested" && isCustomer ? (
-                  <button
-                    type="button"
-                    onClick={() => updateBookedItemStatus(item, "completed")}
-                    disabled={isLoadingAction}
-                    className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-                  >
-                    {isLoadingAction ? "Working..." : "Confirm completion"}
-                  </button>
-                ) : null}
+              {item.status === "completion_requested" && isCustomer ? (
+                <button
+                  type="button"
+                  onClick={() => updateBookedItemStatus(item, "completed")}
+                  disabled={isLoadingAction}
+                  className="rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {isLoadingAction ? "Working..." : "Confirm completion"}
+                </button>
+              ) : null}
 
-                {item.status === "completion_requested" && isProfessional ? (
-                  <div className="rounded-2xl bg-neutral-50 px-4 py-3 text-center text-xs leading-5 text-neutral-500">
-                    Waiting for customer confirmation
-                  </div>
-                ) : null}
+              {item.status === "completion_requested" && isProfessional ? (
+                <span className="rounded-full bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+                  Waiting on customer
+                </span>
+              ) : null}
 
-                {item.status !== "completed" ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (confirm("Cancel this service?")) {
+              {item.status !== "completed" ? (
+                cancelConfirmId === actionKey ? (
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className="text-xs text-neutral-500">Cancel this?</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCancelConfirmId(null);
                         updateBookedItemStatus(item, "cancelled");
-                      }
-                    }}
+                      }}
+                      disabled={isLoadingAction}
+                      className="rounded-full border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                    >
+                      Yes, cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCancelConfirmId(null)}
+                      className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50"
+                    >
+                      Keep
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setCancelConfirmId(actionKey)}
                     disabled={isLoadingAction}
-                    className="rounded-full border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                    className="ml-auto rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-60"
                   >
-                    {isLoadingAction ? "Working..." : "Cancel"}
+                    Cancel
                   </button>
-                ) : null}
-              </div>
+                )
+              ) : null}
             </div>
           </div>
         );

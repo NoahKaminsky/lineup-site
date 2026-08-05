@@ -14,6 +14,8 @@ import {
   Moon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import PaymentModal from "@/app/components/payments/PaymentModal";
+import { getCached, setCached } from "@/app/lib/pageCache";
 
 type Profile = {
   id: string;
@@ -30,6 +32,7 @@ type Profile = {
   location_place_id?: string | null;
   bio: string | null;
   instagram_handle: string | null;
+  business_name?: string | null;
   service_modes: string | string[] | null;
   specialties: string[] | null;
   direct_booking_enabled: boolean | null;
@@ -386,18 +389,29 @@ function getGoogleMapsUrl(lat?: number | null, lng?: number | null, address?: st
   return null;
 }
 
+type ProfileDetailCache = {
+  profile: Profile;
+  services: ProfessionalService[];
+  availability: AvailabilityRow[];
+  bookings: BookingRow[];
+  portfolioItems: PortfolioItem[];
+  reviews: EnrichedReview[];
+};
+
 export default function ProfessionalProfilePage() {
   const params = useParams();
   const profileId = params.id as string;
+  const cacheKey = `profile-detail-${profileId}`;
+  const cached = getCached<ProfileDetailCache>(cacheKey);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !cached);
   const [message, setMessage] = useState("");
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>([]);
-  const [reviews, setReviews] = useState<EnrichedReview[]>([]);
-  const [availability, setAvailability] = useState<AvailabilityRow[]>([]);
-  const [bookings, setBookings] = useState<BookingRow[]>([]);
-  const [services, setServices] = useState<ProfessionalService[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(() => cached?.profile ?? null);
+  const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>(() => cached?.portfolioItems ?? []);
+  const [reviews, setReviews] = useState<EnrichedReview[]>(() => cached?.reviews ?? []);
+  const [availability, setAvailability] = useState<AvailabilityRow[]>(() => cached?.availability ?? []);
+  const [bookings, setBookings] = useState<BookingRow[]>(() => cached?.bookings ?? []);
+  const [services, setServices] = useState<ProfessionalService[]>(() => cached?.services ?? []);
   const [showBannerPreview, setShowBannerPreview] = useState(false);
   const [viewerUserId, setViewerUserId] = useState<string | null>(null);
   const [viewerIsCustomer, setViewerIsCustomer] = useState(false);
@@ -414,6 +428,8 @@ export default function ProfessionalProfilePage() {
   const [bookingSlotKey, setBookingSlotKey] = useState<string | null>(null);
   const [pendingBookingChoice, setPendingBookingChoice] = useState<PendingBookingChoice | null>(null);
   const [confirmedBooking, setConfirmedBooking] = useState<BookingRow | null>(null);
+  const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const dateScrollerRef = useRef<HTMLDivElement | null>(null);
   const dateButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -427,7 +443,7 @@ export default function ProfessionalProfilePage() {
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
           .select(
-            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
+            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
           )
           .eq("id", profileId)
           .single();
@@ -498,11 +514,9 @@ export default function ProfessionalProfilePage() {
           .eq("is_bookable", true)
           .order("created_at", { ascending: true });
 
-        if (!servicesError && servicesData) {
-          setServices(servicesData as ProfessionalService[]);
-        } else {
-          setServices([]);
-        }
+        const resolvedServices =
+          !servicesError && servicesData ? (servicesData as ProfessionalService[]) : [];
+        setServices(resolvedServices);
 
         const { data: availabilityData, error: availabilityError } = await supabase
           .from("professional_availability")
@@ -511,17 +525,15 @@ export default function ProfessionalProfilePage() {
           .order("day_of_week", { ascending: true })
           .order("start_time", { ascending: true });
 
-        if (!availabilityError && availabilityData) {
-          setAvailability(
-            availabilityData.map((row) => ({
-              ...row,
-              start_time: String(row.start_time).slice(0, 5),
-              end_time: String(row.end_time).slice(0, 5),
-            })) as AvailabilityRow[]
-          );
-        } else {
-          setAvailability([]);
-        }
+        const resolvedAvailability =
+          !availabilityError && availabilityData
+            ? (availabilityData.map((row) => ({
+                ...row,
+                start_time: String(row.start_time).slice(0, 5),
+                end_time: String(row.end_time).slice(0, 5),
+              })) as AvailabilityRow[])
+            : [];
+        setAvailability(resolvedAvailability);
 
         const today = new Date();
         const end = new Date();
@@ -542,17 +554,15 @@ export default function ProfessionalProfilePage() {
           .order("booking_date", { ascending: true })
           .order("start_time", { ascending: true });
 
-        if (!bookingsError && bookingsData) {
-          setBookings(
-            bookingsData.map((row) => ({
-              ...row,
-              start_time: String(row.start_time).slice(0, 5),
-              end_time: String(row.end_time).slice(0, 5),
-            })) as BookingRow[]
-          );
-        } else {
-          setBookings([]);
-        }
+        const resolvedBookings =
+          !bookingsError && bookingsData
+            ? (bookingsData.map((row) => ({
+                ...row,
+                start_time: String(row.start_time).slice(0, 5),
+                end_time: String(row.end_time).slice(0, 5),
+              })) as BookingRow[])
+            : [];
+        setBookings(resolvedBookings);
 
         const { data: portfolioData, error: portfolioError } = await supabase
           .from("professional_portfolio")
@@ -560,11 +570,9 @@ export default function ProfessionalProfilePage() {
           .eq("user_id", profileId)
           .order("created_at", { ascending: false });
 
-        if (!portfolioError && portfolioData) {
-          setPortfolioItems(portfolioData as PortfolioItem[]);
-        } else {
-          setPortfolioItems([]);
-        }
+        const resolvedPortfolio =
+          !portfolioError && portfolioData ? (portfolioData as PortfolioItem[]) : [];
+        setPortfolioItems(resolvedPortfolio);
 
         const { data: reviewData, error: reviewError } = await supabase
           .from("professional_reviews")
@@ -610,8 +618,24 @@ export default function ProfessionalProfilePage() {
           });
 
           setReviews(enrichedReviews);
+          setCached<ProfileDetailCache>(cacheKey, {
+            profile: profileData as Profile,
+            services: resolvedServices,
+            availability: resolvedAvailability,
+            bookings: resolvedBookings,
+            portfolioItems: resolvedPortfolio,
+            reviews: enrichedReviews,
+          });
         } else {
           setReviews([]);
+          setCached<ProfileDetailCache>(cacheKey, {
+            profile: profileData as Profile,
+            services: resolvedServices,
+            availability: resolvedAvailability,
+            bookings: resolvedBookings,
+            portfolioItems: resolvedPortfolio,
+            reviews: [],
+          });
         }
 
         setLoading(false);
@@ -1023,6 +1047,11 @@ export default function ProfessionalProfilePage() {
     const activeSlot = slotOverride || selectedSlot;
     const activeMode = modeOverride || selectedServiceMode;
 
+    function abort(msg: string) {
+      setMessage(msg);
+      setBookingSlotKey(null);
+    }
+
     try {
       setMessage("");
 
@@ -1036,7 +1065,7 @@ export default function ProfessionalProfilePage() {
       setBookingSlotKey(activeSlot.key);
 
       if (!activeMode) {
-        setMessage("Please select in-shop or home-studio before choosing a service.");
+        abort("Please select in-shop or home-studio before choosing a service.");
         return;
       }
 
@@ -1044,7 +1073,7 @@ export default function ProfessionalProfilePage() {
         activeMode === "in_shop" || activeMode === "home_studio";
 
       if (!usesProfessionalLocation) {
-        setMessage(
+        abort(
           "Direct booking is only available for in-shop or home-studio appointments. Use Request service for at-home jobs."
         );
         return;
@@ -1053,101 +1082,109 @@ export default function ProfessionalProfilePage() {
       const professionalAddress = profile.formatted_address || profile.location || null;
 
       if (!professionalAddress?.trim()) {
-        setMessage(
+        abort(
           "This professional needs to add their shop or studio address before direct bookings can be accepted."
         );
         return;
       }
 
-      const bookingLocation = {
-        formatted_address: professionalAddress,
-        location_place_id: profile.location_place_id || null,
-        location_lat: typeof profile.location_lat === "number" ? profile.location_lat : null,
-        location_lng: typeof profile.location_lng === "number" ? profile.location_lng : null,
-      };
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      const payload = {
-        professional_id: profile.id,
-        customer_id: viewerUserId,
-        booking_date: activeSlot.date,
-        start_time: activeSlot.start_time,
-        end_time: activeSlot.end_time,
-        status: "confirmed",
-        service_mode: activeMode,
-        source: "direct_booking",
-        formatted_address: bookingLocation.formatted_address,
-        location_place_id: bookingLocation.location_place_id,
-        location_lat: bookingLocation.location_lat,
-        location_lng: bookingLocation.location_lng,
-        service_id: service.id,
-        service_name: service.service_name,
-        duration_minutes: service.duration_minutes,
-        service_price: service.price,
-      };
+      if (!session?.access_token) {
+        abort("Not authenticated. Please log out and log back in.");
+        return;
+      }
 
-      console.log("DIRECT BOOKING INSERT PAYLOAD", payload);
+      const response = await fetch("/api/stripe/create-payment-intent", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          flowType: "direct_booking",
+          professionalId: profile.id,
+          serviceId: service.id,
+          date: activeSlot.date,
+          startTime: activeSlot.start_time,
+          endTime: activeSlot.end_time,
+          mode: activeMode,
+        }),
+      });
 
-      const { data, error } = await supabase
+      const data = await response.json();
+
+      if (!response.ok) {
+        abort(data?.error || "Could not start payment.");
+        return;
+      }
+
+      setPaymentClientSecret(data.clientSecret);
+    } catch (error: any) {
+      console.error("DIRECT BOOKING PAYMENT ERROR", error);
+      abort(error?.message || "Something went wrong starting payment.");
+    }
+  }
+
+  async function handleDirectBookingPaymentComplete() {
+    setPaymentClientSecret(null);
+    setConfirmingPayment(true);
+    setMessage("Payment successful — confirming your booking...");
+
+    const activeSlot = selectedSlot;
+
+    let foundBooking: BookingRow | null = null;
+
+    for (let i = 0; i < 15; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+
+      const { data: latest } = await supabase
         .from("bookings")
-        .insert(payload)
         .select(
           "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes, service_price, service_mode, source, formatted_address, location_lat, location_lng, location_place_id"
         )
-        .single();
+        .eq("customer_id", viewerUserId)
+        .eq("professional_id", profile?.id)
+        .eq("status", "confirmed")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      console.log("DIRECT BOOKING INSERT RESULT", { data, error });
-
-      if (error) {
-        setMessage(error.message || "Could not create booking.");
-        return;
+      if (latest?.id && (!activeSlot || latest.booking_date === activeSlot.date)) {
+        foundBooking = {
+          ...latest,
+          start_time: String(latest.start_time).slice(0, 5),
+          end_time: String(latest.end_time).slice(0, 5),
+        } as BookingRow;
+        break;
       }
+    }
 
-      if (!data?.id) {
-        setMessage("Booking may have been created, but the booking ID was not returned. Check Supabase RLS/select policies.");
-        return;
-      }
+    setConfirmingPayment(false);
+    setMessage("");
+    setBookingSlotKey(null);
 
-      const normalized = {
-        ...data,
-        start_time: String(data.start_time).slice(0, 5),
-        end_time: String(data.end_time).slice(0, 5),
-      } as BookingRow;
-
-      await fetch("/api/notifications/booking-confirmed", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId: normalized.id }),
-      }).catch((notificationError) => {
-        console.error("Booking confirmation email failed:", notificationError);
-      });
-
-      setBookings((prev) => [...prev, normalized]);
-      setConfirmedBooking(normalized);
-      setMessage("");
+    if (foundBooking) {
+      setBookings((prev) => [...prev, foundBooking as BookingRow]);
+      setConfirmedBooking(foundBooking);
       setSelectedSlot(null);
       setSelectedServiceMode(null);
       setLocationInput("");
       setLocationPlaceId("");
       setLocationLat(null);
       setLocationLng(null);
-    } catch (error: any) {
-      console.error("DIRECT BOOKING ERROR", error);
-      setMessage(error?.message || "Something went wrong booking that time.");
-    } finally {
-      setBookingSlotKey(null);
+    } else {
+      setMessage("Payment succeeded, but we couldn't confirm the booking yet. Check your Bookings tab in a moment.");
     }
   }
 
 if (loading) {
   return (
     <main className="min-h-screen bg-white px-6 py-10">
-      <div className="mx-auto max-w-6xl animate-pulse">
-        {/* Top Nav */}
-        <div className="flex items-center justify-between border-b border-neutral-200 pb-6">
-          <div className="h-8 w-32 rounded bg-neutral-200" />
-          <div className="h-10 w-28 rounded-full bg-neutral-200" />
-        </div>
 
+      <div className="mx-auto max-w-6xl animate-pulse">
         {/* Hero */}
         <div className="mt-10 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white">
           <div className="h-56 w-full bg-neutral-200 md:h-72" />
@@ -1213,7 +1250,8 @@ if (loading) {
   if (!profile) {
     return (
       <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
-        <div className="mx-auto max-w-6xl py-16">
+
+        <div className="mx-auto max-w-6xl py-10">
           <Link
             href="/requests"
             className="text-sm font-medium text-neutral-500 transition hover:text-neutral-900"
@@ -1254,30 +1292,10 @@ if (loading) {
 
   return (
     <>
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
-        <div className="mx-auto flex max-w-6xl items-center justify-between border-b border-neutral-200 pb-6">
-          <Link href="/" className="text-2xl font-semibold tracking-tight">
-            LineUp
-          </Link>
+      <main className="min-h-screen bg-white px-6 pb-10 pt-6 text-neutral-900">
 
-          <div className="flex items-center gap-4">
-            <Link
-              href="/requests"
-              className="text-sm font-medium text-neutral-500 transition hover:text-neutral-900"
-            >
-              Back to requests
-            </Link>
 
-            <Link
-              href="/account"
-              className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-            >
-              My account
-            </Link>
-          </div>
-        </div>
-
-        <div className="mx-auto max-w-6xl py-12">
+        <div className="mx-auto max-w-6xl py-8">
           <section className="mb-8 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
             <div className="relative h-48 w-full bg-black md:h-64">
               {profile.banner_url ? (
@@ -1326,6 +1344,12 @@ if (loading) {
                     <p className="mt-2 text-base text-neutral-600 md:text-lg">
                       {isProfessional ? formatProfessionalTypes(profile) : "Customer"}
                     </p>
+
+                    {isProfessional && profile.business_name?.trim() ? (
+                      <p className="mt-1 text-sm font-medium text-neutral-500">
+                        {profile.business_name}
+                      </p>
+                    ) : null}
 
                     {isProfessional && professionalTypeLabels.length > 1 ? (
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -2240,6 +2264,34 @@ if (loading) {
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {paymentClientSecret ? (
+        <PaymentModal
+          clientSecret={paymentClientSecret}
+          title="Confirm your booking"
+          subtitle="Payment is processed securely through Stripe. Your booking will be confirmed after payment succeeds."
+          onClose={() => {
+            setPaymentClientSecret(null);
+            setBookingSlotKey(null);
+          }}
+          onSuccess={handleDirectBookingPaymentComplete}
+          redirectTo={null}
+        />
+      ) : null}
+
+      {confirmingPayment ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl">
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+              Confirming
+            </p>
+            <h2 className="mt-3 text-xl font-semibold tracking-tight text-neutral-900">
+              Confirming your booking...
+            </h2>
+            <p className="mt-2 text-sm text-neutral-500">This usually takes a few seconds.</p>
           </div>
         </div>
       ) : null}

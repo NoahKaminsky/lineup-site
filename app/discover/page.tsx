@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import Navbar from "../components/AppNavbar";
+import { getCached, setCached } from "@/app/lib/pageCache";
 
 type ProfileRow = {
   id: string;
@@ -19,11 +19,14 @@ type ProfileRow = {
   location_lng?: number | null;
   bio: string | null;
   instagram_handle: string | null;
+  business_name?: string | null;
   service_modes: string[] | string | null;
   specialties: string[] | null;
   direct_booking_enabled: boolean | null;
   public_availability_enabled: boolean | null;
   default_appointment_duration: number | null;
+  subscription_plan: string | null;
+  subscription_status: string | null;
 };
 
 type ProfessionalService = {
@@ -82,6 +85,7 @@ type DiscoverCard = {
   averageRatingNumber: number | null;
   reviewCount: number;
   tagBadges: string[];
+  isActive: boolean;
 };
 
 const categoryOptions = [
@@ -255,28 +259,28 @@ function buildTags(params: {
   averageRatingNumber: number | null;
   availability: AvailabilityRow[];
   bookings: BookingRow[];
+  isActive: boolean;
 }) {
-  const { profile, services, reviewCount, averageRatingNumber, availability, bookings } = params;
+  const { profile, reviewCount, averageRatingNumber, availability, bookings, isActive } = params;
   const tags: string[] = [];
 
   const modes = getPlainServiceModes(profile.service_modes);
   const isOpenThisWeek = hasOpenThisWeek(profile, availability, bookings);
 
-  if (profile.direct_booking_enabled) tags.push("Direct");
-  if (isOpenThisWeek) tags.push("Open this week");
-  if (averageRatingNumber !== null && averageRatingNumber >= 4.7 && reviewCount >= 3) {
-    tags.push("Highly rated");
-  }
-  if (modes.includes("at_home")) tags.push("At-home");
-  if (services.length > 0) tags.push(`${services.length} services`);
+  if (isActive) tags.push("🔥 Active");
+  if (averageRatingNumber !== null && averageRatingNumber >= 4.5 && reviewCount >= 2) tags.push("⭐ Top rated");
+  if (isOpenThisWeek) tags.push("📅 Available");
+  if (modes.includes("at_home")) tags.push("🏠 At home");
 
-  return tags.slice(0, 3);
+  return tags.slice(0, 2);
 }
 
+type DiscoverCache = { cards: DiscoverCard[] };
+
 export default function DiscoverPage() {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !getCached<DiscoverCache>("discover-page"));
   const [message, setMessage] = useState("");
-  const [cards, setCards] = useState<DiscoverCard[]>([]);
+  const [cards, setCards] = useState<DiscoverCard[]>(() => getCached<DiscoverCache>("discover-page")?.cards ?? []);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<(typeof categoryOptions)[number]["value"]>("all");
   const [selectedModes, setSelectedModes] = useState<string[]>([]);
@@ -284,6 +288,9 @@ export default function DiscoverPage() {
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<
     "idle" | "allowed" | "denied" | "unsupported"
   >("idle");
+  const [nearbyRadiusKm, setNearbyRadiusKm] = useState(5);
+  const [nearbyPanelOpen, setNearbyPanelOpen] = useState(false);
+  const [nearbyAreaLabel, setNearbyAreaLabel] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -293,33 +300,54 @@ export default function DiscoverPage() {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+
+        setUserLocation({ lat, lng });
         setLocationPermissionStatus("allowed");
+
+        fetch("/api/places/reverse-geocode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lat, lng }),
+        })
+          .then((res) => res.json())
+          .then((json) => {
+            if (json.label) setNearbyAreaLabel(json.label);
+          })
+          .catch(() => {});
       },
-      () => {
+      (error) => {
+        const reason =
+          error.code === error.PERMISSION_DENIED
+            ? "PERMISSION_DENIED"
+            : error.code === error.POSITION_UNAVAILABLE
+            ? "POSITION_UNAVAILABLE"
+            : error.code === error.TIMEOUT
+            ? "TIMEOUT"
+            : "UNKNOWN";
+        console.error(`Geolocation failed: ${reason} — ${error.message}`);
         setLocationPermissionStatus("denied");
       },
       {
         enableHighAccuracy: false,
-        timeout: 8000,
+        timeout: 15000,
         maximumAge: 1000 * 60 * 10,
       }
     );
   }, []);
 
   useEffect(() => {
+    const silent = !!getCached<DiscoverCache>("discover-page");
     async function loadDiscoverPage() {
       try {
-        setLoading(true);
+        if (!silent) setLoading(true);
         setMessage("");
 
         const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
           .select(
-            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, bio, instagram_handle, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
+            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, subscription_plan, subscription_status"
           );
 
         if (profilesError) {
@@ -443,6 +471,8 @@ export default function DiscoverPage() {
           const averageRating =
             averageRatingNumber !== null ? averageRatingNumber.toFixed(1) : null;
 
+          const isActive = proBookings.some((b) => b.status === "completed");
+
           const tagBadges = buildTags({
             profile,
             services: proServices,
@@ -450,6 +480,7 @@ export default function DiscoverPage() {
             averageRatingNumber,
             availability: proAvailability,
             bookings: proBookings,
+            isActive,
           });
 
           return {
@@ -462,10 +493,12 @@ export default function DiscoverPage() {
             averageRatingNumber,
             reviewCount: proReviews.length,
             tagBadges,
+            isActive,
           };
         });
 
         setCards(builtCards);
+        setCached<DiscoverCache>("discover-page", { cards: builtCards });
         setLoading(false);
       } catch (error) {
         console.error(error);
@@ -476,6 +509,46 @@ export default function DiscoverPage() {
 
     loadDiscoverPage();
   }, []);
+
+  const nearbyCount = useMemo(() => {
+    if (!userLocation) return null;
+
+    return cards.filter((card) => {
+      const distance = getCardDistanceKm(card, userLocation);
+      return distance !== null && distance <= nearbyRadiusKm;
+    }).length;
+  }, [cards, userLocation, nearbyRadiusKm]);
+
+  const nearbyProfessionals = useMemo(() => {
+    if (!userLocation) return [];
+
+    return cards
+      .map((card) => ({ card, distance: getCardDistanceKm(card, userLocation) }))
+      .filter((entry) => entry.distance !== null && entry.distance <= nearbyRadiusKm)
+      .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0))
+      .slice(0, 6);
+  }, [cards, userLocation, nearbyRadiusKm]);
+
+  // Decorative only — abstracted positions, not real coordinates. Just gives a sense
+  // of "activity in the area" at a glance before scrolling the real list below.
+  const nearbyDots = useMemo(() => {
+    const count = Math.min(nearbyCount ?? 0, 10);
+    const dots: { x: number; y: number; size: number }[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const seed = i * 137.51; // golden-angle spread so dots don't cluster
+      const angle = (seed % 360) * (Math.PI / 180);
+      const radiusFraction = 0.35 + ((i * 0.61) % 1) * 0.55;
+      const r = radiusFraction * 70;
+      dots.push({
+        x: 80 + r * Math.cos(angle),
+        y: 80 + r * Math.sin(angle),
+        size: 3 + (i % 3),
+      });
+    }
+
+    return dots;
+  }, [nearbyCount]);
 
   const filteredCards = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -523,52 +596,58 @@ export default function DiscoverPage() {
     });
   }, [cards, search, selectedCategory, selectedModes, userLocation]);
 
-  const featuredCards = useMemo(() => {
+  // Spotlight: Master tier first, then Pro tier — sorted within each tier by score
+  const spotlightCards = useMemo(() => {
+    const isSubscribed = (card: DiscoverCard) =>
+      (card.profile.subscription_plan === "master" || card.profile.subscription_plan === "pro") &&
+      (card.profile.subscription_status === "active" || card.profile.subscription_status === "trialing");
+
     return [...filteredCards]
-      .filter((card) => card.portfolioPreview?.image_url || card.profile.banner_url)
+      .filter(isSubscribed)
       .sort((a, b) => {
+        const tierRank = (card: DiscoverCard) =>
+          card.profile.subscription_plan === "master" ? 100 : 50;
         const score = (card: DiscoverCard) => {
-          const hasImage = card.portfolioPreview?.image_url || card.profile.banner_url ? 2 : 0;
           const ratingScore = card.averageRatingNumber ? card.averageRatingNumber * 8 : 0;
-          const reviewScore = Math.min(card.reviewCount, 20);
-          const serviceScore = Math.min(card.services.length, 8) * 2;
-          const directScore = card.profile.direct_booking_enabled ? 8 : 0;
-          const openScore = hasOpenThisWeek(card.profile, card.availability, card.bookings) ? 8 : 0;
-          const portfolioScore = card.portfolioPreview?.image_url ? 6 : 0;
-
-          return (
-            hasImage +
-            ratingScore +
-            reviewScore +
-            serviceScore +
-            directScore +
-            openScore +
-            portfolioScore
-          );
+          const reviewScore = Math.min(card.reviewCount, 15);
+          const imageScore = card.portfolioPreview?.image_url || card.profile.banner_url ? 5 : 0;
+          const activeScore = card.isActive ? 10 : 0;
+          return tierRank(card) + ratingScore + reviewScore + imageScore + activeScore;
         };
-
         return score(b) - score(a);
-      })
-      .slice(0, 8);
+      });
   }, [filteredCards]);
 
-  const topProfessionalCards = useMemo(() => {
+  // Active pros: have completed bookings, sorted by score
+  const activeCards = useMemo(() => {
     return [...filteredCards]
+      .filter((card) => card.isActive)
       .sort((a, b) => {
         const score = (card: DiscoverCard) => {
           const ratingScore = card.averageRatingNumber ? card.averageRatingNumber * 10 : 0;
-          const reviewScore = Math.min(card.reviewCount, 25);
-          const serviceScore = Math.min(card.services.length, 10) * 2;
-          const directScore = card.profile.direct_booking_enabled ? 6 : 0;
-          const openScore = hasOpenThisWeek(card.profile, card.availability, card.bookings) ? 6 : 0;
-          const imageScore = card.portfolioPreview?.image_url || card.profile.banner_url ? 4 : 0;
-
-          return ratingScore + reviewScore + serviceScore + directScore + openScore + imageScore;
+          const reviewScore = Math.min(card.reviewCount, 20);
+          const imageScore = card.portfolioPreview?.image_url || card.profile.banner_url ? 6 : 0;
+          const openScore = hasOpenThisWeek(card.profile, card.availability, card.bookings) ? 5 : 0;
+          return ratingScore + reviewScore + imageScore + openScore;
         };
-
         return score(b) - score(a);
       })
-      .slice(0, 4);
+      .slice(0, 12);
+  }, [filteredCards]);
+
+  // All pros sorted: active first, then by completeness
+  const sortedCards = useMemo(() => {
+    return [...filteredCards].sort((a, b) => {
+      const score = (card: DiscoverCard) => {
+        const activeScore = card.isActive ? 50 : 0;
+        const ratingScore = card.averageRatingNumber ? card.averageRatingNumber * 8 : 0;
+        const reviewScore = Math.min(card.reviewCount, 20);
+        const imageScore = card.portfolioPreview?.image_url || card.profile.banner_url ? 6 : 0;
+        const openScore = hasOpenThisWeek(card.profile, card.availability, card.bookings) ? 4 : 0;
+        return activeScore + ratingScore + reviewScore + imageScore + openScore;
+      };
+      return score(b) - score(a);
+    });
   }, [filteredCards]);
 
   function toggleMode(mode: string) {
@@ -584,7 +663,7 @@ export default function DiscoverPage() {
   if (loading) {
     return (
       <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
-        <Navbar />
+
 
         <div className="mx-auto max-w-6xl py-8">
           <div className="max-w-3xl">
@@ -660,8 +739,9 @@ export default function DiscoverPage() {
   }
 
   return (
+    <>
     <main className="min-h-screen bg-white text-neutral-900">
-      <Navbar />
+
 
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -737,15 +817,33 @@ export default function DiscoverPage() {
               })}
             </div>
 
-            <p className="mt-3 text-xs text-neutral-500">
-              {userLocation
-                ? "Sorted by distance from you."
-                : locationPermissionStatus === "denied"
-                ? "Allow location access to sort nearby professionals first."
-                : locationPermissionStatus === "unsupported"
-                ? "Location sorting is not supported in this browser."
-                : "Allow location access to see nearby professionals first."}
-            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <p className="text-xs text-neutral-500">
+                {userLocation
+                  ? "Sorted by distance from you."
+                  : locationPermissionStatus === "denied"
+                  ? "Allow location access to sort nearby professionals first."
+                  : locationPermissionStatus === "unsupported"
+                  ? "Location sorting is not supported in this browser."
+                  : "Allow location access to see nearby professionals first."}
+              </p>
+
+              {userLocation ? (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setNearbyPanelOpen(true)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:border-neutral-300"
+                  >
+                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                      <path d="M10 18s6-5.2 6-10A6 6 0 0 0 4 8c0 4.8 6 10 6 10Z" stroke="currentColor" strokeWidth="1.5" />
+                      <circle cx="10" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
+                    </svg>
+                    {nearbyCount === null ? "Nearby" : `${nearbyCount} nearby`}
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -755,65 +853,116 @@ export default function DiscoverPage() {
           </div>
         ) : null}
 
-        {filteredCards.length === 0 ? (
-          <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-600">
-            No professionals matched those filters.
+        {sortedCards.length === 0 ? (
+          <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-8 text-center">
+            <p className="text-sm text-neutral-500">No professionals matched those filters.</p>
+            <button
+              type="button"
+              onClick={() => { setSearch(""); setSelectedCategory("all"); setSelectedModes([]); }}
+              className="mt-4 rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+            >
+              Clear filters
+            </button>
           </div>
         ) : (
           <>
-            {featuredCards.length > 0 ? (
+            {/* Spotlight — subscribed professionals (Master first, then Pro) */}
+            {spotlightCards.length > 0 ? (
               <section className="mt-8">
-                <div className="mb-3 flex items-end justify-between">
+                <div className="mb-4 flex items-end justify-between">
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.22em] text-neutral-500">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
                       Spotlight
                     </p>
                     <h2 className="mt-1 text-xl font-semibold tracking-tight">
-                      Top professionals
+                      ✦ Featured on LineUp
                     </h2>
                   </div>
-                  <span className="text-xs text-neutral-400">Swipe</span>
                 </div>
 
-                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {featuredCards.map((card) => {
+                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6">
+                  {spotlightCards.map((card) => {
                     const image = getCardImage(card);
                     const roles = getProfessionalTypes(card.profile);
+                    const isMaster = card.profile.subscription_plan === "master";
+                    const distanceLabel = formatDistanceLabel(getCardDistanceKm(card, userLocation));
 
                     return (
                       <Link
-                        key={`featured-${card.profile.id}`}
+                        key={`spotlight-${card.profile.id}`}
                         href={`/profile/${card.profile.id}`}
-                        className="group relative h-56 w-40 shrink-0 overflow-hidden rounded-[1.75rem] bg-neutral-100 sm:h-72 sm:w-52"
+                        className="group relative h-72 w-52 shrink-0 overflow-hidden rounded-[2rem] bg-neutral-100 sm:h-88 sm:w-64"
                       >
                         {image ? (
                           <img
                             src={image}
                             alt={card.profile.full_name || "Professional"}
-                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-sm text-neutral-400">
-                            No preview
+                          <div className="flex h-full w-full items-center justify-center bg-neutral-100">
+                            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-neutral-200 text-3xl font-semibold text-neutral-400">
+                              {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                            </div>
                           </div>
                         )}
 
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+                        {/* gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
+                        {/* tier badge */}
+                        <div className="absolute left-3 top-3">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                            isMaster
+                              ? "bg-gradient-to-r from-amber-400 to-yellow-300 text-black"
+                              : "bg-white/20 text-white backdrop-blur-sm border border-white/30"
+                          }`}>
+                            {isMaster ? "👑 Master" : "✦ Pro"}
+                          </span>
+                        </div>
+
+                        {/* rating */}
+                        {card.averageRating ? (
+                          <div className="absolute right-3 top-3">
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold text-neutral-900 shadow">
+                              ★ {card.averageRating}
+                            </span>
+                          </div>
+                        ) : null}
+
+                        {/* bottom */}
                         <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                          <p className="truncate text-sm font-semibold">
-                            {card.profile.full_name || "Professional"}
-                          </p>
-                          <p className="mt-1 truncate text-xs text-white/75">
-                            {roles.map(formatLabel).join(" • ")}
-                          </p>
-                          <p className="mt-2 text-xs text-white/85">
-                            {card.averageRating ? `${card.averageRating}★` : "New"}{" "}
-                            {card.reviewCount > 0 ? `· ${card.reviewCount} reviews` : ""}
-                            {formatDistanceLabel(getCardDistanceKm(card, userLocation))
-                              ? ` · ${formatDistanceLabel(getCardDistanceKm(card, userLocation))}`
-                              : ""}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-white/40 bg-neutral-200">
+                              {card.profile.avatar_url ? (
+                                <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-xs font-bold text-neutral-500">
+                                  {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-bold leading-tight">
+                                {card.profile.full_name || "Professional"}
+                              </p>
+                              <p className="truncate text-xs text-white/65">
+                                {card.profile.business_name?.trim()
+                                  ? `${card.profile.business_name} · ${roles.map(formatLabel).join(" · ")}`
+                                  : roles.map(formatLabel).join(" · ")}
+                              </p>
+                            </div>
+                          </div>
+                          {distanceLabel ? (
+                            <p className="mt-2 text-[10px] text-white/50">{distanceLabel}</p>
+                          ) : card.profile.location ? (
+                            <p className="mt-2 text-[10px] text-white/50">
+                              {formatLocationFallback(card.profile, "")}
+                            </p>
+                          ) : null}
+                          {card.isActive ? (
+                            <p className="mt-1 text-[10px] text-white/50">🔥 Active professional</p>
+                          ) : null}
                         </div>
                       </Link>
                     );
@@ -822,96 +971,186 @@ export default function DiscoverPage() {
               </section>
             ) : null}
 
+            {/* Active professionals — horizontal scroll */}
+            {activeCards.length > 0 ? (
+              <section className="mt-8">
+                <div className="mb-4 flex items-end justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
+                      Featured
+                    </p>
+                    <h2 className="mt-1 text-xl font-semibold tracking-tight">
+                      🔥 Active professionals
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6">
+                  {activeCards.map((card) => {
+                    const image = getCardImage(card);
+                    const roles = getProfessionalTypes(card.profile);
+                    const distanceLabel = formatDistanceLabel(getCardDistanceKm(card, userLocation));
+
+                    return (
+                      <Link
+                        key={`active-${card.profile.id}`}
+                        href={`/profile/${card.profile.id}`}
+                        className="group relative h-64 w-44 shrink-0 overflow-hidden rounded-[1.75rem] bg-neutral-100 sm:h-80 sm:w-56"
+                      >
+                        {image ? (
+                          <img
+                            src={image}
+                            alt={card.profile.full_name || "Professional"}
+                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-neutral-100">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-200 text-2xl font-semibold text-neutral-500">
+                              {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+
+                        {/* active badge */}
+                        <div className="absolute left-2.5 top-2.5">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
+                            🔥 Active
+                          </span>
+                        </div>
+
+                        {/* rating */}
+                        {card.averageRating ? (
+                          <div className="absolute right-2.5 top-2.5">
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold text-neutral-900 shadow-sm">
+                              ★ {card.averageRating}
+                            </span>
+                          </div>
+                        ) : null}
+
+                        {/* bottom info */}
+                        <div className="absolute inset-x-0 bottom-0 p-3 text-white">
+                          {/* avatar + name row */}
+                          <div className="flex items-center gap-2">
+                            <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-white/30 bg-neutral-200">
+                              {card.profile.avatar_url ? (
+                                <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-neutral-500">
+                                  {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                                </div>
+                              )}
+                            </div>
+                            <p className="truncate text-sm font-semibold leading-tight">
+                              {card.profile.full_name || "Professional"}
+                            </p>
+                          </div>
+                          <p className="mt-1 truncate text-xs text-white/70">
+                            {card.profile.business_name?.trim()
+                              ? `${card.profile.business_name} · ${roles.map(formatLabel).join(" · ")}`
+                              : roles.map(formatLabel).join(" · ")}
+                          </p>
+                          {distanceLabel ? (
+                            <p className="mt-1 text-[10px] text-white/55">{distanceLabel}</p>
+                          ) : null}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
+
+            {/* All professionals — Instagram grid */}
             <section className="mt-8">
-              <div className="mb-3 flex items-end justify-between">
+              <div className="mb-4 flex items-end justify-between">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-[0.22em] text-neutral-500">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
                     Explore
                   </p>
                   <h2 className="mt-1 text-xl font-semibold tracking-tight">
-                    {filteredCards.length} professional{filteredCards.length === 1 ? "" : "s"}
+                    {sortedCards.length} professional{sortedCards.length === 1 ? "" : "s"}
                   </h2>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {filteredCards.map((card) => {
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+                {sortedCards.map((card) => {
                   const image = getCardImage(card);
                   const roles = getProfessionalTypes(card.profile);
                   const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
                   const distanceKm = getCardDistanceKm(card, userLocation);
-                  const secondaryText =
-                    formatDistanceLabel(distanceKm) ||
-                    (roles.length > 1
-                      ? `${roles.length} services`
-                      : formatLocationFallback(card.profile, primaryRole));
+                  const distanceLabel = formatDistanceLabel(distanceKm);
 
                   return (
                     <Link
                       key={card.profile.id}
                       href={`/profile/${card.profile.id}`}
-                      className="group overflow-hidden rounded-[1.35rem] border border-neutral-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                      className="group overflow-hidden rounded-[1.5rem] bg-neutral-100 transition active:scale-[0.98]"
                     >
+                      {/* image */}
                       <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
                         {image ? (
                           <img
                             src={image}
                             alt={card.profile.full_name || "Professional"}
-                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                           />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-xs text-neutral-400">
-                            No preview
+                          <div className="flex h-full w-full flex-col items-center justify-center bg-neutral-100">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-neutral-200 text-xl font-semibold text-neutral-400">
+                              {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                            </div>
                           </div>
                         )}
 
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-transparent opacity-90" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-                        {card.tagBadges[0] ? (
-                          <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-neutral-900 shadow-sm">
-                            {card.tagBadges[0]}
+                        {/* tags */}
+                        {card.tagBadges.length > 0 ? (
+                          <div className="absolute left-2 top-2 flex flex-col gap-1">
+                            {card.tagBadges.map((tag) => (
+                              <span
+                                key={tag}
+                                className="inline-block rounded-full bg-black/65 px-2 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {/* rating top-right */}
+                        {card.averageRating ? (
+                          <span className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-neutral-900 shadow-sm">
+                            ★ {card.averageRating}
                           </span>
                         ) : null}
 
-                        <div className="absolute bottom-2 left-2 right-2 flex items-center gap-2 rounded-full bg-white/95 p-1.5 shadow-sm">
-                          <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-neutral-100">
-                            {card.profile.avatar_url ? (
-                              <img
-                                src={card.profile.avatar_url}
-                                alt={card.profile.full_name || "Professional"}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
-                                {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-semibold text-neutral-900">
-                              {card.profile.full_name || "Professional"}
-                            </p>
-                            <p className="truncate text-[11px] text-neutral-500">
-                              {primaryRole}
-                            </p>
+                        {/* bottom info overlay */}
+                        <div className="absolute inset-x-0 bottom-0 p-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-6 w-6 shrink-0 overflow-hidden rounded-full border border-white/40 bg-neutral-200">
+                              {card.profile.avatar_url ? (
+                                <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-[9px] font-bold text-neutral-500">
+                                  {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-[11px] font-semibold leading-tight text-white">
+                                {card.profile.full_name || "Professional"}
+                              </p>
+                              <p className="truncate text-[10px] text-white/65">
+                                {card.profile.business_name?.trim() || distanceLabel || primaryRole}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-
-                      <div className="p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="truncate text-sm font-semibold text-neutral-900">
-                            {primaryRole}
-                          </p>
-                          <p className="shrink-0 text-xs text-neutral-500">
-                            {card.averageRating ? `${card.averageRating}★` : "New"}
-                          </p>
-                        </div>
-
-                        <p className="mt-1 truncate text-xs text-neutral-500">
-                          {secondaryText}
-                        </p>
                       </div>
                     </Link>
                   );
@@ -922,5 +1161,157 @@ export default function DiscoverPage() {
         )}
       </div>
     </main>
+
+    {nearbyPanelOpen ? (
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+        onClick={() => setNearbyPanelOpen(false)}
+      >
+        <div
+          className="w-full max-w-sm rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+              Professionals near you
+            </p>
+            <button
+              type="button"
+              onClick={() => setNearbyPanelOpen(false)}
+              className="rounded-full border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50"
+            >
+              Close
+            </button>
+          </div>
+
+          {nearbyAreaLabel ? (
+            <p className="text-center text-xs font-medium text-neutral-500">{nearbyAreaLabel}</p>
+          ) : null}
+
+          <div className="mx-auto mt-2 flex items-center justify-center">
+            <svg viewBox="0 0 160 160" className="h-48 w-48">
+              <defs>
+                <radialGradient id="lu-map-bg" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor="#fafafa" />
+                  <stop offset="100%" stopColor="#eeeeee" />
+                </radialGradient>
+              </defs>
+
+              <circle cx="80" cy="80" r="70" fill="url(#lu-map-bg)" />
+
+              {[5, 10, 25, 50].map((km, i) => {
+                const tierRadius = [20, 36, 52, 70][i];
+                const isActive = nearbyRadiusKm === km;
+                return (
+                  <circle
+                    key={km}
+                    cx="80"
+                    cy="80"
+                    r={tierRadius}
+                    fill={isActive ? "#000000" : "none"}
+                    fillOpacity={isActive ? 0.05 : 0}
+                    stroke={isActive ? "#000000" : "#d4d4d4"}
+                    strokeWidth={isActive ? 1.4 : 1}
+                    strokeDasharray={isActive ? undefined : "2 3"}
+                    style={{ transition: "r 0.35s cubic-bezier(0.4,0,0.2,1), fill-opacity 0.35s ease, stroke 0.35s ease" }}
+                  />
+                );
+              })}
+
+              <text x="80" y="13" textAnchor="middle" className="fill-neutral-500" style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.5 }}>
+                {nearbyRadiusKm} KM
+              </text>
+
+              {nearbyDots.map((dot, i) => (
+                <circle
+                  key={i}
+                  cx={dot.x}
+                  cy={dot.y}
+                  r={dot.size}
+                  fill="#111111"
+                  opacity={0.55}
+                />
+              ))}
+
+              <circle cx="80" cy="80" r="11" fill="none" stroke="#000000" strokeWidth="1" opacity="0.25">
+                <animate attributeName="r" values="9;15;9" dur="2.4s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.35;0;0.35" dur="2.4s" repeatCount="indefinite" />
+              </circle>
+              <circle cx="80" cy="80" r="6" fill="#000000" />
+              <circle cx="80" cy="80" r="2.5" fill="#ffffff" />
+              <text x="80" y="98" textAnchor="middle" className="fill-neutral-900" style={{ fontSize: 7.5, fontWeight: 700, letterSpacing: 0.3 }}>
+                YOU
+              </text>
+            </svg>
+          </div>
+
+          <p className="mt-1 text-center text-3xl font-semibold tracking-tight text-neutral-900">
+            {nearbyCount ?? "—"}
+          </p>
+          <p className="text-center text-xs text-neutral-500">
+            professional{nearbyCount === 1 ? "" : "s"} within {nearbyRadiusKm} km
+          </p>
+
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            {[5, 10, 25, 50].map((km) => (
+              <button
+                key={km}
+                type="button"
+                onClick={() => setNearbyRadiusKm(km)}
+                className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
+                  nearbyRadiusKm === km
+                    ? "border-neutral-900 bg-neutral-900 text-white"
+                    : "border-neutral-200 bg-neutral-50 text-neutral-600 hover:border-neutral-400"
+                }`}
+              >
+                {km} km
+              </button>
+            ))}
+          </div>
+
+          {nearbyProfessionals.length > 0 ? (
+            <div className="mt-5 max-h-56 space-y-1.5 overflow-y-auto border-t border-neutral-100 pt-4">
+              {nearbyProfessionals.map(({ card, distance }) => {
+                const roles = getProfessionalTypes(card.profile);
+                const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
+
+                return (
+                  <Link
+                    key={card.profile.id}
+                    href={`/profile/${card.profile.id}`}
+                    onClick={() => setNearbyPanelOpen(false)}
+                    className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-neutral-50"
+                  >
+                    <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
+                      {card.profile.avatar_url ? (
+                        <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
+                          {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-neutral-900">
+                        {card.profile.full_name || "Professional"}
+                      </p>
+                      <p className="truncate text-xs text-neutral-500">{primaryRole}</p>
+                    </div>
+                    <span className="shrink-0 text-xs text-neutral-400">
+                      {formatDistanceLabel(distance)}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : null}
+
+          <p className="mt-4 text-center text-[11px] leading-4 text-neutral-400">
+            This is a quick snapshot of who's nearby — full details show once you open a profile.
+          </p>
+        </div>
+      </div>
+    ) : null}
+    </>
   );
 }
