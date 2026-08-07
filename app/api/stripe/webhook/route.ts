@@ -313,6 +313,65 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
   ]);
 
   await sendBookingConfirmedEmail(createdBooking.id);
+  await notifyIfNearingMonthlyBookingCap(supabase, offer.professional_id);
+}
+
+function getMonthlyBookingCap(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {
+  const subscribed =
+    profile.subscription_status === "active" || profile.subscription_status === "trialing";
+
+  if (!subscribed || !profile.subscription_plan) return 15; // Basic
+  if (profile.subscription_plan === "apprentice") return 25;
+  return null; // Pro / Master — unlimited
+}
+
+// Request-sourced bookings count toward a subscribed professional's monthly
+// cap (direct calendar bookings never do). Warn once at 80% used and once
+// at the cap itself, rather than on every booking near the limit.
+async function notifyIfNearingMonthlyBookingCap(
+  supabase: ReturnType<typeof getServiceSupabase>,
+  professionalId: string
+) {
+  const { data: professionalProfile } = await supabase
+    .from("profiles")
+    .select("subscription_status, subscription_plan")
+    .eq("id", professionalId)
+    .single();
+
+  const cap = getMonthlyBookingCap(professionalProfile || {});
+  if (cap === null) return;
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+
+  const { count } = await supabase
+    .from("bookings")
+    .select("id", { count: "exact", head: true })
+    .eq("professional_id", professionalId)
+    .eq("source", "request")
+    .in("status", ["confirmed", "completion_requested", "completed"])
+    .gte("booking_date", monthStart)
+    .lte("booking_date", monthEnd);
+
+  const currentCount = count || 0;
+  const nearingThreshold = Math.ceil(cap * 0.8);
+
+  if (currentCount === cap) {
+    await supabase.from("notifications").insert([{
+      user_id: professionalId,
+      is_read: false,
+      type: "booking_cap_reached",
+      title: `You've hit your monthly booking limit (${cap}) — it resets next month`,
+    }]);
+  } else if (currentCount === nearingThreshold) {
+    await supabase.from("notifications").insert([{
+      user_id: professionalId,
+      is_read: false,
+      type: "booking_cap_nearing",
+      title: `You're nearing your monthly booking limit — ${currentCount} of ${cap} used`,
+    }]);
+  }
 }
 
 async function handleDirectBookingPaymentSucceeded(
@@ -579,6 +638,13 @@ async function handleSubscriptionCheckoutCompleted(session: any) {
       subscription_current_period_end: new Date(
         subscription.current_period_end * 1000
       ).toISOString(),
+      // Instant-booking calendar is available on any paid tier (not just
+      // Master) — turn it on automatically instead of leaving it as a buried
+      // settings toggle nobody knows to flip. Direct bookings are never
+      // counted against the monthly request cap, regardless of tier.
+      ...(plan && plan !== "unknown"
+        ? { direct_booking_enabled: true, public_availability_enabled: true }
+        : {}),
     })
     .eq("id", userId);
 }
@@ -590,6 +656,10 @@ async function handleSubscriptionUpdated(subscription: any) {
 
   const priceId = subscription.items.data[0]?.price.id;
   const plan = getPlanFromPriceId(priceId);
+  const isSubscribed =
+    (subscription.status === "active" || subscription.status === "trialing") &&
+    plan &&
+    plan !== "unknown";
 
   await supabase
     .from("profiles")
@@ -599,6 +669,9 @@ async function handleSubscriptionUpdated(subscription: any) {
       subscription_current_period_end: new Date(
         subscription.current_period_end * 1000
       ).toISOString(),
+      ...(isSubscribed
+        ? { direct_booking_enabled: true, public_availability_enabled: true }
+        : { direct_booking_enabled: false, public_availability_enabled: false }),
     })
     .eq("id", userId);
 }
@@ -615,6 +688,8 @@ async function handleSubscriptionDeleted(subscription: any) {
       subscription_status: "canceled",
       subscription_plan: null,
       subscription_current_period_end: null,
+      direct_booking_enabled: false,
+      public_availability_enabled: false,
     })
     .eq("id", userId);
 }

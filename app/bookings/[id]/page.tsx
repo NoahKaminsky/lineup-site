@@ -455,6 +455,13 @@ export default function BookingDetailPage() {
         return;
       }
 
+      if (booking.request_id) {
+        await supabase
+          .from("service_requests")
+          .update({ status: "completed", completed_at: completedAt })
+          .eq("id", booking.request_id);
+      }
+
       setBooking((prev) =>
         prev
           ? {
@@ -530,6 +537,13 @@ export default function BookingDetailPage() {
       if (error) {
         setMessage(error.message);
         return;
+      }
+
+      if (booking.request_id) {
+        await supabase
+          .from("service_requests")
+          .update({ status: "completion_requested" })
+          .eq("id", booking.request_id);
       }
 
       setBooking((prev) =>

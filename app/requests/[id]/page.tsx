@@ -216,6 +216,8 @@ export default function RequestDetailPage() {
   const [withdrawingOfferId, setWithdrawingOfferId] = useState<string | null>(null);
   const [cancelingRequest, setCancelingRequest] = useState(false);
   const [confirmingCancelRequest, setConfirmingCancelRequest] = useState(false);
+  const [cancelingBooking, setCancelingBooking] = useState(false);
+  const [confirmingCancelBooking, setConfirmingCancelBooking] = useState(false);
 
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
@@ -314,6 +316,81 @@ export default function RequestDetailPage() {
   function timeToMinutes(timeString: string) {
     const [hours, minutes] = String(timeString).slice(0, 5).split(":").map(Number);
     return hours * 60 + minutes;
+  }
+
+  function isServiceOver(bookingDate: string, endTime: string) {
+    const end = new Date(`${bookingDate}T${String(endTime).slice(0, 5)}:00`);
+    return new Date() >= end;
+  }
+
+  const CANCELLATION_CUTOFF_HOURS = 24;
+
+  function canCancelBooking(bookingDate: string, startTime: string) {
+    const start = new Date(`${bookingDate}T${String(startTime).slice(0, 5)}:00`);
+    const hoursUntilStart = (start.getTime() - Date.now()) / (1000 * 60 * 60);
+    return hoursUntilStart >= CANCELLATION_CUTOFF_HOURS;
+  }
+
+  function formatCancellationCutoff(bookingDate: string, startTime: string) {
+    const start = new Date(`${bookingDate}T${String(startTime).slice(0, 5)}:00`);
+    const cutoff = new Date(start.getTime() - CANCELLATION_CUTOFF_HOURS * 60 * 60 * 1000);
+    return cutoff.toLocaleString("en-CA", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  async function handleCancelBooking() {
+    if (!request || !currentUserId) return;
+    if (request.status !== "accepted" && request.status !== "completion_requested") return;
+
+    if (!confirmingCancelBooking) {
+      setConfirmingCancelBooking(true);
+      return;
+    }
+
+    setConfirmingCancelBooking(false);
+    setCancelingBooking(true);
+    setMessage("");
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const response = await fetch("/api/bookings/cancel", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ requestId: request.id }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMessage(data?.error || "Could not cancel this booking.");
+        return;
+      }
+
+      setRequest((prev) => (prev ? { ...prev, status: "cancelled" } : prev));
+      setMessage(
+        data.refundStatus === "refunded"
+          ? "Booking cancelled and a full refund has been issued."
+          : data.refundStatus === "failed"
+          ? "Booking cancelled, but the refund didn't go through — we've been notified and will follow up."
+          : "Booking cancelled."
+      );
+    } catch (error) {
+      console.error(error);
+      setMessage("Something went wrong cancelling this booking.");
+    } finally {
+      setCancelingBooking(false);
+    }
   }
 
   function getStatusLabel(status: string) {
@@ -1176,6 +1253,12 @@ export default function RequestDetailPage() {
 
   async function handleRequestCompletion() {
     if (!request || !isAcceptedProfessional || request.status !== "accepted") {
+      return;
+    }
+
+    if (request.scheduled_date && request.scheduled_end_time &&
+        !isServiceOver(request.scheduled_date, request.scheduled_end_time)) {
+      setMessage(`You can request completion after ${formatTime(request.scheduled_end_time)} when the service ends.`);
       return;
     }
 
@@ -2338,13 +2421,20 @@ export default function RequestDetailPage() {
                   </p>
 
                   <div className="mt-6">
-                    <button
-                      type="button"
-                      onClick={handleRequestCompletion}
-                      className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
-                    >
-                      Mark service complete
-                    </button>
+                    {request.scheduled_date && request.scheduled_end_time &&
+                    !isServiceOver(request.scheduled_date, request.scheduled_end_time) ? (
+                      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-500">
+                        Available after {formatTime(request.scheduled_end_time)} when the service ends
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleRequestCompletion}
+                        className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                      >
+                        Mark service complete
+                      </button>
+                    )}
                   </div>
                 </section>
               ) : null}
@@ -2352,6 +2442,62 @@ export default function RequestDetailPage() {
               {isAcceptedProfessional && request.status === "completion_requested" ? (
                 <section className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
                   Completion request sent. Waiting for customer confirmation.
+                </section>
+              ) : null}
+
+              {(isCustomer || isAcceptedProfessional) &&
+              (request.status === "accepted" || request.status === "completion_requested") &&
+              request.scheduled_date && request.scheduled_start_time ? (
+                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Booking
+                  </p>
+
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                    Need to cancel?
+                  </h2>
+
+                  {!canCancelBooking(request.scheduled_date, request.scheduled_start_time) ? (
+                    <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-500">
+                      This booking is within {CANCELLATION_CUTOFF_HOURS} hours of the appointment and
+                      can no longer be cancelled. Message the {isCustomer ? "professional" : "client"}{" "}
+                      directly if something&apos;s come up.
+                    </div>
+                  ) : confirmingCancelBooking ? (
+                    <div className="mt-4 flex items-center gap-2">
+                      <span className="text-sm text-neutral-600">Cancel and refund in full?</span>
+                      <button
+                        type="button"
+                        onClick={handleCancelBooking}
+                        disabled={cancelingBooking}
+                        className="inline-flex rounded-full border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                      >
+                        {cancelingBooking ? "Working..." : "Yes, cancel"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingCancelBooking(false)}
+                        className="inline-flex rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-900 transition hover:bg-neutral-50"
+                      >
+                        Keep
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-4 flex flex-col gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleCancelBooking}
+                        disabled={cancelingBooking}
+                        className="inline-flex w-fit rounded-full border border-red-300 px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                      >
+                        Cancel booking
+                      </button>
+                      <p className="text-xs text-neutral-400">
+                        Full refund if cancelled before{" "}
+                        {formatCancellationCutoff(request.scheduled_date, request.scheduled_start_time)}.
+                      </p>
+                    </div>
+                  )}
                 </section>
               ) : null}
 

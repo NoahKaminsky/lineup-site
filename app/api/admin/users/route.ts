@@ -59,11 +59,20 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Invalid subscription status" }, { status: 400 });
   }
 
+  const isSubscribed =
+    !!subscriptionPlan &&
+    (subscriptionStatus === "active" || subscriptionStatus === "trialing");
+
   const { error } = await service
     .from("profiles")
     .update({
       subscription_plan: subscriptionPlan ?? null,
       subscription_status: subscriptionStatus ?? null,
+      // Instant-booking calendar is meant to just work on any paid tier,
+      // not require finding a settings toggle.
+      ...(isSubscribed
+        ? { direct_booking_enabled: true, public_availability_enabled: true }
+        : { direct_booking_enabled: false, public_availability_enabled: false }),
     })
     .eq("id", userId);
 
