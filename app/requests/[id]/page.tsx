@@ -2170,7 +2170,7 @@ export default function RequestDetailPage() {
                           const isMine = chat.sender_id === currentUserId;
                           const sender = chatProfiles[chat.sender_id];
                           const isSystemMessage =
-                            chat.message.includes("Offer accepted.") ||
+                            chat.message.startsWith("Offer accepted after payment.") ||
                             chat.message ===
                               "Completion requested. Waiting for customer confirmation." ||
                             chat.message === "Service confirmed as completed.";
