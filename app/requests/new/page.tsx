@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Scissors, Hand, Eye, Pencil, Palette } from "lucide-react";
+import { Scissors, Hand, Eye, Pencil, Palette, Leaf } from "lucide-react";
 import { supabase } from "../../../lib/supabaseClient";
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
@@ -764,6 +764,7 @@ function NewRequestPageContent() {
     { value: "lashes", label: "Lashes", Icon: Eye },
     { value: "brows", label: "Brows", Icon: Pencil },
     { value: "makeup", label: "Makeup", Icon: Palette },
+    { value: "body_sugaring", label: "Sugaring", Icon: Leaf },
   ];
 
   const serviceModeOptions = [

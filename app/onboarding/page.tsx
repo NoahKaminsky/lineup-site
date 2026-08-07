@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Scissors, Wand2, Hand, Eye, Pencil, Palette, Flame, Star, ShoppingBag, Briefcase } from "lucide-react";
+import { Scissors, Wand2, Hand, Eye, Pencil, Palette, Flame, Leaf, Star, ShoppingBag, Briefcase } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 
 const PROFESSIONAL_OPTIONS = [
@@ -14,6 +14,7 @@ const PROFESSIONAL_OPTIONS = [
   { label: "Brow Artist", value: "brow_artist", Icon: Pencil },
   { label: "Makeup Artist", value: "makeup_artist", Icon: Palette },
   { label: "Wax Technician", value: "wax_technician", Icon: Flame },
+  { label: "Body Sugaring", value: "body_sugaring", Icon: Leaf },
   { label: "Other", value: "other_beauty_professional", Icon: Star },
 ];
 

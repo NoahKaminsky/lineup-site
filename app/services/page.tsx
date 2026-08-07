@@ -168,6 +168,15 @@ const suggestedServiceTemplatesByType: Record<string, ServiceTemplate[]> = {
     { name: "Photoshoot Makeup", duration: 75 },
     { name: "Trial Makeup", duration: 60 },
   ],
+  body_sugaring: [
+    { name: "Brazilian Sugaring", duration: 30 },
+    { name: "Bikini Sugaring", duration: 20 },
+    { name: "Underarm Sugaring", duration: 15 },
+    { name: "Full Leg Sugaring", duration: 60 },
+    { name: "Half Leg Sugaring", duration: 30 },
+    { name: "Arm Sugaring", duration: 30 },
+    { name: "Full Body Sugaring", duration: 90 },
+  ],
 };
 
 const dayLabels = [
@@ -429,18 +438,20 @@ function AccordionSection({
   subtitle,
   summary,
   defaultOpen = false,
+  id,
   children,
 }: {
   title: string;
   subtitle?: string;
   summary?: string;
   defaultOpen?: boolean;
+  id?: string;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section className="mt-5 overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-sm">
+    <section id={id} className="mt-5 scroll-mt-24 overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-sm">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
@@ -1557,6 +1568,7 @@ export default function ServicesPage() {
         </AccordionSection>
 
         <AccordionSection
+          id="availability"
           title="Set your open windows"
           subtitle="Weekly availability"
           summary={

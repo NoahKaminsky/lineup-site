@@ -6,6 +6,7 @@ type AccordionSectionProps = {
   title: string;
   subtitle?: string;
   defaultOpen?: boolean;
+  id?: string;
   children: React.ReactNode;
 };
 
@@ -13,12 +14,13 @@ export default function AccordionSection({
   title,
   subtitle,
   defaultOpen = false,
+  id,
   children,
 }: AccordionSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section className="mt-8 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
+    <section id={id} className="mt-8 scroll-mt-24 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}

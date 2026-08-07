@@ -108,6 +108,7 @@ const professionalTypeOptions = [
   { value: "brow_artist", label: "Brow Artist" },
   { value: "makeup_artist", label: "Makeup Artist" },
   { value: "wax_technician", label: "Wax Technician" },
+  { value: "body_sugaring", label: "Body Sugaring" },
 ];
 
 const professionalTypeLabelMap = new Map(
@@ -820,6 +821,30 @@ export default function AccountPage() {
 
       if (!session?.access_token) {
         setMessage("Please log out and log back in before connecting payouts.");
+        return;
+      }
+
+      // Already fully onboarded — send them to Stripe's real account
+      // management dashboard instead of back through first-time onboarding.
+      if (profile.stripe_payouts_enabled) {
+        const dashboardResponse = await fetch("/api/stripe/connect/dashboard-link", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        const dashboardData = await dashboardResponse.json();
+
+        if (!dashboardResponse.ok) {
+          throw new Error(dashboardData?.error || "Could not open Stripe dashboard.");
+        }
+
+        if (!dashboardData?.url) {
+          throw new Error("Stripe did not return a dashboard link.");
+        }
+
+        window.location.href = dashboardData.url;
         return;
       }
 

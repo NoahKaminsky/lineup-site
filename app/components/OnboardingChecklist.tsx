@@ -7,7 +7,6 @@ import { supabase } from "@/lib/supabaseClient";
 type Steps = {
   photo: boolean;
   service: boolean;
-  availability: boolean;
   stripe: boolean;
 };
 
@@ -22,12 +21,6 @@ const STEPS = [
     key: "service" as keyof Steps,
     label: "Add your first service",
     description: "Let clients know what you offer",
-    href: "/services",
-  },
-  {
-    key: "availability" as keyof Steps,
-    label: "Set your weekly availability",
-    description: "So clients can book the right time",
     href: "/services",
   },
   {
@@ -54,7 +47,7 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
   }, [userId]);
 
   async function loadSteps() {
-    const [profileRes, servicesRes, availabilityRes] = await Promise.all([
+    const [profileRes, servicesRes] = await Promise.all([
       supabase
         .from("profiles")
         .select("avatar_url, stripe_account_id")
@@ -64,18 +57,12 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
         .from("professional_services")
         .select("id", { count: "exact", head: true })
         .eq("professional_id", userId),
-      supabase
-        .from("professional_availability")
-        .select("id", { count: "exact", head: true })
-        .eq("professional_id", userId)
-        .eq("is_active", true),
     ]);
 
     const profile = profileRes.data;
     const resolved: Steps = {
       photo: !!profile?.avatar_url,
       service: (servicesRes.count ?? 0) > 0,
-      availability: (availabilityRes.count ?? 0) > 0,
       stripe: !!profile?.stripe_account_id,
     };
 
@@ -107,7 +94,7 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
             Getting started
           </p>
           <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-neutral-900">
-            {allDone ? "You're all set up!" : "Set up your LineUp profile"}
+            {allDone ? "You're all set up!" : "Finish setting up your profile"}
           </h2>
           <p className="mt-1 text-sm text-neutral-500">
             {allDone

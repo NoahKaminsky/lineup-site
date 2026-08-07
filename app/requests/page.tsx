@@ -3,9 +3,79 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Sparkles, Inbox, Briefcase, Wand2, UserCircle, Star, ClipboardList, Handshake } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
+import WelcomeTour, { type TourStep } from "../components/WelcomeTour";
 import OnboardingChecklist from "../components/OnboardingChecklist";
+
+const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
+  {
+    Icon: Sparkles,
+    eyebrow: "Welcome to LineUp",
+    title: "Let's get you set up.",
+    description:
+      "A quick walk through the essentials before your first booking — this'll only take a minute.",
+  },
+  {
+    Icon: Inbox,
+    eyebrow: "Your Dashboard",
+    title: "Here's where you'll see new requests.",
+    description:
+      "Clients post exactly what they need, and matching requests from people near you show up right here. Send an offer on the ones you want to take.",
+  },
+  {
+    Icon: Briefcase,
+    eyebrow: "Work",
+    title: "This is where you manage your bookings.",
+    description:
+      "Once a client accepts your offer, it becomes a confirmed booking here — along with the offers you've sent and your completed job history, all in one place.",
+  },
+  {
+    Icon: Wand2,
+    eyebrow: "Services",
+    title: "Add what you offer and your pricing.",
+    description:
+      "This is what clients see when deciding whether to book you — the more complete it is, the better your chances of getting picked.",
+  },
+  {
+    Icon: UserCircle,
+    eyebrow: "Your profile",
+    title: "Add a photo and connect your payouts.",
+    description:
+      "A profile photo helps clients recognize and trust you, and connecting Stripe means you actually get paid once a job is done.",
+  },
+  {
+    Icon: Star,
+    eyebrow: "Last step",
+    title: "Choose how you want to grow.",
+    description:
+      "Basic is free and lets you take on real clients right away. Upgrade any time to unlock your own booking calendar for direct bookings, deeper analytics, and higher monthly limits.",
+  },
+];
+
+const CUSTOMER_TOUR_STEPS: TourStep[] = [
+  {
+    Icon: Sparkles,
+    eyebrow: "Welcome to LineUp",
+    title: "Let's find you the right professional.",
+    description: "A quick look at how booking works before you post your first request.",
+  },
+  {
+    Icon: ClipboardList,
+    eyebrow: "How it works",
+    title: "Post what you need, get real offers.",
+    description:
+      "Share the service, your budget, and when and where you want it done — nearby professionals send you offers, and you pick the one that fits best.",
+  },
+  {
+    Icon: Handshake,
+    eyebrow: "Ready to go",
+    title: "Post your first request.",
+    description:
+      "It only takes a minute, and payment is handled securely right in the app once you accept an offer.",
+  },
+];
 
 type ServiceRequest = {
   id: string;
@@ -1458,7 +1528,26 @@ return (
           </div>
 
           {isProfessional && userId ? (
-            <OnboardingChecklist userId={userId} />
+            <>
+              <WelcomeTour
+                userId={userId}
+                role="professional"
+                steps={PROFESSIONAL_TOUR_STEPS}
+                finalCtaLabel="View subscription plans"
+                finalCtaHref="/subscription"
+              />
+              <OnboardingChecklist userId={userId} />
+            </>
+          ) : null}
+
+          {isCustomer && userId ? (
+            <WelcomeTour
+              userId={userId}
+              role="customer"
+              steps={CUSTOMER_TOUR_STEPS}
+              finalCtaLabel="Post your first request"
+              finalCtaHref="/requests/new"
+            />
           ) : null}
 
           {message ? (
@@ -1507,7 +1596,7 @@ return (
                 <Link href="/services" className="inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90">
                   Set up services
                 </Link>
-                <Link href="/calendar" className="inline-flex rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-semibold text-neutral-900 transition hover:bg-neutral-50">
+                <Link href="/services#availability" className="inline-flex rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-semibold text-neutral-900 transition hover:bg-neutral-50">
                   Set availability
                 </Link>
               </div>

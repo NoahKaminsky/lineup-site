@@ -97,6 +97,7 @@ const categoryOptions = [
   { label: "Brows", value: "brow_artist" },
   { label: "Makeup", value: "makeup_artist" },
   { label: "Waxing", value: "wax_technician" },
+  { label: "Sugaring", value: "body_sugaring" },
 ] as const;
 
 const serviceModeOptions = [

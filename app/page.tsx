@@ -12,6 +12,7 @@ const serviceTags = [
   "Lash Artists",
   "Brow Artists",
   "Makeup Artists",
+  "Body Sugaring",
 ];
 
 function SectionFade() {
@@ -130,8 +131,11 @@ export default function Page() {
 
         <div className="relative mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-16 md:grid-cols-[1.05fr_0.95fr] md:pt-24">
           <div className="flex flex-col justify-center">
-            <div className="mb-5 inline-flex w-fit items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
-              <span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+            <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm shadow-emerald-100">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              </span>
               Now live
             </div>
 

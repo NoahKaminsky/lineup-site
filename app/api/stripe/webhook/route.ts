@@ -174,21 +174,28 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
   let payoutStatus = "not_ready";
 
   if (professionalProfile.stripe_account_id && depositAmountCents > 0) {
-    const transfer = await stripe.transfers.create({
-      amount: depositAmountCents,
-      currency: "cad",
-      destination: professionalProfile.stripe_account_id,
-      transfer_group: `request_${requestRow.id}`,
-      metadata: {
-        flow_type: "request_offer_deposit",
-        offer_id: offer.id,
-        request_id: requestRow.id,
-        professional_id: offer.professional_id,
-      },
-    });
+    try {
+      const transfer = await stripe.transfers.create({
+        amount: depositAmountCents,
+        currency: "cad",
+        destination: professionalProfile.stripe_account_id,
+        transfer_group: `request_${requestRow.id}`,
+        metadata: {
+          flow_type: "request_offer_deposit",
+          offer_id: offer.id,
+          request_id: requestRow.id,
+          professional_id: offer.professional_id,
+        },
+      });
 
-    depositTransferId = transfer.id;
-    payoutStatus = "deposit_released";
+      depositTransferId = transfer.id;
+      payoutStatus = "deposit_released";
+    } catch (transferError) {
+      // Deposit payout is a nice-to-have, not a precondition for the booking
+      // itself — a customer who already paid should still get their booking
+      // confirmed even if the professional's payout account has an issue.
+      console.error("Deposit transfer failed, continuing without it:", transferError);
+    }
   }
 
   const { data: createdBooking, error: createBookingError } = await supabase
@@ -385,19 +392,23 @@ async function handleDirectBookingPaymentSucceeded(
   let payoutStatus = "not_ready";
 
   if (professionalProfile.stripe_account_id && depositAmountCents > 0) {
-    const transfer = await stripe.transfers.create({
-      amount: depositAmountCents,
-      currency: "cad",
-      destination: professionalProfile.stripe_account_id,
-      transfer_group: `direct_booking_${paymentIntent.id}`,
-      metadata: {
-        flow_type: "direct_booking_deposit",
-        professional_id: professionalId,
-      },
-    });
+    try {
+      const transfer = await stripe.transfers.create({
+        amount: depositAmountCents,
+        currency: "cad",
+        destination: professionalProfile.stripe_account_id,
+        transfer_group: `direct_booking_${paymentIntent.id}`,
+        metadata: {
+          flow_type: "direct_booking_deposit",
+          professional_id: professionalId,
+        },
+      });
 
-    depositTransferId = transfer.id;
-    payoutStatus = "deposit_released";
+      depositTransferId = transfer.id;
+      payoutStatus = "deposit_released";
+    } catch (transferError) {
+      console.error("Deposit transfer failed, continuing without it:", transferError);
+    }
   }
 
   const { data: createdBooking, error: createBookingError } = await supabase
