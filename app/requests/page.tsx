@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Inbox, Briefcase, Wand2, UserCircle, Star, ClipboardList, Handshake } from "lucide-react";
+import { Sparkles, Inbox, Briefcase, Wand2, UserCircle, Images, Star, ClipboardList, Handshake } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import WelcomeTour, { type TourStep } from "../components/WelcomeTour";
@@ -37,6 +37,13 @@ const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
     title: "Add what you offer, your pricing, and your address.",
     description:
       "This is what clients see when deciding whether to book you. If you take in-shop or home studio bookings, add that address here too — it's kept private and only shared with a customer after they've booked.",
+  },
+  {
+    Icon: Images,
+    eyebrow: "Show your work",
+    title: "Build a portfolio.",
+    description:
+      "Add photos — or short videos — of work you're proud of. It's the first thing clients look at when deciding who to book, and it lives right on your account page.",
   },
   {
     Icon: UserCircle,

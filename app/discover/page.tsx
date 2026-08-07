@@ -54,6 +54,7 @@ type PortfolioItem = {
   user_id: string;
   image_url: string;
   caption: string | null;
+  media_type?: "image" | "video" | null;
   created_at: string;
 };
 
@@ -386,7 +387,7 @@ export default function DiscoverPage() {
 
             supabase
               .from("professional_portfolio")
-              .select("id, user_id, image_url, caption, created_at")
+              .select("id, user_id, image_url, caption, media_type, created_at")
               .in("user_id", professionalIds)
               .order("created_at", { ascending: false }),
 
@@ -460,7 +461,9 @@ export default function DiscoverPage() {
         const builtCards: DiscoverCard[] = professionals.map((profile) => {
           const proServices = servicesByProfessional.get(profile.id) || [];
           const proReviews = reviewsByProfessional.get(profile.id) || [];
-          const proPortfolio = portfolioByProfessional.get(profile.id) || [];
+          const proPortfolio = (portfolioByProfessional.get(profile.id) || []).filter(
+            (item) => item.media_type !== "video"
+          );
           const proAvailability = availabilityByProfessional.get(profile.id) || [];
           const proBookings = bookingsByProfessional.get(profile.id) || [];
 

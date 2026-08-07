@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
+import { stripe } from "@/app/lib/stripe";
+
+const CANCELLATION_CUTOFF_HOURS = 24;
 
 export async function POST(req: Request) {
   try {
@@ -38,6 +41,61 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "This booking can no longer be cancelled" }, { status: 409 });
     }
 
+    // Cancellations are only allowed more than 24 hours before the appointment.
+    // Both sides are told this policy when the booking is made, so this should
+    // never trip for a good-faith cancellation.
+    const appointmentAt = new Date(`${booking.booking_date}T${booking.start_time}`);
+    const hoursUntilAppointment = (appointmentAt.getTime() - Date.now()) / (1000 * 60 * 60);
+
+    if (hoursUntilAppointment < CANCELLATION_CUTOFF_HOURS) {
+      return NextResponse.json(
+        {
+          error: `Bookings can only be cancelled more than ${CANCELLATION_CUTOFF_HOURS} hours before the appointment. Message the ${
+            isCustomer ? "professional" : "client"
+          } directly if something's come up.`,
+        },
+        { status: 403 }
+      );
+    }
+
+    // Refund the customer before touching the booking status — if the refund
+    // fails, we want the booking to stay as-is rather than silently cancel
+    // without the customer actually getting their money back.
+    let refundStatus: string | null = null;
+    let stripeRefundId: string | null = null;
+
+    if (booking.stripe_payment_intent_id) {
+      try {
+        // Deposits are transferred to the professional's connected account as
+        // soon as the booking is confirmed (separate charges & transfers), so
+        // refunding the PaymentIntent alone would leave the platform covering
+        // that amount out of its own balance. Reverse it first.
+        if (booking.stripe_deposit_transfer_id) {
+          try {
+            await stripe.transfers.createReversal(booking.stripe_deposit_transfer_id);
+          } catch (reversalError) {
+            console.error("Deposit transfer reversal failed:", reversalError);
+          }
+        }
+
+        const refund = await stripe.refunds.create({
+          payment_intent: booking.stripe_payment_intent_id,
+        });
+
+        refundStatus = "refunded";
+        stripeRefundId = refund.id;
+      } catch (refundError) {
+        console.error("Booking cancellation refund failed:", refundError);
+        const message = refundError instanceof Error ? refundError.message : null;
+        return NextResponse.json(
+          {
+            error: message || "Could not process the refund. Please contact support instead of retrying.",
+          },
+          { status: 502 }
+        );
+      }
+    }
+
     const cancelledAt = new Date().toISOString();
 
     const { error: updateBookingError } = await supabase
@@ -46,6 +104,8 @@ export async function POST(req: Request) {
         status: "cancelled",
         cancelled_by: user.id,
         cancelled_at: cancelledAt,
+        refund_status: refundStatus,
+        stripe_refund_id: stripeRefundId,
       })
       .eq("id", booking.id)
       .in("status", ["confirmed", "completion_requested"]);
@@ -71,11 +131,11 @@ export async function POST(req: Request) {
         type: "booking_cancelled",
         title: `${booking.service_name || "Your booking"} was cancelled by ${
           isCustomer ? "the customer" : "the professional"
-        }`,
+        }${refundStatus === "refunded" ? " — full refund issued" : ""}`,
       }]);
     }
 
-    return NextResponse.json({ ok: true, cancelledAt });
+    return NextResponse.json({ ok: true, cancelledAt, refundStatus });
   } catch (error: any) {
     console.error("booking cancel failed:", error);
 

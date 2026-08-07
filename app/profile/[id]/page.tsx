@@ -45,6 +45,7 @@ type PortfolioItem = {
   user_id: string;
   image_url: string;
   caption: string | null;
+  media_type?: "image" | "video" | null;
   created_at: string;
 };
 
@@ -566,7 +567,7 @@ export default function ProfessionalProfilePage() {
 
         const { data: portfolioData, error: portfolioError } = await supabase
           .from("professional_portfolio")
-          .select("id, user_id, image_url, caption, created_at")
+          .select("id, user_id, image_url, caption, media_type, created_at")
           .eq("user_id", profileId)
           .order("created_at", { ascending: false });
 
@@ -2072,11 +2073,22 @@ if (loading) {
                         index === 0 ? "aspect-[4/3] lg:aspect-[5/4]" : "aspect-square"
                       }`}
                     >
-                      <img
-                        src={item.image_url}
-                        alt={item.caption || "Portfolio image"}
-                        className="h-full w-full object-cover"
-                      />
+                      {item.media_type === "video" ? (
+                        <video
+                          src={item.image_url}
+                          className="h-full w-full object-cover"
+                          muted
+                          loop
+                          playsInline
+                          controls
+                        />
+                      ) : (
+                        <img
+                          src={item.image_url}
+                          alt={item.caption || "Portfolio image"}
+                          className="h-full w-full object-cover"
+                        />
+                      )}
                     </div>
 
                     <div className="p-4">

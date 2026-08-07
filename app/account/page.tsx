@@ -44,6 +44,7 @@ type PortfolioItem = {
   user_id: string;
   image_url: string;
   caption: string | null;
+  media_type?: "image" | "video" | null;
   created_at: string;
 };
 
@@ -199,7 +200,7 @@ export default function AccountPage() {
 
       const { data: portfolioData, error: portfolioError } = await supabase
         .from("professional_portfolio")
-        .select("id, user_id, image_url, caption, created_at")
+        .select("id, user_id, image_url, caption, media_type, created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -496,7 +497,15 @@ export default function AccountPage() {
       }
 
       if (!uploadFile) {
-        setMessage("Please choose an image first.");
+        setMessage("Please choose a photo or video first.");
+        return;
+      }
+
+      const isVideo = uploadFile.type.startsWith("video/");
+      const maxSizeMb = isVideo ? 100 : 15;
+
+      if (uploadFile.size > maxSizeMb * 1024 * 1024) {
+        setMessage(`That file is too large — ${isVideo ? "videos" : "photos"} must be under ${maxSizeMb}MB.`);
         return;
       }
 
@@ -526,8 +535,9 @@ export default function AccountPage() {
           user_id: user.id,
           image_url: publicUrl,
           caption: uploadCaption.trim() || null,
+          media_type: isVideo ? "video" : "image",
         })
-        .select("id, user_id, image_url, caption, created_at")
+        .select("id, user_id, image_url, caption, media_type, created_at")
         .single();
 
       if (insertError) {
@@ -1551,11 +1561,22 @@ export default function AccountPage() {
                     key={item.id}
                     className="group relative overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-neutral-100"
                   >
-                    <img
-                      src={item.image_url}
-                      alt={item.caption || "Portfolio item"}
-                      className="aspect-square h-full w-full object-cover"
-                    />
+                    {item.media_type === "video" ? (
+                      <video
+                        src={item.image_url}
+                        className="aspect-square h-full w-full object-cover"
+                        muted
+                        loop
+                        playsInline
+                        controls
+                      />
+                    ) : (
+                      <img
+                        src={item.image_url}
+                        alt={item.caption || "Portfolio item"}
+                        className="aspect-square h-full w-full object-cover"
+                      />
+                    )}
 
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent p-4 text-white">
                       <p className="text-sm font-medium">
@@ -1674,11 +1695,14 @@ export default function AccountPage() {
             <h3 className="mt-3 text-3xl font-semibold tracking-tight text-neutral-900">
               Add work
             </h3>
+            <p className="mt-1 text-sm text-neutral-500">
+              Add a photo or a short video of your work.
+            </p>
 
             <div className="mt-6 space-y-4">
               <input
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
                 className="block w-full text-sm text-neutral-600 file:mr-4 file:rounded-full file:border-0 file:bg-neutral-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:opacity-90"
               />

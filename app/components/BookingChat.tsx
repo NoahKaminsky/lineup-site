@@ -17,7 +17,7 @@ export default function BookingChat({ bookingId, viewerId }: { bookingId: string
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -56,7 +56,13 @@ export default function BookingChat({ bookingId, viewerId }: { bookingId: string
   }, [bookingId]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll only within the chat's own message list — never the page. Using
+    // scrollIntoView here would drag the whole page down to this section on
+    // every load, since most bookings already have a system message.
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [messages.length]);
 
   async function sendMessage() {
@@ -72,7 +78,10 @@ export default function BookingChat({ bookingId, viewerId }: { bookingId: string
 
   return (
     <div className="mt-5">
-      <div className="min-h-[180px] max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+      <div
+        ref={scrollContainerRef}
+        className="min-h-[180px] max-h-80 space-y-3 overflow-y-auto rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+      >
         {loading ? (
           <p className="text-sm text-neutral-500">Loading messages...</p>
         ) : messages.length === 0 ? (
@@ -92,7 +101,6 @@ export default function BookingChat({ bookingId, viewerId }: { bookingId: string
             );
           })
         )}
-        <div ref={bottomRef} />
       </div>
       {error ? <p className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       <div className="mt-4 flex gap-2">

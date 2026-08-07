@@ -548,6 +548,12 @@ export default function RespondToRequestPage() {
             date and time that works for your schedule.
           </p>
 
+          <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-xs leading-5 text-neutral-600">
+            <span className="font-semibold text-neutral-900">Cancellation policy:</span> if this
+            offer is accepted, either of you can cancel for a full refund up until 24 hours before
+            the appointment. Neither of you can cancel inside that 24-hour window.
+          </div>
+
           {request.status !== "open" ? (
             <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
               <p className="text-sm font-medium text-amber-700">

@@ -2519,6 +2519,12 @@ export default function RequestDetailPage() {
               </button>
             </div>
 
+            <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-xs leading-5 text-neutral-600">
+              <span className="font-semibold text-neutral-900">Cancellation policy:</span> you can cancel
+              for a full refund up until 24 hours before the appointment. Cancellations inside that
+              24-hour window aren&apos;t refundable.
+            </div>
+
             <Elements
               stripe={stripePromise}
               options={{

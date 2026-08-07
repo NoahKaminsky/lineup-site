@@ -44,6 +44,7 @@ type ProfileRow = {
   avatar_url: string | null;
   role: string | null;
   professional_type?: string | null;
+  professional_types?: string[] | null;
 };
 
 type BookingDetailCache = {
@@ -65,6 +66,14 @@ function isCustomerRole(role: string | null | undefined) {
 function isServiceOver(bookingDate: string, endTime: string) {
   const end = new Date(`${bookingDate}T${String(endTime).slice(0, 5)}:00`);
   return new Date() >= end;
+}
+
+const CANCELLATION_CUTOFF_HOURS = 24;
+
+function canCancelBooking(bookingDate: string, startTime: string) {
+  const start = new Date(`${bookingDate}T${String(startTime).slice(0, 5)}:00`);
+  const hoursUntilStart = (start.getTime() - Date.now()) / (1000 * 60 * 60);
+  return hoursUntilStart >= CANCELLATION_CUTOFF_HOURS;
 }
 
 function formatBookingDate(dateString: string) {
@@ -113,6 +122,17 @@ function formatProfessionalType(value: string | null | undefined) {
   return value
     .replaceAll("_", " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatProfessionalTypes(profile: ProfileRow | null | undefined) {
+  const types = profile?.professional_types?.length
+    ? profile.professional_types
+    : profile?.professional_type
+    ? [profile.professional_type]
+    : [];
+
+  if (types.length === 0) return "Beauty professional";
+  return types.map(formatProfessionalType).join(" · ");
 }
 
 function formatDisplayAddress(address: string | null | undefined) {
@@ -339,12 +359,12 @@ export default function BookingDetailPage() {
         const [professionalRes, customerRes] = await Promise.all([
           supabase
             .from("profiles")
-            .select("id, full_name, avatar_url, role, professional_type")
+            .select("id, full_name, avatar_url, role, professional_type, professional_types")
             .eq("id", normalizedBooking.professional_id)
             .single(),
           supabase
             .from("profiles")
-            .select("id, full_name, avatar_url, role, professional_type")
+            .select("id, full_name, avatar_url, role, professional_type, professional_types")
             .eq("id", normalizedBooking.customer_id)
             .single(),
         ]);
@@ -432,8 +452,7 @@ export default function BookingDetailPage() {
       const { data: existingReview } = await supabase
         .from("professional_reviews")
         .select("id")
-        .eq("professional_id", booking.professional_id)
-        .eq("reviewer_id", viewerId)
+        .eq("booking_id", booking.id)
         .maybeSingle();
 
       if (!existingReview) {
@@ -458,6 +477,7 @@ export default function BookingDetailPage() {
       await supabase.from("professional_reviews").insert({
         professional_id: booking.professional_id,
         reviewer_id: viewerId,
+        booking_id: booking.id,
         rating: reviewRating,
         comment: reviewComment.trim() || null,
       });
@@ -566,7 +586,11 @@ export default function BookingDetailPage() {
           : prev
       );
 
-      setMessage("Booking cancelled. It will no longer appear in active dashboards.");
+      setMessage(
+        data.refundStatus === "refunded"
+          ? "Booking cancelled and a full refund has been issued."
+          : "Booking cancelled. It will no longer appear in active dashboards."
+      );
     } catch (error) {
       console.error(error);
       setMessage("Something went wrong cancelling this booking.");
@@ -660,9 +684,9 @@ export default function BookingDetailPage() {
                 <p className="mt-3 text-lg font-semibold text-neutral-900">
                   {booking.service_name || "Booked service"}
                 </p>
-                <p className="mt-1 text-sm text-neutral-500">
-                  {booking.duration_minutes ? `${booking.duration_minutes} min` : "Duration not provided"}
-                </p>
+                {booking.duration_minutes ? (
+                  <p className="mt-1 text-sm text-neutral-500">{booking.duration_minutes} min</p>
+                ) : null}
               </div>
 
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
@@ -701,7 +725,7 @@ export default function BookingDetailPage() {
                       {professional?.full_name || "Professional"}
                     </p>
                     <p className="text-sm text-neutral-500">
-                      {formatProfessionalType(professional?.professional_type)}
+                      {formatProfessionalTypes(professional)}
                     </p>
                   </div>
                 </div>
@@ -864,9 +888,15 @@ export default function BookingDetailPage() {
 
               {(booking.status === "confirmed" || booking.status === "completion_requested") &&
               (isViewerCustomer || isViewerProfessional) ? (
-                confirmingCancel ? (
+                !canCancelBooking(booking.booking_date, booking.start_time) ? (
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-500">
+                    This booking is within {CANCELLATION_CUTOFF_HOURS} hours of the appointment and
+                    can no longer be cancelled. Message the {isViewerCustomer ? "professional" : "client"}{" "}
+                    directly if something&apos;s come up.
+                  </div>
+                ) : confirmingCancel ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-neutral-600">Cancel booking?</span>
+                    <span className="text-sm text-neutral-600">Cancel and refund in full?</span>
                     <button
                       type="button"
                       onClick={handleCancelBooking}
