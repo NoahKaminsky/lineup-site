@@ -143,6 +143,8 @@ export default function AccountPage() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [stripeLoading, setStripeLoading] = useState(false);
+  const [stripeRequirementsDue, setStripeRequirementsDue] = useState<string[]>([]);
+  const [stripeStatusError, setStripeStatusError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [showBannerPreview, setShowBannerPreview] = useState(false);
 
@@ -789,8 +791,14 @@ export default function AccountPage() {
 
       if (!response.ok) {
         console.error("Stripe status check failed:", data?.error);
+        setStripeStatusError(
+          data?.error || "Could not check your Stripe status. Try refreshing this page."
+        );
         return;
       }
+
+      setStripeStatusError("");
+      setStripeRequirementsDue(Array.isArray(data.requirementsDue) ? data.requirementsDue : []);
 
       setProfile((prev) =>
         prev
@@ -805,7 +813,14 @@ export default function AccountPage() {
       );
     } catch (error) {
       console.error("Stripe status check failed:", error);
+      setStripeStatusError("Could not check your Stripe status. Try refreshing this page.");
     }
+  }
+
+  function formatStripeRequirement(requirement: string) {
+    return requirement
+      .replace(/[._]/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
   async function handleConnectStripePayouts() {
@@ -1240,6 +1255,16 @@ export default function AccountPage() {
                           ? "Onboarding incomplete"
                           : "Not connected"}
                       </p>
+                      {!profile.stripe_payouts_enabled && stripeRequirementsDue.length > 0 ? (
+                        <p className="mt-2 text-xs leading-5 text-neutral-500">
+                          Stripe is still waiting on: {stripeRequirementsDue.map(formatStripeRequirement).join(", ")}.
+                        </p>
+                      ) : null}
+                      {!profile.stripe_payouts_enabled && stripeStatusError ? (
+                        <p className="mt-2 text-xs leading-5 text-red-600">
+                          Couldn&apos;t confirm your Stripe status: {stripeStatusError}
+                        </p>
+                      ) : null}
                     </div>
 
                     {profile.stripe_account_id ? (

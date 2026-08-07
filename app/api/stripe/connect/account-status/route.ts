@@ -45,6 +45,13 @@ export async function GET(req: Request) {
       Boolean(account.charges_enabled) &&
       Boolean(account.payouts_enabled);
 
+    const requirementsDue = Array.from(
+      new Set([
+        ...(account.requirements?.currently_due || []),
+        ...(account.requirements?.past_due || []),
+      ])
+    );
+
     const { error: updateError } = await supabase
       .from("profiles")
       .update({
@@ -64,6 +71,8 @@ export async function GET(req: Request) {
       chargesEnabled: Boolean(account.charges_enabled),
       payoutsEnabled: Boolean(account.payouts_enabled),
       detailsSubmitted: Boolean(account.details_submitted),
+      requirementsDue,
+      disabledReason: account.requirements?.disabled_reason || null,
     });
   } catch (error: any) {
     console.error("Stripe account status check failed:", error);
