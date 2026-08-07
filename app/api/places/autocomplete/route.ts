@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/app/lib/serverSupabase";
 
 export async function POST(req: Request) {
   try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
     const { input } = await req.json();
+
+    if (typeof input !== "string" || !input.trim() || input.length > 200) {
+      return NextResponse.json({ suggestions: [] });
+    }
 
     const res = await fetch(
       `https://places.googleapis.com/v1/places:autocomplete`,

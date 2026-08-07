@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/app/lib/serverSupabase";
 
 export async function POST(req: Request) {
   try {
+    const user = await getAuthenticatedUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
     const { placeId } = await req.json();
 
-    if (!placeId) {
+    if (!placeId || typeof placeId !== "string") {
       return NextResponse.json({ error: "Missing placeId" }, { status: 400 });
     }
 
