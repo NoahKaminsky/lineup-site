@@ -69,7 +69,7 @@ export async function GET(request: Request) {
 
     return NextResponse.redirect(
       new URL(
-        hasCompletedProfile ? "/account" : "/onboarding",
+        hasCompletedProfile ? "/requests" : "/onboarding",
         requestUrl.origin
       )
     );

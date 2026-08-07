@@ -27,6 +27,7 @@ type ProfileRow = {
   default_appointment_duration: number | null;
   subscription_plan: string | null;
   subscription_status: string | null;
+  is_featured: boolean | null;
 };
 
 type ProfessionalService = {
@@ -140,6 +141,19 @@ function formatDistanceLabel(distanceKm: number | null) {
   if (distanceKm === null || !Number.isFinite(distanceKm)) return null;
   if (distanceKm < 1) return "<1 km away";
   return `${distanceKm.toFixed(1)} km away`;
+}
+
+function getTierBadge(profile: ProfileRow): { label: string; className: string } | null {
+  if (profile.is_featured) {
+    return { label: "Promoted", className: "border border-amber-200 bg-amber-100 text-amber-800" };
+  }
+  if (profile.subscription_plan === "master") {
+    return { label: "Master", className: "border border-neutral-900 bg-neutral-900 text-white" };
+  }
+  if (profile.subscription_plan === "pro") {
+    return { label: "Pro", className: "border border-neutral-300 bg-white text-neutral-700" };
+  }
+  return null;
 }
 
 function formatLocationFallback(profile: ProfileRow, fallback: string) {
@@ -268,10 +282,10 @@ function buildTags(params: {
   const modes = getPlainServiceModes(profile.service_modes);
   const isOpenThisWeek = hasOpenThisWeek(profile, availability, bookings);
 
-  if (isActive) tags.push("🔥 Active");
-  if (averageRatingNumber !== null && averageRatingNumber >= 4.5 && reviewCount >= 2) tags.push("⭐ Top rated");
-  if (isOpenThisWeek) tags.push("📅 Available");
-  if (modes.includes("at_home")) tags.push("🏠 At home");
+  if (isActive) tags.push("Active");
+  if (averageRatingNumber !== null && averageRatingNumber >= 4.5 && reviewCount >= 2) tags.push("Top rated");
+  if (isOpenThisWeek) tags.push("Available");
+  if (modes.includes("at_home")) tags.push("At home");
 
   return tags.slice(0, 2);
 }
@@ -348,7 +362,7 @@ export default function DiscoverPage() {
         const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
           .select(
-            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, subscription_plan, subscription_status"
+            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, subscription_plan, subscription_status, is_featured"
           );
 
         if (profilesError) {
@@ -597,29 +611,44 @@ export default function DiscoverPage() {
     });
   }, [cards, search, selectedCategory, selectedModes, userLocation]);
 
-  // Spotlight: Master tier first, then Pro tier — sorted within each tier by score
+  // Subscription tier is the primary ranking signal everywhere on this page —
+  // paying for Master/Pro should reliably outrank free accounts, not just get
+  // a small nudge that an unusually active free profile could overtake.
+  const tierScore = (card: DiscoverCard) => {
+    const isSubscribed =
+      card.profile.subscription_status === "active" || card.profile.subscription_status === "trialing";
+    if (!isSubscribed) return 0;
+    if (card.profile.subscription_plan === "master") return 300;
+    if (card.profile.subscription_plan === "pro") return 200;
+    if (card.profile.subscription_plan === "apprentice") return 100;
+    return 0;
+  };
+
+  // Admin-curated override for one-off promotion (launch pushes, VIP signups) —
+  // deliberately worth more than any tier/quality score so it always wins.
+  const featuredScore = (card: DiscoverCard) => (card.profile.is_featured ? 1000 : 0);
+
+  // Spotlight: featured first, then Master tier, then Pro — sorted within each by score
   const spotlightCards = useMemo(() => {
     const isSubscribed = (card: DiscoverCard) =>
       (card.profile.subscription_plan === "master" || card.profile.subscription_plan === "pro") &&
       (card.profile.subscription_status === "active" || card.profile.subscription_status === "trialing");
 
     return [...filteredCards]
-      .filter(isSubscribed)
+      .filter((card) => isSubscribed(card) || card.profile.is_featured)
       .sort((a, b) => {
-        const tierRank = (card: DiscoverCard) =>
-          card.profile.subscription_plan === "master" ? 100 : 50;
         const score = (card: DiscoverCard) => {
           const ratingScore = card.averageRatingNumber ? card.averageRatingNumber * 8 : 0;
           const reviewScore = Math.min(card.reviewCount, 15);
           const imageScore = card.portfolioPreview?.image_url || card.profile.banner_url ? 5 : 0;
           const activeScore = card.isActive ? 10 : 0;
-          return tierRank(card) + ratingScore + reviewScore + imageScore + activeScore;
+          return featuredScore(card) + tierScore(card) + ratingScore + reviewScore + imageScore + activeScore;
         };
         return score(b) - score(a);
       });
   }, [filteredCards]);
 
-  // Active pros: have completed bookings, sorted by score
+  // Active pros: have completed bookings, sorted by tier then score
   const activeCards = useMemo(() => {
     return [...filteredCards]
       .filter((card) => card.isActive)
@@ -629,14 +658,14 @@ export default function DiscoverPage() {
           const reviewScore = Math.min(card.reviewCount, 20);
           const imageScore = card.portfolioPreview?.image_url || card.profile.banner_url ? 6 : 0;
           const openScore = hasOpenThisWeek(card.profile, card.availability, card.bookings) ? 5 : 0;
-          return ratingScore + reviewScore + imageScore + openScore;
+          return featuredScore(card) + tierScore(card) + ratingScore + reviewScore + imageScore + openScore;
         };
         return score(b) - score(a);
       })
       .slice(0, 12);
   }, [filteredCards]);
 
-  // All pros sorted: active first, then by completeness
+  // All pros sorted: featured/tier first, then active, then by completeness
   const sortedCards = useMemo(() => {
     return [...filteredCards].sort((a, b) => {
       const score = (card: DiscoverCard) => {
@@ -645,7 +674,7 @@ export default function DiscoverPage() {
         const reviewScore = Math.min(card.reviewCount, 20);
         const imageScore = card.portfolioPreview?.image_url || card.profile.banner_url ? 6 : 0;
         const openScore = hasOpenThisWeek(card.profile, card.availability, card.bookings) ? 4 : 0;
-        return activeScore + ratingScore + reviewScore + imageScore + openScore;
+        return featuredScore(card) + tierScore(card) + activeScore + ratingScore + reviewScore + imageScore + openScore;
       };
       return score(b) - score(a);
     });
@@ -876,94 +905,89 @@ export default function DiscoverPage() {
                       Spotlight
                     </p>
                     <h2 className="mt-1 text-xl font-semibold tracking-tight">
-                      ✦ Featured on LineUp
+                      Featured professionals
                     </h2>
                   </div>
                 </div>
 
-                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6">
+                <div className="-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6">
                   {spotlightCards.map((card) => {
                     const image = getCardImage(card);
                     const roles = getProfessionalTypes(card.profile);
-                    const isMaster = card.profile.subscription_plan === "master";
+                    const tierBadge = getTierBadge(card.profile);
                     const distanceLabel = formatDistanceLabel(getCardDistanceKm(card, userLocation));
+                    const locationLabel = distanceLabel || formatLocationFallback(card.profile, "");
 
                     return (
                       <Link
                         key={`spotlight-${card.profile.id}`}
                         href={`/profile/${card.profile.id}`}
-                        className="group relative h-72 w-52 shrink-0 overflow-hidden rounded-[2rem] bg-neutral-100 sm:h-88 sm:w-64"
+                        className="group flex w-52 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 hover:shadow-md sm:w-64"
                       >
-                        {image ? (
-                          <img
-                            src={image}
-                            alt={card.profile.full_name || "Professional"}
-                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-neutral-100">
-                            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-neutral-200 text-3xl font-semibold text-neutral-400">
-                              {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                        <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
+                          {image ? (
+                            <img
+                              src={image}
+                              alt={card.profile.full_name || "Professional"}
+                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-neutral-50 to-neutral-100">
+                              <div className="flex h-20 w-20 items-center justify-center rounded-full border border-neutral-200 bg-white text-3xl font-semibold text-neutral-400">
+                                {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                        {/* gradient */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                          {tierBadge ? (
+                            <div className="absolute left-2.5 top-2.5">
+                              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold shadow-sm ${tierBadge.className}`}>
+                                {tierBadge.label}
+                              </span>
+                            </div>
+                          ) : null}
 
-                        {/* tier badge */}
-                        <div className="absolute left-3 top-3">
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-                            isMaster
-                              ? "bg-gradient-to-r from-amber-400 to-yellow-300 text-black"
-                              : "bg-white/20 text-white backdrop-blur-sm border border-white/30"
-                          }`}>
-                            {isMaster ? "👑 Master" : "✦ Pro"}
-                          </span>
+                          {card.averageRating ? (
+                            <div className="absolute right-2.5 top-2.5">
+                              <span className="inline-flex items-center gap-0.5 rounded-full border border-neutral-200 bg-white px-2 py-1 text-[10px] font-bold text-neutral-900 shadow-sm">
+                                ★ {card.averageRating}
+                              </span>
+                            </div>
+                          ) : null}
                         </div>
 
-                        {/* rating */}
-                        {card.averageRating ? (
-                          <div className="absolute right-3 top-3">
-                            <span className="inline-flex items-center gap-0.5 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold text-neutral-900 shadow">
-                              ★ {card.averageRating}
-                            </span>
-                          </div>
-                        ) : null}
-
-                        {/* bottom */}
-                        <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                        <div className="flex flex-1 flex-col gap-2 p-3.5">
                           <div className="flex items-center gap-2">
-                            <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full border-2 border-white/40 bg-neutral-200">
+                            <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
                               {card.profile.avatar_url ? (
                                 <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
                               ) : (
-                                <div className="flex h-full w-full items-center justify-center text-xs font-bold text-neutral-500">
+                                <div className="flex h-full w-full items-center justify-center text-xs font-bold text-neutral-400">
                                   {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
                                 </div>
                               )}
                             </div>
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-bold leading-tight">
+                              <p className="truncate text-sm font-semibold leading-tight text-neutral-900">
                                 {card.profile.full_name || "Professional"}
                               </p>
-                              <p className="truncate text-xs text-white/65">
+                              <p className="truncate text-xs text-neutral-500">
                                 {card.profile.business_name?.trim()
                                   ? `${card.profile.business_name} · ${roles.map(formatLabel).join(" · ")}`
                                   : roles.map(formatLabel).join(" · ")}
                               </p>
                             </div>
                           </div>
-                          {distanceLabel ? (
-                            <p className="mt-2 text-[10px] text-white/50">{distanceLabel}</p>
-                          ) : card.profile.location ? (
-                            <p className="mt-2 text-[10px] text-white/50">
-                              {formatLocationFallback(card.profile, "")}
-                            </p>
-                          ) : null}
-                          {card.isActive ? (
-                            <p className="mt-1 text-[10px] text-white/50">🔥 Active professional</p>
-                          ) : null}
+
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-neutral-400">
+                            {card.isActive ? (
+                              <span className="inline-flex items-center gap-1">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                Active
+                              </span>
+                            ) : null}
+                            {locationLabel ? <span className="truncate">{locationLabel}</span> : null}
+                          </div>
                         </div>
                       </Link>
                     );
@@ -978,10 +1002,10 @@ export default function DiscoverPage() {
                 <div className="mb-4 flex items-end justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
-                      Featured
+                      On LineUp now
                     </p>
                     <h2 className="mt-1 text-xl font-semibold tracking-tight">
-                      🔥 Active professionals
+                      Active professionals
                     </h2>
                   </div>
                 </div>
@@ -990,71 +1014,74 @@ export default function DiscoverPage() {
                   {activeCards.map((card) => {
                     const image = getCardImage(card);
                     const roles = getProfessionalTypes(card.profile);
+                    const tierBadge = getTierBadge(card.profile);
                     const distanceLabel = formatDistanceLabel(getCardDistanceKm(card, userLocation));
 
                     return (
                       <Link
                         key={`active-${card.profile.id}`}
                         href={`/profile/${card.profile.id}`}
-                        className="group relative h-64 w-44 shrink-0 overflow-hidden rounded-[1.75rem] bg-neutral-100 sm:h-80 sm:w-56"
+                        className="group flex w-44 shrink-0 flex-col overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 hover:shadow-md sm:w-56"
                       >
-                        {image ? (
-                          <img
-                            src={image}
-                            alt={card.profile.full_name || "Professional"}
-                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-neutral-100">
-                            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-200 text-2xl font-semibold text-neutral-500">
-                              {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                        <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
+                          {image ? (
+                            <img
+                              src={image}
+                              alt={card.profile.full_name || "Professional"}
+                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-neutral-50 to-neutral-100">
+                              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-neutral-200 bg-white text-2xl font-semibold text-neutral-400">
+                                {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                              </div>
                             </div>
+                          )}
+
+                          <div className="absolute left-2.5 top-2.5 flex items-center gap-1 rounded-full border border-neutral-200 bg-white/95 px-2 py-1 text-[10px] font-semibold text-neutral-700 shadow-sm">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            Active
                           </div>
-                        )}
 
-                        {/* gradient */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                          {card.averageRating ? (
+                            <div className="absolute right-2.5 top-2.5">
+                              <span className="inline-flex items-center gap-0.5 rounded-full border border-neutral-200 bg-white px-2 py-1 text-[10px] font-bold text-neutral-900 shadow-sm">
+                                ★ {card.averageRating}
+                              </span>
+                            </div>
+                          ) : null}
 
-                        {/* active badge */}
-                        <div className="absolute left-2.5 top-2.5">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
-                            🔥 Active
-                          </span>
+                          {tierBadge ? (
+                            <div className="absolute inset-x-2.5 bottom-2.5">
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold shadow-sm ${tierBadge.className}`}>
+                                {tierBadge.label}
+                              </span>
+                            </div>
+                          ) : null}
                         </div>
 
-                        {/* rating */}
-                        {card.averageRating ? (
-                          <div className="absolute right-2.5 top-2.5">
-                            <span className="inline-flex items-center gap-0.5 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold text-neutral-900 shadow-sm">
-                              ★ {card.averageRating}
-                            </span>
-                          </div>
-                        ) : null}
-
-                        {/* bottom info */}
-                        <div className="absolute inset-x-0 bottom-0 p-3 text-white">
-                          {/* avatar + name row */}
-                          <div className="flex items-center gap-2">
-                            <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-white/30 bg-neutral-200">
+                        <div className="flex flex-1 flex-col gap-1 p-3">
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-6 w-6 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
                               {card.profile.avatar_url ? (
                                 <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
                               ) : (
-                                <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-neutral-500">
+                                <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-neutral-400">
                                   {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
                                 </div>
                               )}
                             </div>
-                            <p className="truncate text-sm font-semibold leading-tight">
+                            <p className="truncate text-sm font-semibold leading-tight text-neutral-900">
                               {card.profile.full_name || "Professional"}
                             </p>
                           </div>
-                          <p className="mt-1 truncate text-xs text-white/70">
+                          <p className="truncate text-xs text-neutral-500">
                             {card.profile.business_name?.trim()
                               ? `${card.profile.business_name} · ${roles.map(formatLabel).join(" · ")}`
                               : roles.map(formatLabel).join(" · ")}
                           </p>
                           {distanceLabel ? (
-                            <p className="mt-1 text-[10px] text-white/55">{distanceLabel}</p>
+                            <p className="truncate text-[11px] text-neutral-400">{distanceLabel}</p>
                           ) : null}
                         </div>
                       </Link>
@@ -1064,7 +1091,7 @@ export default function DiscoverPage() {
               </section>
             ) : null}
 
-            {/* All professionals — Instagram grid */}
+            {/* All professionals */}
             <section className="mt-8">
               <div className="mb-4 flex items-end justify-between">
                 <div>
@@ -1077,22 +1104,24 @@ export default function DiscoverPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {sortedCards.map((card) => {
                   const image = getCardImage(card);
                   const roles = getProfessionalTypes(card.profile);
                   const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
+                  const tierBadge = getTierBadge(card.profile);
                   const distanceKm = getCardDistanceKm(card, userLocation);
                   const distanceLabel = formatDistanceLabel(distanceKm);
+                  const secondaryTags = card.tagBadges.filter((tag) => tag !== "Active").slice(0, 1);
 
                   return (
                     <Link
                       key={card.profile.id}
                       href={`/profile/${card.profile.id}`}
-                      className="group overflow-hidden rounded-[1.5rem] bg-neutral-100 transition active:scale-[0.98]"
+                      className="group flex flex-col overflow-hidden rounded-[1.25rem] border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 hover:shadow-md active:scale-[0.98]"
                     >
                       {/* image */}
-                      <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
+                      <div className="relative aspect-square overflow-hidden bg-neutral-100 sm:aspect-[4/5]">
                         {image ? (
                           <img
                             src={image}
@@ -1100,57 +1129,58 @@ export default function DiscoverPage() {
                             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                           />
                         ) : (
-                          <div className="flex h-full w-full flex-col items-center justify-center bg-neutral-100">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-neutral-200 text-xl font-semibold text-neutral-400">
+                          <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-neutral-50 to-neutral-100">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-neutral-200 bg-white text-lg font-semibold text-neutral-400">
                               {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
                             </div>
                           </div>
                         )}
 
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-
-                        {/* tags */}
-                        {card.tagBadges.length > 0 ? (
-                          <div className="absolute left-2 top-2 flex flex-col gap-1">
-                            {card.tagBadges.map((tag) => (
-                              <span
-                                key={tag}
-                                className="inline-block rounded-full bg-black/65 px-2 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm"
-                              >
-                                {tag}
-                              </span>
-                            ))}
+                        {tierBadge ? (
+                          <div className="absolute left-2 top-2">
+                            <span className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-semibold shadow-sm ${tierBadge.className}`}>
+                              {tierBadge.label}
+                            </span>
                           </div>
                         ) : null}
 
-                        {/* rating top-right */}
                         {card.averageRating ? (
-                          <span className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-neutral-900 shadow-sm">
+                          <span className="absolute right-2 top-2 rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[10px] font-bold text-neutral-900 shadow-sm">
                             ★ {card.averageRating}
                           </span>
                         ) : null}
+                      </div>
 
-                        {/* bottom info overlay */}
-                        <div className="absolute inset-x-0 bottom-0 p-2.5">
-                          <div className="flex items-center gap-1.5">
-                            <div className="h-6 w-6 shrink-0 overflow-hidden rounded-full border border-white/40 bg-neutral-200">
-                              {card.profile.avatar_url ? (
-                                <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-[9px] font-bold text-neutral-500">
-                                  {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate text-[11px] font-semibold leading-tight text-white">
-                                {card.profile.full_name || "Professional"}
-                              </p>
-                              <p className="truncate text-[10px] text-white/65">
-                                {card.profile.business_name?.trim() || distanceLabel || primaryRole}
-                              </p>
-                            </div>
+                      {/* info */}
+                      <div className="flex flex-1 flex-col gap-1 p-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="h-5 w-5 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
+                            {card.profile.avatar_url ? (
+                              <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-[8px] font-bold text-neutral-400">
+                                {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                              </div>
+                            )}
                           </div>
+                          <p className="truncate text-[12px] font-semibold leading-tight text-neutral-900">
+                            {card.profile.full_name || "Professional"}
+                          </p>
+                        </div>
+                        <p className="truncate text-[11px] text-neutral-500">
+                          {card.profile.business_name?.trim() || primaryRole}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10px] text-neutral-400">
+                          {card.isActive ? (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              Active
+                            </span>
+                          ) : null}
+                          {distanceLabel ? <span className="truncate">{distanceLabel}</span> : null}
+                          {!distanceLabel && secondaryTags.length > 0 ? (
+                            <span className="truncate">{secondaryTags[0]}</span>
+                          ) : null}
                         </div>
                       </div>
                     </Link>

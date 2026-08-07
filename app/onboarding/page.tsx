@@ -66,7 +66,7 @@ export default function OnboardingPage() {
           (profile.role !== "professional" || savedProfessionalTypes.length > 0);
 
         if (hasCompletedProfile) {
-          router.push("/account");
+          router.push("/requests");
           return;
         }
 
@@ -169,7 +169,7 @@ export default function OnboardingPage() {
       return;
     }
 
-    router.push("/account");
+    router.push("/requests");
   }
 
   if (loading) {

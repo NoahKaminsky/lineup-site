@@ -12,6 +12,7 @@ type AdminUser = {
   subscription_status: string | null;
   subscription_plan: string | null;
   is_admin: boolean;
+  is_featured: boolean;
   created_at: string;
 };
 
@@ -70,6 +71,7 @@ export default function AdminPage() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [draftPlans, setDraftPlans] = useState<Record<string, { plan: string; status: string }>>({});
+  const [togglingFeaturedId, setTogglingFeaturedId] = useState<string | null>(null);
 
   const [contentQuery, setContentQuery] = useState("");
   const [items, setItems] = useState<ContentItem[]>([]);
@@ -192,6 +194,28 @@ export default function AdminPage() {
     setSavingUserId(null);
   }
 
+  async function handleToggleFeatured(userId: string, next: boolean) {
+    setTogglingFeaturedId(userId);
+    setMessage("");
+
+    const res = await authedFetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, isFeatured: next }),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      setMessage(json.error || "Could not update featured status.");
+      setTogglingFeaturedId(null);
+      return;
+    }
+
+    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, is_featured: next } : u)));
+    setTogglingFeaturedId(null);
+  }
+
   async function handleDeleteContent(type: ContentType, id: string) {
     if (!confirm("Delete this permanently?")) return;
 
@@ -291,14 +315,15 @@ export default function AdminPage() {
                     <th className="px-3 py-2">Role</th>
                     <th className="px-3 py-2">Plan</th>
                     <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Featured</th>
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {usersLoading ? (
-                    <tr><td className="px-3 py-4 text-neutral-400" colSpan={5}>Loading...</td></tr>
+                    <tr><td className="px-3 py-4 text-neutral-400" colSpan={6}>Loading...</td></tr>
                   ) : users.length === 0 ? (
-                    <tr><td className="px-3 py-4 text-neutral-400" colSpan={5}>No users found.</td></tr>
+                    <tr><td className="px-3 py-4 text-neutral-400" colSpan={6}>No users found.</td></tr>
                   ) : (
                     users.map((u) => (
                       <tr key={u.id} className="border-b border-neutral-100">
@@ -339,6 +364,21 @@ export default function AdminPage() {
                               <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}
                           </select>
+                        </td>
+                        <td className="px-3 py-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleFeatured(u.id, !u.is_featured)}
+                            disabled={togglingFeaturedId === u.id}
+                            title="Manually promote this profile to the top of Discover, overriding normal ranking"
+                            className={`rounded-full border px-3 py-1 text-xs font-medium transition disabled:opacity-60 ${
+                              u.is_featured
+                                ? "border-amber-300 bg-amber-100 text-amber-800"
+                                : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300"
+                            }`}
+                          >
+                            {togglingFeaturedId === u.id ? "..." : u.is_featured ? "★ Featured" : "Feature"}
+                          </button>
                         </td>
                         <td className="px-3 py-2">
                           <button
