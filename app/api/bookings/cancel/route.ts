@@ -58,9 +58,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Refund the customer before touching the booking status — if the refund
-    // fails, we want the booking to stay as-is rather than silently cancel
-    // without the customer actually getting their money back.
+    // Attempt the refund, but don't let a Stripe-side failure trap the
+    // customer in a booking they're entitled to cancel — a failed refund
+    // gets tracked as "failed" (for support to follow up) rather than
+    // blocking the cancellation outright.
     let refundStatus: string | null = null;
     let stripeRefundId: string | null = null;
 
@@ -86,13 +87,7 @@ export async function POST(req: Request) {
         stripeRefundId = refund.id;
       } catch (refundError) {
         console.error("Booking cancellation refund failed:", refundError);
-        const message = refundError instanceof Error ? refundError.message : null;
-        return NextResponse.json(
-          {
-            error: message || "Could not process the refund. Please contact support instead of retrying.",
-          },
-          { status: 502 }
-        );
+        refundStatus = "failed";
       }
     }
 
@@ -122,9 +117,16 @@ export async function POST(req: Request) {
     }
 
     const otherPartyId = isCustomer ? booking.professional_id : booking.customer_id;
+    const notificationsToInsert: {
+      user_id: string;
+      request_id: string | null;
+      is_read: boolean;
+      type: string;
+      title: string;
+    }[] = [];
 
     if (otherPartyId) {
-      await supabase.from("notifications").insert([{
+      notificationsToInsert.push({
         user_id: otherPartyId,
         request_id: booking.request_id || null,
         is_read: false,
@@ -132,7 +134,23 @@ export async function POST(req: Request) {
         title: `${booking.service_name || "Your booking"} was cancelled by ${
           isCustomer ? "the customer" : "the professional"
         }${refundStatus === "refunded" ? " — full refund issued" : ""}`,
-      }]);
+      });
+    }
+
+    // If the refund itself failed, make sure the customer specifically hears
+    // about it — otherwise a Stripe-side hiccup silently disappears.
+    if (refundStatus === "failed") {
+      notificationsToInsert.push({
+        user_id: booking.customer_id,
+        request_id: booking.request_id || null,
+        is_read: false,
+        type: "booking_refund_failed",
+        title: `${booking.service_name || "Your booking"} was cancelled, but the refund didn't go through — we're on it`,
+      });
+    }
+
+    if (notificationsToInsert.length > 0) {
+      await supabase.from("notifications").insert(notificationsToInsert);
     }
 
     return NextResponse.json({ ok: true, cancelledAt, refundStatus });

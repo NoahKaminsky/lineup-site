@@ -76,6 +76,18 @@ function canCancelBooking(bookingDate: string, startTime: string) {
   return hoursUntilStart >= CANCELLATION_CUTOFF_HOURS;
 }
 
+function formatCancellationCutoff(bookingDate: string, startTime: string) {
+  const start = new Date(`${bookingDate}T${String(startTime).slice(0, 5)}:00`);
+  const cutoff = new Date(start.getTime() - CANCELLATION_CUTOFF_HOURS * 60 * 60 * 1000);
+  return cutoff.toLocaleString("en-CA", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function formatBookingDate(dateString: string) {
   const date = new Date(`${dateString}T00:00:00`);
   return date.toLocaleDateString("en-CA", {
@@ -132,7 +144,11 @@ function formatProfessionalTypes(profile: ProfileRow | null | undefined) {
     : [];
 
   if (types.length === 0) return "Beauty professional";
-  return types.map(formatProfessionalType).join(" · ");
+
+  const MAX_SHOWN = 2;
+  const shown = types.slice(0, MAX_SHOWN).map(formatProfessionalType).join(" · ");
+  const remaining = types.length - MAX_SHOWN;
+  return remaining > 0 ? `${shown} +${remaining} more` : shown;
 }
 
 function formatDisplayAddress(address: string | null | undefined) {
@@ -589,6 +605,8 @@ export default function BookingDetailPage() {
       setMessage(
         data.refundStatus === "refunded"
           ? "Booking cancelled and a full refund has been issued."
+          : data.refundStatus === "failed"
+          ? "Booking cancelled, but the refund didn't go through — we've been notified and will follow up."
           : "Booking cancelled. It will no longer appear in active dashboards."
       );
     } catch (error) {
@@ -706,7 +724,7 @@ export default function BookingDetailPage() {
                   Professional
                 </p>
                 <div className="mt-3 flex items-center gap-3">
-                  <div className="h-14 w-14 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
                     {professional?.avatar_url ? (
                       <img
                         src={professional.avatar_url}
@@ -720,11 +738,11 @@ export default function BookingDetailPage() {
                     )}
                   </div>
 
-                  <div>
-                    <p className="font-medium text-neutral-900">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-neutral-900">
                       {professional?.full_name || "Professional"}
                     </p>
-                    <p className="text-sm text-neutral-500">
+                    <p className="truncate text-sm text-neutral-500">
                       {formatProfessionalTypes(professional)}
                     </p>
                   </div>
@@ -914,14 +932,20 @@ export default function BookingDetailPage() {
                     </button>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={handleCancelBooking}
-                    disabled={actionLoading === "cancel"}
-                    className="inline-flex rounded-full border border-red-300 px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
-                  >
-                    Cancel booking
-                  </button>
+                  <div className="flex flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleCancelBooking}
+                      disabled={actionLoading === "cancel"}
+                      className="inline-flex w-fit rounded-full border border-red-300 px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                    >
+                      Cancel booking
+                    </button>
+                    <p className="text-xs text-neutral-400">
+                      Full refund if cancelled before{" "}
+                      {formatCancellationCutoff(booking.booking_date, booking.start_time)}.
+                    </p>
+                  </div>
                 )
               ) : null}
 

@@ -153,6 +153,7 @@ type BookingRow = {
   location_lat?: number | null;
   location_lng?: number | null;
   location_place_id?: string | null;
+  refund_status?: string | null;
 };
 
 type EnrichedBooking = BookingRow & {
@@ -629,7 +630,7 @@ export default function RequestsPage() {
       await supabase
         .from("bookings")
         .select(
-          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
+          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, refund_status"
         )
         .eq("customer_id", userId)
         .order("booking_date", { ascending: false })
@@ -787,10 +788,10 @@ export default function RequestsPage() {
       await supabase
         .from("bookings")
         .select(
-          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
+          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, refund_status"
         )
         .eq("professional_id", userId)
-        .in("status", ["confirmed", "completion_requested", "completed"])
+        .in("status", ["confirmed", "completion_requested", "completed", "cancelled"])
         .order("booking_date", { ascending: true })
         .order("start_time", { ascending: true });
 
@@ -1165,6 +1166,15 @@ if (profileError || !profile) {
     [bookings]
   );
 
+  const cancelledBookings = useMemo(
+    () =>
+      bookings.filter((booking) => {
+        if (booking.status !== "cancelled" || !booking.cancelled_at) return false;
+        return Date.now() - new Date(booking.cancelled_at).getTime() <= 24 * 60 * 60 * 1000;
+      }),
+    [bookings]
+  );
+
   const professionalOpenRequests = useMemo(
     () =>
       requests.filter((request) => {
@@ -1214,6 +1224,15 @@ if (profileError || !profile) {
         booking.status === "completion_requested"
     );
   }, [professionalBookings]);
+
+  const cancelledProfessionalBookings = useMemo(
+    () =>
+      professionalBookings.filter((booking) => {
+        if (booking.status !== "cancelled" || !booking.cancelled_at) return false;
+        return Date.now() - new Date(booking.cancelled_at).getTime() <= 24 * 60 * 60 * 1000;
+      }),
+    [professionalBookings]
+  );
 
   const professionalCompletedBookings = useMemo(() => {
     const upcomingIds = new Set(
@@ -1990,6 +2009,42 @@ return (
                 </div>
               ) : null}
 
+              {cancelledBookings.length > 0 ? (
+                <div className="mt-14">
+                  <h2 className="text-2xl font-semibold tracking-tight">
+                    Cancelled bookings
+                  </h2>
+
+                  <div className="mt-6 grid gap-4">
+                    {cancelledBookings.map((booking) => (
+                      <Link
+                        key={booking.id}
+                        href={`/bookings/${booking.id}`}
+                        className="block rounded-2xl border border-neutral-200 bg-neutral-50 p-5 transition hover:border-neutral-300"
+                      >
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                            Cancelled
+                          </span>
+                          {booking.refund_status === "refunded" ? (
+                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-700">
+                              Refunded
+                            </span>
+                          ) : null}
+                        </div>
+                        <h3 className="mt-3 text-lg font-semibold tracking-tight">
+                          {booking.service_name || "Booked service"}
+                        </h3>
+                        <p className="mt-1 text-sm text-neutral-500">
+                          {formatBookingDate(booking.booking_date)} • With{" "}
+                          {booking.professional_name || "Professional"}
+                        </p>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               {completedRequests.length > 0 ? (
                 <div className="mt-14">
                   <h2 className="text-2xl font-semibold tracking-tight">
@@ -2434,6 +2489,41 @@ return (
                   </div>
                 )}
               </div>
+
+              {cancelledProfessionalBookings.length > 0 ? (
+                <div className="mt-14">
+                  <h2 className="text-2xl font-semibold tracking-tight">
+                    Cancelled bookings
+                  </h2>
+
+                  <div className="mt-6 grid gap-4">
+                    {cancelledProfessionalBookings.map((booking) => (
+                      <Link
+                        key={booking.id}
+                        href={`/bookings/${booking.id}`}
+                        className="block rounded-2xl border border-neutral-200 bg-neutral-50 p-5 transition hover:border-neutral-300"
+                      >
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                            Cancelled
+                          </span>
+                          {booking.refund_status === "refunded" ? (
+                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-700">
+                              Client refunded
+                            </span>
+                          ) : null}
+                        </div>
+                        <h3 className="mt-3 text-lg font-semibold tracking-tight">
+                          {booking.service_name || "Booked service"}
+                        </h3>
+                        <p className="mt-1 text-sm text-neutral-500">
+                          {formatBookingDate(booking.booking_date)}
+                        </p>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </>
           ) : null}
         </div>
