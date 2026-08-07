@@ -44,6 +44,7 @@ type BookingRow = {
   location_lng?: number | null;
   location_place_id?: string | null;
   request_id?: string | null;
+  refund_status?: string | null;
 };
 
 type ServiceRequest = {
@@ -107,6 +108,8 @@ type BookedItem = {
   price: string | number | null;
   createdAt: string | null;
   completedAt: string | null;
+  cancelledAt: string | null;
+  refundStatus: string | null;
   customerId: string | null;
   professionalId: string | null;
   customerName: string | null;
@@ -372,10 +375,10 @@ export default function WorkPage() {
     const { data: bookingData, error: bookingError } = await supabase
       .from("bookings")
       .select(
-        "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, request_id"
+        "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, request_id, refund_status"
       )
       .eq("customer_id", userId)
-      .in("status", ["confirmed", "completion_requested", "completed"])
+      .in("status", ["confirmed", "completion_requested", "completed", "cancelled"])
       .order("booking_date", { ascending: true })
       .order("start_time", { ascending: true });
 
@@ -488,7 +491,7 @@ export default function WorkPage() {
       .from("service_requests")
       .select("*")
       .eq("accepted_professional_id", userId)
-      .in("status", ["accepted", "confirmed", "completion_requested", "completed"])
+      .in("status", ["accepted", "confirmed", "completion_requested", "completed", "cancelled"])
       .order("created_at", { ascending: false });
 
     if (trackedRequestsError) {
@@ -501,10 +504,10 @@ export default function WorkPage() {
     const { data: bookingsData, error: bookingsError } = await supabase
       .from("bookings")
       .select(
-        "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, request_id"
+        "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, request_id, refund_status"
       )
       .eq("professional_id", userId)
-      .in("status", ["confirmed", "completion_requested", "completed"])
+      .in("status", ["confirmed", "completion_requested", "completed", "cancelled"])
       .order("booking_date", { ascending: true })
       .order("start_time", { ascending: true });
 
@@ -664,6 +667,8 @@ export default function WorkPage() {
       price: null,
       createdAt: booking.created_at,
       completedAt: booking.completed_at || booking.created_at,
+      cancelledAt: booking.cancelled_at || null,
+      refundStatus: booking.refund_status || null,
       customerId: booking.customer_id,
       professionalId: booking.professional_id,
       customerName: customer?.full_name || customer?.email || "Client",
@@ -700,6 +705,8 @@ export default function WorkPage() {
       price: request.budget,
       createdAt: request.created_at,
       completedAt: request.completed_at || null,
+      cancelledAt: request.cancelled_at || null,
+      refundStatus: null,
       customerId: request.client_id,
       professionalId: request.accepted_professional_id,
       customerName: customer?.full_name || customer?.email || "Client",
@@ -729,6 +736,17 @@ export default function WorkPage() {
       bookedItems
         .filter((item) => item.status === "completed")
         .sort((a, b) => new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime()),
+    [bookedItems]
+  );
+
+  const cancelledItems = useMemo(
+    () =>
+      bookedItems
+        .filter((item) => {
+          if (item.status !== "cancelled" || !item.cancelledAt) return false;
+          return Date.now() - new Date(item.cancelledAt).getTime() <= 24 * 60 * 60 * 1000;
+        })
+        .sort((a, b) => new Date(b.cancelledAt || 0).getTime() - new Date(a.cancelledAt || 0).getTime()),
     [bookedItems]
   );
 
@@ -791,6 +809,19 @@ export default function WorkPage() {
         if (error) {
           setMessage(error.message);
           return;
+        }
+
+        // Keep the linked request in sync — otherwise it stays "accepted"
+        // forever and keeps showing as active even after the booking is done.
+        if (item.originRequestId && (nextStatus === "completion_requested" || nextStatus === "completed")) {
+          await supabase
+            .from("service_requests")
+            .update(
+              nextStatus === "completed"
+                ? { status: "completed", completed_at: now }
+                : { status: "completion_requested" }
+            )
+            .eq("id", item.originRequestId);
         }
       } else {
         const updates: Record<string, string> = {
@@ -1009,7 +1040,7 @@ export default function WorkPage() {
             const counts: Record<TabKey, number> = {
               booked: activeBookedItems.length,
               requests: openRequestItems.length + offerItems.length,
-              completed: completedItems.length + cancelledRequestItems.length,
+              completed: completedItems.length + cancelledItems.length + cancelledRequestItems.length,
             };
             return (
               <button
@@ -1130,7 +1161,7 @@ export default function WorkPage() {
           ) : null}
 
           {activeTab === "completed" ? (
-            completedItems.length === 0 && cancelledRequestItems.length === 0 ? (
+            completedItems.length === 0 && cancelledItems.length === 0 && cancelledRequestItems.length === 0 ? (
               <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-10 text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
                   <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
@@ -1154,6 +1185,25 @@ export default function WorkPage() {
                     getOtherPerson={getOtherPerson}
                     updateBookedItemStatus={updateBookedItemStatus}
                   />
+                ) : null}
+
+                {cancelledItems.length > 0 ? (
+                  <div>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                      Cancelled bookings
+                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{cancelledItems.length}</span>
+                    </p>
+                    <BookedList
+                      items={cancelledItems}
+                      isProfessional={isProfessional}
+                      isCustomer={isCustomer}
+                      actionLoadingId={actionLoadingId}
+                      cancelConfirmId={cancelConfirmId}
+                      setCancelConfirmId={setCancelConfirmId}
+                      getOtherPerson={getOtherPerson}
+                      updateBookedItemStatus={updateBookedItemStatus}
+                    />
+                  </div>
                 ) : null}
 
                 {cancelledRequestItems.length > 0 ? (
@@ -1364,6 +1414,11 @@ function BookedList({
                     <span className="text-[11px] text-neutral-400">
                       {item.source === "request" || item.originRequestId ? "Accepted request" : "Direct booking"}
                     </span>
+                    {item.status === "cancelled" && item.refundStatus === "refunded" ? (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                        Refunded
+                      </span>
+                    ) : null}
                   </div>
 
                   {formatPrice(item.price) ? (
@@ -1446,7 +1501,7 @@ function BookedList({
                 </span>
               ) : null}
 
-              {item.status !== "completed" ? (
+              {item.status !== "completed" && item.status !== "cancelled" ? (
                 cancelConfirmId === actionKey ? (
                   <div className="ml-auto flex items-center gap-2">
                     <span className="text-xs text-neutral-500">Cancel this?</span>
