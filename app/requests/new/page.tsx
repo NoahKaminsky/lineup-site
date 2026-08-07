@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Scissors, Hand, Eye, Pencil, Palette, Leaf, Droplet } from "lucide-react";
 import { supabase } from "../../../lib/supabaseClient";
+import TimeSelect from "../../components/TimeSelect";
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
@@ -780,7 +781,10 @@ function NewRequestPageContent() {
       });
 
       setShowSuccess(true);
-      setTimeout(() => router.push(`/requests/${insertedRequest.id}`), 1500);
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "instant" });
+        router.push(`/requests/${insertedRequest.id}`);
+      }, 1500);
     } catch (error: any) {
       console.error("INSERT ERROR:", error);
       setMessage(error.message || "Could not post request.");
@@ -1065,12 +1069,10 @@ function NewRequestPageContent() {
                       </div>
                       <div>
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Start time</label>
-                        <input
-                          type="time"
-                          step={600}
+                        <TimeSelect
                           value={preferredStartTime}
-                          onChange={(e) => setPreferredStartTime(e.target.value)}
-                          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900"
+                          onChange={setPreferredStartTime}
+                          selectClassName="w-full rounded-xl border border-neutral-200 bg-white px-2 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900"
                         />
                       </div>
                     </div>

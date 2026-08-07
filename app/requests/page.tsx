@@ -29,14 +29,14 @@ const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
     eyebrow: "Work",
     title: "This is where you manage your bookings.",
     description:
-      "Once a client accepts your offer, it becomes a confirmed booking here — along with the offers you've sent and your completed job history, all in one place.",
+      "Once a client accepts your offer, it becomes a confirmed booking here. After you finish a job, open that booking and tap \"Request completion\" — that's what triggers your payout once the client confirms.",
   },
   {
     Icon: Wand2,
     eyebrow: "Services",
-    title: "Add what you offer and your pricing.",
+    title: "Add what you offer, your pricing, and your address.",
     description:
-      "This is what clients see when deciding whether to book you — the more complete it is, the better your chances of getting picked.",
+      "This is what clients see when deciding whether to book you. If you take in-shop or home studio bookings, add that address here too — it's kept private and only shared with a customer after they've booked.",
   },
   {
     Icon: UserCircle,
@@ -66,7 +66,7 @@ const CUSTOMER_TOUR_STEPS: TourStep[] = [
     eyebrow: "How it works",
     title: "Post what you need, get real offers.",
     description:
-      "Share the service, your budget, and when and where you want it done — nearby professionals send you offers, and you pick the one that fits best.",
+      "Share the service, your budget, and when and where you want it done — nearby professionals send you offers, and you pick the one that fits best. After the appointment, you'll confirm it's done right on the booking page so your pro gets paid.",
   },
   {
     Icon: Handshake,

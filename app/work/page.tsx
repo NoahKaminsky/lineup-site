@@ -43,6 +43,7 @@ type BookingRow = {
   location_lat?: number | null;
   location_lng?: number | null;
   location_place_id?: string | null;
+  request_id?: string | null;
 };
 
 type ServiceRequest = {
@@ -93,6 +94,7 @@ type OfferRow = {
 type BookedItem = {
   id: string;
   source: "booking" | "request";
+  originRequestId: string | null;
   status: "accepted" | BookingStatus;
   title: string;
   description: string | null;
@@ -369,7 +371,7 @@ export default function WorkPage() {
     const { data: bookingData, error: bookingError } = await supabase
       .from("bookings")
       .select(
-        "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
+        "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, request_id"
       )
       .eq("customer_id", userId)
       .in("status", ["confirmed", "completion_requested", "completed"])
@@ -414,9 +416,15 @@ export default function WorkPage() {
 
     const bookingItems = bookings.map((booking) => bookingToBookedItem(booking, profileMap));
 
+    // Requests that were accepted already have a matching row in `bookings` —
+    // skip them here so the same booking doesn't show up twice.
+    const bookedRequestIds = new Set(bookings.map((booking) => booking.request_id).filter(Boolean));
+
     const acceptedRequestItems = requests
-      .filter((request) =>
-        ["accepted", "confirmed", "completion_requested", "completed"].includes(request.status)
+      .filter(
+        (request) =>
+          ["accepted", "confirmed", "completion_requested", "completed"].includes(request.status) &&
+          !bookedRequestIds.has(request.id)
       )
       .map((request) => requestToBookedItem(request, profileMap));
 
@@ -492,7 +500,7 @@ export default function WorkPage() {
     const { data: bookingsData, error: bookingsError } = await supabase
       .from("bookings")
       .select(
-        "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
+        "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, request_id"
       )
       .eq("professional_id", userId)
       .in("status", ["confirmed", "completion_requested", "completed"])
@@ -565,9 +573,14 @@ export default function WorkPage() {
     const profileMap = await getProfileMap(profileIds);
 
     const bookingItems = bookings.map((booking) => bookingToBookedItem(booking, profileMap));
-    const acceptedRequestItems = trackedRequests.map((request) =>
-      requestToBookedItem(request, profileMap)
-    );
+
+    // Requests that were accepted already have a matching row in `bookings` —
+    // skip them here so the same booking doesn't show up twice.
+    const bookedRequestIds = new Set(bookings.map((booking) => booking.request_id).filter(Boolean));
+
+    const acceptedRequestItems = trackedRequests
+      .filter((request) => !bookedRequestIds.has(request.id))
+      .map((request) => requestToBookedItem(request, profileMap));
 
     const openItems: RequestAndOfferItem[] = openRequests.map((request) => {
       const customer = profileMap.get(request.client_id);
@@ -633,6 +646,7 @@ export default function WorkPage() {
     return {
       id: booking.id,
       source: "booking",
+      originRequestId: booking.request_id || null,
       status: booking.status,
       title: booking.service_name || "Booked service",
       description: null,
@@ -668,6 +682,7 @@ export default function WorkPage() {
     return {
       id: request.id,
       source: "request",
+      originRequestId: null,
       status: request.status === "confirmed" ? "confirmed" : (request.status as "accepted" | BookingStatus),
       title: request.title || request.service_detail || formatCategory(request.category),
       description: request.description || null,
@@ -1341,7 +1356,7 @@ function BookedList({
                       {statusLabel(item.status)}
                     </span>
                     <span className="text-[11px] text-neutral-400">
-                      {item.source === "booking" ? "Direct booking" : "Accepted request"}
+                      {item.source === "request" || item.originRequestId ? "Accepted request" : "Direct booking"}
                     </span>
                   </div>
 

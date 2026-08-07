@@ -608,7 +608,7 @@ export default function BookingDetailPage() {
 
   return (
     <>
-    <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+    <main className="min-h-screen bg-white px-6 pb-28 pt-10 text-neutral-900">
       <div className="mx-auto max-w-5xl">
 
 
@@ -816,6 +816,21 @@ export default function BookingDetailPage() {
               ) : null}
             </div>
 
+            {booking.status === "confirmed" ? (
+              <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                <p className="text-sm font-semibold text-neutral-900">
+                  {isViewerProfessional
+                    ? "Once you've finished the service, come back here."
+                    : "Once the service is done, you'll confirm it here."}
+                </p>
+                <p className="mt-1.5 text-sm leading-6 text-neutral-600">
+                  {isViewerProfessional
+                    ? "Tap “Request completion” below and your client will be asked to confirm — that's what releases your payout."
+                    : "Your professional will tap “Request completion” after the appointment, then you'll confirm it right here so they get paid."}
+                </p>
+              </div>
+            ) : null}
+
             <div className="mt-8 flex flex-wrap gap-3">
               {isViewerProfessional && booking.status === "confirmed" ? (
                 isServiceOver(booking.booking_date, booking.end_time) ? (
@@ -943,7 +958,11 @@ export default function BookingDetailPage() {
             </div>
 
             <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600">
-              {isViewerCustomer
+              {booking.status === "confirmed" || booking.status === "completion_requested"
+                ? isViewerCustomer
+                  ? "Message the professional about arrival details, prep notes, or timing changes."
+                  : "Message the client about arrival details, prep notes, or timing changes."
+                : isViewerCustomer
                 ? "Use this chat to message the professional after your booking is confirmed."
                 : "Use this chat to message the client after the booking is confirmed."}
             </div>

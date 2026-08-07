@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import TimeSelect from "@/app/components/TimeSelect";
+import MarkRequestNotificationRead from "@/app/components/MarkRequestNotificationRead";
 
 type ServiceRequest = {
   id: string;
@@ -425,7 +427,7 @@ export default function RespondToRequestPage() {
   return (
     <>
     <main className="min-h-screen bg-white px-6 pb-10 pt-6 text-neutral-900">
-
+      <MarkRequestNotificationRead requestId={requestId} />
 
       <div className="mx-auto grid max-w-6xl gap-8 py-10 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
@@ -624,12 +626,10 @@ export default function RespondToRequestPage() {
                         <label className="mb-2 block text-sm font-semibold text-neutral-700">
                           Your end time
                         </label>
-                        <input
-                          type="time"
-                          step={600}
+                        <TimeSelect
                           value={proposedEndTime}
-                          onChange={(e) => setProposedEndTime(e.target.value)}
-                          className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                          onChange={setProposedEndTime}
+                          selectClassName="w-full rounded-2xl border border-neutral-200 bg-white px-2 py-3 text-sm outline-none transition focus:border-neutral-900"
                         />
                         <p className="mt-2 text-xs text-neutral-500">
                           This is what blocks your calendar after the customer accepts.
@@ -654,12 +654,10 @@ export default function RespondToRequestPage() {
                         <label className="mb-2 block text-sm font-semibold text-neutral-700">
                           Start time
                         </label>
-                        <input
-                          type="time"
-                          step={600}
+                        <TimeSelect
                           value={proposedStartTime}
-                          onChange={(e) => setProposedStartTime(e.target.value)}
-                          className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"
+                          onChange={setProposedStartTime}
+                          selectClassName="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-2 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"
                         />
                       </div>
 
@@ -667,12 +665,10 @@ export default function RespondToRequestPage() {
                         <label className="mb-2 block text-sm font-semibold text-neutral-700">
                           End time
                         </label>
-                        <input
-                          type="time"
-                          step={600}
+                        <TimeSelect
                           value={proposedEndTime}
-                          onChange={(e) => setProposedEndTime(e.target.value)}
-                          className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"
+                          onChange={setProposedEndTime}
+                          selectClassName="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-2 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"
                         />
                       </div>
                     </div>

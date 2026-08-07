@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
+import TimeSelect from "@/app/components/TimeSelect";
 
 type Profile = {
   id: string;
@@ -1630,26 +1631,22 @@ export default function ServicesPage() {
                       >
                         <div className="flex items-center gap-2">
                           <label className="w-8 shrink-0 text-xs font-medium text-neutral-500">From</label>
-                          <input
-                            type="time"
-                            step={600}
+                          <TimeSelect
                             value={window.start_time}
-                            onChange={(e) =>
-                              updateAvailabilityWindow(window.local_id, "start_time", e.target.value)
+                            onChange={(value) =>
+                              updateAvailabilityWindow(window.local_id, "start_time", value)
                             }
-                            className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-neutral-900"
+                            selectClassName="w-full rounded-xl border border-neutral-200 bg-white px-1.5 py-2 text-sm outline-none transition focus:border-neutral-900"
                           />
                         </div>
                         <div className="flex items-center gap-2">
                           <label className="w-8 shrink-0 text-xs font-medium text-neutral-500">To</label>
-                          <input
-                            type="time"
-                            step={600}
+                          <TimeSelect
                             value={window.end_time}
-                            onChange={(e) =>
-                              updateAvailabilityWindow(window.local_id, "end_time", e.target.value)
+                            onChange={(value) =>
+                              updateAvailabilityWindow(window.local_id, "end_time", value)
                             }
-                            className="w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-neutral-900"
+                            selectClassName="w-full rounded-xl border border-neutral-200 bg-white px-1.5 py-2 text-sm outline-none transition focus:border-neutral-900"
                           />
                         </div>
                         <button
