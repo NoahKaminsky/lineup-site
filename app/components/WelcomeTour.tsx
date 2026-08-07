@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 
@@ -38,6 +39,20 @@ export default function WelcomeTour({
     setVisible(true);
   }, [userId, role]);
 
+  // Lock the background page in place while the tour is open. On iOS Safari
+  // in particular, letting the page scroll behind a `fixed` overlay lets the
+  // dynamic toolbar resize the viewport mid-scroll, which throws off the
+  // overlay's position and makes it look like it's floating in the page
+  // rather than pinned to the screen.
+  useEffect(() => {
+    if (!visible) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [visible]);
+
   function finish() {
     localStorage.setItem(storageKey(userId, role), "1");
     setVisible(false);
@@ -54,8 +69,8 @@ export default function WelcomeTour({
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === steps.length - 1;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overscroll-none bg-black/50 p-4 backdrop-blur-sm">
       <div className="relative w-full max-w-md rounded-[2rem] bg-white p-7 shadow-2xl sm:p-8">
         <button
           type="button"
@@ -131,6 +146,7 @@ export default function WelcomeTour({
           </button>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1632,6 +1632,7 @@ export default function ServicesPage() {
                           <label className="w-8 shrink-0 text-xs font-medium text-neutral-500">From</label>
                           <input
                             type="time"
+                            step={600}
                             value={window.start_time}
                             onChange={(e) =>
                               updateAvailabilityWindow(window.local_id, "start_time", e.target.value)
@@ -1643,6 +1644,7 @@ export default function ServicesPage() {
                           <label className="w-8 shrink-0 text-xs font-medium text-neutral-500">To</label>
                           <input
                             type="time"
+                            step={600}
                             value={window.end_time}
                             onChange={(e) =>
                               updateAvailabilityWindow(window.local_id, "end_time", e.target.value)

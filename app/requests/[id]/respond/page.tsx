@@ -626,6 +626,7 @@ export default function RespondToRequestPage() {
                         </label>
                         <input
                           type="time"
+                          step={600}
                           value={proposedEndTime}
                           onChange={(e) => setProposedEndTime(e.target.value)}
                           className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
@@ -655,6 +656,7 @@ export default function RespondToRequestPage() {
                         </label>
                         <input
                           type="time"
+                          step={600}
                           value={proposedStartTime}
                           onChange={(e) => setProposedStartTime(e.target.value)}
                           className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"
@@ -667,6 +669,7 @@ export default function RespondToRequestPage() {
                         </label>
                         <input
                           type="time"
+                          step={600}
                           value={proposedEndTime}
                           onChange={(e) => setProposedEndTime(e.target.value)}
                           className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"

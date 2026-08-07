@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Scissors, Hand, Eye, Pencil, Palette, Leaf } from "lucide-react";
+import { Scissors, Hand, Eye, Pencil, Palette, Leaf, Droplet } from "lucide-react";
 import { supabase } from "../../../lib/supabaseClient";
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
@@ -16,6 +16,14 @@ const serviceDetailOptions: Record<string, string[]> = {
     "Buzz cut",
     "Beard trim",
     "Line up / shape up",
+    "Kids cut",
+    "Hot towel shave",
+    "Blowout",
+    "Color / highlights",
+    "Balayage",
+    "Updo / styling",
+    "Hair extensions",
+    "Deep conditioning treatment",
     "Other",
   ],
   nails: [
@@ -25,16 +33,20 @@ const serviceDetailOptions: Record<string, string[]> = {
     "Acrylic fill",
     "Gel manicure",
     "Gel X / extensions",
+    "Dip powder",
     "Nail art",
+    "Nail repair",
     "Other",
   ],
   lashes: [
     "Classic set",
     "Hybrid set",
     "Volume set",
+    "Mega volume set",
     "Fill",
     "Lash lift",
     "Lash tint",
+    "Lash removal",
     "Other",
   ],
   brows: [
@@ -43,6 +55,8 @@ const serviceDetailOptions: Record<string, string[]> = {
     "Brow tint",
     "Brow lamination",
     "Threading",
+    "Microblading",
+    "Brow henna",
     "Other",
   ],
   makeup: [
@@ -51,7 +65,29 @@ const serviceDetailOptions: Record<string, string[]> = {
     "Full glam",
     "Bridal makeup",
     "Event makeup",
+    "Photoshoot makeup",
     "Makeup lesson",
+    "Other",
+  ],
+  waxing: [
+    "Brazilian wax",
+    "Bikini wax",
+    "Underarm wax",
+    "Full leg wax",
+    "Half leg wax",
+    "Arm wax",
+    "Full face wax",
+    "Full body wax",
+    "Other",
+  ],
+  body_sugaring: [
+    "Brazilian sugaring",
+    "Bikini sugaring",
+    "Underarm sugaring",
+    "Full leg sugaring",
+    "Half leg sugaring",
+    "Arm sugaring",
+    "Full body sugaring",
     "Other",
   ],
 };
@@ -410,6 +446,10 @@ function NewRequestPageContent() {
         return ["brow_artist"];
       case "makeup":
         return ["makeup_artist"];
+      case "waxing":
+        return ["wax_technician"];
+      case "body_sugaring":
+        return ["body_sugaring"];
       default:
         return [];
     }
@@ -759,11 +799,12 @@ function NewRequestPageContent() {
   const labelClass = "mb-2 block text-sm font-semibold text-neutral-700";
 
   const categoryOptions = [
-    { value: "haircut", label: "Haircut", Icon: Scissors },
+    { value: "haircut", label: "Hair", Icon: Scissors },
     { value: "nails", label: "Nails", Icon: Hand },
     { value: "lashes", label: "Lashes", Icon: Eye },
     { value: "brows", label: "Brows", Icon: Pencil },
     { value: "makeup", label: "Makeup", Icon: Palette },
+    { value: "waxing", label: "Waxing", Icon: Droplet },
     { value: "body_sugaring", label: "Sugaring", Icon: Leaf },
   ];
 
@@ -1026,6 +1067,7 @@ function NewRequestPageContent() {
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Start time</label>
                         <input
                           type="time"
+                          step={600}
                           value={preferredStartTime}
                           onChange={(e) => setPreferredStartTime(e.target.value)}
                           className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900"
