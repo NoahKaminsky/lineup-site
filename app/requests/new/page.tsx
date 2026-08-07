@@ -173,6 +173,7 @@ function LocationAutocomplete({
   const [input, setInput] = useState(value);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lookupError, setLookupError] = useState("");
 
   useEffect(() => {
     setInput(value);
@@ -182,6 +183,7 @@ function LocationAutocomplete({
     const timeout = setTimeout(async () => {
       if (!input || input.length < 2) {
         setSuggestions([]);
+        setLookupError("");
         return;
       }
 
@@ -195,9 +197,18 @@ function LocationAutocomplete({
         });
 
         const data = await res.json();
+
+        if (!res.ok) {
+          setSuggestions([]);
+          setLookupError(data?.error || "Address lookup is temporarily unavailable.");
+          return;
+        }
+
+        setLookupError("");
         setSuggestions(data.suggestions || []);
       } catch {
         setSuggestions([]);
+        setLookupError("Address lookup is temporarily unavailable.");
       } finally {
         setLoading(false);
       }
@@ -298,6 +309,8 @@ function LocationAutocomplete({
 
       {loading ? (
         <p className="mt-2 text-xs text-neutral-500">Searching...</p>
+      ) : lookupError ? (
+        <p className="mt-2 text-xs text-red-600">{lookupError}</p>
       ) : null}
 
       {suggestions.length > 0 ? (
@@ -352,7 +365,7 @@ function NewRequestPageContent() {
   const [locationSelectedFromGoogle, setLocationSelectedFromGoogle] = useState(false);
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
-  const [serviceMode, setServiceMode] = useState("");
+  const [serviceModes, setServiceModes] = useState<string[]>([]);
   const [budget, setBudget] = useState("");
 
   const [preferredDate, setPreferredDate] = useState("");
@@ -672,12 +685,12 @@ function NewRequestPageContent() {
       return;
     }
 
-    if (!serviceMode) {
+    if (serviceModes.length === 0) {
       setMessage("Please select where the service will happen.");
       return;
     }
 
-    if (serviceMode === "at_home") {
+    if (serviceModes.includes("at_home")) {
       if (!location.trim()) {
         setMessage("Please enter the address or area where you need the service.");
         return;
@@ -708,7 +721,7 @@ function NewRequestPageContent() {
       const referencePhotoUrls = await uploadReferencePhotos(userId);
 
       const directRebook = isRebook && !!preferredProfessionalId;
-      const shouldUseCustomerLocation = serviceMode === "at_home";
+      const shouldUseCustomerLocation = serviceModes.includes("at_home");
 
       const { data: insertedRequest, error: insertRequestError } = await supabase
         .from("service_requests")
@@ -730,7 +743,8 @@ function NewRequestPageContent() {
               shouldUseCustomerLocation && Number.isFinite(locationLng)
                 ? locationLng
                 : null,
-            service_mode: serviceMode || null,
+            service_mode: serviceModes[0] || null,
+            service_modes: serviceModes.length > 0 ? serviceModes : null,
             budget: budget.trim() || null,
             status: "open",
             target_professions: directRebook ? null : targetProfessions,
@@ -941,16 +955,21 @@ function NewRequestPageContent() {
               {/* Service mode */}
               <div>
                 <label className={labelClass}>Where should this happen?</label>
+                <p className="mb-2 text-xs text-neutral-400">Select all that work for you — professionals will offer one of them.</p>
                 <div className="grid grid-cols-3 gap-2">
                   {serviceModeOptions.map((opt) => {
-                    const isSelected = serviceMode === opt.value;
+                    const isSelected = serviceModes.includes(opt.value);
                     return (
                       <button
                         key={opt.value}
                         type="button"
                         onClick={() => {
-                          setServiceMode(opt.value);
-                          if (opt.value !== "at_home") {
+                          setServiceModes((prev) =>
+                            prev.includes(opt.value)
+                              ? prev.filter((mode) => mode !== opt.value)
+                              : [...prev, opt.value]
+                          );
+                          if (opt.value === "at_home" && isSelected) {
                             setLocation("");
                             setLocationPlaceId("");
                             setLocationSelectedFromGoogle(false);
@@ -973,7 +992,7 @@ function NewRequestPageContent() {
               </div>
 
               {/* Location */}
-              {serviceMode === "at_home" ? (
+              {serviceModes.includes("at_home") ? (
                 <div className="space-y-3">
                   <LocationAutocomplete
                     label="Your address or area"
@@ -1018,9 +1037,14 @@ function NewRequestPageContent() {
                     </p>
                   ) : null}
                 </div>
-              ) : serviceMode === "in_shop" || serviceMode === "home_studio" ? (
+              ) : null}
+
+              {serviceModes.includes("in_shop") || serviceModes.includes("home_studio") ? (
                 <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600">
-                  The professional’s location will be used — you don’t need to enter an address.
+                  For {[
+                    serviceModes.includes("in_shop") ? "their shop" : null,
+                    serviceModes.includes("home_studio") ? "home studio" : null,
+                  ].filter(Boolean).join(" or ")}, the professional’s location will be used — you don’t need to enter an address.
                 </div>
               ) : null}
 

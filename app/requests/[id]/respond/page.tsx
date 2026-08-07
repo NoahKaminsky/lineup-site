@@ -20,6 +20,7 @@ type ServiceRequest = {
   location_lng?: number | null;
   location_place_id?: string | null;
   service_mode: string | null;
+  service_modes: string[] | null;
   budget: string | null;
   status: string;
   target_professions: string[] | null;
@@ -44,6 +45,8 @@ export default function RespondToRequestPage() {
   const [offerMessage, setOfferMessage] = useState("");
   const [proposedPrice, setProposedPrice] = useState("");
   const [existingOffer, setExistingOffer] = useState(false);
+  const [proProposableModes, setProProposableModes] = useState<string[]>([]);
+  const [proposedServiceMode, setProposedServiceMode] = useState("");
 
   const [timingMode, setTimingMode] = useState<"match" | "different">("match");
   const [proposedDate, setProposedDate] = useState("");
@@ -67,7 +70,7 @@ export default function RespondToRequestPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, service_modes")
         .eq("id", user.id)
         .single();
 
@@ -96,6 +99,21 @@ export default function RespondToRequestPage() {
         setMessage("Request not found or you do not have access.");
         setLoading(false);
         return;
+      }
+
+      const requestModes =
+        requestData.service_modes?.length > 0
+          ? requestData.service_modes
+          : requestData.service_mode
+          ? [requestData.service_mode]
+          : [];
+      const proModes = Array.isArray(profile.service_modes) ? profile.service_modes : [];
+      const overlappingModes = requestModes.filter((mode: string) => proModes.includes(mode));
+      const proposableModes = overlappingModes.length > 0 ? overlappingModes : requestModes;
+
+      setProProposableModes(proposableModes);
+      if (proposableModes.length === 1) {
+        setProposedServiceMode(proposableModes[0]);
       }
 
       if (requestData.status !== "open") {
@@ -267,6 +285,11 @@ export default function RespondToRequestPage() {
       return;
     }
 
+    if (proProposableModes.length > 1 && !proposedServiceMode) {
+      setMessage("Please choose where you'll do this service.");
+      return;
+    }
+
     if (!userId) {
       setMessage("User not found.");
       return;
@@ -324,6 +347,7 @@ export default function RespondToRequestPage() {
       proposed_start_time: finalProposedStartTime,
       proposed_end_time: finalProposedEndTime,
       matches_requested_time: isMatchingTime,
+      proposed_service_mode: proposedServiceMode || proProposableModes[0] || null,
     };
 
     const { data: withdrawnOffer } = await supabase
@@ -485,10 +509,17 @@ export default function RespondToRequestPage() {
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                Service mode
+                Open to
               </p>
               <p className="mt-2 font-medium text-neutral-900">
-                {formatMode(request.service_mode)}
+                {(request.service_modes?.length
+                  ? request.service_modes
+                  : request.service_mode
+                  ? [request.service_mode]
+                  : []
+                )
+                  .map(formatMode)
+                  .join(" or ") || "Not provided"}
               </p>
             </div>
 
@@ -563,6 +594,36 @@ export default function RespondToRequestPage() {
                   className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"
                 />
               </div>
+
+              {proProposableModes.length > 1 ? (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-neutral-700">
+                    Where will you do this?
+                  </label>
+                  <p className="mb-3 text-xs text-neutral-400">
+                    The client said any of these work — pick the one you&apos;re offering.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {proProposableModes.map((mode) => {
+                      const isSelected = proposedServiceMode === mode;
+                      return (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setProposedServiceMode(mode)}
+                          className={`rounded-2xl border px-3 py-3 text-sm font-medium transition active:scale-[0.97] ${
+                            isSelected
+                              ? "border-black bg-black text-white"
+                              : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
+                          }`}
+                        >
+                          {formatMode(mode)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
 
               <div>
                 <label className="mb-3 block text-sm font-semibold text-neutral-700">

@@ -20,6 +20,14 @@ export async function POST(req: Request) {
 
     const data = await res.json();
 
+    if (!res.ok) {
+      console.error("Places autocomplete failed:", data?.error || data);
+      return NextResponse.json(
+        { suggestions: [], error: data?.error?.message || "Address lookup is temporarily unavailable." },
+        { status: 502 }
+      );
+    }
+
     const suggestions =
       data.suggestions?.map((s: any) => ({
         placeId: s.placePrediction?.placeId,
@@ -29,6 +37,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ suggestions });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ suggestions: [] });
+    return NextResponse.json(
+      { suggestions: [], error: "Address lookup is temporarily unavailable." },
+      { status: 502 }
+    );
   }
 }

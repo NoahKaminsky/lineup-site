@@ -300,6 +300,7 @@ function LocationAutocomplete({
   const [input, setInput] = useState(value);
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lookupError, setLookupError] = useState("");
 
   useEffect(() => {
     setInput(value || "");
@@ -309,6 +310,7 @@ function LocationAutocomplete({
     const timeout = setTimeout(async () => {
       if (!input || input.length < 2) {
         setSuggestions([]);
+        setLookupError("");
         return;
       }
 
@@ -322,9 +324,18 @@ function LocationAutocomplete({
         });
 
         const data = await res.json();
+
+        if (!res.ok) {
+          setSuggestions([]);
+          setLookupError(data?.error || "Address lookup is temporarily unavailable.");
+          return;
+        }
+
+        setLookupError("");
         setSuggestions(data.suggestions || []);
       } catch {
         setSuggestions([]);
+        setLookupError("Address lookup is temporarily unavailable.");
       } finally {
         setLoading(false);
       }
@@ -412,6 +423,8 @@ function LocationAutocomplete({
 
       {loading ? (
         <p className="mt-2 text-xs text-neutral-500">Searching...</p>
+      ) : lookupError ? (
+        <p className="mt-2 text-xs text-red-600">{lookupError}</p>
       ) : null}
 
       {suggestions.length > 0 ? (

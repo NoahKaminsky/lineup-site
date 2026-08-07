@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 
     const { data: request, error } = await supabase
       .from("service_requests")
-      .select("id, title, service_detail, category, service_mode, target_professions, preferred_professional_id")
+      .select("id, title, service_detail, category, service_mode, service_modes, target_professions, preferred_professional_id")
       .eq("id", requestId)
       .single();
 
@@ -82,10 +82,15 @@ export async function POST(req: Request) {
 
       if (!types.some((type: string) => targetSet.has(normalize(type)))) return false;
 
-      // If the pro has service modes configured and the request specifies a mode, must match
+      // If the pro has service modes configured and the request specifies mode(s), at least one must match
       const proModes = Array.isArray(profile.service_modes) ? profile.service_modes : [];
-      if (proModes.length > 0 && request.service_mode) {
-        if (!proModes.includes(request.service_mode)) return false;
+      const requestModes = request.service_modes?.length
+        ? request.service_modes
+        : request.service_mode
+        ? [request.service_mode]
+        : [];
+      if (proModes.length > 0 && requestModes.length > 0) {
+        if (!requestModes.some((mode: string) => proModes.includes(mode))) return false;
       }
 
       return true;

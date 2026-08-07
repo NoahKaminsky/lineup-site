@@ -90,6 +90,7 @@ type ServiceRequest = {
   location_lng?: number | null;
   location_place_id?: string | null;
   service_mode: string | null;
+  service_modes: string[] | null;
   budget: string | null;
   status: string;
   target_professions: string[] | null;
@@ -173,6 +174,7 @@ type UnifiedProfessionalWorkItem =
       location_lat?: number | null;
       location_lng?: number | null;
       service_mode: string | null;
+      service_modes: string[] | null;
       budget: string | null;
       created_at: string;
       completed_at: string | null;
@@ -236,6 +238,15 @@ function formatMode(mode: string | null) {
   if (mode === "at_home") return "At home";
   if (mode === "home_studio") return "Home studio";
   return mode.replaceAll("_", " ");
+}
+
+function formatModeList(request: { service_mode: string | null; service_modes?: string[] | null }) {
+  const modes = request.service_modes?.length
+    ? request.service_modes
+    : request.service_mode
+    ? [request.service_mode]
+    : [];
+  return modes.map(formatMode).filter(Boolean).join(" or ") || null;
 }
 
 function formatDateTime(dateString: string) {
@@ -1239,6 +1250,7 @@ if (profileError || !profile) {
         location_lat: request.location_lat ?? null,
         location_lng: request.location_lng ?? null,
         service_mode: request.service_mode || null,
+        service_modes: request.service_modes || null,
         budget: request.budget || null,
         created_at: request.created_at,
         completed_at: request.completed_at || null,
@@ -1307,6 +1319,7 @@ if (profileError || !profile) {
         location_lat: request.location_lat ?? null,
         location_lng: request.location_lng ?? null,
         service_mode: request.service_mode || null,
+        service_modes: request.service_modes || null,
         budget: request.budget || null,
         created_at: request.created_at,
         completed_at: request.completed_at || null,
@@ -1856,9 +1869,9 @@ return (
                                     {formatTimingFlexibility(request.timing_flexibility)}
                                   </span>
                                 ) : null}
-                                {request.service_mode ? (
+                                {formatModeList(request) ? (
                                   <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700">
-                                    {formatMode(request.service_mode)}
+                                    {formatModeList(request)}
                                   </span>
                                 ) : null}
                                 {request.budget ? (
@@ -2234,9 +2247,9 @@ return (
                               {formatTimingFlexibility(request.timing_flexibility)}
                             </span>
                           ) : null}
-                          {request.service_mode ? (
+                          {formatModeList(request) ? (
                             <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700">
-                              {formatMode(request.service_mode)}
+                              {formatModeList(request)}
                             </span>
                           ) : null}
                           {request.budget ? (

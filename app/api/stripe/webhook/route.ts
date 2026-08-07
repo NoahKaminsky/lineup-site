@@ -116,8 +116,14 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
     throw new Error("Booking conflict after payment.");
   }
 
+  // Prefer the mode the professional actually proposed in their offer — a
+  // request can be open to multiple modes, and the offer is what pins down
+  // which one this specific booking is for. Fall back to the request's mode
+  // for offers created before this field existed.
+  const resolvedServiceMode = offer.proposed_service_mode || requestRow.service_mode;
+
   const usesProfessionalLocation =
-    requestRow.service_mode === "in_shop" || requestRow.service_mode === "home_studio";
+    resolvedServiceMode === "in_shop" || resolvedServiceMode === "home_studio";
 
   let bookingLocation = {
     formatted_address: requestRow.formatted_address || requestRow.location || null,
@@ -210,7 +216,7 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
         end_time: proposedEnd,
         status: "confirmed",
         service_name: requestRow.service_detail || requestRow.title,
-        service_mode: requestRow.service_mode,
+        service_mode: resolvedServiceMode,
         source: "request",
         formatted_address: bookingLocation.formatted_address,
         location_place_id: bookingLocation.location_place_id,

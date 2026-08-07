@@ -28,6 +28,7 @@ type ServiceRequest = {
   location_lng?: number | null;
   location_place_id?: string | null;
   service_mode: string | null;
+  service_modes: string[] | null;
   budget: string | null;
   status: "open" | "accepted" | "completion_requested" | "completed" | string;
   target_professions: string[] | null;
@@ -61,6 +62,7 @@ type RequestOffer = {
   professional_avatar_url: string | null;
   professional_type: string | null;
   professional_formatted_address?: string | null;
+  proposed_service_mode?: string | null;
   average_rating?: number | null;
   review_count?: number;
 };
@@ -1431,8 +1433,10 @@ export default function RequestDetailPage() {
   const scheduledSummary = getScheduledSummary(request);
   const preferredSummary = getPreferredSummary(request);
 
+  const resolvedRequestServiceMode = acceptedOffer?.proposed_service_mode || request.service_mode;
+
   const usesProLocation =
-    request.service_mode === "in_shop" || request.service_mode === "home_studio";
+    resolvedRequestServiceMode === "in_shop" || resolvedRequestServiceMode === "home_studio";
 
   const proLocationAddress = usesProLocation
     ? acceptedOffer?.professional_formatted_address ?? null
@@ -1566,10 +1570,19 @@ export default function RequestDetailPage() {
 
                 <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
                   <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                    Service mode
+                    {acceptedOffer ? "Service mode" : "Open to"}
                   </p>
                   <p className="mt-2 text-sm font-semibold text-neutral-900">
-                    {formatMode(request.service_mode)}
+                    {acceptedOffer
+                      ? formatMode(resolvedRequestServiceMode)
+                      : (request.service_modes?.length
+                          ? request.service_modes
+                          : request.service_mode
+                          ? [request.service_mode]
+                          : []
+                        )
+                          .map(formatMode)
+                          .join(" or ") || "Not provided"}
                   </p>
                 </div>
 

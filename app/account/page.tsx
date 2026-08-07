@@ -61,36 +61,6 @@ type EnrichedReview = ReviewRow & {
   reviewer_avatar_url: string | null;
 };
 
-type BookingStatus =
-  | "confirmed"
-  | "cancelled"
-  | "completion_requested"
-  | "completed";
-
-type BookingRow = {
-  id: string;
-  professional_id: string;
-  customer_id: string;
-  booking_date: string;
-  start_time: string;
-  end_time: string;
-  status: BookingStatus;
-  created_at: string;
-  service_id: string | null;
-  service_name: string | null;
-  duration_minutes: number | null;
-  cancelled_by?: string | null;
-  cancelled_at?: string | null;
-  completion_requested_at?: string | null;
-  completed_at?: string | null;
-};
-
-type EnrichedBooking = BookingRow & {
-  customer_name: string | null;
-  customer_avatar_url: string | null;
-};
-
-
 const suggestedSpecialtiesByType: Record<string, string[]> = {
   barber: ["Fades", "Beard work", "Line ups", "Scissor cuts", "Mobile cuts"],
   hairstylist: ["Blonding", "Color", "Curly cuts", "Extensions", "Blowouts"],
@@ -126,7 +96,6 @@ type AccountCache = {
   profile: Profile;
   portfolioItems: PortfolioItem[];
   reviews: EnrichedReview[];
-  bookings: EnrichedBooking[];
 };
 
 export default function AccountPage() {
@@ -137,7 +106,6 @@ export default function AccountPage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [portfolioUploading, setPortfolioUploading] = useState(false);
-  const [bookingActionLoadingId, setBookingActionLoadingId] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
@@ -156,7 +124,6 @@ export default function AccountPage() {
 
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>(() => getCached<AccountCache>("account-page")?.portfolioItems ?? []);
   const [reviews, setReviews] = useState<EnrichedReview[]>(() => getCached<AccountCache>("account-page")?.reviews ?? []);
-  const [bookings, setBookings] = useState<EnrichedBooking[]>(() => getCached<AccountCache>("account-page")?.bookings ?? []);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -185,9 +152,9 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!loading && profile) {
-      setCached<AccountCache>("account-page", { profile, portfolioItems, reviews, bookings });
+      setCached<AccountCache>("account-page", { profile, portfolioItems, reviews });
     }
-  }, [loading, profile, portfolioItems, reviews, bookings]);
+  }, [loading, profile, portfolioItems, reviews]);
 
   useEffect(() => {
     async function loadProfile() {
@@ -290,71 +257,6 @@ export default function AccountPage() {
         setReviews([]);
       }
 
-      if (data.role === "professional") {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = `${today.getMonth() + 1}`.padStart(2, "0");
-        const day = `${today.getDate()}`.padStart(2, "0");
-        const todayString = `${year}-${month}-${day}`;
-
-        const { data: activeBookingsData, error: bookingsError } = await supabase
-          .from("bookings")
-          .select(
-            "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at"
-          )
-          .eq("professional_id", user.id)
-          .in("status", ["confirmed", "completion_requested"])
-          .gte("booking_date", todayString)
-          .order("booking_date", { ascending: true })
-          .order("start_time", { ascending: true });
-
-        if (!bookingsError && activeBookingsData) {
-          const customerIds = [
-            ...new Set(activeBookingsData.map((booking) => booking.customer_id).filter(Boolean)),
-          ];
-
-          let customerMap = new Map<
-            string,
-            { full_name: string | null; avatar_url: string | null }
-          >();
-
-          if (customerIds.length > 0) {
-            const { data: customerProfiles } = await supabase
-              .from("profiles")
-              .select("id, full_name, avatar_url")
-              .in("id", customerIds);
-
-            if (customerProfiles) {
-              customerMap = new Map(
-                customerProfiles.map((customer) => [
-                  customer.id,
-                  {
-                    full_name: customer.full_name ?? null,
-                    avatar_url: customer.avatar_url ?? null,
-                  },
-                ])
-              );
-            }
-          }
-
-          const enrichedBookings: EnrichedBooking[] = activeBookingsData.map((booking) => {
-            const customer = customerMap.get(booking.customer_id);
-
-            return {
-              ...(booking as BookingRow),
-              start_time: String(booking.start_time).slice(0, 5),
-              end_time: String(booking.end_time).slice(0, 5),
-              customer_name: customer?.full_name ?? null,
-              customer_avatar_url: customer?.avatar_url ?? null,
-            };
-          });
-
-          setBookings(enrichedBookings);
-        } else {
-          setBookings([]);
-        }
-      }
-
       setLoading(false);
     }
 
@@ -439,28 +341,6 @@ export default function AccountPage() {
     return value
       .replaceAll("_", " ")
       .replace(/\b\w/g, (char) => char.toUpperCase());
-  }
-
-  function formatTime(time: string) {
-    const [hourString, minute] = time.split(":");
-    const hour = Number(hourString);
-    const suffix = hour >= 12 ? "PM" : "AM";
-    const twelveHour = hour % 12 || 12;
-    return `${twelveHour}:${minute} ${suffix}`;
-  }
-
-  function formatBookingDate(dateString: string) {
-    const date = new Date(`${dateString}T00:00:00`);
-    return date.toLocaleDateString("en-CA", {
-      weekday: "long",
-      month: "short",
-      day: "numeric",
-    });
-  }
-
-  function getBookingStatusLabel(status: BookingStatus) {
-    if (status === "completion_requested") return "completion requested";
-    return status;
   }
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -692,79 +572,6 @@ export default function AccountPage() {
     } catch (error) {
       console.error(error);
       setMessage("Something went wrong deleting this portfolio item.");
-    }
-  }
-
-  async function handleCancelBooking(bookingId: string) {
-    if (!profile) return;
-    if (!confirm("Cancel this booking?")) return;
-
-    try {
-      setBookingActionLoadingId(bookingId);
-      setMessage("");
-
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status: "cancelled",
-          cancelled_by: profile.id,
-          cancelled_at: new Date().toISOString(),
-        })
-        .eq("id", bookingId)
-        .eq("professional_id", profile.id)
-        .in("status", ["confirmed", "completion_requested"]);
-
-      if (error) {
-        setMessage(error.message);
-        return;
-      }
-
-      setBookings((prev) => prev.filter((booking) => booking.id !== bookingId));
-      setMessage("Booking cancelled.");
-    } catch (error) {
-      console.error(error);
-      setMessage("Something went wrong cancelling this booking.");
-    } finally {
-      setBookingActionLoadingId(null);
-    }
-  }
-
-  async function handleRequestCompletion(bookingId: string) {
-    if (!profile) return;
-
-    try {
-      setBookingActionLoadingId(bookingId);
-      setMessage("");
-
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status: "completion_requested",
-          completion_requested_at: new Date().toISOString(),
-        })
-        .eq("id", bookingId)
-        .eq("professional_id", profile.id)
-        .eq("status", "confirmed");
-
-      if (error) {
-        setMessage(error.message);
-        return;
-      }
-
-      setBookings((prev) =>
-        prev.map((booking) =>
-          booking.id === bookingId
-            ? { ...booking, status: "completion_requested" }
-            : booking
-        )
-      );
-
-      setMessage("Completion requested. Waiting for customer confirmation.");
-    } catch (error) {
-      console.error(error);
-      setMessage("Something went wrong requesting completion.");
-    } finally {
-      setBookingActionLoadingId(null);
     }
   }
 
@@ -1412,19 +1219,6 @@ export default function AccountPage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-neutral-700">
-                      Location
-                    </label>
-                    <input
-                      type="text"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder="Winnipeg, MB"
-                      className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
-                    />
-                  </div>
-
                   {isProfessional ? (
                     <>
                       <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
@@ -1698,15 +1492,6 @@ export default function AccountPage() {
 
                       <div className="rounded-2xl border border-neutral-200 bg-white p-5">
                         <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                          Active bookings
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                          {bookings.length}
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
                           Services page
                         </p>
                         <p className="mt-2 text-base font-semibold text-neutral-900">
@@ -1872,104 +1657,6 @@ export default function AccountPage() {
                       </div>
                     </div>
                   ))}
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          {isProfessional ? (
-            <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    Active bookings
-                  </p>
-                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">
-                    Current schedule
-                  </h2>
-                </div>
-              </div>
-
-              {bookings.length === 0 ? (
-                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
-                  No active bookings right now.
-                </div>
-              ) : (
-                <div className="mt-6 grid gap-4">
-                  {bookings.map((booking) => {
-                    const isLoadingAction = bookingActionLoadingId === booking.id;
-
-                    return (
-                      <div
-                        key={booking.id}
-                        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5"
-                      >
-                        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                          <div className="flex min-w-0 flex-1 gap-4">
-                            <div className="h-14 w-14 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-                              {booking.customer_avatar_url ? (
-                                <img
-                                  src={booking.customer_avatar_url}
-                                  alt={booking.customer_name || "Customer"}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
-                                  {booking.customer_name?.charAt(0).toUpperCase() || "C"}
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-3">
-                                <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-                                  {getBookingStatusLabel(booking.status)}
-                                </span>
-                              </div>
-
-                              <h3 className="mt-3 text-xl font-semibold text-neutral-900">
-                                {booking.service_name || "Booked service"}
-                              </h3>
-
-                              <p className="mt-2 text-neutral-600">
-                                {formatBookingDate(booking.booking_date)} •{" "}
-                                {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
-                              </p>
-
-                              <p className="mt-2 text-neutral-600">
-                                Client: {booking.customer_name || "Unknown client"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-5 flex flex-wrap gap-3">
-                          {booking.status === "confirmed" ? (
-                            <button
-                              type="button"
-                              onClick={() => handleRequestCompletion(booking.id)}
-                              disabled={isLoadingAction}
-                              className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-                            >
-                              {isLoadingAction ? "Working..." : "Request completion"}
-                            </button>
-                          ) : null}
-
-                          {(booking.status === "confirmed" ||
-                            booking.status === "completion_requested") ? (
-                            <button
-                              type="button"
-                              onClick={() => handleCancelBooking(booking.id)}
-                              disabled={isLoadingAction}
-                              className="rounded-full border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
-                            >
-                              {isLoadingAction ? "Working..." : "Cancel booking"}
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               )}
             </div>

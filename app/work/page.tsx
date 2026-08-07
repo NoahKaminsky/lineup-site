@@ -59,6 +59,7 @@ type ServiceRequest = {
   location_lng?: number | null;
   location_place_id?: string | null;
   service_mode: string | null;
+  service_modes: string[] | null;
   budget: string | null;
   status: string;
   target_professions: string[] | null;
@@ -543,9 +544,14 @@ export default function WorkPage() {
       if (request.is_direct_rebook) return request.preferred_professional_id === userId;
       if (allTypes.length === 0) return true;
       if (!allTypes.includes(request.category)) return false;
-      // If the pro has service modes set and the request specifies a mode, must match
-      if (proServiceModes.length > 0 && request.service_mode) {
-        if (!proServiceModes.includes(request.service_mode)) return false;
+      // If the pro has service modes set and the request specifies mode(s), at least one must match
+      const requestModes = request.service_modes?.length
+        ? request.service_modes
+        : request.service_mode
+        ? [request.service_mode]
+        : [];
+      if (proServiceModes.length > 0 && requestModes.length > 0) {
+        if (!requestModes.some((mode) => proServiceModes.includes(mode))) return false;
       }
       return true;
     });
