@@ -156,19 +156,6 @@ function getTierBadge(profile: ProfileRow): { label: string; className: string }
   return null;
 }
 
-function formatLocationFallback(profile: ProfileRow, fallback: string) {
-  const address = profile.formatted_address || profile.location;
-  if (!address?.trim()) return fallback;
-
-  const parts = address
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (parts.length >= 2) return parts.slice(0, 2).join(", ");
-  return address;
-}
-
 function getCardDistanceKm(
   card: DiscoverCard,
   userLocation: { lat: number; lng: number } | null
@@ -916,7 +903,6 @@ export default function DiscoverPage() {
                     const roles = getProfessionalTypes(card.profile);
                     const tierBadge = getTierBadge(card.profile);
                     const distanceLabel = formatDistanceLabel(getCardDistanceKm(card, userLocation));
-                    const locationLabel = distanceLabel || formatLocationFallback(card.profile, "");
 
                     return (
                       <Link
@@ -986,7 +972,7 @@ export default function DiscoverPage() {
                                 Active
                               </span>
                             ) : null}
-                            {locationLabel ? <span className="truncate">{locationLabel}</span> : null}
+                            {distanceLabel ? <span className="truncate">{distanceLabel}</span> : null}
                           </div>
                         </div>
                       </Link>
