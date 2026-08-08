@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
+import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 
 type Profile = {
   id: string;
@@ -136,6 +137,7 @@ type RequestAndOfferItem = {
   personAvatarUrl: string | null;
   cancelledAt?: string | null;
   requestStatus?: string | null;
+  personRating?: CustomerRatingSummary | null;
 };
 
 type TabKey = "booked" | "requests" | "completed";
@@ -595,6 +597,10 @@ export default function WorkPage() {
       .filter((request) => !bookedRequestIds.has(request.id))
       .map((request) => requestToBookedItem(request, profileMap));
 
+    const openRequestOwnerRatings = await getCustomerRatingsMap(
+      openRequests.map((request) => request.client_id)
+    );
+
     const openItems: RequestAndOfferItem[] = openRequests.map((request) => {
       const customer = profileMap.get(request.client_id);
 
@@ -612,6 +618,7 @@ export default function WorkPage() {
         requestId: request.id,
         personName: customer?.full_name || customer?.email || "Client",
         personAvatarUrl: customer?.avatar_url || null,
+        personRating: openRequestOwnerRatings[request.client_id] ?? null,
       };
     });
 
@@ -1359,7 +1366,11 @@ function ActivityCard({ item, isProfessional }: { item: RequestAndOfferItem; isP
   const isOffer = item.kind === "offer_sent" || item.kind === "offer_received";
 
   const metaParts = [
-    item.personName || null,
+    item.personName
+      ? item.kind === "open_request" && item.personRating
+        ? `${item.personName} (★${item.personRating.average.toFixed(1)})`
+        : item.personName
+      : null,
     item.date ? `${formatDate(item.date)}${item.startTime ? ` · ${formatTime(item.startTime)}` : ""}` : null,
   ].filter(Boolean);
 

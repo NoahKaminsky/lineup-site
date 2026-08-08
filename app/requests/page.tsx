@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Sparkles, Inbox, Briefcase, Wand2, UserCircle, Images, Star, ClipboardList, Handshake } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
+import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import WelcomeTour, { type TourStep } from "../components/WelcomeTour";
 import OnboardingChecklist from "../components/OnboardingChecklist";
 
@@ -1187,6 +1188,27 @@ if (profileError || !profile) {
     [requests, userId]
   );
 
+  const [openRequestOwnerRatings, setOpenRequestOwnerRatings] = useState<
+    Record<string, CustomerRatingSummary>
+  >({});
+
+  useEffect(() => {
+    const clientIds = professionalOpenRequests.map((request) => request.client_id);
+    if (clientIds.length === 0) {
+      setOpenRequestOwnerRatings({});
+      return;
+    }
+
+    let cancelled = false;
+    getCustomerRatingsMap(clientIds).then((ratingsMap) => {
+      if (!cancelled) setOpenRequestOwnerRatings(ratingsMap);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [professionalOpenRequests]);
+
   const professionalTrackedRequests = useMemo(
     () =>
       requests.filter(
@@ -2286,6 +2308,12 @@ return (
                           !respondedRequestIds.includes(request.id) ? (
                             <span className="animate-notification-pop rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
                               New
+                            </span>
+                          ) : null}
+
+                          {openRequestOwnerRatings[request.client_id] ? (
+                            <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-700">
+                              ★ {openRequestOwnerRatings[request.client_id].average.toFixed(1)} client rating
                             </span>
                           ) : null}
                         </div>

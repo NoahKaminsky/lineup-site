@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
+import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 
 function normalizeRole(role: string | null | undefined) {
   return role?.toLowerCase().trim() || "";
@@ -125,6 +126,7 @@ export default function AccountPage() {
 
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>(() => getCached<AccountCache>("account-page")?.portfolioItems ?? []);
   const [reviews, setReviews] = useState<EnrichedReview[]>(() => getCached<AccountCache>("account-page")?.reviews ?? []);
+  const [customerRating, setCustomerRating] = useState<CustomerRatingSummary | null>(null);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -256,6 +258,13 @@ export default function AccountPage() {
         setReviews(enrichedReviews);
       } else {
         setReviews([]);
+      }
+
+      if (!isProfessionalRole(data.role)) {
+        const ratingsMap = await getCustomerRatingsMap([user.id]);
+        setCustomerRating(ratingsMap[user.id] ?? null);
+      } else {
+        setCustomerRating(null);
       }
 
       setLoading(false);
@@ -1021,7 +1030,15 @@ export default function AccountPage() {
                             }`
                           : "No reviews yet"}
                       </span>
-                    ) : null}
+                    ) : (
+                      <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
+                        {customerRating
+                          ? `${customerRating.average.toFixed(1)} / 5 · ${customerRating.count} rating${
+                              customerRating.count === 1 ? "" : "s"
+                            } from pros`
+                          : "No ratings yet"}
+                      </span>
+                    )}
                   </div>
                 </div>
 

@@ -14,6 +14,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import MarkRequestNotificationRead from "../../components/MarkRequestNotificationRead";
 import { getCached, setCached } from "@/app/lib/pageCache";
+import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 
 type ServiceRequest = {
   id: string;
@@ -197,6 +198,7 @@ export default function RequestDetailPage() {
   const [requestOwner, setRequestOwner] = useState<RequestOwnerProfile | null>(
     null
   );
+  const [requestOwnerRating, setRequestOwnerRating] = useState<CustomerRatingSummary | null>(null);
   const [chatProfiles, setChatProfiles] = useState<
     Record<string, ChatParticipantProfile>
   >({});
@@ -649,6 +651,13 @@ export default function RequestDetailPage() {
       .single();
 
     setRequestOwner(ownerProfile ?? null);
+
+    if (isProfessional && requestData.client_id) {
+      const ratingsMap = await getCustomerRatingsMap([requestData.client_id]);
+      setRequestOwnerRating(ratingsMap[requestData.client_id] ?? null);
+    } else {
+      setRequestOwnerRating(null);
+    }
 
     let offersQuery = supabase
       .from("request_offers")
@@ -1635,6 +1644,12 @@ export default function RequestDetailPage() {
                     <p className="font-semibold text-white">
                       {requestOwner.full_name || "Customer"}
                     </p>
+                    {requestOwnerRating ? (
+                      <p className="mt-0.5 text-xs text-white/70">
+                        ★ {requestOwnerRating.average.toFixed(1)} ({requestOwnerRating.count} rating
+                        {requestOwnerRating.count === 1 ? "" : "s"} from pros)
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
