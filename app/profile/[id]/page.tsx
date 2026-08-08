@@ -17,9 +17,12 @@ import { supabase } from "@/lib/supabaseClient";
 import PaymentModal from "@/app/components/payments/PaymentModal";
 import { getCached, setCached } from "@/app/lib/pageCache";
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 type Profile = {
   id: string;
   full_name: string | null;
+  username?: string | null;
   avatar_url: string | null;
   banner_url: string | null;
   role: string | null;
@@ -471,19 +474,21 @@ export default function ProfessionalProfilePage() {
         setLoading(true);
         setMessage("");
 
-        const { data: profileData, error: profileError } = await supabase
-          .from("profiles")
-          .select(
-            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration"
-          )
-          .eq("id", profileId)
-          .single();
+        const isUuid = UUID_REGEX.test(profileId);
+        const profileSelect =
+          "id, full_name, username, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration";
+
+        const { data: profileData, error: profileError } = isUuid
+          ? await supabase.from("profiles").select(profileSelect).eq("id", profileId).single()
+          : await supabase.from("profiles").select(profileSelect).ilike("username", profileId).single();
 
         if (profileError || !profileData) {
           setMessage(profileError?.message || "Profile not found.");
           setLoading(false);
           return;
         }
+
+        const resolvedId = profileData.id;
 
         setProfile(profileData as Profile);
 
@@ -511,7 +516,7 @@ export default function ProfessionalProfilePage() {
               .from("service_requests")
               .select("id")
               .eq("client_id", user.id)
-              .eq("accepted_professional_id", profileId)
+              .eq("accepted_professional_id", resolvedId)
               .eq("status", "completed")
               .limit(1)
               .maybeSingle();
@@ -520,7 +525,7 @@ export default function ProfessionalProfilePage() {
               .from("bookings")
               .select("id")
               .eq("customer_id", user.id)
-              .eq("professional_id", profileId)
+              .eq("professional_id", resolvedId)
               .eq("status", "completed")
               .limit(1)
               .maybeSingle();
@@ -540,7 +545,7 @@ export default function ProfessionalProfilePage() {
           .select(
             "id, professional_id, service_name, duration_minutes, price, description, is_active, is_bookable, created_at"
           )
-          .eq("professional_id", profileId)
+          .eq("professional_id", resolvedId)
           .eq("is_active", true)
           .eq("is_bookable", true)
           .order("created_at", { ascending: true });
@@ -552,7 +557,7 @@ export default function ProfessionalProfilePage() {
         const { data: availabilityData, error: availabilityError } = await supabase
           .from("professional_availability")
           .select("id, professional_id, day_of_week, start_time, end_time, is_active")
-          .eq("professional_id", profileId)
+          .eq("professional_id", resolvedId)
           .order("day_of_week", { ascending: true })
           .order("start_time", { ascending: true });
 
@@ -578,7 +583,7 @@ export default function ProfessionalProfilePage() {
           .select(
             "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes, service_price, service_mode, source, formatted_address, location_lat, location_lng, location_place_id"
           )
-          .eq("professional_id", profileId)
+          .eq("professional_id", resolvedId)
           .in("status", ["confirmed", "completion_requested", "completed"])
           .gte("booking_date", todayString)
           .lte("booking_date", endString)
@@ -598,7 +603,7 @@ export default function ProfessionalProfilePage() {
         const { data: portfolioData, error: portfolioError } = await supabase
           .from("professional_portfolio")
           .select("id, user_id, image_url, caption, media_type, created_at")
-          .eq("user_id", profileId)
+          .eq("user_id", resolvedId)
           .order("created_at", { ascending: false });
 
         const resolvedPortfolio =
@@ -608,7 +613,7 @@ export default function ProfessionalProfilePage() {
         const { data: reviewData, error: reviewError } = await supabase
           .from("professional_reviews")
           .select("id, professional_id, reviewer_id, rating, comment, created_at")
-          .eq("professional_id", profileId)
+          .eq("professional_id", resolvedId)
           .order("created_at", { ascending: false });
 
         if (!reviewError && reviewData) {
@@ -1316,6 +1321,11 @@ if (loading) {
 
   const professionalTypeLabels = getProfessionalTypeLabels(profile);
 
+  const professionalServiceModes = getPlainServiceModes(profile.service_modes);
+  const hasFixedServiceLocation =
+    professionalServiceModes.includes("in_shop") || professionalServiceModes.includes("home_studio");
+  const offersAtHomeService = professionalServiceModes.includes("at_home");
+
   const profileTags = [
     canDirectBook ? "Direct booking" : null,
     getNextOpeningText() ? "Open this week" : null,
@@ -1381,6 +1391,10 @@ if (loading) {
                       {profile.full_name || "Profile"}
                     </h1>
 
+                    {profile.username ? (
+                      <p className="mt-1 text-sm text-neutral-500">@{profile.username}</p>
+                    ) : null}
+
                     <p className="mt-2 text-base text-neutral-600 md:text-lg">
                       {isProfessional ? formatProfessionalTypes(profile) : "Customer"}
                     </p>
@@ -1405,11 +1419,23 @@ if (loading) {
                     ) : null}
 
                     <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-600">
-                      {profile.formatted_address || profile.location ? (
+                      {hasFixedServiceLocation && (profile.formatted_address || profile.location) ? (
                         <span className="inline-flex flex-col items-start gap-0.5">
                           <span className="inline-flex items-center gap-1.5">
                             <MapPin className="h-4 w-4" />
                             {formatDisplayAddress(profile.formatted_address || profile.location)}
+                          </span>
+                          {profileDistanceLabel ? (
+                            <span className="ml-5 text-xs text-neutral-500">
+                              {profileDistanceLabel}
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : !hasFixedServiceLocation && offersAtHomeService ? (
+                        <span className="inline-flex flex-col items-start gap-0.5">
+                          <span className="inline-flex items-center gap-1.5">
+                            <MapPin className="h-4 w-4" />
+                            Travels to your area
                           </span>
                           {profileDistanceLabel ? (
                             <span className="ml-5 text-xs text-neutral-500">

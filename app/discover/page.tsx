@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
+import { getProfileHref } from "@/app/lib/profileLink";
+import SwipeStack, { type SwipeCardData } from "@/app/components/discover/SwipeStack";
 
 type ProfileRow = {
   id: string;
   full_name: string | null;
+  username?: string | null;
   avatar_url: string | null;
   banner_url: string | null;
   role: string | null;
@@ -28,6 +31,7 @@ type ProfileRow = {
   subscription_plan: string | null;
   subscription_status: string | null;
   is_featured: boolean | null;
+  is_founding_artist?: boolean | null;
 };
 
 type ProfessionalService = {
@@ -144,17 +148,57 @@ function formatDistanceLabel(distanceKm: number | null) {
   return `${distanceKm.toFixed(1)} km away`;
 }
 
-function getTierBadge(profile: ProfileRow): { label: string; className: string } | null {
+function getBadges(profile: ProfileRow): { label: string; className: string }[] {
+  const badges: { label: string; className: string }[] = [];
+
+  if (profile.is_founding_artist) {
+    badges.push({ label: "🔥 Founding Artist", className: "border border-orange-200 bg-orange-100 text-orange-800" });
+  }
+
   if (profile.is_featured) {
-    return { label: "Promoted", className: "border border-amber-200 bg-amber-100 text-amber-800" };
+    badges.push({ label: "🔥 LineUp Pick", className: "border border-rose-200 bg-rose-100 text-rose-800" });
   }
+
   if (profile.subscription_plan === "master") {
-    return { label: "Master", className: "border border-neutral-900 bg-neutral-900 text-white" };
+    badges.push({ label: "Master", className: "border border-neutral-900 bg-neutral-900 text-white" });
+  } else if (profile.subscription_plan === "pro") {
+    badges.push({ label: "Pro", className: "border border-neutral-300 bg-white text-neutral-700" });
   }
-  if (profile.subscription_plan === "pro") {
-    return { label: "Pro", className: "border border-neutral-300 bg-white text-neutral-700" };
+
+  return badges;
+}
+
+const SERVICE_ACTION_LABELS: Record<string, string> = {
+  barber: "Haircut",
+  hairstylist: "Hairstyle",
+  nail_artist: "Manicure",
+  lash_artist: "Lash Set",
+  brow_artist: "Brow Service",
+  makeup_artist: "Makeup Look",
+  wax_technician: "Wax",
+  body_sugaring: "Sugaring",
+};
+
+function hashString(value: string) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
   }
-  return null;
+  return hash;
+}
+
+function getSpotlightSlogan(card: DiscoverCard) {
+  const primaryType = getProfessionalTypes(card.profile)[0] || null;
+  const actionLabel = SERVICE_ACTION_LABELS[primaryType || ""] || "Service";
+  const ratingPhrase = card.averageRating ? `${card.averageRating}★ rated` : "top-rated";
+
+  const templates = [
+    `Get a ${actionLabel} done with this ${ratingPhrase} pro`,
+    `Book a ${actionLabel} with a ${ratingPhrase} favorite`,
+    `Treat yourself to a ${actionLabel} — ${ratingPhrase} and ready to book`,
+  ];
+
+  return templates[hashString(card.profile.id) % templates.length];
 }
 
 function getCardDistanceKm(
@@ -350,7 +394,7 @@ export default function DiscoverPage() {
         const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
           .select(
-            "id, full_name, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, subscription_plan, subscription_status, is_featured"
+            "id, full_name, username, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, subscription_plan, subscription_status, is_featured, is_founding_artist"
           );
 
         if (profilesError) {
@@ -638,6 +682,15 @@ export default function DiscoverPage() {
       });
   }, [filteredCards]);
 
+  // Admin-curated picks get their own dedicated lane, separate from the tier-based
+  // Spotlight section below, so a hand-picked promotion doesn't just blend into the
+  // usual Master/Pro sort order.
+  const pickedCards = useMemo(() => {
+    return [...filteredCards]
+      .filter((card) => card.profile.is_featured)
+      .sort((a, b) => (b.averageRatingNumber || 0) - (a.averageRatingNumber || 0));
+  }, [filteredCards]);
+
   // Active pros: have completed bookings, sorted by tier then score
   const activeCards = useMemo(() => {
     return [...filteredCards]
@@ -679,6 +732,25 @@ export default function DiscoverPage() {
   function getCardImage(card: DiscoverCard) {
     return card.portfolioPreview?.image_url || card.profile.banner_url || null;
   }
+
+  const swipeCards = useMemo<SwipeCardData[]>(() => {
+    return sortedCards.map((card) => {
+      const roles = getProfessionalTypes(card.profile);
+      const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
+      const distanceKm = getCardDistanceKm(card, userLocation);
+
+      return {
+        key: card.profile.id,
+        href: getProfileHref(card.profile),
+        image: getCardImage(card),
+        name: card.profile.full_name || "Professional",
+        primaryRole,
+        badges: getBadges(card.profile),
+        rating: card.averageRating,
+        distanceLabel: formatDistanceLabel(distanceKm),
+      };
+    });
+  }, [sortedCards, userLocation]);
 
   if (loading) {
     return (
@@ -886,6 +958,74 @@ export default function DiscoverPage() {
           </div>
         ) : (
           <>
+            {/* LineUp Picks — admin hand-picked professionals, kept separate from the tier-based Spotlight */}
+            {pickedCards.length > 0 ? (
+              <section className="mt-8">
+                <div className="mb-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-400">
+                    Hand-picked
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold tracking-tight">
+                    🔥 LineUp Picks
+                  </h2>
+                </div>
+
+                <div className="-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6">
+                  {pickedCards.map((card) => {
+                    const image = getCardImage(card);
+                    const slogan = getSpotlightSlogan(card);
+
+                    return (
+                      <Link
+                        key={`picked-${card.profile.id}`}
+                        href={getProfileHref(card.profile)}
+                        className="group flex w-64 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border border-rose-200 bg-gradient-to-b from-rose-50 to-white shadow-sm transition hover:border-rose-300 hover:shadow-md sm:w-72"
+                      >
+                        <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
+                          {image ? (
+                            <img
+                              src={image}
+                              alt={card.profile.full_name || "Professional"}
+                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-rose-50 to-rose-100">
+                              <div className="flex h-20 w-20 items-center justify-center rounded-full border border-rose-200 bg-white text-3xl font-semibold text-rose-400">
+                                {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="absolute left-2.5 top-2.5">
+                            <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-2.5 py-1 text-[10px] font-semibold text-rose-800 shadow-sm">
+                              🔥 LineUp Pick
+                            </span>
+                          </div>
+
+                          {card.averageRating ? (
+                            <div className="absolute right-2.5 top-2.5">
+                              <span className="inline-flex items-center gap-0.5 rounded-full border border-neutral-200 bg-white px-2 py-1 text-[10px] font-bold text-neutral-900 shadow-sm">
+                                ★ {card.averageRating}
+                              </span>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="flex flex-1 flex-col gap-1.5 p-3.5">
+                          <p className="truncate text-sm font-semibold leading-tight text-neutral-900">
+                            {card.profile.full_name || "Professional"}
+                          </p>
+                          <p className="text-xs leading-5 text-rose-700">
+                            {slogan}
+                          </p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
+
             {/* Spotlight — subscribed professionals (Master first, then Pro) */}
             {spotlightCards.length > 0 ? (
               <section className="mt-8">
@@ -904,13 +1044,13 @@ export default function DiscoverPage() {
                   {spotlightCards.map((card) => {
                     const image = getCardImage(card);
                     const roles = getProfessionalTypes(card.profile);
-                    const tierBadge = getTierBadge(card.profile);
+                    const badges = getBadges(card.profile);
                     const distanceLabel = formatDistanceLabel(getCardDistanceKm(card, userLocation));
 
                     return (
                       <Link
                         key={`spotlight-${card.profile.id}`}
-                        href={`/profile/${card.profile.id}`}
+                        href={getProfileHref(card.profile)}
                         className="group flex w-52 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 hover:shadow-md sm:w-64"
                       >
                         <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
@@ -928,11 +1068,13 @@ export default function DiscoverPage() {
                             </div>
                           )}
 
-                          {tierBadge ? (
-                            <div className="absolute left-2.5 top-2.5">
-                              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold shadow-sm ${tierBadge.className}`}>
-                                {tierBadge.label}
-                              </span>
+                          {badges.length > 0 ? (
+                            <div className="absolute left-2.5 top-2.5 flex flex-wrap gap-1">
+                              {badges.map((badge) => (
+                                <span key={badge.label} className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold shadow-sm ${badge.className}`}>
+                                  {badge.label}
+                                </span>
+                              ))}
                             </div>
                           ) : null}
 
@@ -1003,13 +1145,13 @@ export default function DiscoverPage() {
                   {activeCards.map((card) => {
                     const image = getCardImage(card);
                     const roles = getProfessionalTypes(card.profile);
-                    const tierBadge = getTierBadge(card.profile);
+                    const badges = getBadges(card.profile);
                     const distanceLabel = formatDistanceLabel(getCardDistanceKm(card, userLocation));
 
                     return (
                       <Link
                         key={`active-${card.profile.id}`}
-                        href={`/profile/${card.profile.id}`}
+                        href={getProfileHref(card.profile)}
                         className="group flex w-44 shrink-0 flex-col overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 hover:shadow-md sm:w-56"
                       >
                         <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
@@ -1040,11 +1182,13 @@ export default function DiscoverPage() {
                             </div>
                           ) : null}
 
-                          {tierBadge ? (
-                            <div className="absolute inset-x-2.5 bottom-2.5">
-                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold shadow-sm ${tierBadge.className}`}>
-                                {tierBadge.label}
-                              </span>
+                          {badges.length > 0 ? (
+                            <div className="absolute inset-x-2.5 bottom-2.5 flex flex-wrap gap-1">
+                              {badges.map((badge) => (
+                                <span key={badge.label} className={`inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold shadow-sm ${badge.className}`}>
+                                  {badge.label}
+                                </span>
+                              ))}
                             </div>
                           ) : null}
                         </div>
@@ -1093,12 +1237,16 @@ export default function DiscoverPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="sm:hidden">
+                <SwipeStack cards={swipeCards} />
+              </div>
+
+              <div className="hidden gap-3 sm:grid sm:grid-cols-3 lg:grid-cols-4">
                 {sortedCards.map((card) => {
                   const image = getCardImage(card);
                   const roles = getProfessionalTypes(card.profile);
                   const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
-                  const tierBadge = getTierBadge(card.profile);
+                  const badges = getBadges(card.profile);
                   const distanceKm = getCardDistanceKm(card, userLocation);
                   const distanceLabel = formatDistanceLabel(distanceKm);
                   const secondaryTags = card.tagBadges.filter((tag) => tag !== "Active").slice(0, 1);
@@ -1106,7 +1254,7 @@ export default function DiscoverPage() {
                   return (
                     <Link
                       key={card.profile.id}
-                      href={`/profile/${card.profile.id}`}
+                      href={getProfileHref(card.profile)}
                       className="group flex flex-col overflow-hidden rounded-[1.25rem] border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 hover:shadow-md active:scale-[0.98]"
                     >
                       {/* image */}
@@ -1125,11 +1273,13 @@ export default function DiscoverPage() {
                           </div>
                         )}
 
-                        {tierBadge ? (
-                          <div className="absolute left-2 top-2">
-                            <span className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-semibold shadow-sm ${tierBadge.className}`}>
-                              {tierBadge.label}
-                            </span>
+                        {badges.length > 0 ? (
+                          <div className="absolute left-2 top-2 flex flex-wrap gap-1">
+                            {badges.map((badge) => (
+                              <span key={badge.label} className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-semibold shadow-sm ${badge.className}`}>
+                                {badge.label}
+                              </span>
+                            ))}
                           </div>
                         ) : null}
 
@@ -1298,7 +1448,7 @@ export default function DiscoverPage() {
                 return (
                   <Link
                     key={card.profile.id}
-                    href={`/profile/${card.profile.id}`}
+                    href={getProfileHref(card.profile)}
                     onClick={() => setNearbyPanelOpen(false)}
                     className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-neutral-50"
                   >

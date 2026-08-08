@@ -1687,6 +1687,18 @@ export default function ServicesPage() {
               );
             })}
           </div>
+
+          {serviceModes.includes("at_home") ? (
+            <p className="mt-4 text-sm leading-6 text-neutral-500">
+              <span className="font-medium text-neutral-700">At-home:</span> your location is only shown as an approximate distance until a customer confirms a booking.
+            </p>
+          ) : null}
+
+          {serviceModes.includes("in_shop") || serviceModes.includes("home_studio") ? (
+            <p className="mt-2 text-sm leading-6 text-neutral-500">
+              <span className="font-medium text-neutral-700">In-shop / home studio:</span> your address is displayed to customers when they make a booking.
+            </p>
+          ) : null}
         </AccordionSection>
 
         {isSubscribed ? (

@@ -13,6 +13,7 @@ type AdminUser = {
   subscription_plan: string | null;
   is_admin: boolean;
   is_featured: boolean;
+  is_founding_artist: boolean;
   created_at: string;
 };
 
@@ -72,6 +73,7 @@ export default function AdminPage() {
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [draftPlans, setDraftPlans] = useState<Record<string, { plan: string; status: string }>>({});
   const [togglingFeaturedId, setTogglingFeaturedId] = useState<string | null>(null);
+  const [togglingFoundingArtistId, setTogglingFoundingArtistId] = useState<string | null>(null);
 
   const [contentQuery, setContentQuery] = useState("");
   const [items, setItems] = useState<ContentItem[]>([]);
@@ -216,6 +218,28 @@ export default function AdminPage() {
     setTogglingFeaturedId(null);
   }
 
+  async function handleToggleFoundingArtist(userId: string, next: boolean) {
+    setTogglingFoundingArtistId(userId);
+    setMessage("");
+
+    const res = await authedFetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, isFoundingArtist: next }),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      setMessage(json.error || "Could not update founding artist status.");
+      setTogglingFoundingArtistId(null);
+      return;
+    }
+
+    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, is_founding_artist: next } : u)));
+    setTogglingFoundingArtistId(null);
+  }
+
   async function handleDeleteContent(type: ContentType, id: string) {
     if (!confirm("Delete this permanently?")) return;
 
@@ -328,6 +352,7 @@ export default function AdminPage() {
                     <th className="px-3 py-2">Plan</th>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">Featured</th>
+                    <th className="px-3 py-2">Founding Artist</th>
                     <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
@@ -390,6 +415,21 @@ export default function AdminPage() {
                             }`}
                           >
                             {togglingFeaturedId === u.id ? "..." : u.is_featured ? "★ Featured" : "Feature"}
+                          </button>
+                        </td>
+                        <td className="px-3 py-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleFoundingArtist(u.id, !u.is_founding_artist)}
+                            disabled={togglingFoundingArtistId === u.id}
+                            title="Mark this profile as a Founding Artist (early sign-up recognition)"
+                            className={`rounded-full border px-3 py-1 text-xs font-medium transition disabled:opacity-60 ${
+                              u.is_founding_artist
+                                ? "border-orange-300 bg-orange-100 text-orange-800"
+                                : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300"
+                            }`}
+                          >
+                            {togglingFoundingArtistId === u.id ? "..." : u.is_founding_artist ? "🔥 Founding" : "Mark founding"}
                           </button>
                         </td>
                         <td className="px-3 py-2">

@@ -12,7 +12,7 @@ export async function GET(req: Request) {
 
   let query = service
     .from("profiles")
-    .select("id, full_name, email, role, subscription_status, subscription_plan, is_admin, is_featured, created_at")
+    .select("id, full_name, email, role, subscription_status, subscription_plan, is_admin, is_featured, is_founding_artist, created_at")
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -31,17 +31,28 @@ export async function PATCH(req: Request) {
   const admin = await requireAdmin(req);
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { userId, subscriptionPlan, subscriptionStatus, isFeatured } = await req.json();
+  const { userId, subscriptionPlan, subscriptionStatus, isFeatured, isFoundingArtist } = await req.json();
 
   if (!userId) return NextResponse.json({ error: "Missing userId" }, { status: 400 });
 
   const service = getServiceSupabase();
 
   // Featured toggle can be updated on its own, without touching plan/status.
-  if (isFeatured !== undefined && subscriptionPlan === undefined && subscriptionStatus === undefined) {
+  if (isFeatured !== undefined && subscriptionPlan === undefined && subscriptionStatus === undefined && isFoundingArtist === undefined) {
     const { error } = await service
       .from("profiles")
       .update({ is_featured: !!isFeatured })
+      .eq("id", userId);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  // Founding Artist toggle can also be updated on its own.
+  if (isFoundingArtist !== undefined && subscriptionPlan === undefined && subscriptionStatus === undefined && isFeatured === undefined) {
+    const { error } = await service
+      .from("profiles")
+      .update({ is_founding_artist: !!isFoundingArtist })
       .eq("id", userId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

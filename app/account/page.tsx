@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
+import { getProfileHref } from "@/app/lib/profileLink";
 
 function normalizeRole(role: string | null | undefined) {
   return role?.toLowerCase().trim() || "";
@@ -16,12 +17,21 @@ function isProfessionalRole(role: string | null | undefined) {
   return !normalizedRole.includes("customer") && !!normalizedRole;
 }
 
+function normalizeUsername(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+}
+
+function isValidUsername(value: string) {
+  return /^[a-z0-9_]{3,20}$/.test(value);
+}
+
 type Profile = {
   id: string;
   email: string | null;
   email_request_notifications?: boolean | null;
   email_offer_notifications?: boolean | null;
   full_name: string | null;
+  username: string | null;
   role: string | null;
   professional_type: string | null;
   professional_types?: string[] | null;
@@ -133,6 +143,8 @@ export default function AccountPage() {
   const [uploadCaption, setUploadCaption] = useState("");
 
   const [fullName, setFullName] = useState(() => getCached<AccountCache>("account-page")?.profile?.full_name ?? "");
+  const [username, setUsername] = useState(() => getCached<AccountCache>("account-page")?.profile?.username ?? "");
+  const [usernameError, setUsernameError] = useState("");
   const [location, setLocation] = useState(() => getCached<AccountCache>("account-page")?.profile?.location ?? "");
   const [bio, setBio] = useState(() => getCached<AccountCache>("account-page")?.profile?.bio ?? "");
   const [instagramHandle, setInstagramHandle] = useState(() => getCached<AccountCache>("account-page")?.profile?.instagram_handle ?? "");
@@ -173,7 +185,7 @@ export default function AccountPage() {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, email, full_name, role, professional_type, professional_types, location, avatar_url, banner_url, bio, instagram_handle, business_name, specialties, stripe_account_id, stripe_onboarding_complete, stripe_charges_enabled, stripe_payouts_enabled, subscription_status, subscription_plan, email_request_notifications, email_offer_notifications")
+        .select("id, email, full_name, username, role, professional_type, professional_types, location, avatar_url, banner_url, bio, instagram_handle, business_name, specialties, stripe_account_id, stripe_onboarding_complete, stripe_charges_enabled, stripe_payouts_enabled, subscription_status, subscription_plan, email_request_notifications, email_offer_notifications")
         .eq("id", user.id)
         .single();
 
@@ -185,6 +197,7 @@ export default function AccountPage() {
 
       setProfile(data);
       setFullName(data.full_name || "");
+      setUsername(data.username || "");
       setLocation(data.location || "");
       setBio(data.bio || "");
       setInstagramHandle(data.instagram_handle || "");
@@ -740,6 +753,8 @@ export default function AccountPage() {
     if (!profile) return;
 
     setFullName(profile.full_name || "");
+    setUsername(profile.username || "");
+    setUsernameError("");
     setLocation(profile.location || "");
     setBio(profile.bio || "");
     setInstagramHandle(profile.instagram_handle || "");
@@ -760,6 +775,14 @@ export default function AccountPage() {
 
     if (!profile) return;
 
+    const cleanUsername = normalizeUsername(username);
+
+    if (cleanUsername && !isValidUsername(cleanUsername)) {
+      setUsernameError("Usernames are 3-20 characters: lowercase letters, numbers, and underscores only.");
+      return;
+    }
+
+    setUsernameError("");
     setSaving(true);
     setMessage("");
 
@@ -767,6 +790,7 @@ export default function AccountPage() {
 
     const updates = {
       full_name: fullName,
+      username: cleanUsername || null,
       location,
       bio,
       instagram_handle: instagramHandle,
@@ -791,6 +815,13 @@ export default function AccountPage() {
 
     if (error) {
       setSaving(false);
+
+      if (error.code === "23505") {
+        setUsernameError("That username is already taken.");
+        setMessage("");
+        return;
+      }
+
       setMessage(error.message);
       return;
     }
@@ -997,6 +1028,10 @@ export default function AccountPage() {
                   <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
                     {profile.full_name || "No name yet"}
                   </h1>
+
+                  {profile.username ? (
+                    <p className="mt-1 text-sm text-neutral-500">@{profile.username}</p>
+                  ) : null}
 
                   <p className="mt-3 text-lg text-neutral-600">
                     {isProfessional
@@ -1244,6 +1279,33 @@ export default function AccountPage() {
                       onChange={(e) => setFullName(e.target.value)}
                       className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
                     />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-neutral-700">
+                      Username <span className="text-neutral-400">(optional)</span>
+                    </label>
+                    <div className="flex items-center rounded-2xl border border-neutral-300 pl-4 transition focus-within:border-neutral-900">
+                      <span className="text-neutral-400">@</span>
+                      <input
+                        type="text"
+                        value={username}
+                        onChange={(e) => {
+                          setUsername(normalizeUsername(e.target.value));
+                          setUsernameError("");
+                        }}
+                        placeholder="yourname"
+                        maxLength={20}
+                        className="w-full rounded-2xl border-none bg-transparent px-2 py-3 outline-none"
+                      />
+                    </div>
+                    {usernameError ? (
+                      <p className="mt-2 text-xs text-red-600">{usernameError}</p>
+                    ) : (
+                      <p className="mt-2 text-xs text-neutral-500">
+                        3-20 characters: lowercase letters, numbers, and underscores.
+                      </p>
+                    )}
                   </div>
 
                   {isProfessional ? (
@@ -1786,12 +1848,12 @@ export default function AccountPage() {
               <div className="mt-5">
                 <div className="flex items-center gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
                   <span className="flex-1 truncate text-sm text-neutral-700">
-                    {typeof window !== "undefined" ? `${window.location.origin}/profile/${profile.id}` : `/profile/${profile.id}`}
+                    {typeof window !== "undefined" ? `${window.location.origin}${getProfileHref(profile)}` : getProfileHref(profile)}
                   </span>
                   <button
                     type="button"
                     onClick={() => {
-                      const url = `${window.location.origin}/profile/${profile.id}`;
+                      const url = `${window.location.origin}${getProfileHref(profile)}`;
                       navigator.clipboard.writeText(url).then(() => {
                         setLinkCopied(true);
                         setTimeout(() => setLinkCopied(false), 2000);
