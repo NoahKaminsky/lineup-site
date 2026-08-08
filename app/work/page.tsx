@@ -135,6 +135,7 @@ type RequestAndOfferItem = {
   personName: string | null;
   personAvatarUrl: string | null;
   cancelledAt?: string | null;
+  requestStatus?: string | null;
 };
 
 type TabKey = "booked" | "requests" | "completed";
@@ -296,6 +297,8 @@ export default function WorkPage() {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [customerRatings, setCustomerRatings] = useState<Record<string, number>>({});
+  const [ratingSubmittingId, setRatingSubmittingId] = useState<string | null>(null);
 
   const isCustomer = isCustomerRole(profile?.role);
   const isProfessional = isProfessionalRole(profile?.role);
@@ -467,6 +470,7 @@ export default function WorkPage() {
         requestId: offer.request_id,
         personName: professional?.full_name || professional?.email || "Professional",
         personAvatarUrl: professional?.avatar_url || null,
+        requestStatus: request?.status || null,
       };
     });
 
@@ -629,8 +633,38 @@ export default function WorkPage() {
         requestId: offer.request_id,
         personName: customer?.full_name || customer?.email || "Client",
         personAvatarUrl: customer?.avatar_url || null,
+        requestStatus: request?.status || null,
       };
     });
+
+    const completedBookingIds = bookings.filter((b) => b.status === "completed").map((b) => b.id);
+    const completedRequestIds = trackedRequests
+      .filter((r) => r.status === "completed" && !bookedRequestIds.has(r.id))
+      .map((r) => r.id);
+
+    if (completedBookingIds.length > 0 || completedRequestIds.length > 0) {
+      const orFilters = [
+        completedBookingIds.length > 0 ? `booking_id.in.(${completedBookingIds.join(",")})` : null,
+        completedRequestIds.length > 0 ? `request_id.in.(${completedRequestIds.join(",")})` : null,
+      ]
+        .filter(Boolean)
+        .join(",");
+
+      const { data: existingRatings } = await supabase
+        .from("customer_reviews")
+        .select("booking_id, request_id, rating")
+        .eq("reviewer_id", userId)
+        .or(orFilters);
+
+      const ratingsMap: Record<string, number> = {};
+      (existingRatings || []).forEach((row) => {
+        if (row.booking_id) ratingsMap[`booking-${row.booking_id}`] = row.rating;
+        if (row.request_id) ratingsMap[`request-${row.request_id}`] = row.rating;
+      });
+      setCustomerRatings(ratingsMap);
+    } else {
+      setCustomerRatings({});
+    }
 
     setBookedItems([...bookingItems, ...acceptedRequestItems]);
     setRequestAndOfferItems([...openItems, ...offerItems]);
@@ -903,6 +937,32 @@ export default function WorkPage() {
     }
   }
 
+  async function handleRateCustomer(item: BookedItem, rating: number) {
+    if (!profile?.id || !item.customerId) return;
+
+    const key = `${item.source}-${item.id}`;
+    if (customerRatings[key] || ratingSubmittingId === key) return;
+
+    setRatingSubmittingId(key);
+    try {
+      const { error } = await supabase.from("customer_reviews").insert({
+        customer_id: item.customerId,
+        reviewer_id: profile.id,
+        booking_id: item.source === "booking" ? item.id : null,
+        request_id: item.source === "request" ? item.id : null,
+        rating,
+      });
+
+      if (!error) {
+        setCustomerRatings((prev) => ({ ...prev, [key]: rating }));
+      }
+    } catch {
+      // best-effort
+    } finally {
+      setRatingSubmittingId(null);
+    }
+  }
+
   function getOtherPerson(item: BookedItem) {
     if (isProfessional) {
       return {
@@ -999,7 +1059,12 @@ export default function WorkPage() {
   const openRequestItems = requestAndOfferItems.filter(
     (item) => (item.kind === "open_request" || item.kind === "posted_request") && item.status !== "Cancelled"
   );
-  const offerItems = requestAndOfferItems.filter((item) => item.kind === "offer_sent" || item.kind === "offer_received");
+  const offerItems = requestAndOfferItems.filter(
+    (item) =>
+      (item.kind === "offer_sent" || item.kind === "offer_received") &&
+      item.requestStatus !== "cancelled" &&
+      item.requestStatus !== "completed"
+  );
   const cancelledRequestItems = requestAndOfferItems.filter((item) => {
     if ((item.kind !== "open_request" && item.kind !== "posted_request") || item.status !== "Cancelled") {
       return false;
@@ -1184,6 +1249,9 @@ export default function WorkPage() {
                     setCancelConfirmId={setCancelConfirmId}
                     getOtherPerson={getOtherPerson}
                     updateBookedItemStatus={updateBookedItemStatus}
+                    customerRatings={customerRatings}
+                    ratingSubmittingId={ratingSubmittingId}
+                    onRateCustomer={handleRateCustomer}
                   />
                 ) : null}
 
@@ -1353,6 +1421,9 @@ function BookedList({
   setCancelConfirmId,
   getOtherPerson,
   updateBookedItemStatus,
+  customerRatings,
+  ratingSubmittingId,
+  onRateCustomer,
 }: {
   items: BookedItem[];
   isProfessional: boolean;
@@ -1371,6 +1442,9 @@ function BookedList({
     item: BookedItem,
     nextStatus: "completion_requested" | "completed" | "cancelled"
   ) => Promise<void>;
+  customerRatings?: Record<string, number>;
+  ratingSubmittingId?: string | null;
+  onRateCustomer?: (item: BookedItem, rating: number) => void;
 }) {
   return (
     <div className="grid gap-3 lg:grid-cols-2">
@@ -1536,6 +1610,35 @@ function BookedList({
                 )
               ) : null}
             </div>
+
+            {item.status === "completed" && isProfessional && onRateCustomer ? (
+              <div className="mt-3 flex items-center gap-2 border-t border-neutral-100 pt-3">
+                <span className="text-xs text-neutral-500">
+                  {customerRatings?.[actionKey] ? "You rated this client" : "Rate this client"}
+                </span>
+                <div className="flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const rated = customerRatings?.[actionKey];
+                    const filled = rated ? star <= rated : false;
+
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        disabled={!!rated || ratingSubmittingId === actionKey}
+                        onClick={() => onRateCustomer(item, star)}
+                        aria-label={`Rate ${star} star${star === 1 ? "" : "s"}`}
+                        className={`text-lg leading-none transition ${
+                          rated ? "cursor-default" : "cursor-pointer hover:scale-110"
+                        } ${filled ? "text-amber-400" : "text-neutral-200"}`}
+                      >
+                        ★
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </div>
         );
       })}

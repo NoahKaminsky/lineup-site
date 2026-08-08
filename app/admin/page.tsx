@@ -255,8 +255,20 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-neutral-50 px-4 py-8 text-neutral-900 sm:px-6">
       <div className="mx-auto max-w-5xl">
-        <h1 className="text-2xl font-semibold">Admin</h1>
-        <p className="mt-1 text-sm text-neutral-500">Internal tool — manage subscriptions and moderate content.</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold">Admin</h1>
+            <p className="mt-1 text-sm text-neutral-500">Internal tool — manage subscriptions and moderate content.</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => router.push("/requests")}
+            className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+          >
+            Switch back to regular view
+          </button>
+        </div>
 
         {message ? (
           <div className="mt-4 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700">

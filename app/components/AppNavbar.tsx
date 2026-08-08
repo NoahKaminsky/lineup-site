@@ -634,7 +634,7 @@ function NavbarComponent() {
                               isActive("/admin") ? "bg-black text-white" : "text-neutral-900 hover:bg-neutral-50"
                             }`}
                           >
-                            Admin
+                            Switch to Admin
                           </Link>
                         ) : null}
                       </div>
