@@ -8,7 +8,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { placeId } = await req.json();
+    const { placeId, sessionToken } = await req.json();
 
     if (!placeId || typeof placeId !== "string") {
       return NextResponse.json({ error: "Missing placeId" }, { status: 400 });
@@ -23,7 +23,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
+    const detailsUrl = new URL(`https://places.googleapis.com/v1/places/${placeId}`);
+    if (typeof sessionToken === "string" && sessionToken) {
+      detailsUrl.searchParams.set("sessionToken", sessionToken);
+    }
+
+    const res = await fetch(detailsUrl.toString(), {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

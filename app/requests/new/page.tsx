@@ -174,6 +174,7 @@ function LocationAutocomplete({
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [lookupError, setLookupError] = useState("");
+  const sessionTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     setInput(value);
@@ -190,6 +191,10 @@ function LocationAutocomplete({
       setLoading(true);
 
       try {
+        if (!sessionTokenRef.current) {
+          sessionTokenRef.current = crypto.randomUUID();
+        }
+
         const {
           data: { session },
         } = await supabase.auth.getSession();
@@ -200,7 +205,7 @@ function LocationAutocomplete({
             "Content-Type": "application/json",
             ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
           },
-          body: JSON.stringify({ input }),
+          body: JSON.stringify({ input, sessionToken: sessionTokenRef.current }),
         });
 
         const data = await res.json();
@@ -239,7 +244,7 @@ function LocationAutocomplete({
           "Content-Type": "application/json",
           ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({ placeId: suggestion.placeId }),
+        body: JSON.stringify({ placeId: suggestion.placeId, sessionToken: sessionTokenRef.current }),
       });
 
       const data = await res.json();
@@ -302,6 +307,8 @@ function LocationAutocomplete({
         lng: Number.NaN,
         name: null,
       });
+    } finally {
+      sessionTokenRef.current = null;
     }
   }
 
@@ -362,6 +369,7 @@ function NewRequestPageContent() {
     searchParams.get("rebook") === "1" && !!preferredProfessionalId;
 
   const [rebookProName, setRebookProName] = useState<string | null>(null);
+  const [rebookProTypes, setRebookProTypes] = useState<string[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -433,13 +441,19 @@ function NewRequestPageContent() {
       if (preferredProfessionalId) {
         const { data: proProfile } = await supabase
           .from("profiles")
-          .select("full_name")
+          .select("full_name, professional_type, professional_types")
           .eq("id", preferredProfessionalId)
           .single();
 
         if (proProfile?.full_name) {
           setRebookProName(proProfile.full_name);
         }
+
+        const savedTypes = Array.isArray(proProfile?.professional_types)
+          ? proProfile.professional_types.filter(Boolean)
+          : [];
+        const fallbackType = proProfile?.professional_type ? [proProfile.professional_type] : [];
+        setRebookProTypes(savedTypes.length > 0 ? savedTypes : fallbackType);
       }
 
       setUserId(user.id);
@@ -455,6 +469,32 @@ function NewRequestPageContent() {
       referencePhotos.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
     };
   }, [referencePhotos]);
+
+  const categoryOptions = [
+    { value: "haircut", label: "Hair", Icon: Scissors },
+    { value: "nails", label: "Nails", Icon: Hand },
+    { value: "lashes", label: "Lashes", Icon: Eye },
+    { value: "brows", label: "Brows", Icon: Pencil },
+    { value: "makeup", label: "Makeup", Icon: Palette },
+    { value: "waxing", label: "Waxing", Icon: Droplet },
+    { value: "body_sugaring", label: "Sugaring", Icon: Leaf },
+  ];
+
+  // When requesting a specific professional directly, only offer the services they
+  // actually do — e.g. a brow + lash artist shouldn't be requestable for a haircut.
+  const availableCategoryOptions =
+    isRebook && rebookProTypes && rebookProTypes.length > 0
+      ? categoryOptions.filter((opt) =>
+          getTargetProfessions(opt.value).some((profession) => rebookProTypes.includes(profession))
+        )
+      : categoryOptions;
+
+  useEffect(() => {
+    if (!category) return;
+    if (availableCategoryOptions.some((opt) => opt.value === category)) return;
+    handleCategoryChange("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableCategoryOptions.map((opt) => opt.value).join(",")]);
 
   const remainingPhotoSlots = useMemo(
     () => MAX_REFERENCE_PHOTOS - referencePhotos.length,
@@ -830,16 +870,6 @@ function NewRequestPageContent() {
   const inputClass = "w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900 focus:bg-white";
   const labelClass = "mb-2 block text-sm font-semibold text-neutral-700";
 
-  const categoryOptions = [
-    { value: "haircut", label: "Hair", Icon: Scissors },
-    { value: "nails", label: "Nails", Icon: Hand },
-    { value: "lashes", label: "Lashes", Icon: Eye },
-    { value: "brows", label: "Brows", Icon: Pencil },
-    { value: "makeup", label: "Makeup", Icon: Palette },
-    { value: "waxing", label: "Waxing", Icon: Droplet },
-    { value: "body_sugaring", label: "Sugaring", Icon: Leaf },
-  ];
-
   const serviceModeOptions = [
     { value: "at_home", label: "At my place", sub: "Pro comes to you" },
     { value: "in_shop", label: "Their shop", sub: "You go to them" },
@@ -886,8 +916,13 @@ function NewRequestPageContent() {
               {/* Service category */}
               <div>
                 <label className={labelClass}>Service</label>
+                {isRebook && rebookProTypes && rebookProTypes.length > 0 ? (
+                  <p className="mb-2 -mt-1 text-xs text-neutral-500">
+                    Only showing services {rebookProName || "this professional"} offers.
+                  </p>
+                ) : null}
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                  {categoryOptions.map((opt) => {
+                  {availableCategoryOptions.map((opt) => {
                     const isSelected = category === opt.value;
                     return (
                       <button

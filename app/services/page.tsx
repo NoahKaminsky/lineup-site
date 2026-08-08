@@ -333,6 +333,7 @@ function LocationAutocomplete({
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [lookupError, setLookupError] = useState("");
+  const sessionTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     setInput(value || "");
@@ -349,6 +350,10 @@ function LocationAutocomplete({
       setLoading(true);
 
       try {
+        if (!sessionTokenRef.current) {
+          sessionTokenRef.current = crypto.randomUUID();
+        }
+
         const {
           data: { session },
         } = await supabase.auth.getSession();
@@ -359,7 +364,7 @@ function LocationAutocomplete({
             "Content-Type": "application/json",
             ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
           },
-          body: JSON.stringify({ input }),
+          body: JSON.stringify({ input, sessionToken: sessionTokenRef.current }),
         });
 
         const data = await res.json();
@@ -398,7 +403,7 @@ function LocationAutocomplete({
           "Content-Type": "application/json",
           ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
         },
-        body: JSON.stringify({ placeId: suggestion.placeId }),
+        body: JSON.stringify({ placeId: suggestion.placeId, sessionToken: sessionTokenRef.current }),
       });
 
       const data = await res.json();
@@ -448,6 +453,8 @@ function LocationAutocomplete({
         lng: null,
         name: null,
       });
+    } finally {
+      sessionTokenRef.current = null;
     }
   }
 

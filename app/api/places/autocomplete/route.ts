@@ -8,7 +8,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { input } = await req.json();
+    const { input, sessionToken } = await req.json();
 
     if (typeof input !== "string" || !input.trim() || input.length > 200) {
       return NextResponse.json({ suggestions: [] });
@@ -24,6 +24,7 @@ export async function POST(req: Request) {
         },
         body: JSON.stringify({
           input,
+          ...(typeof sessionToken === "string" && sessionToken ? { sessionToken } : {}),
         }),
       }
     );
