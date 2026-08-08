@@ -1536,64 +1536,88 @@ export default function ServicesPage() {
           </div>
         </AccordionSection>
 
-        <AccordionSection
-          title="Booking settings"
-          subtitle="Direct booking"
-          summary={
-            directBookingEnabled && publicAvailabilityEnabled
-              ? "Instant booking is enabled"
-              : "Control direct booking and public availability"
-          }
-        >
-          <div className="space-y-4">
-            <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4">
-              <div className="pr-4">
-                <p className="text-sm font-medium text-neutral-900">Allow instant booking</p>
-                <p className="mt-1 text-sm text-neutral-500">
-                  Customers can book from open times on your profile.
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={directBookingEnabled}
-                onChange={(e) => setDirectBookingEnabled(e.target.checked)}
-                className="h-5 w-5 accent-black"
-              />
-            </label>
-
-            <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4">
-              <div className="pr-4">
-                <p className="text-sm font-medium text-neutral-900">Show availability publicly</p>
-                <p className="mt-1 text-sm text-neutral-500">
-                  Display your open times on your public profile.
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={publicAvailabilityEnabled}
-                onChange={(e) => setPublicAvailabilityEnabled(e.target.checked)}
-                className="h-5 w-5 accent-black"
-              />
-            </label>
-
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-              <label className="mb-2 block text-sm font-medium text-neutral-900">
-                Default slot length shown on profile
+        {isSubscribed ? (
+          <AccordionSection
+            title="Booking settings"
+            subtitle="Direct booking"
+            summary={
+              directBookingEnabled && publicAvailabilityEnabled
+                ? "Instant booking is enabled"
+                : "Control direct booking and public availability"
+            }
+          >
+            <div className="space-y-4">
+              <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4">
+                <div className="pr-4">
+                  <p className="text-sm font-medium text-neutral-900">Allow instant booking</p>
+                  <p className="mt-1 text-sm text-neutral-500">
+                    Customers can book from open times on your profile.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={directBookingEnabled}
+                  onChange={(e) => setDirectBookingEnabled(e.target.checked)}
+                  className="h-5 w-5 accent-black"
+                />
               </label>
-              <select
-                value={defaultAppointmentDuration}
-                onChange={(e) => setDefaultAppointmentDuration(Number(e.target.value))}
-                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
+
+              <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4">
+                <div className="pr-4">
+                  <p className="text-sm font-medium text-neutral-900">Show availability publicly</p>
+                  <p className="mt-1 text-sm text-neutral-500">
+                    Display your open times on your public profile.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={publicAvailabilityEnabled}
+                  onChange={(e) => setPublicAvailabilityEnabled(e.target.checked)}
+                  className="h-5 w-5 accent-black"
+                />
+              </label>
+
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <label className="mb-2 block text-sm font-medium text-neutral-900">
+                  Default slot length shown on profile
+                </label>
+                <select
+                  value={defaultAppointmentDuration}
+                  onChange={(e) => setDefaultAppointmentDuration(Number(e.target.value))}
+                  className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
+                >
+                  {[30, 45, 60, 75, 90, 120].map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {minutes} minutes
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </AccordionSection>
+        ) : (
+          <div className="mt-6 overflow-hidden rounded-[2rem] border border-neutral-200 bg-neutral-50 shadow-sm">
+            <div className="px-5 py-5 sm:px-6">
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
+                Direct booking
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+                Let clients book you instantly
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-neutral-500">
+                Any paid plan unlocks a real booking calendar on your profile — clients pick an
+                open time and pay right there, no back-and-forth. It turns on automatically the
+                moment you subscribe.
+              </p>
+              <Link
+                href="/subscription"
+                className="mt-4 inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
               >
-                {[30, 45, 60, 75, 90, 120].map((minutes) => (
-                  <option key={minutes} value={minutes}>
-                    {minutes} minutes
-                  </option>
-                ))}
-              </select>
+                See plans
+              </Link>
             </div>
           </div>
-        </AccordionSection>
+        )}
 
         <AccordionSection
           id="availability"

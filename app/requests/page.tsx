@@ -57,7 +57,7 @@ const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
     eyebrow: "Last step",
     title: "Choose how you want to grow.",
     description:
-      "Basic is free and lets you take on real clients right away. Upgrade any time to unlock your own booking calendar for direct bookings, deeper analytics, and higher monthly limits.",
+      "Basic is free and lets you take on real clients right away. Any paid plan turns on an instant-booking calendar on your profile automatically — clients pick an open time and pay right there, no offers needed. It's on by default once you subscribe, and you can turn it off in Services if you'd rather not.",
   },
 ];
 

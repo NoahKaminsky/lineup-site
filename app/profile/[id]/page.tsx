@@ -327,6 +327,7 @@ function AccordionSection({
   subtitle,
   summary,
   defaultOpen = false,
+  collapsible = true,
   children,
 }: {
   id?: string;
@@ -334,9 +335,37 @@ function AccordionSection({
   subtitle?: string;
   summary?: string;
   defaultOpen?: boolean;
+  collapsible?: boolean;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+
+  if (!collapsible) {
+    return (
+      <section
+        id={id}
+        className="mt-6 scroll-mt-24 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm"
+      >
+        <div className="px-5 pt-5 sm:px-6 sm:pt-6">
+          {subtitle ? (
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
+              {subtitle}
+            </p>
+          ) : null}
+
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+            {title}
+          </h2>
+
+          {summary ? (
+            <p className="mt-1 text-sm leading-6 text-neutral-500">{summary}</p>
+          ) : null}
+        </div>
+
+        <div className="p-5 sm:p-6">{children}</div>
+      </section>
+    );
+  }
 
   return (
     <section
@@ -421,6 +450,7 @@ export default function ProfessionalProfilePage() {
   const [selectedSlot, setSelectedSlot] = useState<GeneratedSlot | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [selectedServiceMode, setSelectedServiceMode] = useState<string | null>(null);
+  const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
   const [locationInput, setLocationInput] = useState("");
   const [locationPlaceId, setLocationPlaceId] = useState("");
   const [locationLat, setLocationLat] = useState<number | null>(null);
@@ -688,8 +718,20 @@ export default function ProfessionalProfilePage() {
     return Math.max(Number(profile?.default_appointment_duration || 60), 30);
   }, [profile?.default_appointment_duration]);
 
+  const directBookingModes = getPlainServiceModes(profile?.service_modes ?? null).filter((mode) =>
+    ["in_shop", "home_studio"].includes(mode)
+  );
+
+  // Instant booking needs a fixed location to book against, so it also
+  // requires the professional to offer in-shop or home-studio (not just
+  // at-home) — without that, the calendar has nowhere valid to send someone.
+  const canDirectBook =
+    !!profile?.direct_booking_enabled &&
+    !!profile?.public_availability_enabled &&
+    directBookingModes.length > 0;
+
   const generatedSlots = useMemo(() => {
-    if (!profile?.direct_booking_enabled || !profile?.public_availability_enabled) {
+    if (!canDirectBook) {
       return [];
     }
 
@@ -756,7 +798,7 @@ export default function ProfessionalProfilePage() {
     }
 
     return nextSevenDays;
-  }, [availability, bookings, profile, slotBlockMinutes]);
+  }, [availability, bookings, profile, slotBlockMinutes, canDirectBook]);
 
   const groupedSlots = useMemo(() => {
     const groups = new Map<
@@ -863,6 +905,11 @@ export default function ProfessionalProfilePage() {
     ].filter((group) => group.slots.length > 0);
   }, [selectedBookingDay]);
 
+  const activePeriodGroup =
+    selectedDayTimeGroups.find((group) => group.label === selectedPeriod) ||
+    selectedDayTimeGroups[0] ||
+    null;
+
   const servicesThatFitSelectedSlot = useMemo(() => {
     if (!selectedSlot) return [];
     return services.filter(
@@ -967,10 +1014,6 @@ export default function ProfessionalProfilePage() {
     if (minutes < 12 * 60) return "morning";
     if (minutes < 16 * 60) return "afternoon";
     return "evening";
-  }
-
-  function getSlotSymbol(time: string) {
-    return getSlotPeriod(time) === "evening" ? "evening" : "daytime";
   }
 
   function getDaySymbols(slots: GeneratedSlot[]) {
@@ -1274,15 +1317,11 @@ if (loading) {
   const professionalTypeLabels = getProfessionalTypeLabels(profile);
 
   const profileTags = [
-    profile.direct_booking_enabled ? "Direct booking" : null,
+    canDirectBook ? "Direct booking" : null,
     getNextOpeningText() ? "Open this week" : null,
     averageRating ? "Highly rated" : null,
     reviews.length >= 3 ? "Trusted by clients" : null,
   ].filter(Boolean) as string[];
-
-  const directBookingModes = getPlainServiceModes(profile.service_modes).filter((mode) =>
-    ["in_shop", "home_studio"].includes(mode)
-  );
 
   const professionalBookingAddress = profile.formatted_address || profile.location || null;
   const professionalMapsUrl = getGoogleMapsUrl(
@@ -1410,7 +1449,7 @@ if (loading) {
 
                 {isProfessional && viewerIsCustomer && viewerUserId !== profile.id ? (
                   <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[240px]">
-                    {profile.direct_booking_enabled && profile.public_availability_enabled ? (
+                    {canDirectBook ? (
                       <a
                         href="#availability"
                         className="inline-flex items-center justify-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
@@ -1454,205 +1493,13 @@ if (loading) {
               ) : null}
             </div>
           </section>
-
-          {isProfessional && services.length > 0 ? (
-            <AccordionSection
-              title="What you can book"
-              subtitle="Services"
-              summary={`${services.length} service${services.length === 1 ? "" : "s"} available`}
-              defaultOpen
-            >
-              <div className="grid gap-3">
-                {services.map((service) => (
-                  <div
-                    key={service.id}
-                    className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-4"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-lg font-semibold text-neutral-900">
-                            {service.service_name}
-                          </p>
-
-                          {formatPrice(service.price) ? (
-                            <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-neutral-900 ring-1 ring-neutral-200">
-                              {formatPrice(service.price)}
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-neutral-500">
-                          <span className="inline-flex items-center gap-1.5">
-                            <Clock3 className="h-4 w-4" />
-                            {service.duration_minutes} min
-                          </span>
-                          <span className="inline-flex items-center gap-1.5">
-                            <ShieldCheck className="h-4 w-4" />
-                            {service.is_bookable ? "Bookable" : "Request only"}
-                          </span>
-                        </div>
-
-                        {service.description ? (
-                          <p className="mt-3 line-clamp-2 text-sm leading-6 text-neutral-600">
-                            {service.description}
-                          </p>
-                        ) : null}
-                      </div>
-
-                      {profile.direct_booking_enabled && profile.public_availability_enabled ? (
-                        <a
-                          href="#availability"
-                          className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
-                        >
-                          View times
-                        </a>
-                      ) : (
-                        <Link
-                          href={`/requests/new?rebook=1&pro=${profile.id}`}
-                          className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
-                        >
-                          Request service
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </AccordionSection>
-          ) : null}
-
-          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-            <AccordionSection
-              title="About"
-              subtitle="Profile"
-              summary={profile.bio?.trim() ? "Bio, categories, specialties, and Instagram" : "No bio added yet"}
-            >
-              <div>
-                <p className="max-w-3xl text-base leading-8 text-neutral-600">
-                  {profile.bio?.trim() || "No bio added yet."}
-                </p>
-              </div>
-
-              {isProfessional && professionalTypeLabels.length > 0 ? (
-                <div className="mt-8">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    Service categories
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    {professionalTypeLabels.map((label) => (
-                      <span
-                        key={label}
-                        className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {isProfessional && profile.specialties && profile.specialties.length > 0 ? (
-                <div className="mt-8">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    Specialties
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    {profile.specialties.map((specialty) => (
-                      <span
-                        key={specialty}
-                        className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
-                      >
-                        {specialty}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {profile.instagram_handle ? (
-                <div className="mt-8">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                    Instagram
-                  </p>
-                  <a
-                    href={`https://instagram.com/${String(profile.instagram_handle).replace("@", "")}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 inline-flex rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                  >
-                    @{String(profile.instagram_handle).replace("@", "")}
-                  </a>
-                </div>
-              ) : null}
-            </AccordionSection>
-
-            {isProfessional ? (
-              <AccordionSection
-                title="Trust snapshot"
-                subtitle="Trust"
-                summary={`${averageRating || "No"} rating · ${reviews.length} review${reviews.length === 1 ? "" : "s"}`}
-              >
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      Average rating
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                      {averageRating || "—"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      Reviews
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                      {reviews.length}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      Bookable services
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                      {services.length}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      Next opening
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-neutral-900">
-                      {getNextOpeningText() || "No opening"}
-                    </p>
-                  </div>
-                </div>
-
-                {viewerIsCustomer && viewerUserId !== profile.id ? (
-                  <div className="mt-4">
-                    <Link
-                      href={`/requests/new?rebook=1&pro=${profile.id}`}
-                      className="inline-flex w-full items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                    >
-                      {hasBookedBefore ? "Request again" : "Start a request"}
-                    </Link>
-                  </div>
-                ) : null}
-              </AccordionSection>
-            ) : null}
-          </div>
-
-          {isProfessional &&
-          profile.direct_booking_enabled &&
-          profile.public_availability_enabled ? (
+          {isProfessional && canDirectBook ? (
             <AccordionSection
               id="availability"
               title="Book a time"
               subtitle="Availability"
               summary={getNextOpeningText() ? `Next opening: ${getNextOpeningText()}` : "View available times"}
+              collapsible={false}
             >
 
               {services.length === 0 ? (
@@ -1781,90 +1628,86 @@ if (loading) {
                           No times available for this day. Pick another day with an open time.
                         </div>
                       ) : (
-                        <div className="mt-6 space-y-6">
-                          {selectedDayTimeGroups.map((group) => {
-                            const isEveningGroup = group.label === "Evening";
+                        <div className="mt-6">
+                          {selectedDayTimeGroups.length > 1 ? (
+                            <div className="flex gap-2">
+                              {selectedDayTimeGroups.map((group) => {
+                                const isActive = activePeriodGroup?.label === group.label;
+                                const isEveningGroup = group.label === "Evening";
 
-                            return (
-                              <div key={group.label} className="border-t border-neutral-200 pt-5 first:border-t-0 first:pt-0">
-                                <div className="mb-3 flex items-center gap-3">
-                                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-700 ring-1 ring-neutral-200">
+                                return (
+                                  <button
+                                    key={group.label}
+                                    type="button"
+                                    onClick={() => setSelectedPeriod(group.label)}
+                                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl border px-3 py-2.5 text-sm font-medium transition ${
+                                      isActive
+                                        ? "border-black bg-black text-white"
+                                        : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400"
+                                    }`}
+                                  >
                                     {isEveningGroup ? (
-                                      <Moon className="h-4 w-4" strokeWidth={2.25} />
+                                      <Moon className="h-3.5 w-3.5" strokeWidth={2.25} />
                                     ) : (
-                                      <Sun className="h-4 w-4" strokeWidth={2.25} />
+                                      <Sun className="h-3.5 w-3.5" strokeWidth={2.25} />
                                     )}
-                                  </span>
-                                  <div>
-                                    <p className="text-sm font-semibold text-neutral-900">
-                                      {group.label}
-                                    </p>
-                                    <p className="text-xs text-neutral-500">{group.helper}</p>
-                                  </div>
-                                </div>
+                                    {group.label}
+                                    <span className={isActive ? "text-white/70" : "text-neutral-400"}>
+                                      {group.slots.length}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : null}
 
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                                  {group.slots.map((slot) => (
-                                    <button
-                                      key={slot.key}
-                                      type="button"
-                                      disabled={
-                                        !viewerIsCustomer ||
-                                        viewerUserId === profile.id ||
-                                        bookingSlotKey === slot.key
-                                      }
-                                      onClick={() => {
-                                        setSelectedSlot(slot);
-                                        setSelectedServiceMode(directBookingModes.length === 1 ? directBookingModes[0] : null);
-                                        setLocationInput("");
-                                        setLocationPlaceId("");
-                                        setLocationLat(null);
-                                        setLocationLng(null);
-                                        setMessage("");
-                                      }}
-                                      className={`min-w-0 rounded-2xl border px-3 py-3 text-left transition-all duration-150 ${
+                          {activePeriodGroup ? (
+                            <div className={selectedDayTimeGroups.length > 1 ? "mt-4" : ""}>
+                              <p className="mb-3 text-xs text-neutral-500">{activePeriodGroup.helper}</p>
+                              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                                {activePeriodGroup.slots.map((slot) => (
+                                  <button
+                                    key={slot.key}
+                                    type="button"
+                                    disabled={
+                                      !viewerIsCustomer ||
+                                      viewerUserId === profile.id ||
+                                      bookingSlotKey === slot.key
+                                    }
+                                    onClick={() => {
+                                      setSelectedSlot(slot);
+                                      setSelectedServiceMode(directBookingModes.length === 1 ? directBookingModes[0] : null);
+                                      setLocationInput("");
+                                      setLocationPlaceId("");
+                                      setLocationLat(null);
+                                      setLocationLng(null);
+                                      setMessage("");
+                                    }}
+                                    className={`min-w-0 rounded-2xl border px-3 py-3 text-left transition-all duration-150 ${
+                                      selectedSlot?.key === slot.key
+                                        ? "border-black bg-black text-white shadow-md"
+                                        : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 hover:shadow-sm"
+                                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                                  >
+                                    <p className="text-base font-semibold">
+                                      {bookingSlotKey === slot.key
+                                        ? "Booking..."
+                                        : formatTime(slot.start_time)}
+                                    </p>
+                                    <p
+                                      className={`mt-1 text-xs ${
                                         selectedSlot?.key === slot.key
-                                          ? "border-black bg-black text-white shadow-md"
-                                          : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 hover:shadow-sm"
-                                      } disabled:cursor-not-allowed disabled:opacity-50`}
+                                          ? "text-white/70"
+                                          : "text-neutral-500"
+                                      }`}
                                     >
-                                      <div className="flex items-start justify-between gap-3">
-                                        <div>
-                                          <p className="text-base font-semibold">
-                                            {bookingSlotKey === slot.key
-                                              ? "Booking..."
-                                              : formatTime(slot.start_time)}
-                                          </p>
-                                          <p
-                                            className={`mt-1 text-xs ${
-                                              selectedSlot?.key === slot.key
-                                                ? "text-white/70"
-                                                : "text-neutral-500"
-                                            }`}
-                                          >
-                                            until {formatTime(slot.end_time)}
-                                          </p>
-                                        </div>
-                                        <span
-                                          className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-1 ${
-                                            selectedSlot?.key === slot.key
-                                              ? "bg-white/20 text-white ring-white/20"
-                                              : "bg-neutral-100 text-neutral-700 ring-neutral-200"
-                                          }`}
-                                        >
-                                          {getSlotSymbol(slot.start_time) === "evening" ? (
-                                            <Moon className="h-3.5 w-3.5" strokeWidth={2.25} />
-                                          ) : (
-                                            <Sun className="h-3.5 w-3.5" strokeWidth={2.25} />
-                                          )}
-                                        </span>
-                                      </div>
-                                    </button>
-                                  ))}
-                                </div>
+                                      until {formatTime(slot.end_time)}
+                                    </p>
+                                  </button>
+                                ))}
                               </div>
-                            );
-                          })}
+                            </div>
+                          ) : null}
                         </div>
                       )}
                     </div>
@@ -2048,6 +1891,197 @@ if (loading) {
               )}
             </AccordionSection>
           ) : null}
+
+          {isProfessional && services.length > 0 ? (
+            <AccordionSection
+              title="What you can book"
+              subtitle="Services"
+              summary={`${services.length} service${services.length === 1 ? "" : "s"} available`}
+              defaultOpen
+            >
+              <div className="grid gap-3">
+                {services.map((service) => (
+                  <div
+                    key={service.id}
+                    className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-4"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-lg font-semibold text-neutral-900">
+                            {service.service_name}
+                          </p>
+
+                          {formatPrice(service.price) ? (
+                            <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-neutral-900 ring-1 ring-neutral-200">
+                              {formatPrice(service.price)}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-neutral-500">
+                          <span className="inline-flex items-center gap-1.5">
+                            <Clock3 className="h-4 w-4" />
+                            {service.duration_minutes} min
+                          </span>
+                          <span className="inline-flex items-center gap-1.5">
+                            <ShieldCheck className="h-4 w-4" />
+                            {service.is_bookable ? "Bookable" : "Request only"}
+                          </span>
+                        </div>
+
+                        {service.description ? (
+                          <p className="mt-3 line-clamp-2 text-sm leading-6 text-neutral-600">
+                            {service.description}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      {canDirectBook ? (
+                        <a
+                          href="#availability"
+                          className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
+                        >
+                          View times
+                        </a>
+                      ) : (
+                        <Link
+                          href={`/requests/new?rebook=1&pro=${profile.id}`}
+                          className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
+                        >
+                          Request service
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </AccordionSection>
+          ) : null}
+
+          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <AccordionSection
+              title="About"
+              subtitle="Profile"
+              summary={profile.bio?.trim() ? "Bio, categories, specialties, and Instagram" : "No bio added yet"}
+            >
+              <div>
+                <p className="max-w-3xl text-base leading-8 text-neutral-600">
+                  {profile.bio?.trim() || "No bio added yet."}
+                </p>
+              </div>
+
+              {isProfessional && professionalTypeLabels.length > 0 ? (
+                <div className="mt-8">
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Service categories
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {professionalTypeLabels.map((label) => (
+                      <span
+                        key={label}
+                        className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {isProfessional && profile.specialties && profile.specialties.length > 0 ? (
+                <div className="mt-8">
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Specialties
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {profile.specialties.map((specialty) => (
+                      <span
+                        key={specialty}
+                        className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
+                      >
+                        {specialty}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {profile.instagram_handle ? (
+                <div className="mt-8">
+                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    Instagram
+                  </p>
+                  <a
+                    href={`https://instagram.com/${String(profile.instagram_handle).replace("@", "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                  >
+                    @{String(profile.instagram_handle).replace("@", "")}
+                  </a>
+                </div>
+              ) : null}
+            </AccordionSection>
+
+            {isProfessional ? (
+              <AccordionSection
+                title="Trust snapshot"
+                subtitle="Trust"
+                summary={`${averageRating || "No"} rating · ${reviews.length} review${reviews.length === 1 ? "" : "s"}`}
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Average rating
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-neutral-900">
+                      {averageRating || "—"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Reviews
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-neutral-900">
+                      {reviews.length}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Bookable services
+                    </p>
+                    <p className="mt-2 text-2xl font-semibold text-neutral-900">
+                      {services.length}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Next opening
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-neutral-900">
+                      {getNextOpeningText() || "No opening"}
+                    </p>
+                  </div>
+                </div>
+
+                {viewerIsCustomer && viewerUserId !== profile.id ? (
+                  <div className="mt-4">
+                    <Link
+                      href={`/requests/new?rebook=1&pro=${profile.id}`}
+                      className="inline-flex w-full items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                    >
+                      {hasBookedBefore ? "Request again" : "Start a request"}
+                    </Link>
+                  </div>
+                ) : null}
+              </AccordionSection>
+            ) : null}
+          </div>
+
 
           {isProfessional ? (
             <AccordionSection
