@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -271,6 +271,38 @@ function getGroupedAvailability(windows: AvailabilityWindow[]) {
   }));
 }
 
+function buildAvailabilitySignature(windows: AvailabilityWindow[]) {
+  return windows
+    .filter((window) => window.is_active)
+    .map((window) => `${window.day_of_week}:${window.start_time}-${window.end_time}`)
+    .sort()
+    .join(",");
+}
+
+function buildSettingsSnapshot(args: {
+  serviceModes: string[];
+  directBookingEnabled: boolean;
+  publicAvailabilityEnabled: boolean;
+  defaultAppointmentDuration: number;
+  location: string;
+  locationLat: number | null;
+  locationLng: number | null;
+  locationPlaceId: string;
+  availabilityWindows: AvailabilityWindow[];
+}) {
+  return JSON.stringify({
+    serviceModes: [...args.serviceModes].sort(),
+    directBookingEnabled: args.directBookingEnabled,
+    publicAvailabilityEnabled: args.publicAvailabilityEnabled,
+    defaultAppointmentDuration: args.defaultAppointmentDuration,
+    location: args.location.trim(),
+    locationLat: args.locationLat,
+    locationLng: args.locationLng,
+    locationPlaceId: args.locationPlaceId,
+    availability: buildAvailabilitySignature(args.availabilityWindows),
+  });
+}
+
 type LocationSuggestion = {
   placeId: string;
   text: string;
@@ -535,6 +567,10 @@ export default function ServicesPage() {
   const [locationLng, setLocationLng] = useState<number | null>(null);
   const [locationPlaceId, setLocationPlaceId] = useState("");
 
+  const [savedSnapshot, setSavedSnapshot] = useState("");
+  const [justSaved, setJustSaved] = useState(false);
+  const savedFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [newServiceName, setNewServiceName] = useState("");
   const [newServiceDuration, setNewServiceDuration] = useState(45);
   const [newServicePrice, setNewServicePrice] = useState("");
@@ -557,6 +593,46 @@ export default function ServicesPage() {
   const displayedBusinessAddress = formatShortAddress(location);
   const businessMapsUrl = getMapsUrl(locationLat, locationLng, location);
 
+  const currentSettingsSnapshot = useMemo(
+    () =>
+      buildSettingsSnapshot({
+        serviceModes,
+        directBookingEnabled,
+        publicAvailabilityEnabled,
+        defaultAppointmentDuration,
+        location,
+        locationLat,
+        locationLng,
+        locationPlaceId,
+        availabilityWindows,
+      }),
+    [
+      serviceModes,
+      directBookingEnabled,
+      publicAvailabilityEnabled,
+      defaultAppointmentDuration,
+      location,
+      locationLat,
+      locationLng,
+      locationPlaceId,
+      availabilityWindows,
+    ]
+  );
+
+  const isSettingsDirty = savedSnapshot !== "" && currentSettingsSnapshot !== savedSnapshot;
+
+  useEffect(() => {
+    return () => {
+      if (savedFlashTimeoutRef.current) clearTimeout(savedFlashTimeoutRef.current);
+    };
+  }, []);
+
+  function flashSaved() {
+    setJustSaved(true);
+    if (savedFlashTimeoutRef.current) clearTimeout(savedFlashTimeoutRef.current);
+    savedFlashTimeoutRef.current = setTimeout(() => setJustSaved(false), 2000);
+  }
+
   useEffect(() => {
     const cached = getCached<ServicesCache>("services-page");
     if (cached) {
@@ -571,6 +647,19 @@ export default function ServicesPage() {
       setLocationLat(cached.locationLat);
       setLocationLng(cached.locationLng);
       setLocationPlaceId(cached.locationPlaceId);
+      setSavedSnapshot(
+        buildSettingsSnapshot({
+          serviceModes: cached.serviceModes,
+          directBookingEnabled: cached.directBookingEnabled,
+          publicAvailabilityEnabled: cached.publicAvailabilityEnabled,
+          defaultAppointmentDuration: cached.defaultAppointmentDuration,
+          location: cached.location,
+          locationLat: cached.locationLat,
+          locationLng: cached.locationLng,
+          locationPlaceId: cached.locationPlaceId,
+          availabilityWindows: cached.availabilityWindows,
+        })
+      );
     }
 
     async function loadPage() {
@@ -657,19 +746,41 @@ export default function ServicesPage() {
 
       setServices(resolvedServices);
 
+      const resolvedLocation = profileData.formatted_address || "";
+      const resolvedLocationLat = profileData.location_lat ?? null;
+      const resolvedLocationLng = profileData.location_lng ?? null;
+      const resolvedLocationPlaceId = profileData.location_place_id || "";
+      const resolvedDirectBookingEnabled = Boolean(profileData.direct_booking_enabled);
+      const resolvedPublicAvailabilityEnabled = Boolean(profileData.public_availability_enabled);
+      const resolvedDefaultAppointmentDuration = Number(profileData.default_appointment_duration || 60);
+
       setCached<ServicesCache>("services-page", {
         profile: profileData as Profile,
         services: resolvedServices,
         serviceModes: resolvedServiceModes,
-        directBookingEnabled: Boolean(profileData.direct_booking_enabled),
-        publicAvailabilityEnabled: Boolean(profileData.public_availability_enabled),
-        defaultAppointmentDuration: Number(profileData.default_appointment_duration || 60),
+        directBookingEnabled: resolvedDirectBookingEnabled,
+        publicAvailabilityEnabled: resolvedPublicAvailabilityEnabled,
+        defaultAppointmentDuration: resolvedDefaultAppointmentDuration,
         availabilityWindows: resolvedAvailability,
-        location: profileData.formatted_address || "",
-        locationLat: profileData.location_lat ?? null,
-        locationLng: profileData.location_lng ?? null,
-        locationPlaceId: profileData.location_place_id || "",
+        location: resolvedLocation,
+        locationLat: resolvedLocationLat,
+        locationLng: resolvedLocationLng,
+        locationPlaceId: resolvedLocationPlaceId,
       });
+
+      setSavedSnapshot(
+        buildSettingsSnapshot({
+          serviceModes: resolvedServiceModes,
+          directBookingEnabled: resolvedDirectBookingEnabled,
+          publicAvailabilityEnabled: resolvedPublicAvailabilityEnabled,
+          defaultAppointmentDuration: resolvedDefaultAppointmentDuration,
+          location: resolvedLocation,
+          locationLat: resolvedLocationLat,
+          locationLng: resolvedLocationLng,
+          locationPlaceId: resolvedLocationPlaceId,
+          availabilityWindows: resolvedAvailability,
+        })
+      );
 
       setLoading(false);
     }
@@ -985,40 +1096,45 @@ export default function ServicesPage() {
       }
     }
 
-    if (needsBusinessLocation && !location.trim()) {
-      setSaving(false);
-      setMessage("Please enter your shop or studio address before saving.");
-      return;
-    }
+    // Location has its own validity gate (a business address needs a Google-verified
+    // place + coordinates), but an invalid address must never block saving everything
+    // else here (service modes, booking toggles, availability) — that used to make the
+    // whole save silently no-op whenever the address wasn't fully resolved.
+    const locationIsValid =
+      !needsBusinessLocation ||
+      (!!location.trim() &&
+        !!locationPlaceId &&
+        Number.isFinite(locationLat) &&
+        Number.isFinite(locationLng));
 
-    if (needsBusinessLocation && !locationPlaceId) {
-      setSaving(false);
-      setMessage("Please select your shop or studio from the Google suggestions before saving so maps and distance work correctly.");
-      return;
-    }
+    const locationWarning = !locationIsValid
+      ? !location.trim()
+        ? "Business address was not saved — enter your shop or studio address."
+        : !locationPlaceId
+        ? "Business address was not saved — select it from the Google suggestions so maps and distance work correctly."
+        : "Business address was not saved — Google did not return coordinates for that selection, choose a more specific suggestion."
+      : null;
 
-    if (needsBusinessLocation && (!Number.isFinite(locationLat) || !Number.isFinite(locationLng))) {
-      setSaving(false);
-      setMessage("Google did not return coordinates for that selection. Please choose a more specific Google suggestion so map preview and distance can work.");
-      return;
-    }
-
-    const savedFormattedAddress = location.trim() || null;
-    const savedLocationLat = Number.isFinite(locationLat) ? locationLat : null;
-    const savedLocationLng = Number.isFinite(locationLng) ? locationLng : null;
-    const savedLocationPlaceId = locationPlaceId || null;
+    const savedFormattedAddress = locationIsValid ? location.trim() || null : profile.formatted_address ?? null;
+    const savedLocationLat = locationIsValid ? (Number.isFinite(locationLat) ? locationLat : null) : profile.location_lat ?? null;
+    const savedLocationLng = locationIsValid ? (Number.isFinite(locationLng) ? locationLng : null) : profile.location_lng ?? null;
+    const savedLocationPlaceId = locationIsValid ? locationPlaceId || null : profile.location_place_id ?? null;
 
     const { error: profileError } = await supabase
       .from("profiles")
       .update({
         service_modes: serviceModes,
-        formatted_address: savedFormattedAddress,
-        location_lat: savedLocationLat,
-        location_lng: savedLocationLng,
-        location_place_id: savedLocationPlaceId,
         direct_booking_enabled: directBookingEnabled,
         public_availability_enabled: publicAvailabilityEnabled,
         default_appointment_duration: defaultAppointmentDuration,
+        ...(locationIsValid
+          ? {
+              formatted_address: savedFormattedAddress,
+              location_lat: savedLocationLat,
+              location_lng: savedLocationLng,
+              location_place_id: savedLocationPlaceId,
+            }
+          : {}),
       })
       .eq("id", profile.id);
 
@@ -1039,6 +1155,8 @@ export default function ServicesPage() {
       return;
     }
 
+    let savedAvailabilityWindows: AvailabilityWindow[] = [];
+
     if (activeAvailabilityRows.length > 0) {
       const { data, error: insertAvailabilityError } = await supabase
         .from("professional_availability")
@@ -1051,19 +1169,24 @@ export default function ServicesPage() {
         return;
       }
 
-      setAvailabilityWindows(
-        (data || []).map((row) => ({
-          id: row.id,
-          professional_id: row.professional_id,
-          day_of_week: Number(row.day_of_week),
-          start_time: normalizeTime(row.start_time),
-          end_time: normalizeTime(row.end_time),
-          is_active: Boolean(row.is_active),
-          local_id: row.id || makeLocalId(),
-        }))
-      );
-    } else {
-      setAvailabilityWindows([]);
+      savedAvailabilityWindows = (data || []).map((row) => ({
+        id: row.id,
+        professional_id: row.professional_id,
+        day_of_week: Number(row.day_of_week),
+        start_time: normalizeTime(row.start_time),
+        end_time: normalizeTime(row.end_time),
+        is_active: Boolean(row.is_active),
+        local_id: row.id || makeLocalId(),
+      }));
+    }
+
+    setAvailabilityWindows(savedAvailabilityWindows);
+
+    if (locationIsValid) {
+      setLocation(savedFormattedAddress || "");
+      setLocationLat(savedLocationLat);
+      setLocationLng(savedLocationLng);
+      setLocationPlaceId(savedLocationPlaceId || "");
     }
 
     setProfile((prev) =>
@@ -1071,25 +1194,46 @@ export default function ServicesPage() {
         ? {
             ...prev,
             service_modes: serviceModes,
-            formatted_address: savedFormattedAddress,
-            location_lat: savedLocationLat,
-            location_lng: savedLocationLng,
-            location_place_id: savedLocationPlaceId,
             direct_booking_enabled: directBookingEnabled,
             public_availability_enabled: publicAvailabilityEnabled,
             default_appointment_duration: defaultAppointmentDuration,
+            ...(locationIsValid
+              ? {
+                  formatted_address: savedFormattedAddress,
+                  location_lat: savedLocationLat,
+                  location_lng: savedLocationLng,
+                  location_place_id: savedLocationPlaceId,
+                }
+              : {}),
           }
         : prev
     );
 
     setSaving(false);
-    setMessage(
-      savedLocationLat !== null && savedLocationLng !== null
-        ? "Services and availability updated. Business location saved with map coordinates."
-        : savedLocationPlaceId
-        ? "Services and availability updated. Google location saved, but coordinates are missing, so map preview will not show yet."
-        : "Services and availability updated. Business address saved; select a Google suggestion later for map previews."
+
+    const successMessage =
+      locationIsValid && needsBusinessLocation
+        ? savedLocationLat !== null && savedLocationLng !== null
+          ? "Services, booking settings, and availability updated. Business location saved with map coordinates."
+          : "Services, booking settings, and availability updated. Business address saved; select a Google suggestion later for map previews."
+        : "Services, booking settings, and availability updated.";
+
+    setMessage(locationWarning ? `${successMessage} ${locationWarning}` : successMessage);
+
+    setSavedSnapshot(
+      buildSettingsSnapshot({
+        serviceModes,
+        directBookingEnabled,
+        publicAvailabilityEnabled,
+        defaultAppointmentDuration,
+        location: locationIsValid ? savedFormattedAddress || "" : location,
+        locationLat: locationIsValid ? savedLocationLat : locationLat,
+        locationLng: locationIsValid ? savedLocationLng : locationLng,
+        locationPlaceId: locationIsValid ? savedLocationPlaceId || "" : locationPlaceId,
+        availabilityWindows: savedAvailabilityWindows,
+      })
     );
+    flashSaved();
   }
 
   if (loading) {
@@ -1133,14 +1277,16 @@ export default function ServicesPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleSaveSettings}
-            disabled={saving}
-            className="w-full rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60 sm:w-auto"
-          >
-            {saving ? "Saving..." : "Save changes"}
-          </button>
+          {isSettingsDirty || saving || justSaved ? (
+            <button
+              type="button"
+              onClick={handleSaveSettings}
+              disabled={saving || justSaved}
+              className="w-full rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60 sm:w-auto"
+            >
+              {saving ? "Saving..." : justSaved ? "Saved" : "Save changes"}
+            </button>
+          ) : null}
         </div>
 
         {message ? (
@@ -1718,23 +1864,29 @@ export default function ServicesPage() {
           )}
         </AccordionSection>
 
-        <div className="mt-8 flex flex-col gap-3 rounded-[1.75rem] border border-neutral-200 bg-neutral-50 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-neutral-900">Ready to save?</p>
-            <p className="mt-1 text-sm text-neutral-500">
-              Save after changing services, location, booking settings, or weekly availability.
-            </p>
-          </div>
+        {isSettingsDirty || saving || justSaved ? (
+          <div className="mt-8 flex flex-col gap-3 rounded-[1.75rem] border border-neutral-200 bg-neutral-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-neutral-900">
+                {justSaved && !isSettingsDirty ? "Saved" : "Ready to save?"}
+              </p>
+              <p className="mt-1 text-sm text-neutral-500">
+                {justSaved && !isSettingsDirty
+                  ? "Your location, booking settings, and availability changes were saved."
+                  : "Save after changing location, booking settings, or weekly availability."}
+              </p>
+            </div>
 
-          <button
-            type="button"
-            onClick={handleSaveSettings}
-            disabled={saving}
-            className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
-          >
-            {saving ? "Saving..." : "Save services & availability"}
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={handleSaveSettings}
+              disabled={saving || justSaved}
+              className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+            >
+              {saving ? "Saving..." : justSaved ? "Saved" : "Save services & availability"}
+            </button>
+          </div>
+        ) : null}
       </div>
     </main>
   );

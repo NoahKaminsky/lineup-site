@@ -1630,7 +1630,7 @@ if (loading) {
                       ) : (
                         <div className="mt-6">
                           {selectedDayTimeGroups.length > 1 ? (
-                            <div className="flex gap-2">
+                            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                               {selectedDayTimeGroups.map((group) => {
                                 const isActive = activePeriodGroup?.label === group.label;
                                 const isEveningGroup = group.label === "Evening";
@@ -1640,7 +1640,7 @@ if (loading) {
                                     key={group.label}
                                     type="button"
                                     onClick={() => setSelectedPeriod(group.label)}
-                                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl border px-3 py-2.5 text-sm font-medium transition ${
+                                    className={`flex shrink-0 items-center justify-center gap-1.5 rounded-2xl border px-4 py-2.5 text-sm font-medium transition ${
                                       isActive
                                         ? "border-black bg-black text-white"
                                         : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400"
