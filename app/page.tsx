@@ -62,6 +62,11 @@ const appTourScreens = [
     description: "Your booking is locked in immediately after payment.",
   },
   {
+    src: "/images/app-screenshots/08b-your-bookings.png",
+    tag: "All In One Place.",
+    description: "Every booking, request, and past service, organized for you.",
+  },
+  {
     src: "/images/app-screenshots/09-chat.png",
     tag: "Chat Instantly.",
     description: "Coordinate every detail without leaving the app.",
