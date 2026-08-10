@@ -1167,7 +1167,7 @@ export default function WorkPage() {
 
         <div className="mt-5 min-h-[60vh] sm:mt-8">
           {activeTab === "requests" ? (
-            requestAndOfferItems.length === 0 ? (
+            openRequestItems.length === 0 && offerItems.length === 0 ? (
               <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-10 text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
                   <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
