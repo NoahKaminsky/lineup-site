@@ -188,6 +188,9 @@ export default function Page() {
             <a href="#how-it-works" className="transition hover:text-neutral-900">
               How it works
             </a>
+            <a href="#app-tour" className="transition hover:text-neutral-900">
+              See It In Action
+            </a>
             <a href="#using-lineup" className="transition hover:text-neutral-900">
               For professionals
             </a>
@@ -424,7 +427,7 @@ export default function Page() {
 
       <SectionFade />
 
-      <section ref={appTourRef} className="overflow-hidden border-t border-neutral-200 bg-white py-20">
+      <section id="app-tour" ref={appTourRef} className="overflow-hidden border-t border-neutral-200 bg-white py-20">
         <div className="mx-auto max-w-7xl px-6">
           <div className="max-w-2xl">
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
@@ -436,8 +439,8 @@ export default function Page() {
           </div>
         </div>
 
-        <div className="mx-auto max-w-7xl px-6">
-        <div className="mt-10 flex gap-6 overflow-x-auto pb-6 pt-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-12 sm:gap-8">
+        <div className="mx-auto max-w-7xl">
+        <div className="mt-10 flex gap-6 overflow-x-auto px-6 pb-6 pt-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-12 sm:gap-8">
           {appTourScreens.map((screen, index) => {
             const tiltClasses = ["-rotate-3", "rotate-2", "-rotate-2", "rotate-3", "-rotate-1"];
             const tilt = tiltClasses[index % tiltClasses.length];
