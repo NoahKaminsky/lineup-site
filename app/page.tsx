@@ -1,9 +1,62 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+
+const appTourScreens = [
+  {
+    src: "/images/app-screenshots/01-browse.png",
+    tag: "Discover Pros.",
+    description: "Browse hand-picked and nearby professionals in seconds.",
+  },
+  {
+    src: "/images/app-screenshots/02-profile.png",
+    tag: "See Their Work.",
+    description: "Full profile, portfolio, and pricing before you commit.",
+  },
+  {
+    src: "/images/app-screenshots/03-reviews.png",
+    tag: "Read Real Reviews.",
+    description: "Every completed job adds to a professional's track record.",
+  },
+  {
+    src: "/images/app-screenshots/04-offers-compare.png",
+    tag: "Compare Offers.",
+    description: "Post once, get multiple offers back from nearby pros.",
+  },
+  {
+    src: "/images/app-screenshots/05-offer-detail.png",
+    tag: "Review Every Bid.",
+    description: "Price, timing, and a message from each professional.",
+  },
+  {
+    src: "/images/app-screenshots/06-winner.png",
+    tag: "Pick Your Favorite.",
+    description: "Accept the offer that fits best.",
+  },
+  {
+    src: "/images/app-screenshots/07-payment.png",
+    tag: "Pay Securely.",
+    description: "Payment is handled safely through Stripe, right in the app.",
+  },
+  {
+    src: "/images/app-screenshots/08-confirmed.png",
+    tag: "You're Booked.",
+    description: "Your booking is locked in immediately after payment.",
+  },
+  {
+    src: "/images/app-screenshots/09-chat.png",
+    tag: "Chat Instantly.",
+    description: "Coordinate every detail without leaving the app.",
+  },
+  {
+    src: "/images/app-screenshots/10-pro-calendar.png",
+    tag: "Manage It All.",
+    description: "A real calendar to manage every booking in one place.",
+  },
+];
 
 const serviceTags = [
   "Barbers",
@@ -27,6 +80,41 @@ export default function Page() {
   const router = useRouter();
 
   const [authResolved, setAuthResolved] = useState<boolean>(false);
+  const [appTourRevealed, setAppTourRevealed] = useState(false);
+  const appTourRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    // This page early-returns a loading screen until authResolved flips, so the
+    // carousel (and its ref) doesn't exist in the DOM on the very first mount.
+    // Re-running this whenever authResolved changes ensures the observer actually
+    // attaches once the real section is rendered, instead of finding a null ref
+    // once and never trying again.
+    if (!authResolved) return;
+
+    const node = appTourRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setAppTourRevealed(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+
+    observer.observe(node);
+
+    // Safety net: if the observer never fires for any reason, don't leave the
+    // cards permanently invisible — reveal them anyway after a few seconds.
+    const fallback = setTimeout(() => setAppTourRevealed(true), 4000);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(fallback);
+    };
+  }, [authResolved]);
 
   useEffect(() => {
     const redirectIfSignedIn = async () => {
@@ -315,6 +403,60 @@ export default function Page() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      <SectionFade />
+
+      <section ref={appTourRef} className="overflow-hidden border-t border-neutral-200 bg-white py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="max-w-2xl">
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+              See It In Action
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+              From browsing to booked, right in the app.
+            </h2>
+          </div>
+        </div>
+
+        <div className="mt-10 -mx-6 flex gap-6 overflow-x-auto px-6 pb-6 pt-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-12 sm:gap-8 sm:px-[max(1.5rem,calc((100vw-80rem)/2+1.5rem))]">
+          {appTourScreens.map((screen, index) => {
+            const tiltClasses = ["-rotate-3", "rotate-2", "-rotate-2", "rotate-3", "-rotate-1"];
+            const tilt = tiltClasses[index % tiltClasses.length];
+
+            return (
+              <div
+                key={screen.src}
+                className={`group flex w-[220px] shrink-0 flex-col transition-all duration-700 ease-out sm:w-[240px] ${
+                  appTourRevealed ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
+                }`}
+                style={{ transitionDelay: `${index * 90}ms` }}
+              >
+                <div
+                  className={`relative overflow-hidden rounded-[2.25rem] border-[6px] border-neutral-900 bg-neutral-900 shadow-xl transition-transform duration-300 ease-out ${tilt} group-hover:-translate-y-3 group-hover:rotate-0 group-hover:scale-105 group-hover:shadow-2xl`}
+                >
+                  <div className="absolute left-1/2 top-0 z-10 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
+                  <img
+                    src={screen.src}
+                    alt={screen.tag}
+                    className="aspect-[9/19.5] w-full object-cover object-top"
+                  />
+                </div>
+                <p
+                  className={`mt-5 text-base font-semibold tracking-tight text-neutral-900 transition-all duration-500 ease-out ${
+                    appTourRevealed ? "translate-x-0 opacity-100" : "-translate-x-3 opacity-0"
+                  }`}
+                  style={{ transitionDelay: `${index * 90 + 200}ms` }}
+                >
+                  {screen.tag}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-neutral-500">
+                  {screen.description}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </section>
 
