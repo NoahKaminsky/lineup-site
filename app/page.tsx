@@ -43,6 +43,7 @@ const appTourScreens = [
   },
   {
     src: "/images/app-screenshots/05-offer-detail.png",
+    stackedSrc: "/images/app-screenshots/05b-jesse-offer.png",
     tag: "Review Every Bid.",
     description: "Price, timing, and a message from each professional.",
   },
@@ -62,14 +63,14 @@ const appTourScreens = [
     description: "Your booking is locked in immediately after payment.",
   },
   {
-    src: "/images/app-screenshots/08b-your-bookings.png",
-    tag: "All In One Place.",
-    description: "Every booking, request, and past service, organized for you.",
-  },
-  {
     src: "/images/app-screenshots/09-chat.png",
     tag: "Chat Instantly.",
     description: "Coordinate every detail without leaving the app.",
+  },
+  {
+    src: "/images/app-screenshots/08b-your-bookings.png",
+    tag: "All In One Place.",
+    description: "Every booking, request, and past service, organized for you.",
   },
   {
     src: "/images/app-screenshots/10-pro-calendar.png",
@@ -448,21 +449,42 @@ export default function Page() {
             return (
               <div
                 key={screen.src}
-                className={`group flex w-[220px] shrink-0 flex-col transition-all duration-700 ease-out sm:w-[240px] ${
+                className={`group flex ${screen.stackedSrc ? "w-[270px] sm:w-[300px]" : "w-[220px] sm:w-[240px]"} shrink-0 flex-col transition-all duration-700 ease-out ${
                   appTourRevealed ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
                 }`}
                 style={{ transitionDelay: `${index * 90}ms` }}
               >
-                <div
-                  className={`relative aspect-[9/19.5] w-full overflow-hidden rounded-[2.25rem] border-[6px] border-neutral-900 bg-neutral-900 shadow-xl transition-transform duration-300 ease-out ${tilt} group-hover:-translate-y-3 group-hover:rotate-0 group-hover:scale-105 group-hover:shadow-2xl`}
-                >
-                  <div className="absolute left-1/2 top-0 z-10 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
-                  <img
-                    src={screen.src}
-                    alt={screen.tag}
-                    className="h-full w-full object-cover object-top"
-                  />
-                </div>
+                {screen.stackedSrc ? (
+                  <div className="relative h-[477px] w-full sm:h-[520px]">
+                    <div className="absolute left-0 top-0 aspect-[9/19.5] w-[190px] -rotate-6 overflow-hidden rounded-[2rem] border-[5px] border-neutral-900 bg-neutral-900 shadow-lg transition-transform duration-300 ease-out sm:w-[208px] group-hover:-translate-x-2 group-hover:-translate-y-1 group-hover:-rotate-3">
+                      <div className="absolute left-1/2 top-0 z-10 h-4 w-20 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
+                      <img
+                        src={screen.stackedSrc}
+                        alt=""
+                        className="h-full w-full object-cover object-top"
+                      />
+                    </div>
+                    <div className="absolute bottom-0 right-0 aspect-[9/19.5] w-[190px] rotate-3 overflow-hidden rounded-[2rem] border-[5px] border-neutral-900 bg-neutral-900 shadow-2xl transition-transform duration-300 ease-out sm:w-[208px] group-hover:translate-x-2 group-hover:translate-y-1 group-hover:rotate-0">
+                      <div className="absolute left-1/2 top-0 z-10 h-4 w-20 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
+                      <img
+                        src={screen.src}
+                        alt={screen.tag}
+                        className="h-full w-full object-cover object-top"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className={`relative aspect-[9/19.5] w-full overflow-hidden rounded-[2.25rem] border-[6px] border-neutral-900 bg-neutral-900 shadow-xl transition-transform duration-300 ease-out ${tilt} group-hover:-translate-y-3 group-hover:rotate-0 group-hover:scale-105 group-hover:shadow-2xl`}
+                  >
+                    <div className="absolute left-1/2 top-0 z-10 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
+                    <img
+                      src={screen.src}
+                      alt={screen.tag}
+                      className="h-full w-full object-cover object-top"
+                    />
+                  </div>
+                )}
                 <p
                   className={`mt-5 text-base font-semibold tracking-tight text-neutral-900 transition-all duration-500 ease-out ${
                     appTourRevealed ? "translate-x-0 opacity-100" : "-translate-x-3 opacity-0"
