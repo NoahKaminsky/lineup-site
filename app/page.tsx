@@ -217,6 +217,81 @@ export default function Page() {
         </div>
       </header>
 
+      <section id="app-tour" ref={appTourRef} className="overflow-hidden bg-white py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="max-w-2xl">
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+              See It In Action
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+              This is LineUp — from posting a request to getting booked.
+            </h2>
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-7xl">
+        <div className="mt-10 flex gap-6 overflow-x-auto px-6 pb-6 pt-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-12 sm:gap-8">
+          {appTourScreens.map((screen, index) => {
+            const tiltClasses = ["-rotate-3", "rotate-2", "-rotate-2", "rotate-3", "-rotate-1"];
+            const tilt = tiltClasses[index % tiltClasses.length];
+
+            return (
+              <div
+                key={screen.src}
+                className={`group flex ${screen.stackedSrc ? "w-[270px] sm:w-[300px]" : "w-[220px] sm:w-[240px]"} shrink-0 flex-col transition-all duration-700 ease-out ${
+                  appTourRevealed ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
+                }`}
+                style={{ transitionDelay: `${index * 90}ms` }}
+              >
+                {screen.stackedSrc ? (
+                  <div className="relative h-[477px] w-full sm:h-[520px]">
+                    <div className="absolute left-0 top-0 aspect-[9/19.5] w-[190px] -rotate-6 overflow-hidden rounded-[2rem] border-[5px] border-neutral-900 bg-neutral-900 shadow-lg transition-transform duration-300 ease-out sm:w-[208px] group-hover:-translate-x-2 group-hover:-translate-y-1 group-hover:-rotate-3">
+                      <div className="absolute left-1/2 top-0 z-10 h-4 w-20 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
+                      <img
+                        src={screen.stackedSrc}
+                        alt=""
+                        className="h-full w-full object-cover object-top"
+                      />
+                    </div>
+                    <div className="absolute bottom-0 right-0 aspect-[9/19.5] w-[190px] rotate-3 overflow-hidden rounded-[2rem] border-[5px] border-neutral-900 bg-neutral-900 shadow-2xl transition-transform duration-300 ease-out sm:w-[208px] group-hover:translate-x-2 group-hover:translate-y-1 group-hover:rotate-0">
+                      <div className="absolute left-1/2 top-0 z-10 h-4 w-20 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
+                      <img
+                        src={screen.src}
+                        alt={screen.tag}
+                        className="h-full w-full object-cover object-top"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className={`relative aspect-[9/19.5] w-full overflow-hidden rounded-[2.25rem] border-[6px] border-neutral-900 bg-neutral-900 shadow-xl transition-transform duration-300 ease-out ${tilt} group-hover:-translate-y-3 group-hover:rotate-0 group-hover:scale-105 group-hover:shadow-2xl`}
+                  >
+                    <div className="absolute left-1/2 top-0 z-10 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
+                    <img
+                      src={screen.src}
+                      alt={screen.tag}
+                      className="h-full w-full object-cover object-top"
+                    />
+                  </div>
+                )}
+                <p
+                  className={`mt-5 text-base font-semibold tracking-tight text-neutral-900 transition-all duration-500 ease-out ${
+                    appTourRevealed ? "translate-x-0 opacity-100" : "-translate-x-3 opacity-0"
+                  }`}
+                  style={{ transitionDelay: `${index * 90 + 200}ms` }}
+                >
+                  {screen.tag}
+                </p>
+                <p className="mt-1 text-sm leading-6 text-neutral-500">
+                  {screen.description}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+        </div>
+      </section>
+
       <section className="relative overflow-hidden bg-white">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-32 -top-32 h-80 w-80 rounded-full bg-emerald-100/60 blur-3xl" />
@@ -422,83 +497,6 @@ export default function Page() {
               </p>
             </div>
           </div>
-        </div>
-      </section>
-
-      <SectionFade />
-
-      <section id="app-tour" ref={appTourRef} className="overflow-hidden border-t border-neutral-200 bg-white py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="max-w-2xl">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-              See It In Action
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-              From browsing to booked, right in the app.
-            </h2>
-          </div>
-        </div>
-
-        <div className="mx-auto max-w-7xl">
-        <div className="mt-10 flex gap-6 overflow-x-auto px-6 pb-6 pt-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-12 sm:gap-8">
-          {appTourScreens.map((screen, index) => {
-            const tiltClasses = ["-rotate-3", "rotate-2", "-rotate-2", "rotate-3", "-rotate-1"];
-            const tilt = tiltClasses[index % tiltClasses.length];
-
-            return (
-              <div
-                key={screen.src}
-                className={`group flex ${screen.stackedSrc ? "w-[270px] sm:w-[300px]" : "w-[220px] sm:w-[240px]"} shrink-0 flex-col transition-all duration-700 ease-out ${
-                  appTourRevealed ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
-                }`}
-                style={{ transitionDelay: `${index * 90}ms` }}
-              >
-                {screen.stackedSrc ? (
-                  <div className="relative h-[477px] w-full sm:h-[520px]">
-                    <div className="absolute left-0 top-0 aspect-[9/19.5] w-[190px] -rotate-6 overflow-hidden rounded-[2rem] border-[5px] border-neutral-900 bg-neutral-900 shadow-lg transition-transform duration-300 ease-out sm:w-[208px] group-hover:-translate-x-2 group-hover:-translate-y-1 group-hover:-rotate-3">
-                      <div className="absolute left-1/2 top-0 z-10 h-4 w-20 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
-                      <img
-                        src={screen.stackedSrc}
-                        alt=""
-                        className="h-full w-full object-cover object-top"
-                      />
-                    </div>
-                    <div className="absolute bottom-0 right-0 aspect-[9/19.5] w-[190px] rotate-3 overflow-hidden rounded-[2rem] border-[5px] border-neutral-900 bg-neutral-900 shadow-2xl transition-transform duration-300 ease-out sm:w-[208px] group-hover:translate-x-2 group-hover:translate-y-1 group-hover:rotate-0">
-                      <div className="absolute left-1/2 top-0 z-10 h-4 w-20 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
-                      <img
-                        src={screen.src}
-                        alt={screen.tag}
-                        className="h-full w-full object-cover object-top"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    className={`relative aspect-[9/19.5] w-full overflow-hidden rounded-[2.25rem] border-[6px] border-neutral-900 bg-neutral-900 shadow-xl transition-transform duration-300 ease-out ${tilt} group-hover:-translate-y-3 group-hover:rotate-0 group-hover:scale-105 group-hover:shadow-2xl`}
-                  >
-                    <div className="absolute left-1/2 top-0 z-10 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
-                    <img
-                      src={screen.src}
-                      alt={screen.tag}
-                      className="h-full w-full object-cover object-top"
-                    />
-                  </div>
-                )}
-                <p
-                  className={`mt-5 text-base font-semibold tracking-tight text-neutral-900 transition-all duration-500 ease-out ${
-                    appTourRevealed ? "translate-x-0 opacity-100" : "-translate-x-3 opacity-0"
-                  }`}
-                  style={{ transitionDelay: `${index * 90 + 200}ms` }}
-                >
-                  {screen.tag}
-                </p>
-                <p className="mt-1 text-sm leading-6 text-neutral-500">
-                  {screen.description}
-                </p>
-              </div>
-            );
-          })}
-        </div>
         </div>
       </section>
 
