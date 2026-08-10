@@ -92,6 +92,7 @@ type OfferRow = {
   proposed_end_time: string | null;
   status: string | null;
   created_at: string | null;
+  responded_at: string | null;
 };
 
 type BookedItem = {
@@ -138,6 +139,8 @@ type RequestAndOfferItem = {
   cancelledAt?: string | null;
   requestStatus?: string | null;
   personRating?: CustomerRatingSummary | null;
+  respondedAt?: string | null;
+  rawOfferStatus?: string | null;
 };
 
 type TabKey = "booked" | "requests" | "completed";
@@ -235,6 +238,7 @@ function statusLabel(status: string | null) {
   if (status === "open") return "Open";
   if (status === "pending") return "Pending";
   if (status === "declined") return "Declined";
+  if (status === "not_selected") return "Outbid";
   return status || "Unknown";
 }
 
@@ -400,7 +404,7 @@ export default function WorkPage() {
       const { data: offersData } = await supabase
         .from("request_offers")
         .select(
-          "id, request_id, professional_id, message, proposed_price, proposed_date, proposed_start_time, proposed_end_time, status, created_at"
+          "id, request_id, professional_id, message, proposed_price, proposed_date, proposed_start_time, proposed_end_time, status, created_at, responded_at"
         )
         .in("request_id", requestIds)
         .order("created_at", { ascending: false });
@@ -473,6 +477,8 @@ export default function WorkPage() {
         personName: professional?.full_name || professional?.email || "Professional",
         personAvatarUrl: professional?.avatar_url || null,
         requestStatus: request?.status || null,
+        respondedAt: offer.responded_at,
+        rawOfferStatus: offer.status,
       };
     });
 
@@ -527,7 +533,7 @@ export default function WorkPage() {
     const { data: offersSentData } = await supabase
       .from("request_offers")
       .select(
-        "id, request_id, professional_id, message, proposed_price, proposed_date, proposed_start_time, proposed_end_time, status, created_at"
+        "id, request_id, professional_id, message, proposed_price, proposed_date, proposed_start_time, proposed_end_time, status, created_at, responded_at"
       )
       .eq("professional_id", userId)
       .neq("status", "withdrawn")
@@ -641,6 +647,8 @@ export default function WorkPage() {
         personName: customer?.full_name || customer?.email || "Client",
         personAvatarUrl: customer?.avatar_url || null,
         requestStatus: request?.status || null,
+        respondedAt: offer.responded_at,
+        rawOfferStatus: offer.status,
       };
     });
 
@@ -1066,12 +1074,25 @@ export default function WorkPage() {
   const openRequestItems = requestAndOfferItems.filter(
     (item) => (item.kind === "open_request" || item.kind === "posted_request") && item.status !== "Cancelled"
   );
+  const isUnresolvedOffer = (item: RequestAndOfferItem) =>
+    item.rawOfferStatus === "pending" || item.rawOfferStatus === "payment_pending";
   const offerItems = requestAndOfferItems.filter(
     (item) =>
       (item.kind === "offer_sent" || item.kind === "offer_received") &&
       item.requestStatus !== "cancelled" &&
-      item.requestStatus !== "completed"
+      item.requestStatus !== "completed" &&
+      isUnresolvedOffer(item)
   );
+  // Offers that were accepted "graduate" into a booking and already show up in the
+  // Booking tab — only surface declined/outbid offers here, and only for 24h after
+  // they were resolved, matching the cancelled-item visibility window below.
+  const resolvedOfferItems = requestAndOfferItems.filter((item) => {
+    if (item.kind !== "offer_sent" && item.kind !== "offer_received") return false;
+    if (isUnresolvedOffer(item) || item.rawOfferStatus === "accepted") return false;
+    if (!item.respondedAt) return false;
+    const respondedAgeMs = Date.now() - new Date(item.respondedAt).getTime();
+    return respondedAgeMs <= 24 * 60 * 60 * 1000;
+  });
   const cancelledRequestItems = requestAndOfferItems.filter((item) => {
     if ((item.kind !== "open_request" && item.kind !== "posted_request") || item.status !== "Cancelled") {
       return false;
@@ -1103,16 +1124,16 @@ export default function WorkPage() {
         </div>
 
         <div className="mt-5 grid grid-cols-3 gap-1.5 rounded-[1.5rem] border border-neutral-200 bg-neutral-100 p-1.5 sm:mt-8">
-          {(["booked", "requests", "completed"] as TabKey[]).map((tab) => {
+          {(["requests", "booked", "completed"] as TabKey[]).map((tab) => {
             const labels: Record<TabKey, string> = {
-              booked: "Booked",
+              booked: "Booking",
               requests: "Activity",
               completed: "History",
             };
             const counts: Record<TabKey, number> = {
               booked: activeBookedItems.length,
               requests: openRequestItems.length + offerItems.length,
-              completed: completedItems.length + cancelledItems.length + cancelledRequestItems.length,
+              completed: completedItems.length + cancelledItems.length + cancelledRequestItems.length + resolvedOfferItems.length,
             };
             return (
               <button
@@ -1233,7 +1254,7 @@ export default function WorkPage() {
           ) : null}
 
           {activeTab === "completed" ? (
-            completedItems.length === 0 && cancelledItems.length === 0 && cancelledRequestItems.length === 0 ? (
+            completedItems.length === 0 && cancelledItems.length === 0 && cancelledRequestItems.length === 0 && resolvedOfferItems.length === 0 ? (
               <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-10 text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
                   <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
@@ -1289,6 +1310,20 @@ export default function WorkPage() {
                     </p>
                     <div className="grid gap-2.5 lg:grid-cols-2">
                       {cancelledRequestItems.map((item) => (
+                        <ActivityCard key={item.id} item={item} isProfessional={isProfessional} />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {resolvedOfferItems.length > 0 ? (
+                  <div>
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                      Past offers
+                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{resolvedOfferItems.length}</span>
+                    </p>
+                    <div className="grid gap-2.5 lg:grid-cols-2">
+                      {resolvedOfferItems.map((item) => (
                         <ActivityCard key={item.id} item={item} isProfessional={isProfessional} />
                       ))}
                     </div>

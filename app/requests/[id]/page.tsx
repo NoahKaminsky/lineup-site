@@ -55,8 +55,9 @@ type RequestOffer = {
   proposed_start_time?: string | null;
   proposed_end_time?: string | null;
   matches_requested_time?: boolean | null;
-  status: "pending" | "accepted" | "declined" | string;
+  status: "pending" | "accepted" | "declined" | "not_selected" | "withdrawn" | "payment_pending" | string;
   created_at: string;
+  responded_at?: string | null;
   viewed_by_customer?: boolean | null;
   customer_response_message?: string | null;
   professional_name: string | null;
@@ -401,6 +402,8 @@ export default function RequestDetailPage() {
     if (status === "payment_pending") return "Payment pending";
     if (status === "completion_requested") return "Completion requested";
     if (status === "completed") return "Completed";
+    if (status === "declined") return "Declined";
+    if (status === "not_selected") return "Outbid";
     return status.replaceAll("_", " ");
   }
 
@@ -1066,11 +1069,14 @@ export default function RequestDetailPage() {
     setMessage("");
     setDeclineLoading(true);
 
+    const respondedAt = new Date().toISOString();
+
     const { error } = await supabase
       .from("request_offers")
       .update({
         status: "declined",
         customer_response_message: declineMessage.trim(),
+        responded_at: respondedAt,
       })
       .eq("id", offerId)
       .eq("request_id", requestId);
@@ -1090,6 +1096,7 @@ export default function RequestDetailPage() {
               ...offer,
               status: "declined",
               customer_response_message: declineMessage.trim(),
+              responded_at: respondedAt,
             }
           : offer
       )
@@ -1123,6 +1130,7 @@ export default function RequestDetailPage() {
         status: "pending",
         customer_response_message: null,
         viewed_by_customer: false,
+        responded_at: null,
       })
       .eq("id", offerId)
       .eq("request_id", requestId);
@@ -1143,6 +1151,7 @@ export default function RequestDetailPage() {
               status: "pending",
               customer_response_message: null,
               viewed_by_customer: false,
+              responded_at: null,
             }
           : offer
       )
@@ -1221,6 +1230,7 @@ export default function RequestDetailPage() {
         .update({
           status: "declined",
           customer_response_message: "The customer cancelled this request.",
+          responded_at: new Date().toISOString(),
         })
         .eq("request_id", request.id)
         .eq("status", "pending");
@@ -1252,7 +1262,12 @@ export default function RequestDetailPage() {
     setOffers((prev) =>
       prev.map((offer) =>
         offer.status === "pending"
-          ? { ...offer, status: "declined", customer_response_message: "The customer cancelled this request." }
+          ? {
+              ...offer,
+              status: "declined",
+              customer_response_message: "The customer cancelled this request.",
+              responded_at: new Date().toISOString(),
+            }
           : offer
       )
     );

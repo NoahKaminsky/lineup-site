@@ -129,7 +129,7 @@ export default function RespondToRequestPage() {
         .select("id")
         .eq("request_id", requestId)
         .eq("professional_id", user.id)
-        .neq("status", "withdrawn")
+        .in("status", ["pending", "payment_pending", "accepted"])
         .maybeSingle();
 
       setExistingOffer(!!existingOfferData);
@@ -350,21 +350,21 @@ export default function RespondToRequestPage() {
       proposed_service_mode: proposedServiceMode || proProposableModes[0] || null,
     };
 
-    const { data: withdrawnOffer } = await supabase
+    const { data: reusableOffer } = await supabase
       .from("request_offers")
       .select("id")
       .eq("request_id", requestId)
       .eq("professional_id", userId)
-      .eq("status", "withdrawn")
+      .in("status", ["withdrawn", "declined"])
       .maybeSingle();
 
     let createdOfferId: string | null = null;
 
-    if (withdrawnOffer?.id) {
+    if (reusableOffer?.id) {
       const { data: updated, error: updateError } = await supabase
         .from("request_offers")
-        .update(offerPayload)
-        .eq("id", withdrawnOffer.id)
+        .update({ ...offerPayload, customer_response_message: null, responded_at: null })
+        .eq("id", reusableOffer.id)
         .select("id")
         .single();
 

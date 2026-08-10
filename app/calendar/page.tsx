@@ -227,7 +227,7 @@ function BookingCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
-            <h3 className={`${compact ? "text-base" : "text-lg"} font-semibold text-neutral-900`}>
+            <h3 className={`min-w-0 truncate ${compact ? "text-base" : "text-lg"} font-semibold text-neutral-900`}>
               <span className="mr-1.5 text-neutral-400">{isEveningBooking(booking) ? "☾" : "☼"}</span>
               {booking.service_name || "Booked service"}
             </h3>
@@ -856,7 +856,7 @@ export default function CalendarPage() {
                         </p>
                       </div>
 
-                      <div className="relative border-l border-neutral-200 pl-4">
+                      <div className="relative min-w-0 border-l border-neutral-200 pl-4">
                         <span className="absolute -left-[5px] top-3 h-2.5 w-2.5 rounded-full bg-black" />
                         <BookingCard booking={booking} compact userLat={userLocation?.lat} userLng={userLocation?.lng} />
                       </div>

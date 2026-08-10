@@ -138,6 +138,7 @@ type BookingRow = {
   id: string;
   professional_id: string;
   customer_id: string;
+  request_id?: string | null;
   booking_date: string;
   start_time: string;
   end_time: string;
@@ -789,7 +790,7 @@ export default function RequestsPage() {
       await supabase
         .from("bookings")
         .select(
-          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, refund_status"
+          "id, professional_id, customer_id, request_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, refund_status"
         )
         .eq("professional_id", userId)
         .in("status", ["confirmed", "completion_requested", "completed", "cancelled"])
@@ -1272,9 +1273,17 @@ if (profileError || !profile) {
     );
   }, [professionalBookings]);
 
+  // Once a request is accepted, it gets a matching row in `bookings` — without this,
+  // the same job shows up twice here (once as the request, once as the booking).
+  const professionalBookedRequestIds = useMemo(
+    () => new Set(professionalBookings.map((booking) => booking.request_id).filter(Boolean) as string[]),
+    [professionalBookings]
+  );
+
   const unifiedProfessionalUpcomingWork = useMemo(() => {
-    const requestItems: UnifiedProfessionalWorkItem[] =
-      professionalUpcomingRequests.map((request) => ({
+    const requestItems: UnifiedProfessionalWorkItem[] = professionalUpcomingRequests
+      .filter((request) => !professionalBookedRequestIds.has(request.id))
+      .map((request) => ({
         id: request.id,
         source: "request",
         status:
@@ -1342,11 +1351,12 @@ if (profileError || !profile) {
       (a, b) =>
         new Date(a.sortDate).getTime() - new Date(b.sortDate).getTime()
     );
-  }, [professionalUpcomingRequests, professionalUpcomingBookings]);
+  }, [professionalUpcomingRequests, professionalUpcomingBookings, professionalBookedRequestIds]);
 
   const unifiedProfessionalCompletedWork = useMemo(() => {
-    const requestItems: UnifiedProfessionalWorkItem[] =
-      professionalCompletedRequests.map((request) => ({
+    const requestItems: UnifiedProfessionalWorkItem[] = professionalCompletedRequests
+      .filter((request) => !professionalBookedRequestIds.has(request.id))
+      .map((request) => ({
         id: request.id,
         source: "request",
         status: "completed",
@@ -1404,7 +1414,7 @@ if (profileError || !profile) {
       (a, b) =>
         new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime()
     );
-  }, [professionalCompletedRequests, professionalCompletedBookings]);
+  }, [professionalCompletedRequests, professionalCompletedBookings, professionalBookedRequestIds]);
 
   const now = useMemo(
     () => new Date(),

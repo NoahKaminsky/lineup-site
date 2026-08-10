@@ -258,15 +258,22 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
 
   await supabase
     .from("request_offers")
-    .update({ status: "accepted" })
+    .update({ status: "accepted", responded_at: new Date().toISOString() })
     .eq("id", offer.id)
     .eq("request_id", requestRow.id);
 
+  // "not_selected" (not "declined") — this is the request being filled by someone
+  // else, not the customer explicitly rejecting this offer. Keeping the two states
+  // distinct lets the UI show "Outbid" here instead of implying the customer looked
+  // at this specific offer and turned it down. Only pending/payment_pending offers
+  // are touched so an offer the customer already explicitly declined (or one the
+  // professional withdrew) keeps its real status instead of being overwritten.
   const { data: declinedOffers } = await supabase
     .from("request_offers")
-    .update({ status: "declined" })
+    .update({ status: "not_selected", responded_at: new Date().toISOString() })
     .eq("request_id", requestRow.id)
     .neq("id", offer.id)
+    .in("status", ["pending", "payment_pending"])
     .select("id, professional_id");
 
   const declinedProfessionalIds = [
