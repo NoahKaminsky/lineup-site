@@ -58,11 +58,6 @@ const appTourScreens = [
     description: "Payment is handled safely through Stripe, right in the app.",
   },
   {
-    src: "/images/app-screenshots/08-confirmed.png",
-    tag: "You're Booked.",
-    description: "Your booking is locked in immediately after payment.",
-  },
-  {
     src: "/images/app-screenshots/09-chat.png",
     tag: "Chat Instantly.",
     description: "Coordinate every detail without leaving the app.",
@@ -441,7 +436,8 @@ export default function Page() {
           </div>
         </div>
 
-        <div className="mt-10 -mx-6 flex gap-6 overflow-x-auto px-6 pb-6 pt-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-12 sm:gap-8 sm:px-[max(1.5rem,calc((100vw-80rem)/2+1.5rem))]">
+        <div className="mx-auto max-w-7xl px-6">
+        <div className="mt-10 flex gap-6 overflow-x-auto pb-6 pt-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-12 sm:gap-8">
           {appTourScreens.map((screen, index) => {
             const tiltClasses = ["-rotate-3", "rotate-2", "-rotate-2", "rotate-3", "-rotate-1"];
             const tilt = tiltClasses[index % tiltClasses.length];
@@ -499,6 +495,7 @@ export default function Page() {
               </div>
             );
           })}
+        </div>
         </div>
       </section>
 
