@@ -185,11 +185,11 @@ export default function Page() {
           </Link>
 
           <nav className="hidden items-center gap-8 text-sm text-neutral-600 md:flex">
-            <a href="#how-it-works" className="transition hover:text-neutral-900">
-              How it works
-            </a>
             <a href="#app-tour" className="transition hover:text-neutral-900">
               See It In Action
+            </a>
+            <a href="#how-it-works" className="transition hover:text-neutral-900">
+              How it works
             </a>
             <a href="#using-lineup" className="transition hover:text-neutral-900">
               For professionals
