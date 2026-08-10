@@ -455,7 +455,7 @@ export default function Page() {
                   <img
                     src={screen.src}
                     alt={screen.tag}
-                    className="h-full w-full object-contain"
+                    className="h-full w-full object-cover object-top"
                   />
                 </div>
                 <p
