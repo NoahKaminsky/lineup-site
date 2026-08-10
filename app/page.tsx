@@ -242,7 +242,7 @@ export default function Page() {
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
-              Live now and taking bookings
+              Now welcoming founding members
             </div>
 
             <h1 className="max-w-3xl text-5xl font-semibold tracking-tight md:text-6xl">
