@@ -27,6 +27,11 @@ const appTourScreens = [
     description: "Share what you need, your budget, and when you want it done.",
   },
   {
+    src: "/images/app-screenshots/00b-active-request.png",
+    tag: "Track Your Request.",
+    description: "See it live the moment you post, right on your home screen.",
+  },
+  {
     src: "/images/app-screenshots/06b-reference-photos.png",
     tag: "Add Inspiration.",
     description: "Attach reference photos so professionals know exactly what you're going for.",
@@ -444,13 +449,13 @@ export default function Page() {
                 style={{ transitionDelay: `${index * 90}ms` }}
               >
                 <div
-                  className={`relative overflow-hidden rounded-[2.25rem] border-[6px] border-neutral-900 bg-neutral-900 shadow-xl transition-transform duration-300 ease-out ${tilt} group-hover:-translate-y-3 group-hover:rotate-0 group-hover:scale-105 group-hover:shadow-2xl`}
+                  className={`relative aspect-[9/19.5] w-full overflow-hidden rounded-[2.25rem] border-[6px] border-neutral-900 bg-neutral-900 shadow-xl transition-transform duration-300 ease-out ${tilt} group-hover:-translate-y-3 group-hover:rotate-0 group-hover:scale-105 group-hover:shadow-2xl`}
                 >
                   <div className="absolute left-1/2 top-0 z-10 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
                   <img
                     src={screen.src}
                     alt={screen.tag}
-                    className="block w-full h-auto"
+                    className="h-full w-full object-contain"
                   />
                 </div>
                 <p
