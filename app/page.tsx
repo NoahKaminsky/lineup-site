@@ -310,14 +310,6 @@ export default function Page() {
 
         <div className="relative mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-16 md:grid-cols-[1.05fr_0.95fr] md:pt-24">
           <div className="flex flex-col justify-center">
-            <div className="mb-5 inline-flex w-fit items-center gap-2 text-sm font-medium text-neutral-500">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              </span>
-              Now welcoming founding members
-            </div>
-
             <h1 className="max-w-3xl text-5xl font-semibold tracking-tight md:text-6xl">
               Clients post what they want. Professionals choose the work.
             </h1>
