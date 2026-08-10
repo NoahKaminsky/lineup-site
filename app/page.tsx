@@ -22,6 +22,16 @@ const appTourScreens = [
     description: "Every completed job adds to a professional's track record.",
   },
   {
+    src: "/images/app-screenshots/00-post-request.png",
+    tag: "Post a Request.",
+    description: "Share what you need, your budget, and when you want it done.",
+  },
+  {
+    src: "/images/app-screenshots/06b-reference-photos.png",
+    tag: "Add Inspiration.",
+    description: "Attach reference photos so professionals know exactly what you're going for.",
+  },
+  {
     src: "/images/app-screenshots/04-offers-compare.png",
     tag: "Compare Offers.",
     description: "Post once, get multiple offers back from nearby pros.",
@@ -440,7 +450,7 @@ export default function Page() {
                   <img
                     src={screen.src}
                     alt={screen.tag}
-                    className="aspect-[9/19.5] w-full object-cover object-top"
+                    className="block w-full h-auto"
                   />
                 </div>
                 <p
