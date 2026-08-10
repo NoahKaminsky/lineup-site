@@ -84,9 +84,6 @@ export default function Page() {
             <a href="#how-it-works" className="transition hover:text-neutral-900">
               How it works
             </a>
-            <a href="#who-we-are" className="transition hover:text-neutral-900">
-              Why LineUp
-            </a>
             <a href="#using-lineup" className="transition hover:text-neutral-900">
               For professionals
             </a>
@@ -114,36 +111,32 @@ export default function Page() {
       </header>
 
       <section className="relative overflow-hidden bg-white">
-        <img
-          src="/images/hero-barber-mobile.jpg"
-          alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center opacity-50 md:hidden"
-        />
-
-        <img
-          src="/images/hero-barber.jpg"
-          alt=""
-          className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-full object-cover object-right opacity-65 md:block"
-        />
-
-        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/35 md:from-white md:via-white/82 md:to-white/18" />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/55" />
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-32 -top-32 h-80 w-80 rounded-full bg-emerald-100/60 blur-3xl" />
+          <div className="absolute right-[-10%] top-1/4 h-[26rem] w-[26rem] rounded-full bg-sky-100/50 blur-3xl md:right-16" />
+          <div className="absolute bottom-[-15%] right-1/4 h-72 w-72 rounded-full bg-amber-100/40 blur-3xl" />
+          <div
+            className="absolute inset-0 opacity-[0.35]"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle, rgba(23,23,23,0.08) 1px, transparent 1px)",
+              backgroundSize: "22px 22px",
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-transparent to-white" />
+        </div>
 
         <div className="relative mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-16 md:grid-cols-[1.05fr_0.95fr] md:pt-24">
           <div className="flex flex-col justify-center">
-            <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 shadow-sm shadow-emerald-100">
-              <span className="relative flex h-2.5 w-2.5">
+            <div className="mb-5 inline-flex w-fit items-center gap-2 text-sm font-medium text-neutral-500">
+              <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
               </span>
-              Now live
+              Live now and taking bookings
             </div>
 
-            <p className="text-sm font-medium text-neutral-500">
-              A live marketplace for beauty services
-            </p>
-
-            <h1 className="mt-4 max-w-3xl text-5xl font-semibold tracking-tight md:text-6xl">
+            <h1 className="max-w-3xl text-5xl font-semibold tracking-tight md:text-6xl">
               Clients post what they want. Professionals choose the work.
             </h1>
 
@@ -174,13 +167,11 @@ export default function Page() {
                 Built for flexible beauty work
               </span>
               <span className="h-1 w-1 rounded-full bg-neutral-300" />
-              <span>At home</span>
+              <span>We come to you</span>
               <span className="h-1 w-1 rounded-full bg-neutral-300" />
               <span>In shop</span>
               <span className="h-1 w-1 rounded-full bg-neutral-300" />
-              <span>Home studio</span>
-              <span className="h-1 w-1 rounded-full bg-neutral-300" />
-              <span>Live marketplace</span>
+              <span>Their home studio</span>
             </div>
 
             <div className="mt-10 flex flex-wrap gap-3">
@@ -208,24 +199,18 @@ export default function Page() {
                 Not a traditional booking app.
               </h2>
 
-              <p className="mt-4 max-w-lg leading-8 text-neutral-600">
-                Clients submit a request, professionals send offers, and the client
-                chooses who fits best. It’s designed to help you grow your client base,
-                stay in control, and work on your own terms.
-              </p>
-
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                   <p className="text-sm text-neutral-500">For clients</p>
                   <p className="mt-2 font-semibold text-neutral-900">
-                    Post once. Receive offers from multiple professionals. Pick the best fit.
+                    Post once. Compare offers. Book the best fit.
                   </p>
                 </div>
 
                 <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
                   <p className="text-sm text-neutral-500">For professionals</p>
                   <p className="mt-2 font-semibold text-neutral-900">
-                    Get notified when matching requests go live. Respond on your own terms.
+                    Get matched to nearby requests. Respond on your own terms.
                   </p>
                 </div>
               </div>
@@ -234,90 +219,19 @@ export default function Page() {
         </div>
       </section>
 
-      <SectionFade />
-
-      <section
-        id="who-we-are"
-        className="relative overflow-hidden border-t border-neutral-200 bg-neutral-50"
-      >
-        <img
-          src="/images/who-we-are1.jpg"
-          alt=""
-          className="pointer-events-none absolute right-0 top-0 h-full w-full object-cover object-right opacity-95"
-        />
-
-        <div className="absolute inset-0 bg-gradient-to-r from-neutral-50 via-neutral-50/94 to-neutral-50/62" />
-        <div className="absolute inset-0 bg-gradient-to-b from-neutral-50/10 via-transparent to-neutral-50/60" />
-
-        <div className="relative">
-          <div className="mx-auto max-w-7xl px-6 py-20">
-            <div className="max-w-3xl">
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                WHY LINEUP
-              </p>
-              <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight md:text-5xl">
-                A more flexible way to connect clients and professionals.
-              </h2>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
-                LineUp supports a more flexible beauty marketplace, whether services
-                happen at home, in-shop, or from a home studio.
-              </p>
-            </div>
-
-            <div className="mt-12 grid gap-6 md:grid-cols-3">
-              <div className="rounded-3xl border border-neutral-200 bg-white p-7">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-neutral-100">
-                  <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-700" fill="none">
-                    <circle cx="10" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.5"/>
-                    <path d="M3 17c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                </div>
-                <h3 className="mt-4 text-xl font-semibold">For clients</h3>
-                <p className="mt-2 leading-7 text-neutral-600">
-                  Post what you need once and let qualified professionals come to you with offers.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-neutral-200 bg-white p-7">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-neutral-100">
-                  <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-700" fill="none">
-                    <path d="M10 2l2 5h5l-4 3 1.5 5L10 12l-4.5 3L7 10 3 7h5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-                <h3 className="mt-4 text-xl font-semibold">For professionals</h3>
-                <p className="mt-2 leading-7 text-neutral-600">
-                  Get discovered by clients who already want what you offer. Respond only to work that fits your schedule.
-                </p>
-              </div>
-
-              <div className="rounded-3xl border border-neutral-200 bg-white p-7">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-neutral-100">
-                  <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-700" fill="none">
-                    <path d="M3 10h14M10 3v14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    <rect x="2" y="2" width="16" height="16" rx="4" stroke="currentColor" strokeWidth="1.5"/>
-                  </svg>
-                </div>
-                <h3 className="mt-4 text-xl font-semibold">For the industry</h3>
-                <p className="mt-2 leading-7 text-neutral-600">
-                  One marketplace for at-home, in-shop, and home studio services — all in one place.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <SectionFade />
-
       <section id="how-it-works" className="relative overflow-hidden bg-white">
-        <img
-          src="/images/howitworks.png"
-          alt=""
-          className="pointer-events-none absolute right-[-20px] top-[38%] w-[320px] opacity-35 md:right-0 md:top-1/2 md:w-[620px] md:-translate-y-1/2 md:opacity-70 lg:w-[720px]"
-        />
-
-        <div className="absolute inset-0 bg-gradient-to-r from-white via-white/88 to-white/22" />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/50" />
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute right-[-12%] top-0 h-[26rem] w-[26rem] rounded-full bg-neutral-100/80 blur-3xl md:right-0" />
+          <div className="absolute bottom-[-10%] right-[18%] h-72 w-72 rounded-full bg-emerald-50 blur-3xl" />
+          <div
+            className="absolute inset-0 opacity-[0.3]"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle, rgba(23,23,23,0.07) 1px, transparent 1px)",
+              backgroundSize: "22px 22px",
+            }}
+          />
+        </div>
 
         <div className="relative mx-auto max-w-7xl px-6 py-20">
           <div className="max-w-2xl">
@@ -362,7 +276,8 @@ export default function Page() {
               </p>
               <h3 className="mt-2 text-lg font-semibold">Choose where it happens</h3>
               <p className="mt-2 leading-7 text-neutral-600">
-                At home, in shop, or home studio — clients choose the setup that fits best.
+                Have the professional come to you, visit their shop, or head to their
+                home studio — whatever setup fits best.
               </p>
             </div>
 

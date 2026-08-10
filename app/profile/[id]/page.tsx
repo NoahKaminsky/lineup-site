@@ -2193,39 +2193,37 @@ if (loading) {
                         key={review.id}
                         className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5"
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div className="flex items-center gap-3">
-                            <div className="h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-white">
-                              {review.reviewer_avatar_url ? (
-                                <img
-                                  src={review.reviewer_avatar_url}
-                                  alt={review.reviewer_name || "Reviewer"}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-xs font-medium text-neutral-500">
-                                  {review.reviewer_name?.charAt(0).toUpperCase() || "C"}
-                                </div>
-                              )}
-                            </div>
-
-                            <div>
-                              <p className="font-semibold text-neutral-900">
-                                {review.reviewer_name || "Verified client"}
-                              </p>
-                              <p className="text-xs text-neutral-400">
-                                {formatDate(review.created_at)}
-                              </p>
-                            </div>
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-white">
+                            {review.reviewer_avatar_url ? (
+                              <img
+                                src={review.reviewer_avatar_url}
+                                alt={review.reviewer_name || "Reviewer"}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-xs font-medium text-neutral-500">
+                                {review.reviewer_name?.charAt(0).toUpperCase() || "C"}
+                              </div>
+                            )}
                           </div>
 
-                          <div className="text-sm font-medium text-neutral-900">
-                            {renderStars(review.rating)} <span className="ml-2">{review.rating}/5</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-semibold text-neutral-900">
+                              {review.reviewer_name || "Verified client"}
+                            </p>
+                            <p className="text-xs text-neutral-400">
+                              {formatDate(review.created_at)}
+                            </p>
                           </div>
                         </div>
 
+                        <div className="mt-3 flex items-center text-sm font-medium text-neutral-900">
+                          {renderStars(review.rating)} <span className="ml-2">{review.rating}/5</span>
+                        </div>
+
                         {review.comment ? (
-                          <p className="mt-4 leading-7 text-neutral-600">{review.comment}</p>
+                          <p className="mt-3 leading-7 text-neutral-600">{review.comment}</p>
                         ) : null}
                       </div>
                     ))}
