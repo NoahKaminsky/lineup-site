@@ -633,7 +633,7 @@ export default function RequestsPage() {
       await supabase
         .from("bookings")
         .select(
-          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, refund_status"
+          "id, professional_id, customer_id, request_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, refund_status"
         )
         .eq("customer_id", userId)
         .order("booking_date", { ascending: false })
