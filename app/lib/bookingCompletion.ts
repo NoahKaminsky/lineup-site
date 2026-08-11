@@ -50,10 +50,17 @@ export async function completeBooking(
   }
 
   if (booking.request_id) {
-    await supabase
+    // service_requests has no completed_at/completion_requested_at columns —
+    // including them here makes Postgres reject the whole update, so status
+    // silently never changes. status is the only column that exists to set.
+    const { error: requestSyncError } = await supabase
       .from("service_requests")
-      .update({ status: "completed", completed_at: completedAt })
+      .update({ status: "completed" })
       .eq("id", booking.request_id);
+
+    if (requestSyncError) {
+      console.error(`Failed to sync service_requests ${booking.request_id} to completed:`, requestSyncError);
+    }
   }
 
   if (booking.remaining_payout_cents && booking.remaining_payout_cents > 0) {
@@ -147,13 +154,14 @@ export async function requestBookingCompletion(bookingId: string): Promise<Compl
   }
 
   if (booking.request_id) {
-    await supabase
+    const { error: requestSyncError } = await supabase
       .from("service_requests")
-      .update({
-        status: "completion_requested",
-        completion_requested_at: completionRequestedAt,
-      })
+      .update({ status: "completion_requested" })
       .eq("id", booking.request_id);
+
+    if (requestSyncError) {
+      console.error(`Failed to sync service_requests ${booking.request_id} to completion_requested:`, requestSyncError);
+    }
   }
 
   return { ok: true, alreadyCompleted: false };
