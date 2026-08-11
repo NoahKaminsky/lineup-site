@@ -173,6 +173,7 @@ function LocationAutocomplete({
   const [input, setInput] = useState(value);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [lookupError, setLookupError] = useState("");
   const sessionTokenRef = useRef<string | null>(null);
 
@@ -230,8 +231,8 @@ function LocationAutocomplete({
   }, [input]);
 
   async function handleSelect(suggestion: Suggestion) {
-    setInput(suggestion.text);
     setSuggestions([]);
+    setConfirming(true);
 
     try {
       const {
@@ -280,6 +281,7 @@ function LocationAutocomplete({
       const placeId = data.placeId ?? data.place_id ?? suggestion.placeId;
 
       if (!placeId) {
+        setInput(suggestion.text);
         onSelect({
           placeId: suggestion.placeId,
           formattedAddress: suggestion.text,
@@ -300,6 +302,7 @@ function LocationAutocomplete({
         name: data.name ?? data.displayName?.text ?? null,
       });
     } catch {
+      setInput(suggestion.text);
       onSelect({
         placeId: suggestion.placeId,
         formattedAddress: suggestion.text,
@@ -308,6 +311,7 @@ function LocationAutocomplete({
         name: null,
       });
     } finally {
+      setConfirming(false);
       sessionTokenRef.current = null;
     }
   }
@@ -328,7 +332,9 @@ function LocationAutocomplete({
         className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900 focus:bg-white"
       />
 
-      {loading ? (
+      {confirming ? (
+        <p className="mt-2 text-xs text-neutral-500">Confirming address...</p>
+      ) : loading ? (
         <p className="mt-2 text-xs text-neutral-500">Searching...</p>
       ) : lookupError ? (
         <p className="mt-2 text-xs text-red-600">{lookupError}</p>
@@ -1076,9 +1082,16 @@ function NewRequestPageContent() {
                     }}
                   />
                   {locationSelectedFromGoogle && locationPlaceId ? (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                      <p className="font-semibold">Location confirmed</p>
-                      <p className="mt-0.5 text-emerald-700">{location}</p>
+                    <div className="flex items-start gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-900">
+                        <svg viewBox="0 0 20 20" className="h-3 w-3 text-white" fill="none">
+                          <path d="M4 10l4 4 8-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                      <div className="text-sm">
+                        <p className="font-semibold text-neutral-900">Location confirmed</p>
+                        <p className="mt-0.5 text-neutral-600">{location}</p>
+                      </div>
                     </div>
                   ) : location ? (
                     <p className="text-xs text-neutral-500">

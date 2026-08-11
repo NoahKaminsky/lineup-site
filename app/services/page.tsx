@@ -332,6 +332,7 @@ function LocationAutocomplete({
   const [input, setInput] = useState(value);
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [lookupError, setLookupError] = useState("");
   const sessionTokenRef = useRef<string | null>(null);
 
@@ -389,8 +390,8 @@ function LocationAutocomplete({
   }, [input]);
 
   async function handleSelect(suggestion: LocationSuggestion) {
-    setInput(suggestion.text);
     setSuggestions([]);
+    setConfirming(true);
 
     try {
       const {
@@ -446,6 +447,7 @@ function LocationAutocomplete({
         name: data.name ?? data.displayName?.text ?? null,
       });
     } catch {
+      setInput(suggestion.text);
       onSelect({
         placeId: suggestion.placeId,
         formattedAddress: suggestion.text,
@@ -454,6 +456,7 @@ function LocationAutocomplete({
         name: null,
       });
     } finally {
+      setConfirming(false);
       sessionTokenRef.current = null;
     }
   }
@@ -474,7 +477,9 @@ function LocationAutocomplete({
         className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-black"
       />
 
-      {loading ? (
+      {confirming ? (
+        <p className="mt-2 text-xs text-neutral-500">Confirming address...</p>
+      ) : loading ? (
         <p className="mt-2 text-xs text-neutral-500">Searching...</p>
       ) : lookupError ? (
         <p className="mt-2 text-xs text-red-600">{lookupError}</p>
@@ -1611,37 +1616,44 @@ export default function ServicesPage() {
           </div>
 
           {hasGoogleBusinessLocation && displayedBusinessAddress ? (
-            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-sm font-semibold text-emerald-900">
-                {hasBusinessCoordinates ? "Google location selected with coordinates" : "Google location selected"}
-              </p>
-              <p className="mt-1 text-sm text-emerald-800">
-                📍 {displayedBusinessAddress.primary}
-              </p>
-              {displayedBusinessAddress.secondary ? (
-                <p className="mt-0.5 text-xs text-emerald-700">
-                  {displayedBusinessAddress.secondary}
+            <div className="mt-4 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-900">
+                <svg viewBox="0 0 20 20" className="h-3 w-3 text-white" fill="none">
+                  <path d="M4 10l4 4 8-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-neutral-900">
+                  {hasBusinessCoordinates ? "Google location selected with coordinates" : "Google location selected"}
                 </p>
-              ) : null}
-              {hasBusinessCoordinates ? (
-                <p className="mt-2 text-xs text-emerald-700">
-                  Map coordinates saved: {locationLat?.toFixed(5)}, {locationLng?.toFixed(5)}
+                <p className="mt-1 text-sm text-neutral-700">
+                  📍 {displayedBusinessAddress.primary}
                 </p>
-              ) : (
-                <p className="mt-2 text-xs text-amber-700">
-                  Coordinates are missing, so map previews cannot show yet.
-                </p>
-              )}
-              {businessMapsUrl ? (
-                <a
-                  href={businessMapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 inline-flex rounded-full border border-emerald-300 bg-white px-4 py-2 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100"
-                >
-                  Open in Maps
-                </a>
-              ) : null}
+                {displayedBusinessAddress.secondary ? (
+                  <p className="mt-0.5 text-xs text-neutral-500">
+                    {displayedBusinessAddress.secondary}
+                  </p>
+                ) : null}
+                {hasBusinessCoordinates ? (
+                  <p className="mt-2 text-xs text-neutral-500">
+                    Map coordinates saved: {locationLat?.toFixed(5)}, {locationLng?.toFixed(5)}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-amber-700">
+                    Coordinates are missing, so map previews cannot show yet.
+                  </p>
+                )}
+                {businessMapsUrl ? (
+                  <a
+                    href={businessMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-100"
+                  >
+                    Open in Maps
+                  </a>
+                ) : null}
+              </div>
             </div>
           ) : needsBusinessLocation ? (
             <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
