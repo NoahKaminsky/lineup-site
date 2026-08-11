@@ -39,13 +39,6 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
   const [dismissed, setDismissed] = useState(true); // start hidden to avoid flash
   const [steps, setSteps] = useState<Steps | null>(null);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (localStorage.getItem(storageKey(userId))) return; // already dismissed
-    setDismissed(false);
-    loadSteps();
-  }, [userId]);
-
   async function loadSteps() {
     const [profileRes, servicesRes] = await Promise.all([
       supabase
@@ -77,7 +70,47 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
   function dismiss(uid: string) {
     localStorage.setItem(storageKey(uid), "1");
     setDismissed(true);
+    supabase
+      .from("profiles")
+      .update({ onboarding_checklist_dismissed: true })
+      .eq("id", uid)
+      .then(({ error }) => {
+        if (error) console.error("Failed to persist onboarding checklist dismissal:", error);
+      });
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !userId) return;
+
+    // localStorage alone doesn't survive a new browser, device, or cleared
+    // cache — profiles.onboarding_checklist_dismissed is the real source of
+    // truth. localStorage stays as a fast no-flicker path once confirmed.
+    if (localStorage.getItem(storageKey(userId))) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("onboarding_checklist_dismissed")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (!error && data?.onboarding_checklist_dismissed) {
+        localStorage.setItem(storageKey(userId), "1");
+        return;
+      }
+
+      setDismissed(false);
+      loadSteps();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   if (dismissed || !steps) return null;
 
