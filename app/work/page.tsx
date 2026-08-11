@@ -52,6 +52,7 @@ type ServiceRequest = {
   id: string;
   client_id: string;
   category: string;
+  categories?: string[] | null;
   service_detail: string | null;
   title: string;
   description: string | null;
@@ -613,7 +614,15 @@ export default function WorkPage() {
       if (request.status !== "open") return false;
       if (request.is_direct_rebook) return request.preferred_professional_id === userId;
       if (allTypes.length === 0) return true;
-      if (!allTypes.includes(request.category)) return false;
+      // A request can span more than one category (e.g. lashes + brows) —
+      // a pro matching any one of them should still see it, not just the
+      // legacy single `category` column.
+      const requestCategories = request.categories?.length
+        ? request.categories
+        : request.category
+        ? [request.category]
+        : [];
+      if (!requestCategories.some((c) => allTypes.includes(c))) return false;
       // If the pro has service modes set and the request specifies mode(s), at least one must match
       const requestModes = request.service_modes?.length
         ? request.service_modes

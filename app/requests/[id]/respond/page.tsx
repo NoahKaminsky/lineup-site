@@ -11,6 +11,7 @@ type ServiceRequest = {
   id: string;
   client_id: string;
   category: string;
+  categories?: string[] | null;
   service_detail: string | null;
   title: string;
   description: string | null;
@@ -460,9 +461,14 @@ export default function RespondToRequestPage() {
           </p>
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
-              {formatCategory(request.category)}
-            </span>
+            {(request.categories?.length ? request.categories : [request.category]).map((c) => (
+              <span
+                key={c}
+                className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700"
+              >
+                {formatCategory(c)}
+              </span>
+            ))}
 
             {request.service_detail ? (
               <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">

@@ -20,6 +20,7 @@ type ServiceRequest = {
   id: string;
   client_id: string;
   category: string;
+  categories?: string[] | null;
   service_detail: string | null;
   title: string;
   description: string | null;
@@ -1590,7 +1591,9 @@ export default function RequestDetailPage() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
-                    {formatCategory(request.category)}
+                    {(request.categories?.length ? request.categories : [request.category])
+                      .map((c) => formatCategory(c))
+                      .join(" + ")}
                     {request.service_detail ? ` • ${request.service_detail}` : ""}
                   </span>
 

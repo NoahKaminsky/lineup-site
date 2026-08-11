@@ -402,14 +402,18 @@ function NewRequestPageContent() {
   const [userId, setUserId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  const [category, setCategory] = useState("");
-  const [serviceDetails, setServiceDetails] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [serviceDetailsByCategory, setServiceDetailsByCategory] = useState<Record<string, string[]>>({});
   const [otherServiceDetail, setOtherServiceDetail] = useState("");
 
-  function toggleServiceDetail(option: string) {
-    setServiceDetails((prev) =>
-      prev.includes(option) ? prev.filter((item) => item !== option) : [...prev, option]
-    );
+  function toggleServiceDetail(categoryValue: string, option: string) {
+    setServiceDetailsByCategory((prev) => {
+      const current = prev[categoryValue] || [];
+      const next = current.includes(option)
+        ? current.filter((item) => item !== option)
+        : [...current, option];
+      return { ...prev, [categoryValue]: next };
+    });
   }
 
   const [title, setTitle] = useState("");
@@ -522,9 +526,10 @@ function NewRequestPageContent() {
       : categoryOptions;
 
   useEffect(() => {
-    if (!category) return;
-    if (availableCategoryOptions.some((opt) => opt.value === category)) return;
-    handleCategoryChange("");
+    if (categories.length === 0) return;
+    const availableValues = new Set(availableCategoryOptions.map((opt) => opt.value));
+    if (categories.every((c) => availableValues.has(c))) return;
+    setCategories((prev) => prev.filter((c) => availableValues.has(c)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableCategoryOptions.map((opt) => opt.value).join(",")]);
 
@@ -555,10 +560,18 @@ function NewRequestPageContent() {
     }
   }
 
-  function handleCategoryChange(value: string) {
-    setCategory(value);
-    setServiceDetails([]);
-    setOtherServiceDetail("");
+  function toggleCategory(value: string) {
+    setCategories((prev) => {
+      if (prev.includes(value)) {
+        setServiceDetailsByCategory((current) => {
+          const next = { ...current };
+          delete next[value];
+          return next;
+        });
+        return prev.filter((c) => c !== value);
+      }
+      return [...prev, value];
+    });
   }
 
   function generatePhotoId() {
@@ -751,12 +764,16 @@ function NewRequestPageContent() {
       return;
     }
 
-    if (!category) {
-      setMessage("Please select a service.");
+    if (categories.length === 0) {
+      setMessage("Please select at least one service.");
       return;
     }
 
-    if (serviceDetails.length === 0 && !otherServiceDetail.trim()) {
+    const hasAnyServiceDetail = categories.some(
+      (c) => (serviceDetailsByCategory[c] || []).length > 0
+    );
+
+    if (!hasAnyServiceDetail && !otherServiceDetail.trim()) {
       setMessage("Please select at least one service type, or describe what you need.");
       return;
     }
@@ -794,10 +811,22 @@ function NewRequestPageContent() {
     setSubmitting(true);
     setMessage("Submitting request...");
 
-    const targetProfessions = getTargetProfessions(category);
-    const finalServiceDetail = [...serviceDetails, otherServiceDetail.trim()]
+    const targetProfessions = Array.from(
+      new Set(categories.flatMap((c) => getTargetProfessions(c)))
+    );
+
+    const detailByCategoryText = categories
+      .map((c) => {
+        const details = serviceDetailsByCategory[c] || [];
+        if (details.length === 0) return null;
+        const label = categoryOptions.find((opt) => opt.value === c)?.label || c;
+        return `${label}: ${details.join(", ")}`;
+      })
+      .filter(Boolean);
+
+    const finalServiceDetail = [...detailByCategoryText, otherServiceDetail.trim()]
       .filter(Boolean)
-      .join(", ");
+      .join(" • ");
 
     try {
       const referencePhotoUrls = await uploadReferencePhotos(userId);
@@ -810,7 +839,8 @@ function NewRequestPageContent() {
         .insert([
           {
             client_id: userId,
-            category,
+            category: categories[0],
+            categories,
             service_detail: finalServiceDetail || null,
             title: title.trim(),
             description: description.trim() || null,
@@ -948,15 +978,19 @@ function NewRequestPageContent() {
                   <p className="mb-2 -mt-1 text-xs text-neutral-500">
                     Only showing services {rebookProName || "this professional"} offers.
                   </p>
-                ) : null}
+                ) : (
+                  <p className="mb-2 -mt-1 text-xs text-neutral-500">
+                    Select more than one if you want a few things done — like lashes and brows together.
+                  </p>
+                )}
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                   {availableCategoryOptions.map((opt) => {
-                    const isSelected = category === opt.value;
+                    const isSelected = categories.includes(opt.value);
                     return (
                       <button
                         key={opt.value}
                         type="button"
-                        onClick={() => handleCategoryChange(opt.value)}
+                        onClick={() => toggleCategory(opt.value)}
                         className={`flex flex-col items-center gap-1.5 rounded-2xl border px-3 py-3 text-center transition active:scale-[0.97] ${
                           isSelected
                             ? "border-black bg-black text-white"
@@ -971,40 +1005,51 @@ function NewRequestPageContent() {
                 </div>
               </div>
 
-              {/* Service type */}
-              {category ? (
+              {/* Service type — one column per selected category */}
+              {categories.length > 0 ? (
                 <div>
                   <label className={labelClass}>Service type</label>
                   <p className="mb-2 -mt-1 text-xs text-neutral-500">
-                    Select as many as you like — book more than one thing in the same request.
+                    Select as many as you like within each service.
                   </p>
-                  <div className="space-y-3.5">
-                    {serviceDetailGroups[category]?.map((group) => (
-                      <div key={group.label}>
-                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                          {group.label}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {group.options.map((option) => {
-                            const isSelected = serviceDetails.includes(option);
-                            return (
-                              <button
-                                key={option}
-                                type="button"
-                                onClick={() => toggleServiceDetail(option)}
-                                className={`rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.97] ${
-                                  isSelected
-                                    ? "border-black bg-black text-white"
-                                    : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
-                                }`}
-                              >
-                                {option}
-                              </button>
-                            );
-                          })}
+                  <div className={`grid gap-5 ${categories.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                    {categories.map((c) => {
+                      const categoryLabel = categoryOptions.find((opt) => opt.value === c)?.label || c;
+                      const selectedForCategory = serviceDetailsByCategory[c] || [];
+                      return (
+                        <div key={c} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                          <p className="mb-3 text-sm font-semibold text-neutral-900">{categoryLabel}</p>
+                          <div className="space-y-3.5">
+                            {serviceDetailGroups[c]?.map((group) => (
+                              <div key={group.label}>
+                                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                                  {group.label}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {group.options.map((option) => {
+                                    const isSelected = selectedForCategory.includes(option);
+                                    return (
+                                      <button
+                                        key={option}
+                                        type="button"
+                                        onClick={() => toggleServiceDetail(c, option)}
+                                        className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition active:scale-[0.97] ${
+                                          isSelected
+                                            ? "border-black bg-black text-white"
+                                            : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400"
+                                        }`}
+                                      >
+                                        {option}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="mt-3">
