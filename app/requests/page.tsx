@@ -563,6 +563,7 @@ export default function RequestsPage() {
 
   const [requests, setRequests] = useState<ServiceRequest[]>(() => getCached<RequestsCache>("requests-page")?.requests ?? []);
   const [bookings, setBookings] = useState<EnrichedBooking[]>(() => getCached<RequestsCache>("requests-page")?.bookings ?? []);
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set());
   const [professionalBookings, setProfessionalBookings] = useState<
     ProfessionalWorkBooking[]
   >(() => getCached<RequestsCache>("requests-page")?.professionalBookings ?? []);
@@ -700,6 +701,22 @@ export default function RequestsPage() {
     setProfessionalBookings([]);
     setProfessionalUnreadRequestIds([]);
     setRespondedRequestIds([]);
+
+    const completedBookingIds = enrichedBookings
+      .filter((booking) => booking.status === "completed")
+      .map((booking) => booking.id);
+
+    if (completedBookingIds.length > 0) {
+      const { data: reviewedRows } = await supabase
+        .from("professional_reviews")
+        .select("booking_id")
+        .eq("reviewer_id", userId)
+        .in("booking_id", completedBookingIds);
+
+      setReviewedBookingIds(new Set((reviewedRows || []).map((row) => row.booking_id).filter(Boolean)));
+    } else {
+      setReviewedBookingIds(new Set());
+    }
   }, []);
 
   const hydrateProfessionalData = useCallback(async (userId: string) => {
@@ -1026,29 +1043,36 @@ if (profileError || !profile) {
 
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser();
 
-      if (!user) {
+      if (userError || !user) {
         router.push("/login");
         return;
       }
 
-      const completedAt = new Date().toISOString();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status: "completed",
-          completed_at: completedAt,
-        })
-        .eq("id", bookingId)
-        .eq("customer_id", user.id)
-        .eq("status", "completion_requested");
+      const response = await fetch("/api/bookings/complete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ bookingId, action: "confirm" }),
+      });
 
-      if (error) {
-        setMessage(error.message);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMessage(data?.error || "Could not confirm completion.");
         return;
       }
+
+      const completedAt = new Date().toISOString();
+      const completedBooking = bookings.find((booking) => booking.id === bookingId);
 
       setBookings((prev) =>
         prev.map((booking) =>
@@ -1061,6 +1085,21 @@ if (profileError || !profile) {
             : booking
         )
       );
+
+      if (completedBooking?.request_id) {
+        setRequests((prev) =>
+          prev.map((request) =>
+            request.id === completedBooking.request_id
+              ? { ...request, status: "completed", completed_at: completedAt }
+              : request
+          )
+        );
+      }
+
+      if (data.needsReview) {
+        router.push(`/bookings/${bookingId}?review=1`);
+        return;
+      }
 
       setMessage("Booking marked as completed.");
     } catch (error) {
@@ -1163,9 +1202,19 @@ if (profileError || !profile) {
     [bookings]
   );
 
+  const pendingCompletionBookings = useMemo(
+    () => bookings.filter((booking) => booking.status === "completion_requested"),
+    [bookings]
+  );
+
   const completedBookings = useMemo(
     () => bookings.filter((booking) => booking.status === "completed"),
     [bookings]
+  );
+
+  const unreviewedCompletedBookings = useMemo(
+    () => completedBookings.filter((booking) => !reviewedBookingIds.has(booking.id)),
+    [completedBookings, reviewedBookingIds]
   );
 
   const cancelledBookings = useMemo(
@@ -1624,6 +1673,57 @@ return (
           {message ? (
             <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               {message}
+            </div>
+          ) : null}
+
+          {isCustomer && pendingCompletionBookings.length > 0 ? (
+            <div className="mt-8 rounded-2xl border border-neutral-900 bg-neutral-900 p-5 text-white">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.14em] text-white/60">
+                    Action needed
+                  </p>
+                  <p className="mt-1 text-lg font-semibold tracking-tight">
+                    {pendingCompletionBookings.length === 1
+                      ? `Confirm your ${pendingCompletionBookings[0].service_name || "service"} is done`
+                      : `Confirm ${pendingCompletionBookings.length} completed services`}
+                  </p>
+                  <p className="mt-1 text-sm text-white/70">
+                    Your professional marked this done — confirming it wraps up the booking and releases their payout.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleConfirmBookingCompletion(pendingCompletionBookings[0].id)}
+                  disabled={bookingActionLoadingId === pendingCompletionBookings[0].id}
+                  className="inline-flex shrink-0 rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-900 transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {bookingActionLoadingId === pendingCompletionBookings[0].id
+                    ? "Confirming..."
+                    : "Confirm completion"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {isCustomer && unreviewedCompletedBookings.length > 0 ? (
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+              <div>
+                <p className="font-semibold text-neutral-900">
+                  {unreviewedCompletedBookings.length === 1
+                    ? `How was your ${unreviewedCompletedBookings[0].service_name || "service"}?`
+                    : `You have ${unreviewedCompletedBookings.length} completed services to review`}
+                </p>
+                <p className="mt-1 text-sm text-neutral-500">
+                  Leave a quick review so other clients know what to expect.
+                </p>
+              </div>
+              <Link
+                href={`/bookings/${unreviewedCompletedBookings[0].id}?review=1`}
+                className="inline-flex shrink-0 rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-white"
+              >
+                Leave a review
+              </Link>
             </div>
           ) : null}
 

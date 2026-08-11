@@ -1288,23 +1288,25 @@ export default function RequestDetailPage() {
 
     setMessage("");
 
-    const { error } = await supabase
-      .from("service_requests")
-      .update({ status: "completion_requested" })
-      .eq("id", request.id)
-      .eq("accepted_professional_id", currentUserId);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (error) {
-      setMessage(error.message);
+    const response = await fetch("/api/bookings/complete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ requestId: request.id, action: "request" }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setMessage(data?.error || "Could not request completion.");
       return;
     }
-
-    await supabase
-      .from("bookings")
-      .update({ status: "completion_requested" })
-      .eq("request_id", request.id)
-      .eq("professional_id", currentUserId)
-      .eq("status", "confirmed");
 
     if (currentUserId && chatBookingId) {
       await supabase.from("booking_messages").insert([
@@ -1335,23 +1337,25 @@ export default function RequestDetailPage() {
 
     setMessage("");
 
-    const { error } = await supabase
-      .from("service_requests")
-      .update({ status: "completed" })
-      .eq("id", request.id)
-      .eq("client_id", currentUserId);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (error) {
-      setMessage(error.message);
+    const response = await fetch("/api/bookings/complete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ requestId: request.id, action: "confirm" }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setMessage(data?.error || "Could not confirm completion.");
       return;
     }
-
-    await supabase
-      .from("bookings")
-      .update({ status: "completed" })
-      .eq("request_id", request.id)
-      .eq("customer_id", currentUserId)
-      .in("status", ["confirmed", "completion_requested"]);
 
     if (currentUserId && chatBookingId) {
       await supabase.from("booking_messages").insert([
@@ -1372,7 +1376,11 @@ export default function RequestDetailPage() {
         : prev
     );
 
-    setMessage("Service confirmed as completed.");
+    if (data.needsReview) {
+      setMessage("Service confirmed as completed. Leave a review below to let others know how it went.");
+    } else {
+      setMessage("Service confirmed as completed.");
+    }
   }
 
   async function handleSubmitReview() {
@@ -1403,6 +1411,7 @@ export default function RequestDetailPage() {
       .insert([
         {
           request_id: request.id,
+          booking_id: chatBookingId || null,
           professional_id: acceptedOffer.professional_id,
           reviewer_id: user.id,
           rating: reviewRating,

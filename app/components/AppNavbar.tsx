@@ -193,7 +193,7 @@ function NavbarComponent() {
 
     const { data: notifs } = await supabase
       .from("notifications")
-      .select("id, title, is_read, created_at, request_id")
+      .select("id, title, is_read, created_at, request_id, booking_id")
       .eq("user_id", profile.id)
       .gte("created_at", cutoff)
       .order("created_at", { ascending: false })
@@ -222,11 +222,16 @@ function NavbarComponent() {
       is_read: boolean;
       created_at: string;
       request_id: string | null;
+      booking_id: string | null;
     }) => {
       const reqTitle = n.request_id ? reqTitleMap.get(n.request_id) : null;
       return {
         id: n.id,
-        href: n.request_id ? `/requests/${n.request_id}` : "/requests",
+        href: n.booking_id
+          ? `/bookings/${n.booking_id}`
+          : n.request_id
+          ? `/requests/${n.request_id}`
+          : "/requests",
         label: n.title || "New notification",
         sub: reqTitle || "",
         isRead: n.is_read,

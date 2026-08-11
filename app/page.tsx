@@ -22,7 +22,8 @@ const appTourScreens = [
     description: "Every completed job adds to a professional's track record.",
   },
   {
-    src: "/images/app-screenshots/00-post-request.png",
+    src: "/images/app-screenshots/00-post-request-poster.jpg",
+    video: "/videos/post-a-request.mp4",
     tag: "Post a Request.",
     description: "Share what you need, your budget, and when you want it done.",
   },
@@ -257,11 +258,24 @@ export default function Page() {
                     className={`relative aspect-[9/19.5] w-full overflow-hidden rounded-[2.25rem] border-[6px] border-neutral-900 bg-neutral-900 shadow-xl transition-transform duration-300 ease-out ${tilt} group-hover:-translate-y-3 group-hover:rotate-0 group-hover:scale-105 group-hover:shadow-2xl`}
                   >
                     <div className="absolute left-1/2 top-0 z-10 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
-                    <img
-                      src={screen.src}
-                      alt={screen.tag}
-                      className="h-full w-full object-cover object-top"
-                    />
+                    {screen.video ? (
+                      <video
+                        src={screen.video}
+                        poster={screen.src}
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        preload="metadata"
+                        className="h-full w-full object-cover object-top"
+                      />
+                    ) : (
+                      <img
+                        src={screen.src}
+                        alt={screen.tag}
+                        className="h-full w-full object-cover object-top"
+                      />
+                    )}
                   </div>
                 )}
                 <p

@@ -412,6 +412,35 @@ export default function BookingDetailPage() {
     }
   }, [bookingId, router]);
 
+  // Lets other pages (e.g. the dashboard's quick "confirm completion" action)
+  // send the customer here with ?review=1 to pick up the review prompt, since
+  // this page owns the review modal rather than every entry point duplicating it.
+  useEffect(() => {
+    if (!booking || booking.status !== "completed" || !viewerId) return;
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("review") !== "1") return;
+
+    let cancelled = false;
+
+    (async () => {
+      const { data: existingReview } = await supabase
+        .from("professional_reviews")
+        .select("id")
+        .eq("booking_id", booking.id)
+        .maybeSingle();
+
+      if (!cancelled && !existingReview) {
+        setShowReviewModal(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [booking, viewerId]);
+
   const isViewerCustomer = !!booking && viewerId === booking.customer_id;
   const isViewerProfessional = !!booking && viewerId === booking.professional_id;
   const viewerIsCustomerRole = isCustomerRole(viewerRole);
@@ -438,29 +467,27 @@ export default function BookingDetailPage() {
       setActionLoading("confirm");
       setMessage("");
 
-      const completedAt = new Date().toISOString();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status: "completed",
-          completed_at: completedAt,
-        })
-        .eq("id", booking.id)
-        .eq("customer_id", viewerId)
-        .eq("status", "completion_requested");
+      const response = await fetch("/api/bookings/complete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ bookingId: booking.id, action: "confirm" }),
+      });
 
-      if (error) {
-        setMessage(error.message);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMessage(data?.error || "Could not confirm completion.");
         return;
       }
 
-      if (booking.request_id) {
-        await supabase
-          .from("service_requests")
-          .update({ status: "completed", completed_at: completedAt })
-          .eq("id", booking.request_id);
-      }
+      const completedAt = new Date().toISOString();
 
       setBooking((prev) =>
         prev
@@ -472,13 +499,7 @@ export default function BookingDetailPage() {
           : prev
       );
 
-      const { data: existingReview } = await supabase
-        .from("professional_reviews")
-        .select("id")
-        .eq("booking_id", booking.id)
-        .maybeSingle();
-
-      if (!existingReview) {
+      if (data.needsReview) {
         setShowReviewModal(true);
       } else {
         setMessage("Booking marked as completed.");
@@ -497,19 +518,27 @@ export default function BookingDetailPage() {
     setReviewSubmitting(true);
 
     try {
-      await supabase.from("professional_reviews").insert({
+      const { error } = await supabase.from("professional_reviews").insert({
         professional_id: booking.professional_id,
         reviewer_id: viewerId,
         booking_id: booking.id,
+        request_id: booking.request_id || null,
         rating: reviewRating,
         comment: reviewComment.trim() || null,
       });
-    } catch {
-      // Review is best-effort — don't block the user on failure
+
+      if (error) {
+        setMessage(`Couldn't submit your review: ${error.message}`);
+        return;
+      }
+
+      setMessage("Booking completed. Thanks for your review!");
+    } catch (error) {
+      console.error(error);
+      setMessage("Couldn't submit your review — please try again.");
     } finally {
       setReviewSubmitting(false);
       setShowReviewModal(false);
-      setMessage("Booking completed. Thanks for your review!");
     }
   }
 
@@ -522,29 +551,27 @@ export default function BookingDetailPage() {
       setActionLoading("request-completion");
       setMessage("");
 
-      const completionRequestedAt = new Date().toISOString();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      const { error } = await supabase
-        .from("bookings")
-        .update({
-          status: "completion_requested",
-          completion_requested_at: completionRequestedAt,
-        })
-        .eq("id", booking.id)
-        .eq("professional_id", viewerId)
-        .eq("status", "confirmed");
+      const response = await fetch("/api/bookings/complete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ bookingId: booking.id, action: "request" }),
+      });
 
-      if (error) {
-        setMessage(error.message);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMessage(data?.error || "Could not request completion.");
         return;
       }
 
-      if (booking.request_id) {
-        await supabase
-          .from("service_requests")
-          .update({ status: "completion_requested" })
-          .eq("id", booking.request_id);
-      }
+      const completionRequestedAt = new Date().toISOString();
 
       setBooking((prev) =>
         prev

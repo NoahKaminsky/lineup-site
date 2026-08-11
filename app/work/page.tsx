@@ -229,6 +229,61 @@ function formatPrice(value: string | number | null) {
   }).format(numericValue);
 }
 
+type CompletedPeriodGroup = {
+  key: string;
+  label: string;
+  items: BookedItem[];
+  defaultOpen: boolean;
+};
+
+// Completed history persists forever, so once someone has a long track record
+// this keeps it scannable — recent work stays open, older work collapses into
+// month buckets instead of one endless flat list.
+function groupCompletedByPeriod(items: BookedItem[]): CompletedPeriodGroup[] {
+  const now = new Date();
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay());
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const thisWeek: BookedItem[] = [];
+  const thisMonth: BookedItem[] = [];
+  const monthMap = new Map<string, BookedItem[]>();
+
+  items.forEach((item) => {
+    const date = new Date(item.sortDate);
+
+    if (date >= startOfWeek) {
+      thisWeek.push(item);
+    } else if (date >= startOfMonth) {
+      thisMonth.push(item);
+    } else {
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      if (!monthMap.has(key)) monthMap.set(key, []);
+      monthMap.get(key)!.push(item);
+    }
+  });
+
+  const groups: CompletedPeriodGroup[] = [];
+
+  if (thisWeek.length > 0) {
+    groups.push({ key: "this-week", label: "This week", items: thisWeek, defaultOpen: true });
+  }
+
+  if (thisMonth.length > 0) {
+    groups.push({ key: "this-month", label: "Earlier this month", items: thisMonth, defaultOpen: true });
+  }
+
+  [...monthMap.keys()]
+    .sort()
+    .reverse()
+    .forEach((key) => {
+      const [year, month] = key.split("-").map(Number);
+      const label = new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+      groups.push({ key, label, items: monthMap.get(key)!, defaultOpen: false });
+    });
+
+  return groups;
+}
+
 function statusLabel(status: string | null) {
   if (status === "accepted") return "Booked";
   if (status === "confirmed") return "Booked";
@@ -788,6 +843,8 @@ export default function WorkPage() {
     [bookedItems]
   );
 
+  const completedGroups = useMemo(() => groupCompletedByPeriod(completedItems), [completedItems]);
+
   const cancelledItems = useMemo(
     () =>
       bookedItems
@@ -811,6 +868,7 @@ export default function WorkPage() {
 
     try {
       const now = new Date().toISOString();
+      let skipReviewPrompt = false;
 
       if (nextStatus === "cancelled") {
         const {
@@ -834,44 +892,31 @@ export default function WorkPage() {
           setMessage(data?.error || "Could not cancel this booking.");
           return;
         }
-      } else if (item.source === "booking") {
-        const updates: Partial<BookingRow> = {
-          status: nextStatus as BookingStatus,
-        };
+      } else if (item.source === "booking" && (nextStatus === "completion_requested" || nextStatus === "completed")) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-        if (nextStatus === "completion_requested") {
-          updates.completion_requested_at = now;
-        }
+        const response = await fetch("/api/bookings/complete", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({
+            bookingId: item.id,
+            action: nextStatus === "completion_requested" ? "request" : "confirm",
+          }),
+        });
 
-        if (nextStatus === "completed") {
-          updates.completed_at = now;
-        }
+        const data = await response.json();
 
-        let query = supabase.from("bookings").update(updates).eq("id", item.id);
-
-        query = isProfessional
-          ? query.eq("professional_id", profile.id)
-          : query.eq("customer_id", profile.id);
-
-        const { error } = await query;
-
-        if (error) {
-          setMessage(error.message);
+        if (!response.ok) {
+          setMessage(data?.error || "Could not update this booking.");
           return;
         }
 
-        // Keep the linked request in sync — otherwise it stays "accepted"
-        // forever and keeps showing as active even after the booking is done.
-        if (item.originRequestId && (nextStatus === "completion_requested" || nextStatus === "completed")) {
-          await supabase
-            .from("service_requests")
-            .update(
-              nextStatus === "completed"
-                ? { status: "completed", completed_at: now }
-                : { status: "completion_requested" }
-            )
-            .eq("id", item.originRequestId);
-        }
+        skipReviewPrompt = data.needsReview === false;
       } else {
         const updates: Record<string, string> = {
           status: nextStatus,
@@ -912,8 +957,10 @@ export default function WorkPage() {
       if (nextStatus === "completion_requested") {
         setMessage("Completion requested. Waiting for customer confirmation.");
       } else if (nextStatus === "completed") {
-        if (isCustomer) {
+        if (isCustomer && !skipReviewPrompt) {
           setReviewItem(item);
+        } else if (isCustomer) {
+          setMessage("Service marked as completed. You've already reviewed this one.");
         } else {
           setMessage("Service marked as completed.");
         }
@@ -935,20 +982,29 @@ export default function WorkPage() {
 
     setReviewSubmitting(true);
     try {
-      await supabase.from("professional_reviews").insert({
+      const { error } = await supabase.from("professional_reviews").insert({
         professional_id: professionalId,
         reviewer_id: profile?.id,
+        booking_id: reviewItem.source === "booking" ? reviewItem.id : null,
+        request_id: reviewItem.source === "request" ? reviewItem.id : reviewItem.originRequestId,
         rating: reviewRating,
         comment: reviewComment.trim() || null,
       });
-    } catch {
-      // best-effort
-    } finally {
-      setReviewSubmitting(false);
+
+      if (error) {
+        setMessage(`Couldn't submit your review: ${error.message}`);
+        return;
+      }
+
       setReviewItem(null);
       setReviewRating(0);
       setReviewComment("");
       setMessage("Service completed. Thanks for your review!");
+    } catch (error) {
+      console.error(error);
+      setMessage("Couldn't submit your review — please try again.");
+    } finally {
+      setReviewSubmitting(false);
     }
   }
 
@@ -964,15 +1020,19 @@ export default function WorkPage() {
         customer_id: item.customerId,
         reviewer_id: profile.id,
         booking_id: item.source === "booking" ? item.id : null,
-        request_id: item.source === "request" ? item.id : null,
+        request_id: item.source === "request" ? item.id : item.originRequestId,
         rating,
       });
 
-      if (!error) {
-        setCustomerRatings((prev) => ({ ...prev, [key]: rating }));
+      if (error) {
+        setMessage(`Couldn't rate this client: ${error.message}`);
+        return;
       }
-    } catch {
-      // best-effort
+
+      setCustomerRatings((prev) => ({ ...prev, [key]: rating }));
+    } catch (error) {
+      console.error(error);
+      setMessage("Couldn't rate this client — please try again.");
     } finally {
       setRatingSubmittingId(null);
     }
@@ -1072,7 +1132,10 @@ export default function WorkPage() {
   }
 
   const openRequestItems = requestAndOfferItems.filter(
-    (item) => (item.kind === "open_request" || item.kind === "posted_request") && item.status !== "Cancelled"
+    (item) =>
+      (item.kind === "open_request" || item.kind === "posted_request") &&
+      item.status !== "Cancelled" &&
+      item.status !== "Completed"
   );
   const isUnresolvedOffer = (item: RequestAndOfferItem) =>
     item.rawOfferStatus === "pending" || item.rawOfferStatus === "payment_pending";
@@ -1267,21 +1330,35 @@ export default function WorkPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                {completedItems.length > 0 ? (
-                  <BookedList
-                    items={completedItems}
-                    isProfessional={isProfessional}
-                    isCustomer={isCustomer}
-                    actionLoadingId={actionLoadingId}
-                    cancelConfirmId={cancelConfirmId}
-                    setCancelConfirmId={setCancelConfirmId}
-                    getOtherPerson={getOtherPerson}
-                    updateBookedItemStatus={updateBookedItemStatus}
-                    customerRatings={customerRatings}
-                    ratingSubmittingId={ratingSubmittingId}
-                    onRateCustomer={handleRateCustomer}
-                  />
-                ) : null}
+                {completedGroups.map((group) => (
+                  <details key={group.key} open={group.defaultOpen} className="group/period">
+                    <summary className="mb-3 flex cursor-pointer list-none items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                      <svg
+                        viewBox="0 0 20 20"
+                        className="h-3.5 w-3.5 shrink-0 text-neutral-400 transition-transform group-open/period:rotate-90"
+                        fill="none"
+                      >
+                        <path d="M7 4l6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      {group.label}
+                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{group.items.length}</span>
+                    </summary>
+
+                    <BookedList
+                      items={group.items}
+                      isProfessional={isProfessional}
+                      isCustomer={isCustomer}
+                      actionLoadingId={actionLoadingId}
+                      cancelConfirmId={cancelConfirmId}
+                      setCancelConfirmId={setCancelConfirmId}
+                      getOtherPerson={getOtherPerson}
+                      updateBookedItemStatus={updateBookedItemStatus}
+                      customerRatings={customerRatings}
+                      ratingSubmittingId={ratingSubmittingId}
+                      onRateCustomer={handleRateCustomer}
+                    />
+                  </details>
+                ))}
 
                 {cancelledItems.length > 0 ? (
                   <div>

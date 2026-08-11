@@ -41,6 +41,128 @@ function detailRow(label: string, value: string | null | undefined) {
   `;
 }
 
+async function sendReminderPairForBooking(
+  supabase: ReturnType<typeof getServiceSupabase>,
+  booking: any,
+  siteUrl: string,
+  whenLabel: "tomorrow" | "today"
+) {
+  const bookingUrl = `${siteUrl}/bookings/${booking.id}`;
+  const serviceName = booking.service_name || "your appointment";
+  const date = formatDate(booking.booking_date);
+  const start = formatTime(booking.start_time);
+  const end = formatTime(booking.end_time);
+  const location = booking.formatted_address || null;
+
+  const customerName = booking.customer?.full_name || "your client";
+  const professionalName = booking.professional?.full_name || "your professional";
+
+  let sent = 0;
+
+  if (booking.customer?.email) {
+    const customerFirstName = booking.customer.full_name?.split(" ")[0] || "there";
+
+    const html = createEmailLayout({
+      title: whenLabel === "tomorrow" ? "Appointment tomorrow" : "Appointment today",
+      preview: `${serviceName} with ${professionalName} is ${whenLabel} at ${start}.`,
+      ctaLabel: "Message your professional",
+      ctaUrl: bookingUrl,
+      content: `
+        <p style="margin:0 0 16px 0;">Hey ${escapeHtml(customerFirstName)},</p>
+
+        <p style="margin:0 0 16px 0;">
+          Just a heads up — your booking with <strong>${escapeHtml(professionalName)}</strong> is ${whenLabel}.
+        </p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border-collapse:collapse;">
+          ${detailRow("Service", serviceName)}
+          ${detailRow("Date", date)}
+          ${detailRow("Time", `${start} - ${end}`)}
+          ${detailRow("Professional", professionalName)}
+          ${detailRow("Location", location)}
+        </table>
+
+        <p style="margin:20px 0 0 0;color:#525252;">
+          Running late or need to change something? Send ${escapeHtml(professionalName.split(" ")[0] || "them")} a quick message on LineUp so you're both on the same page before you meet.
+        </p>
+      `,
+    });
+
+    await sendEmail({
+      to: booking.customer.email,
+      subject:
+        whenLabel === "tomorrow"
+          ? "Your LineUp appointment is tomorrow"
+          : "Your LineUp appointment is today",
+      html,
+    });
+
+    sent += 1;
+  }
+
+  if (booking.professional?.email) {
+    const professionalFirstName = booking.professional.full_name?.split(" ")[0] || "there";
+
+    const html = createEmailLayout({
+      title: whenLabel === "tomorrow" ? "Booking tomorrow" : "Booking today",
+      preview: `Booking with ${customerName} at ${start} ${whenLabel}.`,
+      ctaLabel: "Message your client",
+      ctaUrl: bookingUrl,
+      content: `
+        <p style="margin:0 0 16px 0;">Hey ${escapeHtml(professionalFirstName)},</p>
+
+        <p style="margin:0 0 16px 0;">
+          You're booked with <strong>${escapeHtml(customerName)}</strong> ${whenLabel}.
+        </p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border-collapse:collapse;">
+          ${detailRow("Service", serviceName)}
+          ${detailRow("Date", date)}
+          ${detailRow("Time", `${start} - ${end}`)}
+          ${detailRow("Client", customerName)}
+          ${detailRow("Location", location)}
+        </table>
+
+        <p style="margin:20px 0 0 0;color:#525252;">
+          Worth sending ${escapeHtml(customerName.split(" ")[0] || "your client")} a quick message on LineUp to confirm details before the appointment.
+        </p>
+      `,
+    });
+
+    await sendEmail({
+      to: booking.professional.email,
+      subject:
+        whenLabel === "tomorrow" ? "You have a LineUp booking tomorrow" : "You have a LineUp booking today",
+      html,
+    });
+
+    sent += 1;
+  }
+
+  if (whenLabel === "today") {
+    await supabase.from("notifications").insert([
+      {
+        user_id: booking.customer_id,
+        request_id: booking.request_id || null,
+        booking_id: booking.id,
+        is_read: false,
+        type: "appointment_today",
+        title: `${serviceName} with ${professionalName} today at ${start}`,
+      },
+      {
+        user_id: booking.professional_id,
+        request_id: booking.request_id || null,
+        booking_id: booking.id,
+        is_read: false,
+        type: "appointment_today",
+        title: `${serviceName} with ${customerName} today at ${start}`,
+      },
+    ]);
+  }
+
+  return sent;
+}
+
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
 
@@ -56,16 +178,23 @@ export async function GET(req: Request) {
     const supabase = getServiceSupabase();
 
     const now = new Date();
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
     // This cron runs once a day (see vercel.json). Matching a narrow time-of-day
     // window (e.g. "23-24h out right now") only reliably reaches bookings whose
     // start time happens to align with when the cron fires, silently skipping
     // everyone else. Matching on calendar date instead guarantees every confirmed
-    // booking scheduled for tomorrow gets exactly one reminder from this run.
+    // booking scheduled for tomorrow (or today) gets exactly one reminder from
+    // this run.
     const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     const tomorrowDateString = tomorrow.toISOString().slice(0, 10);
+    const todayDateString = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      .toISOString()
+      .slice(0, 10);
 
-    const { data: bookings } = await supabase
+    let sent = 0;
+
+    const { data: tomorrowBookings } = await supabase
       .from("bookings")
       .select(`
         *,
@@ -75,103 +204,35 @@ export async function GET(req: Request) {
       .eq("status", "confirmed")
       .eq("booking_date", tomorrowDateString);
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-    let sent = 0;
-
-    for (const booking of bookings || []) {
+    for (const booking of tomorrowBookings || []) {
       if (booking.reminder_24h_sent_at) continue;
 
-      const bookingUrl = `${siteUrl}/bookings/${booking.id}`;
-      const serviceName = booking.service_name || "your appointment";
-      const date = formatDate(booking.booking_date);
-      const start = formatTime(booking.start_time);
-      const end = formatTime(booking.end_time);
-      const location = booking.formatted_address || null;
-
-      const customerName = booking.customer?.full_name || "your client";
-      const professionalName = booking.professional?.full_name || "your professional";
-
-      if (booking.customer?.email) {
-        const customerFirstName = booking.customer.full_name?.split(" ")[0] || "there";
-
-        const html = createEmailLayout({
-          title: "Appointment tomorrow",
-          preview: `${serviceName} with ${professionalName} is tomorrow at ${start}.`,
-          ctaLabel: "Message your professional",
-          ctaUrl: bookingUrl,
-          content: `
-            <p style="margin:0 0 16px 0;">Hey ${escapeHtml(customerFirstName)},</p>
-
-            <p style="margin:0 0 16px 0;">
-              Just a heads up — your booking with <strong>${escapeHtml(professionalName)}</strong> is tomorrow.
-            </p>
-
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border-collapse:collapse;">
-              ${detailRow("Service", serviceName)}
-              ${detailRow("Date", date)}
-              ${detailRow("Time", `${start} - ${end}`)}
-              ${detailRow("Professional", professionalName)}
-              ${detailRow("Location", location)}
-            </table>
-
-            <p style="margin:20px 0 0 0;color:#525252;">
-              Running late or need to change something? Send ${escapeHtml(professionalName.split(" ")[0] || "them")} a quick message on LineUp so you're both on the same page before you meet.
-            </p>
-          `,
-        });
-
-        await sendEmail({
-          to: booking.customer.email,
-          subject: "Your LineUp appointment is tomorrow",
-          html,
-        });
-
-        sent += 1;
-      }
-
-      if (booking.professional?.email) {
-        const professionalFirstName = booking.professional.full_name?.split(" ")[0] || "there";
-
-        const html = createEmailLayout({
-          title: "Booking tomorrow",
-          preview: `Booking with ${customerName} at ${start} tomorrow.`,
-          ctaLabel: "Message your client",
-          ctaUrl: bookingUrl,
-          content: `
-            <p style="margin:0 0 16px 0;">Hey ${escapeHtml(professionalFirstName)},</p>
-
-            <p style="margin:0 0 16px 0;">
-              You're booked with <strong>${escapeHtml(customerName)}</strong> tomorrow.
-            </p>
-
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;border-collapse:collapse;">
-              ${detailRow("Service", serviceName)}
-              ${detailRow("Date", date)}
-              ${detailRow("Time", `${start} - ${end}`)}
-              ${detailRow("Client", customerName)}
-              ${detailRow("Location", location)}
-            </table>
-
-            <p style="margin:20px 0 0 0;color:#525252;">
-              Worth sending ${escapeHtml(customerName.split(" ")[0] || "your client")} a quick message on LineUp to confirm details before the appointment.
-            </p>
-          `,
-        });
-
-        await sendEmail({
-          to: booking.professional.email,
-          subject: "You have a LineUp booking tomorrow",
-          html,
-        });
-
-        sent += 1;
-      }
+      sent += await sendReminderPairForBooking(supabase, booking, siteUrl, "tomorrow");
 
       await supabase
         .from("bookings")
-        .update({
-          reminder_24h_sent_at: new Date().toISOString(),
-        })
+        .update({ reminder_24h_sent_at: new Date().toISOString() })
+        .eq("id", booking.id);
+    }
+
+    const { data: todayBookings } = await supabase
+      .from("bookings")
+      .select(`
+        *,
+        customer:customer_id ( email, full_name ),
+        professional:professional_id ( email, full_name )
+      `)
+      .eq("status", "confirmed")
+      .eq("booking_date", todayDateString);
+
+    for (const booking of todayBookings || []) {
+      if (booking.reminder_dayof_sent_at) continue;
+
+      sent += await sendReminderPairForBooking(supabase, booking, siteUrl, "today");
+
+      await supabase
+        .from("bookings")
+        .update({ reminder_dayof_sent_at: new Date().toISOString() })
         .eq("id", booking.id);
     }
 
