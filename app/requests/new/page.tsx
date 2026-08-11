@@ -25,7 +25,12 @@ const serviceDetailOptions: Record<string, string[]> = {
     "Updo / styling",
     "Hair extensions",
     "Deep conditioning treatment",
-    "Other",
+    "Curly hair cut / style",
+    "Perm",
+    "Braids / twists",
+    "Silk press",
+    "Wig install / styling",
+    "Hair relaxer / texturizer",
   ],
   nails: [
     "Manicure",
@@ -37,7 +42,9 @@ const serviceDetailOptions: Record<string, string[]> = {
     "Dip powder",
     "Nail art",
     "Nail repair",
-    "Other",
+    "Nail polish change",
+    "French tips",
+    "Ombre / gradient nails",
   ],
   lashes: [
     "Classic set",
@@ -48,7 +55,8 @@ const serviceDetailOptions: Record<string, string[]> = {
     "Lash lift",
     "Lash tint",
     "Lash removal",
-    "Other",
+    "Strip lash application",
+    "Bottom lash set",
   ],
   brows: [
     "Brow shaping",
@@ -58,7 +66,9 @@ const serviceDetailOptions: Record<string, string[]> = {
     "Threading",
     "Microblading",
     "Brow henna",
-    "Other",
+    "Brow tweezing",
+    "Ombre brows",
+    "Nano brows",
   ],
   makeup: [
     "Full face",
@@ -68,7 +78,9 @@ const serviceDetailOptions: Record<string, string[]> = {
     "Event makeup",
     "Photoshoot makeup",
     "Makeup lesson",
-    "Other",
+    "Airbrush makeup",
+    "Natural / no-makeup look",
+    "Special effects makeup",
   ],
   waxing: [
     "Brazilian wax",
@@ -79,7 +91,9 @@ const serviceDetailOptions: Record<string, string[]> = {
     "Arm wax",
     "Full face wax",
     "Full body wax",
-    "Other",
+    "Chest wax",
+    "Back wax",
+    "Eyebrow wax",
   ],
   body_sugaring: [
     "Brazilian sugaring",
@@ -89,7 +103,9 @@ const serviceDetailOptions: Record<string, string[]> = {
     "Half leg sugaring",
     "Arm sugaring",
     "Full body sugaring",
-    "Other",
+    "Chest sugaring",
+    "Back sugaring",
+    "Eyebrow sugaring",
   ],
 };
 
@@ -383,8 +399,14 @@ function NewRequestPageContent() {
   const [message, setMessage] = useState("");
 
   const [category, setCategory] = useState("");
-  const [serviceDetail, setServiceDetail] = useState("");
+  const [serviceDetails, setServiceDetails] = useState<string[]>([]);
   const [otherServiceDetail, setOtherServiceDetail] = useState("");
+
+  function toggleServiceDetail(option: string) {
+    setServiceDetails((prev) =>
+      prev.includes(option) ? prev.filter((item) => item !== option) : [...prev, option]
+    );
+  }
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -531,7 +553,7 @@ function NewRequestPageContent() {
 
   function handleCategoryChange(value: string) {
     setCategory(value);
-    setServiceDetail("");
+    setServiceDetails([]);
     setOtherServiceDetail("");
   }
 
@@ -730,13 +752,8 @@ function NewRequestPageContent() {
       return;
     }
 
-    if (!serviceDetail) {
-      setMessage("Please select a service type.");
-      return;
-    }
-
-    if (serviceDetail === "Other" && !otherServiceDetail.trim()) {
-      setMessage("Please describe the service type.");
+    if (serviceDetails.length === 0 && !otherServiceDetail.trim()) {
+      setMessage("Please select at least one service type, or describe what you need.");
       return;
     }
 
@@ -774,8 +791,9 @@ function NewRequestPageContent() {
     setMessage("Submitting request...");
 
     const targetProfessions = getTargetProfessions(category);
-    const finalServiceDetail =
-      serviceDetail === "Other" ? otherServiceDetail.trim() : serviceDetail;
+    const finalServiceDetail = [...serviceDetails, otherServiceDetail.trim()]
+      .filter(Boolean)
+      .join(", ");
 
     try {
       const referencePhotoUrls = await uploadReferencePhotos(userId);
@@ -953,33 +971,38 @@ function NewRequestPageContent() {
               {category ? (
                 <div>
                   <label className={labelClass}>Service type</label>
-                  <select
-                    value={serviceDetail}
-                    onChange={(e) => {
-                      setServiceDetail(e.target.value);
-                      if (e.target.value !== "Other") setOtherServiceDetail("");
-                    }}
-                    className={inputClass}
-                  >
-                    <option value="">Select service type</option>
-                    {serviceDetailOptions[category]?.map((option) => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
+                  <p className="mb-2 -mt-1 text-xs text-neutral-500">
+                    Select as many as you like — book more than one thing in the same request.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {serviceDetailOptions[category]?.map((option) => {
+                      const isSelected = serviceDetails.includes(option);
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => toggleServiceDetail(option)}
+                          className={`rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.97] ${
+                            isSelected
+                              ? "border-black bg-black text-white"
+                              : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
 
-              {/* Other service detail */}
-              {serviceDetail === "Other" ? (
-                <div>
-                  <label className={labelClass}>Describe the service</label>
-                  <input
-                    type="text"
-                    placeholder="Type the service you want"
-                    value={otherServiceDetail}
-                    onChange={(e) => setOtherServiceDetail(e.target.value)}
-                    className={inputClass}
-                  />
+                  <div className="mt-3">
+                    <input
+                      type="text"
+                      placeholder="Don't see it? Type what you need"
+                      value={otherServiceDetail}
+                      onChange={(e) => setOtherServiceDetail(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
                 </div>
               ) : null}
 
