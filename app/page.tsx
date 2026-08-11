@@ -179,7 +179,7 @@ export default function Page() {
               See It In Action
             </a>
             <a href="#how-it-works" className="transition hover:text-neutral-900">
-              How it works
+              For clients
             </a>
             <a href="#using-lineup" className="transition hover:text-neutral-900">
               For professionals
@@ -213,9 +213,9 @@ export default function Page() {
             <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
               See It In Action
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+            <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
               This is LineUp — from posting a request to getting booked.
-            </h2>
+            </h1>
           </div>
         </div>
 
@@ -279,53 +279,6 @@ export default function Page() {
             );
           })}
         </div>
-        </div>
-      </section>
-
-      <section className="relative overflow-hidden bg-white">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-32 -top-32 h-80 w-80 rounded-full bg-violet-100/50 blur-3xl" />
-          <div className="absolute right-[-10%] top-1/4 h-[26rem] w-[26rem] rounded-full bg-sky-100/50 blur-3xl md:right-16" />
-          <div className="absolute bottom-[-15%] right-1/4 h-72 w-72 rounded-full bg-amber-100/40 blur-3xl" />
-          <div
-            className="absolute inset-0 opacity-[0.35]"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle, rgba(23,23,23,0.08) 1px, transparent 1px)",
-              backgroundSize: "22px 22px",
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-transparent to-white" />
-        </div>
-
-        <div className="relative mx-auto max-w-7xl px-6 pb-20 pt-16 md:pt-20">
-          <div className="max-w-3xl">
-            <h1 className="text-5xl font-semibold tracking-tight md:text-6xl">
-              Clients post what they want. Professionals choose the work.
-            </h1>
-
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
-              LineUp lets clients post the exact service they’re looking for and gives
-              barbers, stylists, nail techs, lash artists, brow artists, and more the
-              option to respond on their own terms.
-            </p>
-
-            <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-              <Link
-                href="/login?mode=signup"
-                className="rounded-full bg-neutral-900 px-6 py-3 text-center text-sm font-medium text-white transition hover:opacity-90"
-              >
-                Join LineUp
-              </Link>
-
-              <a
-                href="#how-it-works"
-                className="rounded-full border border-neutral-300 px-6 py-3 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-              >
-                See how it works
-              </a>
-            </div>
-          </div>
         </div>
       </section>
 
