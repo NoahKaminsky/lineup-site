@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 export type TourStep = {
   Icon: LucideIcon;
@@ -14,6 +15,14 @@ export type TourStep = {
 
 function storageKey(userId: string, role: string) {
   return `lineup_welcome_tour_seen_${role}_${userId}`;
+}
+
+// localStorage alone doesn't survive a new browser, device, or a cleared
+// cache — profiles.welcome_tour_seen is the real source of truth so someone
+// who's already seen this on their phone won't get it again on their laptop.
+// localStorage is kept as a fast, no-flicker path for the common case.
+function profileColumn(role: string) {
+  return role === "professional" ? "welcome_tour_seen_professional" : "welcome_tour_seen_customer";
 }
 
 export default function WelcomeTour({
@@ -34,9 +43,34 @@ export default function WelcomeTour({
   const [stepIndex, setStepIndex] = useState(0);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !userId) return;
+
     if (localStorage.getItem(storageKey(userId, role))) return;
-    setVisible(true);
+
+    let cancelled = false;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(profileColumn(role))
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      const alreadySeen = !error && data && (data as Record<string, boolean>)[profileColumn(role)];
+
+      if (alreadySeen) {
+        localStorage.setItem(storageKey(userId, role), "1");
+        return;
+      }
+
+      setVisible(true);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [userId, role]);
 
   // Lock the background page in place while the tour is open. On iOS Safari
@@ -56,6 +90,13 @@ export default function WelcomeTour({
   function finish() {
     localStorage.setItem(storageKey(userId, role), "1");
     setVisible(false);
+    supabase
+      .from("profiles")
+      .update({ [profileColumn(role)]: true })
+      .eq("id", userId)
+      .then(({ error }) => {
+        if (error) console.error("Failed to persist welcome tour seen state:", error);
+      });
   }
 
   function handleFinalCta() {
