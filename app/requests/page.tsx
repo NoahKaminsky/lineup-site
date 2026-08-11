@@ -1173,14 +1173,27 @@ if (profileError || !profile) {
   const isCustomer = normalizedRole.includes("customer");
   const isProfessional = !isCustomer && !!normalizedRole;
 
+  // Once a request is accepted, it gets a matching row in `bookings` — without this,
+  // the same job shows up twice here (once as the request, once as the booking).
+  const bookedRequestIds = useMemo(
+    () => new Set(bookings.map((booking) => booking.request_id).filter(Boolean) as string[]),
+    [bookings]
+  );
+
   const activeRequests = useMemo(
-    () => requests.filter((request) => request.status !== "completed" && request.status !== "cancelled"),
-    [requests]
+    () =>
+      requests.filter(
+        (request) =>
+          request.status !== "completed" &&
+          request.status !== "cancelled" &&
+          !bookedRequestIds.has(request.id)
+      ),
+    [requests, bookedRequestIds]
   );
 
   const completedRequests = useMemo(
-    () => requests.filter((request) => request.status === "completed"),
-    [requests]
+    () => requests.filter((request) => request.status === "completed" && !bookedRequestIds.has(request.id)),
+    [requests, bookedRequestIds]
   );
 
   const cancelledRequests = useMemo(
