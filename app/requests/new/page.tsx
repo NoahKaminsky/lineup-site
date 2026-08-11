@@ -9,103 +9,107 @@ const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
 
-const serviceDetailOptions: Record<string, string[]> = {
+type ServiceDetailGroup = {
+  label: string;
+  options: string[];
+};
+
+// Grouped (rather than one flat list) so a category with a lot of options
+// still reads as organized chip clusters instead of a wall of pills.
+const serviceDetailGroups: Record<string, ServiceDetailGroup[]> = {
   haircut: [
-    "Haircut",
-    "Skin fade",
-    "Taper / taper fade",
-    "Buzz cut",
-    "Beard trim",
-    "Line up / shape up",
-    "Kids cut",
-    "Hot towel shave",
-    "Blowout",
-    "Color / highlights",
-    "Balayage",
-    "Updo / styling",
-    "Hair extensions",
-    "Deep conditioning treatment",
-    "Curly hair cut / style",
-    "Perm",
-    "Braids / twists",
-    "Silk press",
-    "Wig install / styling",
-    "Hair relaxer / texturizer",
+    {
+      label: "Cuts",
+      options: ["Haircut", "Skin fade", "Taper / taper fade", "Buzz cut", "Kids cut", "Curly hair cut / style"],
+    },
+    {
+      label: "Color & treatment",
+      options: ["Color / highlights", "Balayage", "Deep conditioning treatment", "Hair relaxer / texturizer", "Perm"],
+    },
+    {
+      label: "Styling",
+      options: ["Blowout", "Updo / styling", "Hot towel shave", "Beard trim", "Line up / shape up"],
+    },
+    {
+      label: "Extensions & protective styles",
+      options: ["Hair extensions", "Braids / twists", "Silk press", "Wig install / styling"],
+    },
   ],
   nails: [
-    "Manicure",
-    "Pedicure",
-    "Acrylic full set",
-    "Acrylic fill",
-    "Gel manicure",
-    "Gel X / extensions",
-    "Dip powder",
-    "Nail art",
-    "Nail repair",
-    "Nail polish change",
-    "French tips",
-    "Ombre / gradient nails",
+    {
+      label: "Manicure & pedicure",
+      options: ["Manicure", "Pedicure", "Nail polish change"],
+    },
+    {
+      label: "Enhancements",
+      options: ["Acrylic full set", "Acrylic fill", "Gel manicure", "Gel X / extensions", "Dip powder"],
+    },
+    {
+      label: "Art & repair",
+      options: ["Nail art", "French tips", "Ombre / gradient nails", "Nail repair"],
+    },
   ],
   lashes: [
-    "Classic set",
-    "Hybrid set",
-    "Volume set",
-    "Mega volume set",
-    "Fill",
-    "Lash lift",
-    "Lash tint",
-    "Lash removal",
-    "Strip lash application",
-    "Bottom lash set",
+    {
+      label: "Extensions",
+      options: ["Classic set", "Hybrid set", "Volume set", "Mega volume set", "Fill"],
+    },
+    {
+      label: "Lifts & other",
+      options: ["Lash lift", "Lash tint", "Lash removal", "Strip lash application", "Bottom lash set"],
+    },
   ],
   brows: [
-    "Brow shaping",
-    "Brow wax",
-    "Brow tint",
-    "Brow lamination",
-    "Threading",
-    "Microblading",
-    "Brow henna",
-    "Brow tweezing",
-    "Ombre brows",
-    "Nano brows",
+    {
+      label: "Shaping",
+      options: ["Brow shaping", "Brow wax", "Threading", "Brow tweezing"],
+    },
+    {
+      label: "Color & style",
+      options: ["Brow tint", "Brow henna", "Brow lamination", "Ombre brows"],
+    },
+    {
+      label: "Semi-permanent",
+      options: ["Microblading", "Nano brows"],
+    },
   ],
   makeup: [
-    "Full face",
-    "Soft glam",
-    "Full glam",
-    "Bridal makeup",
-    "Event makeup",
-    "Photoshoot makeup",
-    "Makeup lesson",
-    "Airbrush makeup",
-    "Natural / no-makeup look",
-    "Special effects makeup",
+    {
+      label: "Everyday & glam",
+      options: ["Full face", "Soft glam", "Full glam", "Natural / no-makeup look", "Makeup lesson"],
+    },
+    {
+      label: "Special occasion",
+      options: ["Bridal makeup", "Event makeup", "Photoshoot makeup", "Airbrush makeup", "Special effects makeup"],
+    },
   ],
   waxing: [
-    "Brazilian wax",
-    "Bikini wax",
-    "Underarm wax",
-    "Full leg wax",
-    "Half leg wax",
-    "Arm wax",
-    "Full face wax",
-    "Full body wax",
-    "Chest wax",
-    "Back wax",
-    "Eyebrow wax",
+    {
+      label: "Face & brows",
+      options: ["Full face wax", "Eyebrow wax"],
+    },
+    {
+      label: "Bikini & legs",
+      options: ["Brazilian wax", "Bikini wax", "Full leg wax", "Half leg wax"],
+    },
+    {
+      label: "Body",
+      options: ["Underarm wax", "Arm wax", "Chest wax", "Back wax", "Full body wax"],
+    },
   ],
   body_sugaring: [
-    "Brazilian sugaring",
-    "Bikini sugaring",
-    "Underarm sugaring",
-    "Full leg sugaring",
-    "Half leg sugaring",
-    "Arm sugaring",
-    "Full body sugaring",
-    "Chest sugaring",
-    "Back sugaring",
-    "Eyebrow sugaring",
+    {
+      label: "Face & brows",
+      options: ["Eyebrow sugaring"],
+    },
+    {
+      label: "Bikini & legs",
+      options: ["Brazilian sugaring", "Bikini sugaring", "Full leg sugaring", "Half leg sugaring"],
+    },
+    {
+      label: "Body",
+      options: ["Underarm sugaring", "Arm sugaring", "Chest sugaring", "Back sugaring", "Full body sugaring"],
+    },
   ],
 };
 
@@ -974,24 +978,33 @@ function NewRequestPageContent() {
                   <p className="mb-2 -mt-1 text-xs text-neutral-500">
                     Select as many as you like — book more than one thing in the same request.
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {serviceDetailOptions[category]?.map((option) => {
-                      const isSelected = serviceDetails.includes(option);
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => toggleServiceDetail(option)}
-                          className={`rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.97] ${
-                            isSelected
-                              ? "border-black bg-black text-white"
-                              : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      );
-                    })}
+                  <div className="space-y-3.5">
+                    {serviceDetailGroups[category]?.map((group) => (
+                      <div key={group.label}>
+                        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                          {group.label}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {group.options.map((option) => {
+                            const isSelected = serviceDetails.includes(option);
+                            return (
+                              <button
+                                key={option}
+                                type="button"
+                                onClick={() => toggleServiceDetail(option)}
+                                className={`rounded-full border px-4 py-2 text-sm font-medium transition active:scale-[0.97] ${
+                                  isSelected
+                                    ? "border-black bg-black text-white"
+                                    : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
+                                }`}
+                              >
+                                {option}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
                   <div className="mt-3">
