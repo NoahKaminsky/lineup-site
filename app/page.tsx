@@ -74,16 +74,6 @@ const appTourScreens = [
   },
 ];
 
-const serviceTags = [
-  "Barbers",
-  "Hairstylists",
-  "Nail Techs",
-  "Lash Artists",
-  "Brow Artists",
-  "Makeup Artists",
-  "Body Sugaring",
-];
-
 function SectionFade() {
   return (
     <div className="pointer-events-none relative -mt-10 h-10 overflow-hidden">
@@ -294,7 +284,7 @@ export default function Page() {
 
       <section className="relative overflow-hidden bg-white">
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-32 -top-32 h-80 w-80 rounded-full bg-emerald-100/60 blur-3xl" />
+          <div className="absolute -left-32 -top-32 h-80 w-80 rounded-full bg-violet-100/50 blur-3xl" />
           <div className="absolute right-[-10%] top-1/4 h-[26rem] w-[26rem] rounded-full bg-sky-100/50 blur-3xl md:right-16" />
           <div className="absolute bottom-[-15%] right-1/4 h-72 w-72 rounded-full bg-amber-100/40 blur-3xl" />
           <div
@@ -308,9 +298,9 @@ export default function Page() {
           <div className="absolute inset-0 bg-gradient-to-b from-white/40 via-transparent to-white" />
         </div>
 
-        <div className="relative mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-16 md:grid-cols-[1.05fr_0.95fr] md:pt-24">
-          <div className="flex flex-col justify-center">
-            <h1 className="max-w-3xl text-5xl font-semibold tracking-tight md:text-6xl">
+        <div className="relative mx-auto max-w-7xl px-6 pb-20 pt-16 md:pt-20">
+          <div className="max-w-3xl">
+            <h1 className="text-5xl font-semibold tracking-tight md:text-6xl">
               Clients post what they want. Professionals choose the work.
             </h1>
 
@@ -335,60 +325,6 @@ export default function Page() {
                 See how it works
               </a>
             </div>
-
-            <div className="mt-10 flex flex-wrap items-center gap-4 text-sm text-neutral-500">
-              <span className="font-medium text-neutral-700">
-                Built for flexible beauty work
-              </span>
-              <span className="h-1 w-1 rounded-full bg-neutral-300" />
-              <span>We come to you</span>
-              <span className="h-1 w-1 rounded-full bg-neutral-300" />
-              <span>In shop</span>
-              <span className="h-1 w-1 rounded-full bg-neutral-300" />
-              <span>Their home studio</span>
-            </div>
-
-            <div className="mt-10 flex flex-wrap gap-3">
-              {serviceTags.map((item) => (
-                <span
-                  key={item}
-                  className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative flex items-center">
-            <div className="absolute left-8 top-8 h-36 w-36 rounded-full bg-emerald-100/50 blur-3xl" />
-            <div className="absolute bottom-8 right-8 h-44 w-44 rounded-full bg-sky-100/30 blur-3xl" />
-
-            <div className="relative w-full rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-[0_18px_70px_rgba(0,0,0,0.05)]">
-              <p className="text-sm font-medium uppercase tracking-[0.18em] text-neutral-500">
-                Welcome to LineUp
-              </p>
-
-              <h2 className="mt-4 max-w-md text-3xl font-semibold tracking-tight text-neutral-900">
-                Not a traditional booking app.
-              </h2>
-
-              <div className="mt-8 grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                  <p className="text-sm text-neutral-500">For clients</p>
-                  <p className="mt-2 font-semibold text-neutral-900">
-                    Post once. Compare offers. Book the best fit.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                  <p className="text-sm text-neutral-500">For professionals</p>
-                  <p className="mt-2 font-semibold text-neutral-900">
-                    Get matched to nearby requests. Respond on your own terms.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -396,7 +332,7 @@ export default function Page() {
       <section id="how-it-works" className="relative overflow-hidden bg-white">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute right-[-12%] top-0 h-[26rem] w-[26rem] rounded-full bg-neutral-100/80 blur-3xl md:right-0" />
-          <div className="absolute bottom-[-10%] right-[18%] h-72 w-72 rounded-full bg-emerald-50 blur-3xl" />
+          <div className="absolute bottom-[-10%] right-[18%] h-72 w-72 rounded-full bg-amber-50 blur-3xl" />
           <div
             className="absolute inset-0 opacity-[0.3]"
             style={{
