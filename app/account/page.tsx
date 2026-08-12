@@ -7,6 +7,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { getProfileHref } from "@/app/lib/profileLink";
+import { containsProfanity } from "@/app/lib/profanityFilter";
 
 function normalizeRole(role: string | null | undefined) {
   return role?.toLowerCase().trim() || "";
@@ -779,6 +780,16 @@ export default function AccountPage() {
 
     if (cleanUsername && !isValidUsername(cleanUsername)) {
       setUsernameError("Usernames are 3-20 characters: lowercase letters, numbers, and underscores only.");
+      return;
+    }
+
+    if (cleanUsername && containsProfanity(cleanUsername)) {
+      setUsernameError("Please choose a different username.");
+      return;
+    }
+
+    if (containsProfanity(bio) || containsProfanity(businessName) || containsProfanity(fullName)) {
+      setMessage("Please remove inappropriate language before saving your profile.");
       return;
     }
 

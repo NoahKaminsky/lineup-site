@@ -15,6 +15,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import MarkRequestNotificationRead from "../../components/MarkRequestNotificationRead";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
+import { containsProfanity } from "@/app/lib/profanityFilter";
 
 type ServiceRequest = {
   id: string;
@@ -1394,6 +1395,11 @@ export default function RequestDetailPage() {
       return;
     }
 
+    if (containsProfanity(reviewComment)) {
+      setMessage("Please remove inappropriate language from your review before submitting.");
+      return;
+    }
+
     setSubmittingReview(true);
     setMessage("");
 
@@ -1437,6 +1443,11 @@ export default function RequestDetailPage() {
     if (!request || !currentUserId || !newChatMessage.trim()) return;
     if (!canAccessChat || !chatBookingId) return;
     if (request.status === "completed") return;
+
+    if (containsProfanity(newChatMessage)) {
+      setMessage("That message contains language that isn't allowed here. Please rephrase it.");
+      return;
+    }
 
     setSendingChatMessage(true);
     setMessage("");

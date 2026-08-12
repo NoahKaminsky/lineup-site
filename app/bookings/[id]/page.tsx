@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import BookingChat from "@/app/components/BookingChat";
 import { getCached, setCached } from "@/app/lib/pageCache";
+import { containsProfanity } from "@/app/lib/profanityFilter";
 
 type BookingStatus =
   | "confirmed"
@@ -514,6 +515,11 @@ export default function BookingDetailPage() {
 
   async function handleSubmitReview() {
     if (!booking || !viewerId || reviewRating === 0) return;
+
+    if (containsProfanity(reviewComment)) {
+      setMessage("Please remove inappropriate language from your review before submitting.");
+      return;
+    }
 
     setReviewSubmitting(true);
 

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Scissors, Hand, Eye, Pencil, Palette, Leaf, Droplet } from "lucide-react";
 import { supabase } from "../../../lib/supabaseClient";
 import TimeSelect from "../../components/TimeSelect";
+import { containsProfanity } from "../../lib/profanityFilter";
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
@@ -780,6 +781,11 @@ function NewRequestPageContent() {
 
     if (!title.trim()) {
       setMessage("Please enter a title.");
+      return;
+    }
+
+    if (containsProfanity(title) || containsProfanity(description) || containsProfanity(otherServiceDetail)) {
+      setMessage("Please remove inappropriate language from your request before posting.");
       return;
     }
 

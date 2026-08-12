@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import TimeSelect from "@/app/components/TimeSelect";
 import MarkRequestNotificationRead from "@/app/components/MarkRequestNotificationRead";
+import { containsProfanity } from "@/app/lib/profanityFilter";
 
 type ServiceRequest = {
   id: string;
@@ -283,6 +284,11 @@ export default function RespondToRequestPage() {
 
     if (!offerMessage.trim()) {
       setMessage("Please enter a message.");
+      return;
+    }
+
+    if (containsProfanity(offerMessage)) {
+      setMessage("Please remove inappropriate language from your message before sending.");
       return;
     }
 

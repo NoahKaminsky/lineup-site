@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
+import { containsProfanity } from "@/app/lib/profanityFilter";
 
 type Profile = {
   id: string;
@@ -988,6 +989,11 @@ export default function WorkPage() {
     if (!reviewItem || reviewRating === 0) return;
     const professionalId = reviewItem.professionalId;
     if (!professionalId) return;
+
+    if (containsProfanity(reviewComment)) {
+      setMessage("Please remove inappropriate language from your review before submitting.");
+      return;
+    }
 
     setReviewSubmitting(true);
     try {

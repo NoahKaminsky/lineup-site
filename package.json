@@ -14,6 +14,7 @@
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.105.1",
+    "leo-profanity": "^1.9.0",
     "lucide-react": "^1.8.0",
     "next": "16.1.6",
     "react": "19.2.3",

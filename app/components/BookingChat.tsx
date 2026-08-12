@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { containsProfanity } from "@/app/lib/profanityFilter";
 
 type BookingMessage = {
   id: string;
@@ -68,6 +69,12 @@ export default function BookingChat({ bookingId, viewerId }: { bookingId: string
   async function sendMessage() {
     const cleanText = text.trim();
     if (!cleanText || !viewerId || sending) return;
+
+    if (containsProfanity(cleanText)) {
+      setError("That message contains language that isn't allowed here. Please rephrase it.");
+      return;
+    }
+
     setSending(true);
     setError("");
     const { error } = await supabase.from("booking_messages").insert({ booking_id: bookingId, sender_id: viewerId, message: cleanText });

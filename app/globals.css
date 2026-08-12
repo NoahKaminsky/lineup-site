@@ -16,6 +16,21 @@ body {
     padding-bottom: calc(env(safe-area-inset-bottom) + 96px);
   }
 }
+
+/* iOS Safari auto-zooms the whole page on focus for any input/textarea/select
+   with a computed font-size under 16px — most of this app's fields use
+   text-sm (14px), which is what was causing the page to "zoom" after tapping
+   into a field post-submit (posting a request, paying, etc.). Forcing 16px
+   here (mobile only) stops the zoom without touching each input's styling.
+   !important is needed because Tailwind's text-sm/text-xs utility classes
+   otherwise outrank this plain element selector on specificity. */
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
 @keyframes notification-pop {
   0% {
     transform: scale(0.7);
