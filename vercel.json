@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/auto-complete-bookings",
       "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/expire-verifications",
+      "schedule": "0 11 * * *"
     }
   ]
 }

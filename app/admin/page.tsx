@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import AdminVerifications from "@/app/components/AdminVerifications";
 
 type AdminUser = {
   id: string;
@@ -64,7 +65,7 @@ export default function AdminPage() {
 
   const [checking, setChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [tab, setTab] = useState<"users" | ContentType>("users");
+  const [tab, setTab] = useState<"users" | "verification" | ContentType>("users");
   const [message, setMessage] = useState("");
 
   const [userQuery, setUserQuery] = useState("");
@@ -154,7 +155,7 @@ export default function AdminPage() {
     if (!isAdmin) return;
     if (tab === "users") {
       loadUsers();
-    } else {
+    } else if (tab !== "verification") {
       loadContent(tab);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -310,6 +311,15 @@ export default function AdminPage() {
           >
             Users
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("verification")}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+              tab === "verification" ? "bg-black text-white" : "bg-white text-neutral-700 border border-neutral-200"
+            }`}
+          >
+            Verification
+          </button>
           {CONTENT_TABS.map((t) => (
             <button
               key={t.key}
@@ -324,7 +334,9 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {tab === "users" ? (
+        {tab === "verification" ? (
+          <AdminVerifications />
+        ) : tab === "users" ? (
           <div className="mt-6">
             <div className="flex gap-2">
               <input

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { getProfileHref } from "@/app/lib/profileLink";
 import SwipeStack, { type SwipeCardData } from "@/app/components/discover/SwipeStack";
@@ -31,6 +32,9 @@ type ProfileRow = {
   subscription_plan: string | null;
   subscription_status: string | null;
   is_featured: boolean | null;
+  verification_status?: string | null;
+  verification_track?: string | null;
+  verified_until?: string | null;
   is_founding_artist?: boolean | null;
 };
 
@@ -150,6 +154,10 @@ function formatDistanceLabel(distanceKm: number | null) {
 
 function getBadges(profile: ProfileRow): { label: string; className: string }[] {
   const badges: { label: string; className: string }[] = [];
+
+  if (profile.verification_track === "student") {
+    badges.push({ label: "Student", className: "border border-sky-200 bg-sky-100 text-sky-800" });
+  }
 
   if (profile.is_founding_artist) {
     badges.push({ label: "🔥 Founding Artist", className: "border border-orange-200 bg-orange-100 text-orange-800" });
@@ -394,7 +402,7 @@ export default function DiscoverPage() {
         const { data: profilesData, error: profilesError } = await supabase
           .from("profiles")
           .select(
-            "id, full_name, username, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, subscription_plan, subscription_status, is_featured, is_founding_artist"
+            "id, full_name, username, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, subscription_plan, subscription_status, is_featured, is_founding_artist, verification_status, verification_track, verified_until"
           );
 
         if (profilesError) {
@@ -403,8 +411,10 @@ export default function DiscoverPage() {
           return;
         }
 
-        const professionals = ((profilesData || []) as ProfileRow[]).filter((profile) =>
-          isProfessionalRole(profile.role)
+        // Only credential-verified professionals are listed — anyone unverified,
+        // pending, rejected, or past their expiry stays out of Browse.
+        const professionals = ((profilesData || []) as ProfileRow[]).filter(
+          (profile) => isProfessionalRole(profile.role) && isVerifiedNow(profile)
         );
 
         const professionalIds = professionals.map((profile) => profile.id);

@@ -481,11 +481,11 @@ export default function Page() {
                   <path d="M7.2 10l1.9 1.9L13 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
-              <h3 className="mt-4 text-xl font-semibold">Identity-verified professionals</h3>
+              <h3 className="mt-4 text-xl font-semibold">Verified payouts</h3>
               <p className="mt-2 leading-7 text-neutral-600">
-                Every professional is verified through the same process used
-                to set up payouts, so clients know who they're actually
-                booking.
+                Professionals confirm their identity with our payment partner
+                before they can be paid, and every payment is processed
+                securely through Stripe.
               </p>
             </div>
 

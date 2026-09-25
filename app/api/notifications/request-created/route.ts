@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
 
     let professionalsQuery = supabase
       .from("profiles")
-      .select("id, email, full_name, professional_type, professional_types, service_modes, email_request_notifications")
+      .select("id, email, full_name, professional_type, professional_types, service_modes, email_request_notifications, verification_status, verified_until")
       .eq("role", "professional")
       .eq("email_request_notifications", true)
       .not("email", "is", null);
@@ -71,6 +72,8 @@ export async function POST(req: Request) {
     const matches = (professionals || []).filter((profile: any) => {
       if (!profile.email) return false;
       if (!profile.email_request_notifications) return false;
+      // Unverified professionals can't send offers, so don't alert them to requests.
+      if (!isVerifiedNow(profile)) return false;
       if (request.preferred_professional_id) return true;
       if (targetSet.size === 0) return false;
 

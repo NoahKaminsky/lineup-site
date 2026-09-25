@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import TimeSelect from "@/app/components/TimeSelect";
 import MarkRequestNotificationRead from "@/app/components/MarkRequestNotificationRead";
 import { containsProfanity } from "@/app/lib/profanityFilter";
+import { isVerifiedNow } from "@/app/lib/verificationRules";
 
 type ServiceRequest = {
   id: string;
@@ -47,6 +48,7 @@ export default function RespondToRequestPage() {
   const [offerMessage, setOfferMessage] = useState("");
   const [proposedPrice, setProposedPrice] = useState("");
   const [existingOffer, setExistingOffer] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [proProposableModes, setProProposableModes] = useState<string[]>([]);
   const [proposedServiceMode, setProposedServiceMode] = useState("");
 
@@ -80,6 +82,17 @@ export default function RespondToRequestPage() {
         setMessage("Could not load profile.");
         setLoading(false);
         return;
+      }
+
+      // Separate, best-effort read so a problem here never blocks the page load.
+      const { data: verificationRow, error: verificationError } = await supabase
+        .from("profiles")
+        .select("verification_status, verified_until")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!verificationError && verificationRow) {
+        setNeedsVerification(!isVerifiedNow(verificationRow));
       }
 
       const normalizedRole = profile.role?.toLowerCase().trim() || "";
@@ -274,6 +287,11 @@ export default function RespondToRequestPage() {
 
     if (existingOffer) {
       setMessage("You already submitted an offer for this request.");
+      return;
+    }
+
+    if (needsVerification) {
+      setMessage("Verify your credentials before sending offers.");
       return;
     }
 
@@ -595,6 +613,27 @@ export default function RespondToRequestPage() {
                   className="inline-flex rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
                 >
                   Back to request
+                </Link>
+              </div>
+            </div>
+          ) : needsVerification ? (
+            <div className="mt-8 rounded-2xl border border-neutral-900 bg-neutral-900 p-5 text-white">
+              <p className="text-sm font-semibold uppercase tracking-[0.14em] text-white/60">
+                Verification needed
+              </p>
+              <p className="mt-1 text-lg font-semibold tracking-tight">
+                Get verified to send offers
+              </p>
+              <p className="mt-1 text-sm text-white/70">
+                Clients see offers only from professionals whose credentials we&apos;ve reviewed.
+                Submit your licence, or proof of enrollment if you&apos;re a student.
+              </p>
+              <div className="mt-4">
+                <Link
+                  href="/verification"
+                  className="inline-flex rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-900 transition hover:opacity-90"
+                >
+                  Verify now
                 </Link>
               </div>
             </div>

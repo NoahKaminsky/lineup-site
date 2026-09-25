@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
 
@@ -78,6 +79,26 @@ function isSubscribedToScheduleFeature(profile: { subscription_status?: string |
   return subscribed && !!profile.subscription_plan && profile.subscription_plan !== "basic";
 }
 
+// Never take a customer's money for a professional who isn't currently
+// verified (never approved, still pending, rejected, or lapsed) — the
+// booking would otherwise proceed with nobody having checked who's doing it.
+async function checkProfessionalVerified(
+  serviceSupabase: ReturnType<typeof getServiceSupabase>,
+  professionalId: string
+) {
+  const { data } = await serviceSupabase
+    .from("profiles")
+    .select("verification_status, verified_until")
+    .eq("id", professionalId)
+    .maybeSingle();
+
+  if (!isVerifiedNow(data)) {
+    return "This professional isn't available to book right now.";
+  }
+
+  return null;
+}
+
 async function handleDirectBookingIntent(req: Request, body: any) {
   const { professionalId, serviceId, date, startTime, endTime, mode } = body;
 
@@ -103,6 +124,12 @@ async function handleDirectBookingIntent(req: Request, body: any) {
 
   if (professionalError || !professional) {
     return NextResponse.json({ error: "Professional not found" }, { status: 404 });
+  }
+
+  const verificationError = await checkProfessionalVerified(serviceSupabase, professionalId);
+
+  if (verificationError) {
+    return NextResponse.json({ error: verificationError }, { status: 409 });
   }
 
   if (!professional.direct_booking_enabled || !professional.public_availability_enabled) {
@@ -295,6 +322,12 @@ export async function POST(req: Request) {
         { error: "This request already has a confirmed booking." },
         { status: 409 }
       );
+    }
+
+    const verificationError = await checkProfessionalVerified(serviceSupabase, offer.professional_id);
+
+    if (verificationError) {
+      return NextResponse.json({ error: verificationError }, { status: 409 });
     }
 
     const capError = await checkMonthlyBookingCap(serviceSupabase, offer.professional_id);

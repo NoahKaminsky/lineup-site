@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
@@ -21,6 +22,9 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 type Profile = {
   id: string;
+  verification_status?: string | null;
+  verification_track?: string | null;
+  verified_until?: string | null;
   full_name: string | null;
   username?: string | null;
   avatar_url: string | null;
@@ -476,7 +480,7 @@ export default function ProfessionalProfilePage() {
 
         const isUuid = UUID_REGEX.test(profileId);
         const profileSelect =
-          "id, full_name, username, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration";
+          "id, full_name, username, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, verification_status, verification_track, verified_until";
 
         const { data: profileData, error: profileError } = isUuid
           ? await supabase.from("profiles").select(profileSelect).eq("id", profileId).single()
@@ -730,7 +734,10 @@ export default function ProfessionalProfilePage() {
   // Instant booking needs a fixed location to book against, so it also
   // requires the professional to offer in-shop or home-studio (not just
   // at-home) — without that, the calendar has nowhere valid to send someone.
+  const profileVerified = isVerifiedNow(profile);
+
   const canDirectBook =
+    profileVerified &&
     !!profile?.direct_booking_enabled &&
     !!profile?.public_availability_enabled &&
     directBookingModes.length > 0;
@@ -1327,6 +1334,7 @@ if (loading) {
   const offersAtHomeService = professionalServiceModes.includes("at_home");
 
   const profileTags = [
+    profileVerified ? (profile.verification_track === "student" ? "Verified student" : "Verified") : null,
     canDirectBook ? "Direct booking" : null,
     getNextOpeningText() ? "Open this week" : null,
     averageRating ? "Highly rated" : null,
@@ -1473,7 +1481,14 @@ if (loading) {
                   </div>
                 </div>
 
-                {isProfessional && viewerIsCustomer && viewerUserId !== profile.id ? (
+                {isProfessional && viewerIsCustomer && viewerUserId !== profile.id && !profileVerified ? (
+                  <div className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600 sm:w-auto sm:min-w-[240px] sm:max-w-xs">
+                    This professional hasn&apos;t completed verification yet, so they can&apos;t be requested
+                    or booked right now.
+                  </div>
+                ) : null}
+
+                {isProfessional && viewerIsCustomer && viewerUserId !== profile.id && profileVerified ? (
                   <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[240px]">
                     {canDirectBook ? (
                       <a
@@ -1970,14 +1985,14 @@ if (loading) {
                         >
                           View times
                         </a>
-                      ) : (
+                      ) : profileVerified ? (
                         <Link
                           href={`/requests/new?rebook=1&pro=${profile.id}`}
                           className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
                         >
                           Request service
                         </Link>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 ))}

@@ -13,7 +13,9 @@ export async function DELETE(req: Request) {
 
   try {
     // Delete storage files for this user
-    const buckets = ["avatars", "profile-banners", "portfolio-images"] as const;
+    // verification-documents holds licences / enrollment proof — personal data
+    // that must be erased with the account (DB rows cascade, files do not).
+    const buckets = ["avatars", "profile-banners", "portfolio-images", "verification-documents"] as const;
     await Promise.all(
       buckets.map(async (bucket) => {
         const { data: files } = await service.storage.from(bucket).list(uid);

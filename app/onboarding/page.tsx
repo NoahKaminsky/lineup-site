@@ -169,7 +169,9 @@ export default function OnboardingPage() {
       return;
     }
 
-    router.push("/requests");
+    // Professionals verify their credentials as part of signing up — until
+    // approved they're hidden from Browse and can't send offers.
+    router.push(role === "professional" ? "/verification" : "/requests");
   }
 
   if (loading) {
