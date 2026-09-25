@@ -92,6 +92,7 @@ export default function VerificationPage() {
   const [profile, setProfile] = useState<ProfileState | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [confirmSkip, setConfirmSkip] = useState(false);
 
   const [track, setTrack] = useState<VerificationTrack>("licensed");
   const [professionType, setProfessionType] = useState("");
@@ -447,7 +448,7 @@ export default function VerificationPage() {
         ) : null}
 
         {formVisible && canAddMore ? (
-          <form onSubmit={handleSubmit} className="mt-8 space-y-6 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+          <form id="verification-form" onSubmit={handleSubmit} className="mt-8 space-y-6 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
             <div>
               <label className={labelClass}>I am a…</label>
               <div className="grid grid-cols-2 gap-2">
@@ -663,9 +664,43 @@ export default function VerificationPage() {
 
         {status !== "verified" && status !== "pending" ? (
           <div className="mt-6">
-            <Link href="/requests" className="text-sm font-medium text-neutral-500 hover:text-neutral-800">
-              I&apos;ll do this later →
-            </Link>
+            {confirmSkip ? (
+              <div className="rounded-2xl border border-neutral-900 bg-neutral-900 p-5 text-white">
+                <p className="text-lg font-semibold tracking-tight">You can&apos;t use LineUp until you&apos;re verified</p>
+                <p className="mt-2 text-sm leading-6 text-white/70">
+                  Without verification you won&apos;t appear in Browse, you can&apos;t send offers, and clients
+                  can&apos;t book or pay you. You can still set up your profile, but nothing works for getting
+                  clients until this is done — your dashboard will keep reminding you.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmSkip(false);
+                      document.getElementById("verification-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className="rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-900 transition hover:opacity-90"
+                  >
+                    Verify now
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/requests")}
+                    className="rounded-full border border-white/30 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                  >
+                    Skip for now
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmSkip(true)}
+                className="text-sm font-medium text-neutral-500 hover:text-neutral-800"
+              >
+                I&apos;ll do this later →
+              </button>
+            )}
           </div>
         ) : null}
       </div>

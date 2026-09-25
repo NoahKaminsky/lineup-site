@@ -555,7 +555,6 @@ export default function RequestsPage() {
 
   const [loading, setLoading] = useState(() => !getCached<RequestsCache>("requests-page"));
   const [role, setRole] = useState<string | null>(() => getCached<RequestsCache>("requests-page")?.role ?? null);
-  const [verification, setVerification] = useState<{ status: string | null; until: string | null } | null>(null);
   const [userId, setUserId] = useState<string | null>(() => getCached<RequestsCache>("requests-page")?.userId ?? null);
   const [userName, setUserName] = useState<string | null>(() => getCached<RequestsCache>("requests-page")?.userName ?? null);
   const [userLocation, setUserLocation] = useState<{
@@ -907,21 +906,6 @@ if (profileError || !profile) {
       setRole(userRole);
       setUserId(user.id);
       setUserName(typedProfile.full_name ?? null);
-
-      // Best-effort and separate from the main profile query so a problem
-      // here can never bounce someone to onboarding or blank the dashboard.
-      if (isProfessionalRole(userRole)) {
-        supabase
-          .from("profiles")
-          .select("verification_status, verified_until")
-          .eq("id", user.id)
-          .maybeSingle()
-          .then(({ data, error: verificationError }) => {
-            if (!verificationError && data) {
-              setVerification({ status: data.verification_status ?? null, until: data.verified_until ?? null });
-            }
-          });
-      }
 
       if (
         typeof typedProfile.location_lat === "number" &&
@@ -1686,9 +1670,7 @@ return (
                 finalCtaLabel="View subscription plans"
                 finalCtaHref="/subscription"
               />
-              {verification ? (
-                <VerificationBanner status={verification.status} verifiedUntil={verification.until} />
-              ) : null}
+              <VerificationBanner />
               <OnboardingChecklist userId={userId} />
             </>
           ) : null}

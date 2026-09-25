@@ -7,6 +7,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { containsProfanity } from "@/app/lib/profanityFilter";
+import VerificationBanner from "@/app/components/VerificationBanner";
 
 type Profile = {
   id: string;
@@ -1200,6 +1201,8 @@ export default function WorkPage() {
               : "Track your bookings, requests, and service history."}
           </p>
         </div>
+
+        <VerificationBanner />
 
         <div className="mt-5 grid grid-cols-3 gap-1.5 rounded-[1.5rem] border border-neutral-200 bg-neutral-100 p-1.5 sm:mt-8">
           {(["requests", "booked", "completed"] as TabKey[]).map((tab) => {

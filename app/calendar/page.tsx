@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import VerificationBanner from "@/app/components/VerificationBanner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -677,6 +678,8 @@ export default function CalendarPage() {
               </Link>
             </div>
           </div>
+
+          <VerificationBanner />
 
           {message ? (
             <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
