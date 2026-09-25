@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const next = requestUrl.searchParams.get("next");
+  const isRecovery = next === "/reset-password";
 
   const cookieStore = await cookies();
 
@@ -33,6 +34,14 @@ export async function GET(request: Request) {
     } = await supabase.auth.exchangeCodeForSession(code);
 
     if (sessionError || !session) {
+      // A failed password-reset link must never fall through to the
+      // "email confirmed" message — the reset page explains what happened
+      // (expired, already used, or opened in a different browser than the
+      // one that requested it) and offers a fresh link.
+      if (isRecovery) {
+        return NextResponse.redirect(new URL("/reset-password", requestUrl.origin));
+      }
+
       // Code expired or already used — send to login with a message
       return NextResponse.redirect(
         new URL("/login?confirmed=1", requestUrl.origin)
@@ -42,7 +51,7 @@ export async function GET(request: Request) {
     // Password recovery must always land on the reset-password form regardless
     // of profile completeness — this is the one case where "next" is a real
     // functional requirement, not just a routing preference.
-    if (next === "/reset-password") {
+    if (isRecovery) {
       return NextResponse.redirect(new URL("/reset-password", requestUrl.origin));
     }
 
@@ -75,5 +84,11 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.redirect(new URL("/login", requestUrl.origin));
+  // No code: Supabase sent an error instead (link expired / already used —
+  // often because an email scanner opened it first). For a reset, the reset
+  // page shows a clear explanation; browsers carry any #fragment (e.g. tokens
+  // from an implicit-flow link) across this redirect.
+  return NextResponse.redirect(
+    new URL(isRecovery ? "/reset-password" : "/login", requestUrl.origin)
+  );
 }

@@ -1,18 +1,68 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
+type LinkState = "checking" | "ready" | "invalid";
+
 export default function ResetPasswordPage() {
   const router = useRouter();
+
+  const [linkState, setLinkState] = useState<LinkState>("checking");
+  // Set when the email link carries a token instead of an already-created
+  // session (the format that works across browsers/devices). It's redeemed
+  // only when the form is submitted, so an email scanner that merely opens
+  // the link can't use it up.
+  const [tokenHash, setTokenHash] = useState<string | null>(null);
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"error" | "success">("error");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const params = new URLSearchParams(window.location.search);
+      const hash = params.get("token_hash");
+
+      if (hash && params.get("type") === "recovery") {
+        if (cancelled) return;
+        setTokenHash(hash);
+        setLinkState("ready");
+        return;
+      }
+
+      // Otherwise the link should already have signed them in (via
+      // /auth/callback, or tokens in the URL fragment). No session means the
+      // link was expired, already used, or opened somewhere it can't work.
+      let {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      // A session created a moment ago (by the callback, or from tokens in the
+      // URL) can take a beat to register — look once more before calling the
+      // link dead.
+      if (!session) {
+        await new Promise((resolve) => setTimeout(resolve, 700));
+        if (cancelled) return;
+        ({
+          data: { session },
+        } = await supabase.auth.getSession());
+      }
+
+      if (cancelled) return;
+      setLinkState(session ? "ready" : "invalid");
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleReset(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,11 +83,32 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
+      if (tokenHash) {
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: "recovery",
+        });
+
+        if (verifyError) {
+          setLinkState("invalid");
+          return;
+        }
+
+        // Redeemed — from here on the session it created is what counts, so a
+        // retry (e.g. after a weak-password error) must not try the token again.
+        setTokenHash(null);
+      }
+
       const { error } = await supabase.auth.updateUser({
         password,
       });
 
       if (error) {
+        if (/session/i.test(error.message)) {
+          setLinkState("invalid");
+          return;
+        }
+
         setMessageTone("error");
         setMessage(error.message);
         return;
@@ -78,66 +149,96 @@ export default function ResetPasswordPage() {
           </p>
 
           <h1 className="mt-4 max-w-xl text-5xl font-semibold tracking-tight md:text-6xl">
-            Create a new password.
+            {linkState === "invalid" ? "This link can't be used." : "Create a new password."}
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-8 text-neutral-600">
-            Enter a new password for your LineUp account.
+            {linkState === "invalid"
+              ? "Reset links work once and expire after an hour."
+              : "Enter a new password for your LineUp account."}
           </p>
         </div>
 
         <div className="rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-          <form onSubmit={handleReset} className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-neutral-700">
-                New password
-              </label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter new password"
-                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
-              />
+          {linkState === "checking" ? (
+            <div className="space-y-4" aria-busy="true">
+              <div className="h-12 animate-pulse rounded-2xl bg-neutral-100" />
+              <div className="h-12 animate-pulse rounded-2xl bg-neutral-100" />
+              <div className="h-12 animate-pulse rounded-2xl bg-neutral-200" />
             </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-neutral-700">
-                Confirm password
-              </label>
-              <input
-                type="password"
-                required
-                minLength={6}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
-                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-2xl bg-black py-3 text-white transition hover:opacity-90 disabled:opacity-60"
-            >
-              {loading ? "Updating..." : "Update password"}
-            </button>
-
-            {message ? (
-              <p
-                className={`rounded-2xl border p-4 text-sm ${
-                  messageTone === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                    : "border-red-200 bg-red-50 text-red-700"
-                }`}
-              >
-                {message}
+          ) : linkState === "invalid" ? (
+            <div className="space-y-4">
+              <p className="text-sm leading-6 text-neutral-700">
+                This reset link has expired, was already used, or was opened somewhere different from where
+                you asked for it. That happens when an email app opens links in its own browser, or a mail
+                filter opens the link before you do.
               </p>
-            ) : null}
-          </form>
+              <p className="text-sm leading-6 text-neutral-700">
+                Request a new link, then open it in the same browser you request it from (Safari or Chrome
+                rather than inside your email app).
+              </p>
+              <Link
+                href="/login?mode=forgot"
+                className="block w-full rounded-2xl bg-black py-3 text-center text-white transition hover:opacity-90"
+              >
+                Get a new reset link
+              </Link>
+            </div>
+          ) : (
+            <form onSubmit={handleReset} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-neutral-700">
+                  New password
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-neutral-700">
+                  Confirm password
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-2xl bg-black py-3 text-white transition hover:opacity-90 disabled:opacity-60"
+              >
+                {loading ? "Updating..." : "Update password"}
+              </button>
+
+              {message ? (
+                <p
+                  className={`rounded-2xl border p-4 text-sm ${
+                    messageTone === "success"
+                      ? "border-neutral-200 bg-neutral-50 text-neutral-800"
+                      : "border-red-200 bg-red-50 text-red-700"
+                  }`}
+                >
+                  {message}
+                </p>
+              ) : null}
+            </form>
+          )}
         </div>
       </div>
     </main>

@@ -40,6 +40,10 @@ export default function LoginPage() {
       setMode("signup");
     }
 
+    if (params.get("mode") === "forgot") {
+      setMode("forgot");
+    }
+
     if (params.get("confirmed") === "1") {
       setMessageTone("success");
       setMessage("Email confirmed successfully. Sign in to continue setup.");
@@ -129,18 +133,30 @@ export default function LoginPage() {
 
     try {
       if (isForgot) {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        const cleanEmail = email.trim().toLowerCase();
+        setEmail(cleanEmail);
+
+        const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
           redirectTo: getAuthCallbackUrl("/reset-password"),
         });
 
         if (error) {
+          const rateLimited =
+            error.status === 429 || /rate limit|too many|security purposes/i.test(error.message);
+
           setMessageTone("error");
-          setMessage(error.message);
+          setMessage(
+            rateLimited
+              ? "Too many reset emails have been requested just now. Please wait a few minutes and try again."
+              : error.message
+          );
           return;
         }
 
         setMessageTone("success");
-        setMessage("Check your email for a password reset link.");
+        setMessage(
+          "If an account exists for that email, a reset link is on its way. It can take a few minutes — check your spam folder, and open the link in this same browser."
+        );
         return;
       }
 
@@ -307,7 +323,7 @@ export default function LoginPage() {
               <p
                 className={`rounded-2xl border p-4 text-sm ${
                   messageTone === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    ? "border-neutral-200 bg-neutral-50 text-neutral-800"
                     : "border-red-200 bg-red-50 text-red-700"
                 }`}
               >
