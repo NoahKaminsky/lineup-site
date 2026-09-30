@@ -45,7 +45,35 @@ export const DEFAULT_LICENSED_RULE: CredentialRule = {
 // (e.g. "CA-MB", "US-NY"). Example of relaxing a rule where a trade isn't
 // licensed:
 //   "CA-MB:lash_artist": { licenseNumber: "optional" },
-export const RULE_OVERRIDES: Record<string, Partial<CredentialRule>> = {};
+//
+// Manitoba: per the user's own research (not independently confirmed here —
+// get this checked against Manitoba's actual designated/compulsory trades
+// list, or a lawyer, before launch), every profession on this platform
+// requires certification there. That was already true of the conservative
+// default above; what's added below is Manitoba-specific wording. Hairstylist
+// and Barber use the Certificate of Qualification (Wall Certificate / Red
+// Seal) by name, since that's the real document for that Red Seal trade. The
+// wildcard below covers every other Manitoba profession with more general
+// "certificate or licence" wording rather than implying a Red Seal
+// certificate exists for trades that don't have one (nails, lashes, brows,
+// makeup, waxing, sugaring) — narrow that wording per trade once confirmed.
+export const RULE_OVERRIDES: Record<string, Partial<CredentialRule>> = {
+  "CA-MB:*": {
+    numberLabel: "Certificate of Qualification or professional certification number",
+    documentHelp:
+      "A clear photo of the certificate or licence that qualifies you to provide this service in Manitoba.",
+  },
+  "CA-MB:hairstylist": {
+    numberLabel: "Certificate of Qualification number",
+    documentHelp:
+      "A clear photo of your Manitoba Certificate of Qualification (Wall Certificate or Red Seal Certificate).",
+  },
+  "CA-MB:barber": {
+    numberLabel: "Certificate of Qualification number",
+    documentHelp:
+      "A clear photo of your Manitoba Certificate of Qualification (Wall Certificate or Red Seal Certificate).",
+  },
+};
 
 export function getLicensedRule(region: string, profession: string): CredentialRule {
   const override =
