@@ -10,6 +10,8 @@
 // deliberately conservative (number + proof for everyone); relax it per region
 // once you've confirmed with the relevant regulator or a lawyer.
 
+import { getJurisdictionRule, type ProfessionKey } from "@/app/lib/jurisdictionMatrix";
+
 export type VerificationTrack = "licensed" | "student";
 
 export type VerificationStatus =
@@ -28,6 +30,20 @@ export type CredentialRule = {
   document: Requirement;
   numberLabel: string;
   documentHelp: string;
+};
+
+// Shared display names for LineUp's profession categories — used by the
+// verification form and the admin review queue so both show the same labels.
+export const PROFESSION_LABELS: Record<string, string> = {
+  barber: "Barber",
+  hairstylist: "Hairstylist",
+  nail_artist: "Nail Artist",
+  lash_artist: "Lash Artist",
+  brow_artist: "Brow Artist",
+  makeup_artist: "Makeup Artist",
+  wax_technician: "Wax Technician",
+  body_sugaring: "Body Sugaring",
+  other_beauty_professional: "Other",
 };
 
 export const DEFAULT_LICENSED_RULE: CredentialRule = {
@@ -75,13 +91,77 @@ export const RULE_OVERRIDES: Record<string, Partial<CredentialRule>> = {
   },
 };
 
+// Built from app/lib/jurisdictionMatrix.ts — the validated, sourced research
+// on what each Canadian jurisdiction actually requires per profession. This
+// is what stops the form from implying a government licence is required
+// somewhere it isn't (Quebec across the board; most non-hairstyling
+// professions in AB/BC/ON/NL/YT/NT), while still asking for real evidence
+// everywhere — just framed as LineUp's own verification standard rather than
+// a legal mandate where no legal mandate exists. Returns null for anything
+// the matrix doesn't cover (US states, "OTHER"), which falls back to the
+// conservative default below.
+function matrixDerivedRule(region: string, profession: string): Partial<CredentialRule> | null {
+  const cell = getJurisdictionRule(region, profession as ProfessionKey);
+  if (!cell) return null;
+
+  const province = jurisdictionLabel(region).replace(", Canada", "");
+  const { professional, confidence } = cell;
+
+  // Research didn't reach a confident finding either way — don't guess, and
+  // don't block signup on it. Take whatever they have and flag it for a
+  // human to review individually instead of auto-approving or auto-rejecting.
+  if (confidence === "unconfirmed") {
+    return {
+      licenseNumber: "optional",
+      document: "required",
+      numberLabel: "Licence, certificate or training credential number (if you have one)",
+      documentHelp: `We haven't confirmed ${province}'s requirements for this profession yet. Upload whatever licence, certificate or training document you have — our team will review it individually rather than auto-approving or auto-rejecting.`,
+    };
+  }
+
+  if (!professional.regulated) {
+    return {
+      licenseNumber: "optional",
+      issuingBody: "optional",
+      document: "required",
+      numberLabel: "Training certificate or credential number (if you have one)",
+      documentHelp: `This isn't a government-licensed profession in ${province}, so there's no licence number to enter. Upload a training certificate, diploma, or other evidence of your experience instead.`,
+    };
+  }
+
+  const credential = professional.credentialName || "licence, registration or certificate";
+
+  if (!professional.compulsory) {
+    // Regulated, but voluntary — a real credential exists and LineUp still
+    // asks for it (that's the point of a Verified badge), just without
+    // implying the law requires it.
+    return {
+      licenseNumber: "required",
+      document: "required",
+      numberLabel: `${credential} number`,
+      documentHelp: `A ${credential} isn't legally required to work in ${province}, but LineUp asks for one to confirm your training. Upload a clear photo or PDF.`,
+    };
+  }
+
+  // Regulated and compulsory — the real thing, framed as a legal requirement.
+  return {
+    licenseNumber: "required",
+    document: "required",
+    numberLabel: `${credential} number`,
+    documentHelp: `${province} legally requires a ${credential} to provide this service.${
+      professional.issuingAuthority ? ` It's issued by ${professional.issuingAuthority}.` : ""
+    } Upload a clear photo or PDF.`,
+  };
+}
+
 export function getLicensedRule(region: string, profession: string): CredentialRule {
+  const matrixRule = matrixDerivedRule(region, profession) ?? {};
   const override =
     RULE_OVERRIDES[`${region}:${profession}`] ??
     RULE_OVERRIDES[`${region}:*`] ??
     RULE_OVERRIDES[`*:${profession}`] ??
     {};
-  return { ...DEFAULT_LICENSED_RULE, ...override };
+  return { ...DEFAULT_LICENSED_RULE, ...matrixRule, ...override };
 }
 
 export const STUDENT_DOCUMENT_HELP =

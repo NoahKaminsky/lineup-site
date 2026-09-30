@@ -16,21 +16,10 @@ import {
   jurisdictionLabel,
   isVerifiedNow,
   todayDateString,
+  PROFESSION_LABELS,
   type VerificationStatus,
   type VerificationTrack,
 } from "@/app/lib/verificationRules";
-
-const PROFESSION_LABELS: Record<string, string> = {
-  barber: "Barber",
-  hairstylist: "Hairstylist",
-  nail_artist: "Nail Artist",
-  lash_artist: "Lash Artist",
-  brow_artist: "Brow Artist",
-  makeup_artist: "Makeup Artist",
-  wax_technician: "Wax Technician",
-  body_sugaring: "Body Sugaring",
-  other_beauty_professional: "Other",
-};
 
 type Submission = {
   id: string;
