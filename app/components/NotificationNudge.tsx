@@ -66,7 +66,7 @@ export default function NotificationNudge() {
       <div className="flex shrink-0 items-center gap-2">
         {showIOSInstructions ? (
           <Link
-            href="/account"
+            href="/account#push-notifications"
             className="inline-flex rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-white"
           >
             Show me how

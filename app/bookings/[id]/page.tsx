@@ -309,109 +309,132 @@ export default function BookingDetailPage() {
   const [reviewComment, setReviewComment] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
-  useEffect(() => {
-    async function loadBooking() {
-      try {
-        setLoading(true);
-        setMessage("");
+  async function loadBooking(options?: { silent?: boolean }) {
+    const silent = options?.silent ?? false;
 
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser();
+    try {
+      if (!silent) setLoading(true);
+      setMessage("");
 
-        if (userError || !user) {
-          router.push("/login");
-          return;
-        }
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-        setViewerId(user.id);
-
-        const { data: viewerProfile, error: viewerProfileError } = await supabase
-          .from("profiles")
-          .select("id, role")
-          .eq("id", user.id)
-          .single();
-
-        if (viewerProfileError || !viewerProfile) {
-          setMessage("Could not load your profile.");
-          setLoading(false);
-          return;
-        }
-
-        setViewerRole(viewerProfile.role);
-
-        const { data: bookingData, error: bookingError } = await supabase
-          .from("bookings")
-          .select(
-            "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
-          )
-          .eq("id", bookingId)
-          .single();
-
-        if (bookingError || !bookingData) {
-          setMessage("Booking not found.");
-          setLoading(false);
-          return;
-        }
-
-        const normalizedBooking = {
-          ...bookingData,
-          start_time: String(bookingData.start_time).slice(0, 5),
-          end_time: String(bookingData.end_time).slice(0, 5),
-        } as BookingRow;
-
-        const canAccess =
-          user.id === normalizedBooking.customer_id ||
-          user.id === normalizedBooking.professional_id;
-
-        if (!canAccess) {
-          setMessage("You do not have access to this booking.");
-          setLoading(false);
-          return;
-        }
-
-        setBooking(normalizedBooking);
-
-        const [professionalRes, customerRes] = await Promise.all([
-          supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url, role, professional_type, professional_types")
-            .eq("id", normalizedBooking.professional_id)
-            .single(),
-          supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url, role, professional_type, professional_types")
-            .eq("id", normalizedBooking.customer_id)
-            .single(),
-        ]);
-
-        const resolvedProfessional = professionalRes.data ? (professionalRes.data as ProfileRow) : null;
-        const resolvedCustomer = customerRes.data ? (customerRes.data as ProfileRow) : null;
-
-        if (resolvedProfessional) setProfessional(resolvedProfessional);
-        if (resolvedCustomer) setCustomer(resolvedCustomer);
-
-        setCached<BookingDetailCache>(cacheKey, {
-          viewerId: user.id,
-          viewerRole: viewerProfile.role,
-          booking: normalizedBooking,
-          professional: resolvedProfessional,
-          customer: resolvedCustomer,
-        });
-
-        setLoading(false);
-      } catch (error) {
-        console.error(error);
-        setMessage("Something went wrong loading this booking.");
-        setLoading(false);
+      if (userError || !user) {
+        router.push("/login");
+        return;
       }
-    }
 
+      setViewerId(user.id);
+
+      const { data: viewerProfile, error: viewerProfileError } = await supabase
+        .from("profiles")
+        .select("id, role")
+        .eq("id", user.id)
+        .single();
+
+      if (viewerProfileError || !viewerProfile) {
+        setMessage("Could not load your profile.");
+        setLoading(false);
+        return;
+      }
+
+      setViewerRole(viewerProfile.role);
+
+      const { data: bookingData, error: bookingError } = await supabase
+        .from("bookings")
+        .select(
+          "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
+        )
+        .eq("id", bookingId)
+        .single();
+
+      if (bookingError || !bookingData) {
+        setMessage("Booking not found.");
+        setLoading(false);
+        return;
+      }
+
+      const normalizedBooking = {
+        ...bookingData,
+        start_time: String(bookingData.start_time).slice(0, 5),
+        end_time: String(bookingData.end_time).slice(0, 5),
+      } as BookingRow;
+
+      const canAccess =
+        user.id === normalizedBooking.customer_id ||
+        user.id === normalizedBooking.professional_id;
+
+      if (!canAccess) {
+        setMessage("You do not have access to this booking.");
+        setLoading(false);
+        return;
+      }
+
+      setBooking(normalizedBooking);
+
+      const [professionalRes, customerRes] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, full_name, avatar_url, role, professional_type, professional_types")
+          .eq("id", normalizedBooking.professional_id)
+          .single(),
+        supabase
+          .from("profiles")
+          .select("id, full_name, avatar_url, role, professional_type, professional_types")
+          .eq("id", normalizedBooking.customer_id)
+          .single(),
+      ]);
+
+      const resolvedProfessional = professionalRes.data ? (professionalRes.data as ProfileRow) : null;
+      const resolvedCustomer = customerRes.data ? (customerRes.data as ProfileRow) : null;
+
+      if (resolvedProfessional) setProfessional(resolvedProfessional);
+      if (resolvedCustomer) setCustomer(resolvedCustomer);
+
+      setCached<BookingDetailCache>(cacheKey, {
+        viewerId: user.id,
+        viewerRole: viewerProfile.role,
+        booking: normalizedBooking,
+        professional: resolvedProfessional,
+        customer: resolvedCustomer,
+      });
+
+      setLoading(false);
+    } catch (error) {
+      console.error(error);
+      setMessage("Something went wrong loading this booking.");
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
     if (bookingId) {
       loadBooking();
     }
-  }, [bookingId, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId]);
+
+  useEffect(() => {
+    if (!bookingId) return;
+
+    const channel = supabase
+      .channel(`booking-detail-live-${bookingId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings", filter: `id=eq.${bookingId}` },
+        () => {
+          loadBooking({ silent: true });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId]);
 
   // Lets other pages (e.g. the dashboard's quick "confirm completion" action)
   // send the customer here with ?review=1 to pick up the review prompt, since

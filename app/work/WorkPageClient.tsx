@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
@@ -386,6 +386,38 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       setCached<WorkCache>("work-page", { profile, bookedItems, requestAndOfferItems });
     }
   }, [loading, profile, bookedItems, requestAndOfferItems]);
+
+  const workReloadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const queueSilentReload = () => {
+      if (workReloadTimeoutRef.current) {
+        clearTimeout(workReloadTimeoutRef.current);
+      }
+
+      workReloadTimeoutRef.current = setTimeout(() => {
+        loadWork(true);
+      }, 250);
+    };
+
+    const channel = supabase
+      .channel("work-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "service_requests" }, queueSilentReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "request_offers" }, queueSilentReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, queueSilentReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, queueSilentReload)
+      .subscribe();
+
+    return () => {
+      if (workReloadTimeoutRef.current) {
+        clearTimeout(workReloadTimeoutRef.current);
+      }
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
 
   async function loadWork(silent = false) {
     try {
