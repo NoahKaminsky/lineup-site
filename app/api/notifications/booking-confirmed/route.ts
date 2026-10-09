@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
+import { sendPushToUser } from "@/app/lib/push";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
 type EmailProfile = {
@@ -224,6 +225,12 @@ export async function POST(req: Request) {
         `Your LineUp booking with ${professionalName} is confirmed: ${serviceName}, ${date} at ${start}. ${bookingUrl}`
       ).catch((error) => console.error(`Failed to send booking-confirmed SMS to ${customer.id}:`, error));
 
+      sendPushToUser(customer.id, {
+        title: "Booking confirmed",
+        body: `${serviceName} with ${professionalName} — ${date} at ${start}`,
+        url: bookingUrl,
+      }).catch((error) => console.error(`Failed to send booking-confirmed push to ${customer.id}:`, error));
+
       sent += 1;
     }
 
@@ -270,6 +277,12 @@ export async function POST(req: Request) {
         professional,
         `New LineUp booking with ${customerName}: ${serviceName}, ${date} at ${start}. ${bookingUrl}`
       ).catch((error) => console.error(`Failed to send booking-confirmed SMS to ${professional.id}:`, error));
+
+      sendPushToUser(professional.id, {
+        title: "New booking confirmed",
+        body: `${customerName} — ${serviceName}, ${date} at ${start}`,
+        url: bookingUrl,
+      }).catch((error) => console.error(`Failed to send booking-confirmed push to ${professional.id}:`, error));
 
       sent += 1;
     }

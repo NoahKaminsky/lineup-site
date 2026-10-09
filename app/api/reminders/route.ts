@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
+import { sendPushToUser } from "@/app/lib/push";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
 function formatDate(dateString?: string | null) {
@@ -106,6 +107,12 @@ async function sendReminderPairForBooking(
     `Reminder: your LineUp appointment with ${professionalName} is ${whenLabel} at ${start}. ${bookingUrl}`
   ).catch((error) => console.error(`Failed to send reminder SMS to customer ${booking.customer_id}:`, error));
 
+  sendPushToUser(booking.customer_id, {
+    title: whenLabel === "tomorrow" ? "Appointment tomorrow" : "Appointment today",
+    body: `${serviceName} with ${professionalName} at ${start}`,
+    url: bookingUrl,
+  }).catch((error) => console.error(`Failed to send reminder push to customer ${booking.customer_id}:`, error));
+
   if (booking.professional?.email) {
     const professionalFirstName = booking.professional.full_name?.split(" ")[0] || "there";
 
@@ -149,6 +156,12 @@ async function sendReminderPairForBooking(
     booking.professional,
     `Reminder: you're booked with ${customerName} ${whenLabel} at ${start}. ${bookingUrl}`
   ).catch((error) => console.error(`Failed to send reminder SMS to professional ${booking.professional_id}:`, error));
+
+  sendPushToUser(booking.professional_id, {
+    title: whenLabel === "tomorrow" ? "Booking tomorrow" : "Booking today",
+    body: `${customerName} — ${serviceName} at ${start}`,
+    url: bookingUrl,
+  }).catch((error) => console.error(`Failed to send reminder push to professional ${booking.professional_id}:`, error));
 
   if (whenLabel === "today") {
     await supabase.from("notifications").insert([

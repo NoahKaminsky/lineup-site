@@ -1,6 +1,8 @@
 import { stripe } from "@/app/lib/stripe";
 import { getServiceSupabase, getProfileEmail } from "@/app/lib/serverSupabase";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
+import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
+import { sendPushToUser } from "@/app/lib/push";
 
 type CompleteBookingResult = {
   ok: boolean;
@@ -111,6 +113,19 @@ async function notifyCustomerForReview(
     type: "review_requested",
     title: `How was ${serviceLabel} with ${professionalName}? Leave a review`,
   });
+
+  // SMS and push don't depend on email existing — give each channel its own
+  // independent shot rather than gating everything on the email check below.
+  sendSmsToProfileIfOptedIn(
+    customer,
+    `How was ${serviceLabel} with ${professionalName}? Leave a review on LineUp: ${reviewUrl}`
+  ).catch((error) => console.error(`Failed to send review-request SMS to ${booking.customer_id}:`, error));
+
+  sendPushToUser(booking.customer_id, {
+    title: "How did it go?",
+    body: `Rate your ${serviceLabel} with ${professionalName}`,
+    url: reviewUrl,
+  }).catch((error) => console.error(`Failed to send review-request push to ${booking.customer_id}:`, error));
 
   if (!customer.email) return;
 

@@ -10,6 +10,7 @@ import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/cus
 import { getProfileHref } from "@/app/lib/profileLink";
 import { containsProfanity } from "@/app/lib/profanityFilter";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
+import PushNotificationToggle from "@/app/components/PushNotificationToggle";
 
 function normalizeRole(role: string | null | undefined) {
   return role?.toLowerCase().trim() || "";
@@ -1632,6 +1633,8 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
             </div>
 
             <div className="space-y-6">
+              <PushNotificationToggle />
+
               <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
                 <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
                   Account snapshot

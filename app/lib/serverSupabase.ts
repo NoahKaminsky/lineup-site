@@ -99,7 +99,7 @@ export async function getProfileEmail(
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, email, full_name, role, professional_type, professional_types, email_request_notifications"
+      "id, email, full_name, role, professional_type, professional_types, email_request_notifications, phone_number, sms_notifications_enabled"
     )
     .eq("id", userId)
     .maybeSingle();
@@ -111,5 +111,8 @@ export async function getProfileEmail(
     email = authUser?.user?.email || null;
   }
 
-  return { ...(profile || { id: userId }), email };
+  return {
+    ...(profile || { id: userId, phone_number: null, sms_notifications_enabled: null }),
+    email,
+  };
 }

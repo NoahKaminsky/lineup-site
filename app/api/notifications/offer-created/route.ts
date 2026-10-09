@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
+import { sendPushToUser } from "@/app/lib/push";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
 type EmailProfile = {
@@ -226,6 +227,14 @@ export async function POST(req: Request) {
       `${professionalName} sent you an offer on LineUp for ${requestTitle}${proposedPrice ? ` — ${proposedPrice}` : ""}. ${requestUrl}`
     ).catch((error) => {
       console.error(`Failed to send offer-alert SMS to ${customer.id}:`, error);
+    });
+
+    sendPushToUser(customer.id, {
+      title: "You received a new offer",
+      body: `${professionalName} — ${requestTitle}${proposedPrice ? ` (${proposedPrice})` : ""}`,
+      url: requestUrl,
+    }).catch((error) => {
+      console.error(`Failed to send offer-alert push to ${customer.id}:`, error);
     });
 
     return NextResponse.json({

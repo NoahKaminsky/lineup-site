@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
+import { sendPushToUser } from "@/app/lib/push";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
 function normalize(value: string | null | undefined) {
@@ -180,6 +181,16 @@ export async function POST(req: Request) {
         `${isDirectRequest ? "You got a direct request" : "New matching request"} on LineUp: ${requestTitle}. ${requestUrl}`
       ).catch((error) => {
         console.error(`Failed to send request-alert SMS to ${profile.id}:`, error);
+      });
+
+      // Free, no consent flag needed — a subscription only exists because
+      // the browser's own permission prompt was already granted.
+      sendPushToUser(profile.id, {
+        title: isDirectRequest ? "You got a direct request" : "New matching request",
+        body: requestTitle,
+        url: requestUrl,
+      }).catch((error) => {
+        console.error(`Failed to send request-alert push to ${profile.id}:`, error);
       });
 
       sent += 1;
