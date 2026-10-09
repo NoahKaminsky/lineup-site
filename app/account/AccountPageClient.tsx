@@ -9,6 +9,7 @@ import type { AccountInitialData } from "./getInitialData";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { getProfileHref } from "@/app/lib/profileLink";
 import { containsProfanity } from "@/app/lib/profanityFilter";
+import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 
 function normalizeRole(role: string | null | undefined) {
   return role?.toLowerCase().trim() || "";
@@ -50,6 +51,8 @@ type Profile = {
   stripe_payouts_enabled?: boolean | null;
   subscription_status?: string | null;
   subscription_plan?: string | null;
+  phone_number?: string | null;
+  sms_notifications_enabled?: boolean | null;
 };
 
 type PortfolioItem = {
@@ -170,6 +173,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
   const [newSpecialty, setNewSpecialty] = useState("");
   const [emailRequestNotifications, setEmailRequestNotifications] = useState(() => seed?.profile?.email_request_notifications ?? true);
   const [emailOfferNotifications, setEmailOfferNotifications] = useState(() => seed?.profile?.email_offer_notifications ?? true);
+  const [phoneNumber, setPhoneNumber] = useState(() => seed?.profile?.phone_number ?? "");
+  const [smsNotificationsEnabled, setSmsNotificationsEnabled] = useState(() => seed?.profile?.sms_notifications_enabled ?? false);
+  const [phoneError, setPhoneError] = useState("");
 
   const isProfessional = isProfessionalRole(profile?.role);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -195,7 +201,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, email, full_name, username, role, professional_type, professional_types, location, avatar_url, banner_url, bio, instagram_handle, business_name, specialties, stripe_account_id, stripe_onboarding_complete, stripe_charges_enabled, stripe_payouts_enabled, subscription_status, subscription_plan, email_request_notifications, email_offer_notifications")
+        .select("id, email, full_name, username, role, professional_type, professional_types, location, avatar_url, banner_url, bio, instagram_handle, business_name, specialties, stripe_account_id, stripe_onboarding_complete, stripe_charges_enabled, stripe_payouts_enabled, subscription_status, subscription_plan, email_request_notifications, email_offer_notifications, phone_number, sms_notifications_enabled")
         .eq("id", user.id)
         .single();
 
@@ -222,6 +228,8 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       );
       setEmailRequestNotifications(data.email_request_notifications ?? true);
       setEmailOfferNotifications(data.email_offer_notifications ?? true);
+      setPhoneNumber(data.phone_number || "");
+      setSmsNotificationsEnabled(data.sms_notifications_enabled ?? false);
 
       const { data: portfolioData, error: portfolioError } = await supabase
         .from("professional_portfolio")
@@ -773,6 +781,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
     setProfessionalTypes(getProfessionalTypes(profile));
     setEmailRequestNotifications(profile.email_request_notifications ?? true);
     setEmailOfferNotifications(profile.email_offer_notifications ?? true);
+    setPhoneNumber(profile.phone_number || "");
+    setSmsNotificationsEnabled(profile.sms_notifications_enabled ?? false);
+    setPhoneError("");
     setAvatarFile(null);
     setBannerFile(null);
     setNewSpecialty("");
@@ -802,6 +813,19 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       return;
     }
 
+    const cleanPhoneNumber = phoneNumber.trim();
+
+    if (cleanPhoneNumber && !isLikelyValidPhoneNumber(cleanPhoneNumber)) {
+      setPhoneError("Enter your number in international format, e.g. +12045551234.");
+      return;
+    }
+
+    if (smsNotificationsEnabled && !cleanPhoneNumber) {
+      setPhoneError("Add a phone number to turn on text alerts.");
+      return;
+    }
+
+    setPhoneError("");
     setUsernameError("");
     setSaving(true);
     setMessage("");
@@ -826,6 +850,10 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
         profile.role === "professional" ? emailRequestNotifications : false,
       email_offer_notifications:
         profile.role === "professional" ? false : emailOfferNotifications,
+      phone_number: cleanPhoneNumber || null,
+      // Turning the phone number blank implicitly turns alerts off too --
+      // there's nothing to text.
+      sms_notifications_enabled: cleanPhoneNumber ? smsNotificationsEnabled : false,
     };
 
     const { error } = await supabase
@@ -1523,6 +1551,57 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         </span>
                       </label>
                     )}
+                  </div>
+
+                  <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
+                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      Text alerts
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-neutral-500">
+                      Add your number to get time-sensitive alerts by text — faster than email for things like a new offer or an appointment coming up.
+                    </p>
+
+                    <div className="mt-4">
+                      <label className="mb-2 block text-sm font-semibold text-neutral-900">
+                        Phone number
+                      </label>
+                      <input
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => {
+                          setPhoneNumber(e.target.value);
+                          setPhoneError("");
+                        }}
+                        placeholder="+12045551234"
+                        className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                      />
+                      <p className="mt-1.5 text-xs text-neutral-500">
+                        International format, e.g. +1 for Canada/US.
+                      </p>
+                      {phoneError ? (
+                        <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>
+                      ) : null}
+                    </div>
+
+                    <label className="mt-4 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
+                      <input
+                        type="checkbox"
+                        checked={smsNotificationsEnabled}
+                        onChange={(e) => setSmsNotificationsEnabled(e.target.checked)}
+                        className="mt-1 h-4 w-4 accent-black"
+                      />
+                      <span>
+                        <span className="block text-sm font-semibold text-neutral-900">
+                          Send me text alerts
+                        </span>
+                        <span className="mt-1 block text-sm leading-6 text-neutral-500">
+                          {isProfessional
+                            ? "New matching requests and upcoming appointments."
+                            : "New offers and upcoming appointments."}{" "}
+                          You can turn this off anytime. Standard message rates may apply.
+                        </span>
+                      </span>
+                    </label>
                   </div>
 
                   <div className="flex flex-wrap gap-3 pt-2">
