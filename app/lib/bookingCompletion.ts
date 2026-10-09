@@ -1,5 +1,6 @@
 import { stripe } from "@/app/lib/stripe";
-import { getServiceSupabase } from "@/app/lib/serverSupabase";
+import { getServiceSupabase, getProfileEmail } from "@/app/lib/serverSupabase";
+import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 
 type CompleteBookingResult = {
   ok: boolean;
@@ -20,7 +21,7 @@ export async function completeBooking(
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
     .select(
-      "id, request_id, professional_id, status, payout_status, remaining_payout_cents, stripe_final_transfer_id"
+      "id, request_id, professional_id, customer_id, service_name, status, payout_status, remaining_payout_cents, stripe_final_transfer_id"
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -67,7 +68,72 @@ export async function completeBooking(
     await releaseRemainingPayout(supabase, booking, trigger);
   }
 
+  // Best-effort — reviews are the only way this platform builds trust, and
+  // right now nothing ever prompts a customer to leave one unless they
+  // happen to come back to this exact booking on their own. A failure here
+  // (email provider down, etc.) shouldn't undo the completion itself.
+  notifyCustomerForReview(supabase, booking).catch((error) => {
+    console.error(`Failed to send review request for booking ${booking.id}:`, error);
+  });
+
   return { ok: true, alreadyCompleted: false };
+}
+
+async function notifyCustomerForReview(
+  supabase: ReturnType<typeof getServiceSupabase>,
+  booking: { id: string; request_id: string | null; professional_id: string; customer_id: string; service_name: string | null }
+) {
+  // Already reviewed (shouldn't normally happen right at completion, but the
+  // auto-complete cron and a manual confirm could theoretically race) —
+  // don't prompt for a review that already exists.
+  const { data: existingReview } = await supabase
+    .from("professional_reviews")
+    .select("id")
+    .or([`booking_id.eq.${booking.id}`, booking.request_id ? `request_id.eq.${booking.request_id}` : null].filter(Boolean).join(","))
+    .maybeSingle();
+
+  if (existingReview) return;
+
+  const [customer, professional] = await Promise.all([
+    getProfileEmail(supabase, booking.customer_id),
+    supabase.from("profiles").select("full_name").eq("id", booking.professional_id).maybeSingle(),
+  ]);
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lineup-aesthetics.ca";
+  const reviewUrl = booking.request_id ? `${siteUrl}/requests/${booking.request_id}` : `${siteUrl}/bookings/${booking.id}`;
+  const serviceLabel = booking.service_name || "your service";
+  const professionalName = professional.data?.full_name || "your professional";
+
+  await supabase.from("notifications").insert({
+    user_id: booking.customer_id,
+    request_id: booking.request_id || null,
+    is_read: false,
+    type: "review_requested",
+    title: `How was ${serviceLabel} with ${professionalName}? Leave a review`,
+  });
+
+  if (!customer.email) return;
+
+  const html = createEmailLayout({
+    title: "How did it go?",
+    preview: `Rate your experience with ${professionalName} on LineUp.`,
+    ctaLabel: "Leave a review",
+    ctaUrl: reviewUrl,
+    content: `
+      <p style="margin:0 0 16px 0;">Your booking for <strong>${escapeHtml(serviceLabel)}</strong> with <strong>${escapeHtml(
+      professionalName
+    )}</strong> is complete.</p>
+      <p style="margin:0 0 16px 0;">A quick rating helps other clients book with confidence, and helps ${escapeHtml(
+        professionalName
+      )} build their track record on LineUp. It only takes a minute.</p>
+    `,
+  });
+
+  await sendEmail({
+    to: customer.email,
+    subject: `How was your ${serviceLabel}?`,
+    html,
+  });
 }
 
 async function releaseRemainingPayout(
