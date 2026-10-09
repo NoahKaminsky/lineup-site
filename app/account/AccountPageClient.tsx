@@ -12,6 +12,13 @@ import { containsProfanity } from "@/app/lib/profanityFilter";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 import PushNotificationToggle from "@/app/components/PushNotificationToggle";
 
+// SMS alerts are superseded by push notifications (free, no Twilio account
+// needed) -- hidden from the UI for now rather than removed, since the
+// backend (app/lib/sms.ts and its call sites) stays wired up and ready if
+// SMS is ever worth turning back on. Flip this to re-show the phone
+// number + "send me text alerts" section in Account settings.
+const SMS_SETTINGS_UI_ENABLED = false;
+
 function normalizeRole(role: string | null | undefined) {
   return role?.toLowerCase().trim() || "";
 }
@@ -1554,56 +1561,58 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     )}
                   </div>
 
-                  <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                      Text alerts
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-neutral-500">
-                      Add your number to get time-sensitive alerts by text — faster than email for things like a new offer or an appointment coming up.
-                    </p>
-
-                    <div className="mt-4">
-                      <label className="mb-2 block text-sm font-semibold text-neutral-900">
-                        Phone number
-                      </label>
-                      <input
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={(e) => {
-                          setPhoneNumber(e.target.value);
-                          setPhoneError("");
-                        }}
-                        placeholder="+12045551234"
-                        className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
-                      />
-                      <p className="mt-1.5 text-xs text-neutral-500">
-                        International format, e.g. +1 for Canada/US.
+                  {SMS_SETTINGS_UI_ENABLED ? (
+                    <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
+                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                        Text alerts
                       </p>
-                      {phoneError ? (
-                        <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>
-                      ) : null}
-                    </div>
+                      <p className="mt-2 text-sm leading-6 text-neutral-500">
+                        Add your number to get time-sensitive alerts by text — faster than email for things like a new offer or an appointment coming up.
+                      </p>
 
-                    <label className="mt-4 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
-                      <input
-                        type="checkbox"
-                        checked={smsNotificationsEnabled}
-                        onChange={(e) => setSmsNotificationsEnabled(e.target.checked)}
-                        className="mt-1 h-4 w-4 accent-black"
-                      />
-                      <span>
-                        <span className="block text-sm font-semibold text-neutral-900">
-                          Send me text alerts
+                      <div className="mt-4">
+                        <label className="mb-2 block text-sm font-semibold text-neutral-900">
+                          Phone number
+                        </label>
+                        <input
+                          type="tel"
+                          value={phoneNumber}
+                          onChange={(e) => {
+                            setPhoneNumber(e.target.value);
+                            setPhoneError("");
+                          }}
+                          placeholder="+12045551234"
+                          className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                        />
+                        <p className="mt-1.5 text-xs text-neutral-500">
+                          International format, e.g. +1 for Canada/US.
+                        </p>
+                        {phoneError ? (
+                          <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>
+                        ) : null}
+                      </div>
+
+                      <label className="mt-4 flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white p-4">
+                        <input
+                          type="checkbox"
+                          checked={smsNotificationsEnabled}
+                          onChange={(e) => setSmsNotificationsEnabled(e.target.checked)}
+                          className="mt-1 h-4 w-4 accent-black"
+                        />
+                        <span>
+                          <span className="block text-sm font-semibold text-neutral-900">
+                            Send me text alerts
+                          </span>
+                          <span className="mt-1 block text-sm leading-6 text-neutral-500">
+                            {isProfessional
+                              ? "New matching requests and upcoming appointments."
+                              : "New offers and upcoming appointments."}{" "}
+                            You can turn this off anytime. Standard message rates may apply.
+                          </span>
                         </span>
-                        <span className="mt-1 block text-sm leading-6 text-neutral-500">
-                          {isProfessional
-                            ? "New matching requests and upcoming appointments."
-                            : "New offers and upcoming appointments."}{" "}
-                          You can turn this off anytime. Standard message rates may apply.
-                        </span>
-                      </span>
-                    </label>
-                  </div>
+                      </label>
+                    </div>
+                  ) : null}
 
                   <div className="flex flex-wrap gap-3 pt-2">
                     <button

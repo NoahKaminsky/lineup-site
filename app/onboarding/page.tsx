@@ -7,6 +7,9 @@ import { Scissors, Wand2, Hand, Eye, Pencil, Palette, Flame, Leaf, Star, Shoppin
 import { supabase } from "../../lib/supabaseClient";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 
+// See the matching flag in app/account/AccountPageClient.tsx — same reasoning.
+const SMS_SIGNUP_UI_ENABLED = false;
+
 const PROFESSIONAL_OPTIONS = [
   { label: "Barber", value: "barber", Icon: Scissors },
   { label: "Hairstylist", value: "hairstylist", Icon: Wand2 },
@@ -384,48 +387,52 @@ export default function OnboardingPage() {
               </div>
             ) : null}
 
-            {/* Phone / text alerts */}
-            <div className="space-y-3 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-neutral-700">
-                  Phone number <span className="font-normal text-neutral-400">(optional)</span>
-                </label>
-                <input
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => {
-                    setPhoneNumber(e.target.value);
-                    setPhoneError("");
-                  }}
-                  placeholder="+12045551234"
-                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
-                />
-                {phoneError ? (
-                  <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>
-                ) : (
-                  <p className="mt-1.5 text-xs text-neutral-500">International format, e.g. +1 for Canada/US.</p>
-                )}
-              </div>
-
-              <label className="flex cursor-pointer items-start gap-3">
-                <div
-                  onClick={() => setSmsNotificationsEnabled((v) => !v)}
-                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
-                    smsNotificationsEnabled ? "border-black bg-black" : "border-neutral-300 bg-white"
-                  }`}
-                >
-                  {smsNotificationsEnabled ? (
-                    <svg viewBox="0 0 10 8" className="h-2.5 w-2.5" fill="none">
-                      <path d="M1 4l2.5 2.5L9 1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  ) : null}
+            {/* Phone / text alerts — hidden for now in favor of push
+                notifications (free, no account needed); code kept so this
+                can come back if SMS is ever worth turning on. */}
+            {SMS_SIGNUP_UI_ENABLED ? (
+              <div className="space-y-3 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-neutral-700">
+                    Phone number <span className="font-normal text-neutral-400">(optional)</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => {
+                      setPhoneNumber(e.target.value);
+                      setPhoneError("");
+                    }}
+                    placeholder="+12045551234"
+                    className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                  />
+                  {phoneError ? (
+                    <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>
+                  ) : (
+                    <p className="mt-1.5 text-xs text-neutral-500">International format, e.g. +1 for Canada/US.</p>
+                  )}
                 </div>
-                <span className="text-sm leading-6 text-neutral-700">
-                  Text me time-sensitive alerts — new offers, matching requests, and upcoming
-                  appointments. Faster than email. You can turn this off anytime in Account settings.
-                </span>
-              </label>
-            </div>
+
+                <label className="flex cursor-pointer items-start gap-3">
+                  <div
+                    onClick={() => setSmsNotificationsEnabled((v) => !v)}
+                    className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
+                      smsNotificationsEnabled ? "border-black bg-black" : "border-neutral-300 bg-white"
+                    }`}
+                  >
+                    {smsNotificationsEnabled ? (
+                      <svg viewBox="0 0 10 8" className="h-2.5 w-2.5" fill="none">
+                        <path d="M1 4l2.5 2.5L9 1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    ) : null}
+                  </div>
+                  <span className="text-sm leading-6 text-neutral-700">
+                    Text me time-sensitive alerts — new offers, matching requests, and upcoming
+                    appointments. Faster than email. You can turn this off anytime in Account settings.
+                  </span>
+                </label>
+              </div>
+            ) : null}
 
             {/* Legal */}
             <div className="space-y-3 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
