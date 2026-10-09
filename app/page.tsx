@@ -531,9 +531,9 @@ export default function Page() {
               </h2>
 
               <p className="mt-6 max-w-2xl text-base leading-8 text-neutral-600">
-                LineUp was founded by three University of Manitoba students — Dan
-                Latimer, Noah Kaminsky, and Max Kochan — with backgrounds in design,
-                agriculture, and economics.
+                LineUp was founded by two University of Manitoba students — Dan
+                Latimer and Noah Kaminsky — with backgrounds in design and
+                agriculture.
               </p>
 
               <p className="mt-5 max-w-2xl text-base leading-8 text-neutral-600">
@@ -551,11 +551,10 @@ export default function Page() {
               </p>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-1">
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-1">
               {[
-                { name: "Noah Kaminsky", title: "Co-Founder & COO", initials: "NK" },
+                { name: "Noah Kaminsky", title: "Co-Founder & CEO", initials: "NK" },
                 { name: "Dan Latimer", title: "Co-Founder & CFO", initials: "DL" },
-                { name: "Max Kochan", title: "Co-Founder & CEO", initials: "MK" },
               ].map((founder) => (
                 <div key={founder.name} className="flex items-center gap-4 rounded-[1.75rem] border border-neutral-200 bg-white p-5 shadow-sm">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-sm font-semibold text-white">
