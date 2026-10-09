@@ -15,9 +15,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://lineup-aesthetics.ca";
+const SITE_DESCRIPTION =
+  "Trusted on-demand beauty and personal services — post what you need, compare real offers from verified professionals, and book with confidence.";
+
 export const metadata: Metadata = {
-  title: "LineUp",
-  description: "Beauty marketplace for trusted on-demand services.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "LineUp",
+    template: "%s — LineUp",
+  },
+  description: SITE_DESCRIPTION,
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.png",
@@ -34,6 +42,22 @@ export const metadata: Metadata = {
     capable: true,
     title: "LineUp",
     statusBarStyle: "default",
+  },
+  // og:image / twitter:image are generated automatically by
+  // app/opengraph-image.tsx and app/twitter-image.tsx — Next wires those in
+  // without needing an `images` entry here.
+  openGraph: {
+    title: "LineUp",
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    siteName: "LineUp",
+    locale: "en_CA",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LineUp",
+    description: SITE_DESCRIPTION,
   },
 };
 
