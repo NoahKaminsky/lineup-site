@@ -87,20 +87,22 @@ export default function WelcomeTour({
     };
   }, [visible]);
 
-  function finish() {
+  async function finish() {
     localStorage.setItem(storageKey(userId, role), "1");
     setVisible(false);
-    supabase
+    const { error } = await supabase
       .from("profiles")
       .update({ [profileColumn(role)]: true })
-      .eq("id", userId)
-      .then(({ error }) => {
-        if (error) console.error("Failed to persist welcome tour seen state:", error);
-      });
+      .eq("id", userId);
+    if (error) console.error("Failed to persist welcome tour seen state:", error);
   }
 
-  function handleFinalCta() {
-    finish();
+  async function handleFinalCta() {
+    // Wait for the DB write before navigating, not just localStorage — on a
+    // real account, that write is the only thing that stops the tour from
+    // showing again on a different device/browser. It was previously
+    // fire-and-forget, racing the navigation that follows it.
+    await finish();
     router.push(finalCtaHref);
   }
 
