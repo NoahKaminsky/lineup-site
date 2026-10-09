@@ -977,7 +977,7 @@ export default function DiscoverPage() {
                       >
                         <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
                           {image ? (
-                            <img
+                            <img loading="lazy"
                               src={image}
                               alt={card.profile.full_name || "Professional"}
                               className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
@@ -1049,7 +1049,7 @@ export default function DiscoverPage() {
                       >
                         <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
                           {image ? (
-                            <img
+                            <img loading="lazy"
                               src={image}
                               alt={card.profile.full_name || "Professional"}
                               className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
@@ -1085,7 +1085,7 @@ export default function DiscoverPage() {
                           <div className="flex items-center gap-2">
                             <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
                               {card.profile.avatar_url ? (
-                                <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                                <img loading="lazy" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
                               ) : (
                                 <div className="flex h-full w-full items-center justify-center text-xs font-bold text-neutral-400">
                                   {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
@@ -1157,7 +1157,7 @@ export default function DiscoverPage() {
                       {/* image */}
                       <div className="relative aspect-square overflow-hidden bg-neutral-100 sm:aspect-[4/5]">
                         {image ? (
-                          <img
+                          <img loading="lazy"
                             src={image}
                             alt={card.profile.full_name || "Professional"}
                             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
@@ -1192,7 +1192,7 @@ export default function DiscoverPage() {
                         <div className="flex items-center gap-1.5">
                           <div className="h-5 w-5 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
                             {card.profile.avatar_url ? (
-                              <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                              <img loading="lazy" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-[8px] font-bold text-neutral-400">
                                 {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
@@ -1351,7 +1351,7 @@ export default function DiscoverPage() {
                   >
                     <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
                       {card.profile.avatar_url ? (
-                        <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                        <img loading="lazy" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
                           {card.profile.full_name?.charAt(0).toUpperCase() || "P"}

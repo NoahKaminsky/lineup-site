@@ -968,7 +968,7 @@ export default function AccountPage() {
               >
                 <div className="h-56 w-full overflow-hidden rounded-t-[2rem] bg-neutral-100 md:h-72">
                   {profile.banner_url ? (
-                    <img
+                    <img loading="lazy"
                       src={profile.banner_url}
                       alt="Cover photo"
                       className="h-full w-full object-cover transition group-hover:brightness-90"
@@ -1002,7 +1002,7 @@ export default function AccountPage() {
                   className="group relative h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-neutral-100 shadow md:h-40 md:w-40"
                 >
                   {profile.avatar_url ? (
-                    <img
+                    <img loading="lazy"
                       src={profile.avatar_url}
                       alt={profile.full_name || "Profile"}
                       className="h-full w-full object-cover transition group-hover:brightness-75"
@@ -1661,7 +1661,7 @@ export default function AccountPage() {
                         controls
                       />
                     ) : (
-                      <img
+                      <img loading="lazy"
                         src={item.image_url}
                         alt={item.caption || "Portfolio item"}
                         className="aspect-square h-full w-full object-cover"
@@ -1730,7 +1730,7 @@ export default function AccountPage() {
                       <div className="flex items-start gap-4">
                         <div className="h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-white">
                           {review.reviewer_avatar_url ? (
-                            <img
+                            <img loading="lazy"
                               src={review.reviewer_avatar_url}
                               alt={review.reviewer_name || "Reviewer"}
                               className="h-full w-full object-cover"
@@ -1957,7 +1957,7 @@ export default function AccountPage() {
           onClick={() => setShowBannerPreview(false)}
         >
           <div className="relative max-h-[90vh] max-w-6xl">
-            <img
+            <img loading="lazy"
               src={profile.banner_url}
               alt="Banner preview"
               className="max-h-[90vh] w-auto rounded-3xl object-contain"

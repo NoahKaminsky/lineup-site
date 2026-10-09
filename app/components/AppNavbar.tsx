@@ -547,7 +547,7 @@ function NavbarComponent() {
                     aria-label="Open account menu"
                   >
                     {profile?.avatar_url ? (
-                      <img
+                      <img loading="lazy"
                         src={profile.avatar_url}
                         alt={profile.full_name || "Profile"}
                         className="h-full w-full object-cover"

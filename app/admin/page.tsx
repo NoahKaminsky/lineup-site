@@ -530,7 +530,7 @@ export default function AdminPage() {
                           <p className="font-medium">{item.caption || "Untitled"}</p>
                           <p className="text-xs text-neutral-400">By {personLabel(item.user_id)}</p>
                           {item.image_url ? (
-                            <img src={item.image_url} alt="" className="mt-2 h-20 w-20 rounded object-cover" />
+                            <img loading="lazy" src={item.image_url} alt="" className="mt-2 h-20 w-20 rounded object-cover" />
                           ) : null}
                         </>
                       )}

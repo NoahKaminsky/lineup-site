@@ -1293,7 +1293,7 @@ function NewRequestPageContent() {
                   <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {referencePhotos.map((photo) => (
                       <div key={photo.id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-                        <img src={photo.previewUrl} alt={photo.name} className="h-32 w-full object-cover" />
+                        <img loading="lazy" src={photo.previewUrl} alt={photo.name} className="h-32 w-full object-cover" />
                         <div className="flex items-center justify-between gap-2 p-2">
                           <p className="truncate text-xs text-neutral-500">{photo.name}</p>
                           <button

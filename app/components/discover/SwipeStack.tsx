@@ -119,7 +119,7 @@ export default function SwipeStack({ cards }: { cards: SwipeCardData[] }) {
               >
                 <div className="relative h-full w-full overflow-hidden bg-neutral-100">
                   {card.image ? (
-                    <img
+                    <img loading="lazy"
                       src={card.image}
                       alt={card.name}
                       className="h-full w-full object-cover"

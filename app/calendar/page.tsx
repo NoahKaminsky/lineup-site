@@ -214,7 +214,7 @@ function BookingCard({
       <div className="flex items-start gap-3">
         <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-white">
           {booking.client_avatar_url ? (
-            <img
+            <img loading="lazy"
               src={booking.client_avatar_url}
               alt={booking.client_name || "Client"}
               className="h-full w-full object-cover"

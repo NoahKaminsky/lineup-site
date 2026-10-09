@@ -18,8 +18,13 @@ export default function SplashScreen() {
     sessionStorage.setItem(SESSION_KEY, "1");
     setVisible(true);
 
-    const fadeTimer = setTimeout(() => setFadingOut(true), 1300);
-    const removeTimer = setTimeout(() => setVisible(false), 1600);
+    // The logo sweep animation itself takes 0.85s (see the SVG below) — start
+    // fading right after it finishes instead of holding on a static logo.
+    // This used to hold for 1.3s before fading (1.6s total); real content was
+    // already loading underneath the whole time, so that hold was pure
+    // perceived latency with no functional benefit.
+    const fadeTimer = setTimeout(() => setFadingOut(true), 850);
+    const removeTimer = setTimeout(() => setVisible(false), 1100);
 
     return () => {
       clearTimeout(fadeTimer);

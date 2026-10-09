@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -238,18 +239,24 @@ export default function Page() {
                   <div className="relative h-[477px] w-full sm:h-[520px]">
                     <div className="absolute left-0 top-0 aspect-[9/19.5] w-[190px] -rotate-6 overflow-hidden rounded-[2rem] border-[5px] border-neutral-900 bg-neutral-900 shadow-lg transition-transform duration-300 ease-out sm:w-[208px] group-hover:-translate-x-2 group-hover:-translate-y-1 group-hover:-rotate-3">
                       <div className="absolute left-1/2 top-0 z-10 h-4 w-20 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
-                      <img
+                      <Image
                         src={screen.stackedSrc}
                         alt=""
-                        className="h-full w-full object-cover object-top"
+                        fill
+                        sizes="208px"
+                        className="object-cover object-top"
+                        loading={index < 2 ? "eager" : "lazy"}
                       />
                     </div>
                     <div className="absolute bottom-0 right-0 aspect-[9/19.5] w-[190px] rotate-3 overflow-hidden rounded-[2rem] border-[5px] border-neutral-900 bg-neutral-900 shadow-2xl transition-transform duration-300 ease-out sm:w-[208px] group-hover:translate-x-2 group-hover:translate-y-1 group-hover:rotate-0">
                       <div className="absolute left-1/2 top-0 z-10 h-4 w-20 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
-                      <img
+                      <Image
                         src={screen.src}
                         alt={screen.tag}
-                        className="h-full w-full object-cover object-top"
+                        fill
+                        sizes="208px"
+                        className="object-cover object-top"
+                        loading={index < 2 ? "eager" : "lazy"}
                       />
                     </div>
                   </div>
@@ -270,10 +277,13 @@ export default function Page() {
                         className="h-full w-full object-cover object-top"
                       />
                     ) : (
-                      <img
+                      <Image
                         src={screen.src}
                         alt={screen.tag}
-                        className="h-full w-full object-cover object-top"
+                        fill
+                        sizes="(min-width: 640px) 240px, 220px"
+                        className="object-cover object-top"
+                        loading={index < 2 ? "eager" : "lazy"}
                       />
                     )}
                   </div>

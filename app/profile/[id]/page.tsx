@@ -1362,7 +1362,7 @@ if (loading) {
                   onClick={() => setShowBannerPreview(true)}
                   className="h-full w-full cursor-zoom-in"
                 >
-                  <img
+                  <img loading="lazy"
                     src={profile.banner_url}
                     alt="Cover photo"
                     className="h-full w-full object-cover"
@@ -1382,7 +1382,7 @@ if (loading) {
                 <div className="flex min-w-0 gap-4">
                   <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[1.5rem] border-4 border-white bg-neutral-100 shadow md:h-28 md:w-28">
                     {profile.avatar_url ? (
-                      <img
+                      <img loading="lazy"
                         src={profile.avatar_url}
                         alt={profile.full_name || "Profile"}
                         className="h-full w-full object-cover"
@@ -2158,7 +2158,7 @@ if (loading) {
                           controls
                         />
                       ) : (
-                        <img
+                        <img loading="lazy"
                           src={item.image_url}
                           alt={item.caption || "Portfolio image"}
                           className="h-full w-full object-cover"
@@ -2211,7 +2211,7 @@ if (loading) {
                         <div className="flex items-center gap-3">
                           <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-white">
                             {review.reviewer_avatar_url ? (
-                              <img
+                              <img loading="lazy"
                                 src={review.reviewer_avatar_url}
                                 alt={review.reviewer_name || "Reviewer"}
                                 className="h-full w-full object-cover"
@@ -2451,7 +2451,7 @@ if (loading) {
           </button>
 
           <div className="flex h-full w-full max-w-6xl items-center justify-center">
-            <img
+            <img loading="lazy"
               src={profile.banner_url}
               alt="Full cover photo"
               className="max-h-full max-w-full rounded-2xl object-contain"

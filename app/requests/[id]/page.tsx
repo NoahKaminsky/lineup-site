@@ -1665,7 +1665,7 @@ export default function RequestDetailPage() {
                 <div className="mt-6 flex items-center gap-3">
                   <div className="h-12 w-12 overflow-hidden rounded-full border border-white/20 bg-white/10">
                     {requestOwner.avatar_url ? (
-                      <img
+                      <img loading="lazy"
                         src={requestOwner.avatar_url}
                         alt={requestOwner.full_name || "Customer"}
                         className="h-full w-full object-cover"
@@ -1821,7 +1821,7 @@ export default function RequestDetailPage() {
                   >
                     <div className="h-16 w-16 overflow-hidden rounded-full border border-neutral-200 bg-white">
                       {acceptedOffer.professional_avatar_url ? (
-                        <img
+                        <img loading="lazy"
                           src={acceptedOffer.professional_avatar_url}
                           alt={acceptedOffer.professional_name || "Professional"}
                           className="h-full w-full object-cover"
@@ -1887,7 +1887,7 @@ export default function RequestDetailPage() {
                           index === 0 ? "sm:col-span-2" : ""
                         }`}
                       >
-                        <img
+                        <img loading="lazy"
                           src={photoUrl}
                           alt={`Reference ${index + 1}`}
                           className={`w-full object-cover ${index === 0 ? "h-56" : "h-40"}`}
@@ -1955,7 +1955,7 @@ export default function RequestDetailPage() {
                                   }`}
                                 >
                                   {offer.professional_avatar_url ? (
-                                    <img
+                                    <img loading="lazy"
                                       src={offer.professional_avatar_url}
                                       alt={offer.professional_name || "Professional"}
                                       className="h-full w-full object-cover"
@@ -2333,7 +2333,7 @@ export default function RequestDetailPage() {
                               >
                                 <div className="h-9 w-9 overflow-hidden rounded-full border border-neutral-200 bg-white">
                                   {sender?.avatar_url ? (
-                                    <img
+                                    <img loading="lazy"
                                       src={sender.avatar_url}
                                       alt={sender.full_name || "User"}
                                       className="h-full w-full object-cover"
@@ -2678,7 +2678,7 @@ export default function RequestDetailPage() {
               Close
             </button>
 
-            <img
+            <img loading="lazy"
               src={selectedPhoto}
               alt="Reference full size"
               className="max-h-[90vh] max-w-full rounded-2xl object-contain"

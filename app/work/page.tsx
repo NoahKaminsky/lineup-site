@@ -330,7 +330,7 @@ function Avatar({ name, url }: { name: string | null; url: string | null }) {
   return (
     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
       {url ? (
-        <img src={url} alt={name || "User"} className="h-full w-full object-cover" />
+        <img loading="lazy" src={url} alt={name || "User"} className="h-full w-full object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">
           {getInitials(name)}

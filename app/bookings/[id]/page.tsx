@@ -773,7 +773,7 @@ export default function BookingDetailPage() {
                 <div className="mt-3 flex items-center gap-3">
                   <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
                     {professional?.avatar_url ? (
-                      <img
+                      <img loading="lazy"
                         src={professional.avatar_url}
                         alt={professional.full_name || "Professional"}
                         className="h-full w-full object-cover"
@@ -803,7 +803,7 @@ export default function BookingDetailPage() {
                 <div className="mt-3 flex items-center gap-3">
                   <div className="h-14 w-14 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
                     {customer?.avatar_url ? (
-                      <img
+                      <img loading="lazy"
                         src={customer.avatar_url}
                         alt={customer.full_name || "Client"}
                         className="h-full w-full object-cover"
