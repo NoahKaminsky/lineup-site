@@ -609,16 +609,23 @@ export default function Page() {
             What you get
           </h3>
 
-          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Asymmetric bento grid, not six identical boxed-icon cards: the
+              two things that matter most for deciding to join (how the
+              matching actually works, and that it costs nothing to start)
+              get a wider, bolder treatment and bookend the row; the rest
+              stay compact. */}
+          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 title: "Live marketplace matching",
                 body: "Post a request once and get real offers from professionals ready to work — no cold outreach either way.",
-                icon: <path d="M4 7h9m0 0l-3-3m3 3l-3 3M16 13H7m0 0l3-3m-3 3l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />,
+                featured: true,
+                icon: <path d="M4 7h9m0 0l-3-3m3 3l-3 3M16 13H7m0 0l3-3m-3 3l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />,
               },
               {
                 title: "Secure payments built in",
-                body: "Every booking is paid through LineUp — protected, tracked, and hassle-free for both sides.",
+                body: "Every booking is paid through LineUp — protected and tracked.",
+                featured: false,
                 icon: (
                   <>
                     <rect x="5" y="9" width="10" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" />
@@ -628,17 +635,20 @@ export default function Page() {
               },
               {
                 title: "In-app messaging",
-                body: "Coordinate details, timing, and expectations without ever leaving the platform.",
+                body: "Coordinate details without ever leaving the platform.",
+                featured: false,
                 icon: <path d="M3 5.5A2.5 2.5 0 015.5 3h9A2.5 2.5 0 0117 5.5v6A2.5 2.5 0 0114.5 14H9l-4 3v-3H5.5A2.5 2.5 0 013 11.5v-6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />,
               },
               {
                 title: "Verified reviews",
                 body: "Every completed job adds to a professional's public track record.",
+                featured: false,
                 icon: <path d="M10 2.5l2.1 4.5 4.9.6-3.6 3.4.9 4.9L10 13.5l-4.3 2.4.9-4.9L3 7.6l4.9-.6L10 2.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />,
               },
               {
                 title: "Verified payouts",
-                body: "Professionals confirm their identity with our payment partner before they can be paid, and every payment is processed securely through Stripe.",
+                body: "Identity confirmed with our payment partner — every payment processed securely through Stripe.",
+                featured: false,
                 icon: (
                   <>
                     <path d="M10 2.5l6 2.2v4.8c0 4-2.6 6.9-6 8-3.4-1.1-6-4-6-8V4.7l6-2.2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
@@ -649,9 +659,10 @@ export default function Page() {
               {
                 title: "Free to start",
                 body: "No subscription required to take on real, paying clients — upgrade later if you want more.",
+                featured: true,
                 icon: (
                   <>
-                    <path d="M3 3h6.5L17 10.5 10.5 17 3 9.5V3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                    <path d="M3 3h6.5L17 10.5 10.5 17 3 9.5V3z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
                     <circle cx="6.5" cy="6.5" r="1" fill="currentColor" />
                   </>
                 ),
@@ -662,18 +673,30 @@ export default function Page() {
               return (
                 <div
                   key={card.title}
-                  className={`rounded-3xl border border-neutral-200 bg-white p-7 transition-all duration-700 ease-out ${
-                    usingLineupRevealed ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
-                  }`}
+                  className={`rounded-3xl bg-white transition-all duration-700 ease-out ${
+                    card.featured
+                      ? "sm:col-span-2 lg:col-span-2 border-2 border-neutral-900 p-8 sm:p-9"
+                      : "border border-neutral-200 p-7"
+                  } ${usingLineupRevealed ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
                   style={{ transitionDelay: `${120 + col * 90 + row * 70}ms` }}
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-neutral-100">
-                    <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-700" fill="none">
+                  {card.featured ? (
+                    <svg viewBox="0 0 20 20" className="h-9 w-9 text-neutral-900" fill="none">
                       {card.icon}
                     </svg>
-                  </div>
-                  <h3 className="mt-4 text-xl font-semibold">{card.title}</h3>
-                  <p className="mt-2 leading-7 text-neutral-600">{card.body}</p>
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-neutral-100">
+                      <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-700" fill="none">
+                        {card.icon}
+                      </svg>
+                    </div>
+                  )}
+                  <h3 className={card.featured ? "mt-5 text-2xl font-semibold tracking-tight" : "mt-4 text-xl font-semibold"}>
+                    {card.title}
+                  </h3>
+                  <p className={card.featured ? "mt-2 max-w-sm leading-7 text-neutral-600" : "mt-2 leading-7 text-neutral-600"}>
+                    {card.body}
+                  </p>
                 </div>
               );
             })}
