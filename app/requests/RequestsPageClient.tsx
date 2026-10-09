@@ -11,6 +11,7 @@ import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/cus
 import WelcomeTour, { type TourStep } from "../components/WelcomeTour";
 import OnboardingChecklist from "../components/OnboardingChecklist";
 import VerificationBanner from "../components/VerificationBanner";
+import NotificationNudge from "../components/NotificationNudge";
 
 const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
   {
@@ -1711,6 +1712,8 @@ return (
               finalCtaHref="/requests/new"
             />
           ) : null}
+
+          <NotificationNudge />
 
           {message ? (
             <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
