@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
+import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
 function normalize(value: string | null | undefined) {
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
 
     let professionalsQuery = supabase
       .from("profiles")
-      .select("id, email, full_name, professional_type, professional_types, service_modes, email_request_notifications, verification_status, verified_until")
+      .select("id, email, full_name, professional_type, professional_types, service_modes, email_request_notifications, verification_status, verified_until, phone_number, sms_notifications_enabled")
       .eq("role", "professional")
       .eq("email_request_notifications", true)
       .not("email", "is", null);
@@ -167,6 +168,19 @@ export async function POST(req: Request) {
             : requestTitle,
         },
       ]);
+
+      // Best-effort, same reasoning as the review-request SMS/email in
+      // bookingCompletion.ts — a text failure (or Twilio not being
+      // configured yet) should never block the rest of the notification
+      // loop. sendSmsToProfileIfOptedIn only actually sends when the
+      // professional has both a phone number on file and has explicitly
+      // turned text alerts on.
+      sendSmsToProfileIfOptedIn(
+        profile,
+        `${isDirectRequest ? "You got a direct request" : "New matching request"} on LineUp: ${requestTitle}. ${requestUrl}`
+      ).catch((error) => {
+        console.error(`Failed to send request-alert SMS to ${profile.id}:`, error);
+      });
 
       sent += 1;
     }

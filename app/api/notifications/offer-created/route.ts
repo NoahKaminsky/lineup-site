@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
+import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
 type EmailProfile = {
   id: string;
   email: string | null;
   full_name: string | null;
+  phone_number: string | null;
+  sms_notifications_enabled: boolean | null;
 };
 
 function formatDate(dateString?: string | null) {
@@ -68,7 +71,7 @@ async function getEmailProfile(
 ): Promise<EmailProfile> {
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email, full_name")
+    .select("id, email, full_name, phone_number, sms_notifications_enabled")
     .eq("id", userId)
     .maybeSingle();
 
@@ -83,6 +86,8 @@ async function getEmailProfile(
     id: profile?.id || userId,
     email,
     full_name: profile?.full_name || null,
+    phone_number: profile?.phone_number || null,
+    sms_notifications_enabled: profile?.sms_notifications_enabled ?? null,
   };
 }
 
@@ -213,6 +218,15 @@ export async function POST(req: Request) {
       type: "offer",
       title: `${professionalName} sent you an offer`,
     }]);
+
+    // Best-effort, same reasoning as elsewhere — only actually sends if the
+    // customer has a phone number on file and has explicitly opted in.
+    sendSmsToProfileIfOptedIn(
+      customer,
+      `${professionalName} sent you an offer on LineUp for ${requestTitle}${proposedPrice ? ` — ${proposedPrice}` : ""}. ${requestUrl}`
+    ).catch((error) => {
+      console.error(`Failed to send offer-alert SMS to ${customer.id}:`, error);
+    });
 
     return NextResponse.json({
       ok: true,
