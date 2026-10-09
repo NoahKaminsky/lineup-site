@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
+import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
 type EmailProfile = {
   id: string;
   email: string | null;
   full_name: string | null;
+  phone_number: string | null;
+  sms_notifications_enabled: boolean | null;
 };
 
 function formatDate(dateString?: string | null) {
@@ -98,7 +101,7 @@ async function getEmailProfile(
 ): Promise<EmailProfile> {
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email, full_name")
+    .select("id, email, full_name, phone_number, sms_notifications_enabled")
     .eq("id", userId)
     .maybeSingle();
 
@@ -113,6 +116,8 @@ async function getEmailProfile(
     id: profile?.id || userId,
     email,
     full_name: profile?.full_name || null,
+    phone_number: profile?.phone_number || null,
+    sms_notifications_enabled: profile?.sms_notifications_enabled ?? null,
   };
 }
 
@@ -214,6 +219,11 @@ export async function POST(req: Request) {
         html: customerHtml,
       });
 
+      sendSmsToProfileIfOptedIn(
+        customer,
+        `Your LineUp booking with ${professionalName} is confirmed: ${serviceName}, ${date} at ${start}. ${bookingUrl}`
+      ).catch((error) => console.error(`Failed to send booking-confirmed SMS to ${customer.id}:`, error));
+
       sent += 1;
     }
 
@@ -255,6 +265,11 @@ export async function POST(req: Request) {
         subject: "New LineUp booking confirmed",
         html: professionalHtml,
       });
+
+      sendSmsToProfileIfOptedIn(
+        professional,
+        `New LineUp booking with ${customerName}: ${serviceName}, ${date} at ${start}. ${bookingUrl}`
+      ).catch((error) => console.error(`Failed to send booking-confirmed SMS to ${professional.id}:`, error));
 
       sent += 1;
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
+import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 
 function formatDate(dateString?: string | null) {
@@ -100,6 +101,11 @@ async function sendReminderPairForBooking(
     sent += 1;
   }
 
+  sendSmsToProfileIfOptedIn(
+    booking.customer,
+    `Reminder: your LineUp appointment with ${professionalName} is ${whenLabel} at ${start}. ${bookingUrl}`
+  ).catch((error) => console.error(`Failed to send reminder SMS to customer ${booking.customer_id}:`, error));
+
   if (booking.professional?.email) {
     const professionalFirstName = booking.professional.full_name?.split(" ")[0] || "there";
 
@@ -138,6 +144,11 @@ async function sendReminderPairForBooking(
 
     sent += 1;
   }
+
+  sendSmsToProfileIfOptedIn(
+    booking.professional,
+    `Reminder: you're booked with ${customerName} ${whenLabel} at ${start}. ${bookingUrl}`
+  ).catch((error) => console.error(`Failed to send reminder SMS to professional ${booking.professional_id}:`, error));
 
   if (whenLabel === "today") {
     await supabase.from("notifications").insert([
@@ -198,8 +209,8 @@ export async function GET(req: Request) {
       .from("bookings")
       .select(`
         *,
-        customer:customer_id ( email, full_name ),
-        professional:professional_id ( email, full_name )
+        customer:customer_id ( email, full_name, phone_number, sms_notifications_enabled ),
+        professional:professional_id ( email, full_name, phone_number, sms_notifications_enabled )
       `)
       .eq("status", "confirmed")
       .eq("booking_date", tomorrowDateString);
@@ -219,8 +230,8 @@ export async function GET(req: Request) {
       .from("bookings")
       .select(`
         *,
-        customer:customer_id ( email, full_name ),
-        professional:professional_id ( email, full_name )
+        customer:customer_id ( email, full_name, phone_number, sms_notifications_enabled ),
+        professional:professional_id ( email, full_name, phone_number, sms_notifications_enabled )
       `)
       .eq("status", "confirmed")
       .eq("booking_date", todayDateString);

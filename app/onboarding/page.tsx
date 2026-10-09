@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Scissors, Wand2, Hand, Eye, Pencil, Palette, Flame, Leaf, Star, ShoppingBag, Briefcase } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
+import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 
 const PROFESSIONAL_OPTIONS = [
   { label: "Barber", value: "barber", Icon: Scissors },
@@ -25,6 +26,9 @@ export default function OnboardingPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [smsNotificationsEnabled, setSmsNotificationsEnabled] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -126,6 +130,22 @@ export default function OnboardingPage() {
       return;
     }
 
+    const cleanPhoneNumber = phoneNumber.trim();
+
+    if (cleanPhoneNumber && !isLikelyValidPhoneNumber(cleanPhoneNumber)) {
+      setSaving(false);
+      setPhoneError("Enter your number in international format, e.g. +12045551234.");
+      return;
+    }
+
+    if (smsNotificationsEnabled && !cleanPhoneNumber) {
+      setSaving(false);
+      setPhoneError("Add a phone number to turn on text alerts.");
+      return;
+    }
+
+    setPhoneError("");
+
     if (!acceptedTerms) {
       setSaving(false);
       setErrorMessage("Please agree to the Terms of Service.");
@@ -158,6 +178,8 @@ export default function OnboardingPage() {
         marketing_consent_at: marketingConsent ? now : null,
         marketing_consent_source: marketingConsent ? "account_creation" : null,
         unsubscribed_from_marketing: false,
+        phone_number: cleanPhoneNumber || null,
+        sms_notifications_enabled: cleanPhoneNumber ? smsNotificationsEnabled : false,
       },
       { onConflict: "id" }
     );
@@ -361,6 +383,49 @@ export default function OnboardingPage() {
                 </div>
               </div>
             ) : null}
+
+            {/* Phone / text alerts */}
+            <div className="space-y-3 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-neutral-700">
+                  Phone number <span className="font-normal text-neutral-400">(optional)</span>
+                </label>
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => {
+                    setPhoneNumber(e.target.value);
+                    setPhoneError("");
+                  }}
+                  placeholder="+12045551234"
+                  className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                />
+                {phoneError ? (
+                  <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>
+                ) : (
+                  <p className="mt-1.5 text-xs text-neutral-500">International format, e.g. +1 for Canada/US.</p>
+                )}
+              </div>
+
+              <label className="flex cursor-pointer items-start gap-3">
+                <div
+                  onClick={() => setSmsNotificationsEnabled((v) => !v)}
+                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
+                    smsNotificationsEnabled ? "border-black bg-black" : "border-neutral-300 bg-white"
+                  }`}
+                >
+                  {smsNotificationsEnabled ? (
+                    <svg viewBox="0 0 10 8" className="h-2.5 w-2.5" fill="none">
+                      <path d="M1 4l2.5 2.5L9 1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : null}
+                </div>
+                <span className="text-sm leading-6 text-neutral-700">
+                  Text me time-sensitive alerts — new offers, matching requests, and upcoming
+                  appointments. Faster than email. You can turn this off anytime in Account settings.
+                </span>
+              </label>
+            </div>
 
             {/* Legal */}
             <div className="space-y-3 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
