@@ -72,7 +72,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Restore the last signed-in role's theme before first paint so the
+            Pro/Customer accent never flashes in after load. The navbar keeps
+            this in sync with the real profile. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var r=localStorage.getItem("lu-role");if(r==="pro"||r==="customer")document.documentElement.dataset.role=r}catch(e){}`,
+          }}
+        />
+      </head>
       <body
         suppressHydrationWarning={true}
         className={`${geistSans.variable} ${geistMono.variable} bg-white antialiased`}

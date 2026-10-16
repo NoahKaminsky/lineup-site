@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./theme.css";
 
 /* LineUp design tokens — shared by the landing page and the app.
    Primitive values get semantic names so every screen reads as one system:
@@ -12,6 +13,10 @@
   /* Radius scale: panel (page-level surfaces) > 2xl card > xl control. */
   --radius-panel: 1.25rem;
   --ease-premium: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Role accent hooks — values come from theme.css (monochrome today). */
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
 }
 
 /* Motion tokens: everyday UI feedback is fast; larger surfaces a touch slower. */

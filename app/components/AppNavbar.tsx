@@ -350,6 +350,21 @@ function NavbarComponent() {
     role === "I am a professional" ||
     (!!role && role !== "customer" && role !== "I am a customer");
 
+  // Tag the page with the signed-in side (theme.css reads data-role for motion
+  // tempo and accent hooks) and remember it so the next load paints correctly.
+  useEffect(() => {
+    if (loading) return;
+    const root = document.documentElement;
+    if (hasUser && profile) {
+      const side = isProfessional ? "pro" : "customer";
+      root.dataset.role = side;
+      try { localStorage.setItem("lu-role", side); } catch {}
+    } else {
+      delete root.dataset.role;
+      try { localStorage.removeItem("lu-role"); } catch {}
+    }
+  }, [loading, hasUser, profile, isProfessional]);
+
   const navItems = useMemo<NavItem[]>(() => {
     if (loading || !hasUser || !profile) return [];
 
@@ -423,9 +438,14 @@ function NavbarComponent() {
             href={hasUser ? "/requests" : "/"}
             prefetch
             onClick={handleNavClick}
-            className="order-1 flex h-16 shrink-0 items-center rounded text-xl font-semibold tracking-tight text-ink"
+            className="order-1 flex h-16 shrink-0 items-center gap-2 rounded text-xl font-semibold tracking-tight text-ink"
           >
             LineUp
+            {hasUser && !loading && profile ? (
+              <span className="rounded-md bg-accent-soft px-1.5 py-0.5 text-[11px] font-semibold tracking-[0.02em] text-accent">
+                {isProfessional ? "Pro" : "Client"}
+              </span>
+            ) : null}
           </Link>
 
           <div className="order-2 ml-auto flex items-center gap-1.5 lg:order-3">
@@ -587,7 +607,7 @@ function NavbarComponent() {
                         {profile?.full_name || "Your account"}
                       </p>
                       <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500">
-                        {isProfessional ? "Professional" : "Customer"}
+                        {isProfessional ? "Professional account" : "Client account"}
                       </p>
                     </div>
 
@@ -653,7 +673,7 @@ function NavbarComponent() {
                         {item.label}
                         <span
                           aria-hidden="true"
-                          className={`absolute inset-x-0 bottom-0 h-[1.5px] bg-ink transition-transform duration-300 ease-premium ${
+                          className={`absolute inset-x-0 bottom-0 h-[1.5px] bg-accent transition-transform duration-300 ease-premium ${
                             active ? "scale-x-100" : "scale-x-0"
                           }`}
                         />
@@ -690,7 +710,7 @@ function NavbarComponent() {
                     onClick={handleNavClick}
                     aria-current={active ? "page" : undefined}
                     className={`relative flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-[1.2rem] transition-colors duration-200 ${
-                      active ? "bg-ink/[0.06] text-ink" : "text-neutral-400 active:bg-ink/[0.04]"
+                      active ? "bg-accent-soft text-accent" : "text-neutral-400 active:bg-ink/[0.04]"
                     }`}
                   >
                     <NavIcon icon={item.icon} />

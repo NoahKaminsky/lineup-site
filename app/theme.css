@@ -1,0 +1,99 @@
+/* LineUp role themes.
+   Shared base tokens (ink/paper/surface/hairline, radius, easing) live in
+   globals.css. This file layers a Pro and a Customer identity on top:
+   a motion tempo (plus accent hooks, currently monochrome on both sides). Every screen reads the same variable
+   names, so components never need to know which side they're on.
+
+   <html data-role="pro" | "customer"> is set by the navbar from the signed-in
+   profile (and restored from localStorage before first paint, see layout.tsx). */
+
+:root {
+  /* Neutral default (logged out, landing, auth): accent is just ink. */
+  --accent: #0a0a0a;
+  --accent-strong: #000000;
+  --accent-soft: rgb(10 10 10 / 0.06);
+  --accent-contrast: #ffffff;
+
+  /* Motion tempo — how quickly items slide into the lineup. */
+  --motion-enter: 260ms;
+  --motion-stagger: 40ms;
+  --motion-distance: 14px;
+}
+
+/* Pro — tools, efficiency, managing work. Same monochrome brand,
+   snappier motion. (Accent hooks kept so a colour can be added later.) */
+[data-role="pro"] {
+  --accent: #0a0a0a;
+  --accent-strong: #000000;
+  --accent-soft: rgb(10 10 10 / 0.06);
+  --accent-contrast: #ffffff;
+
+  --motion-enter: 200ms;
+  --motion-stagger: 28ms;
+  --motion-distance: 12px;
+}
+
+/* Customer — simplicity, trust, finding and booking. Same monochrome
+   brand, softer motion. */
+[data-role="customer"] {
+  --accent: #0a0a0a;
+  --accent-strong: #000000;
+  --accent-soft: rgb(10 10 10 / 0.06);
+  --accent-contrast: #ffffff;
+
+  --motion-enter: 320ms;
+  --motion-stagger: 48ms;
+  --motion-distance: 18px;
+}
+
+/* ── Lineup motion language ───────────────────────────────────────────────
+   Lists of work, bookings and requests slide into place one after another,
+   like people stepping into a line. Transform/opacity only; `backwards` fill
+   so nothing is left transformed once the entrance is done. */
+@keyframes lu-line-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--motion-distance));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.lu-lineup > * {
+  animation: lu-line-in var(--motion-enter) var(--ease-premium) backwards;
+  animation-delay: calc(var(--lu-i, 0) * var(--motion-stagger));
+}
+.lu-lineup > :nth-child(2) { --lu-i: 1; }
+.lu-lineup > :nth-child(3) { --lu-i: 2; }
+.lu-lineup > :nth-child(4) { --lu-i: 3; }
+.lu-lineup > :nth-child(5) { --lu-i: 4; }
+.lu-lineup > :nth-child(6) { --lu-i: 5; }
+.lu-lineup > :nth-child(7) { --lu-i: 6; }
+.lu-lineup > :nth-child(8) { --lu-i: 7; }
+.lu-lineup > :nth-child(n + 9) { --lu-i: 8; }
+
+/* Slots filling in: stat tiles and day cells settle up into their slot. */
+@keyframes lu-slot-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.lu-slots > * {
+  animation: lu-slot-in var(--motion-enter) var(--ease-premium) backwards;
+  animation-delay: calc(var(--lu-i, 0) * var(--motion-stagger));
+}
+.lu-slots > :nth-child(2) { --lu-i: 1; }
+.lu-slots > :nth-child(3) { --lu-i: 2; }
+.lu-slots > :nth-child(4) { --lu-i: 3; }
+.lu-slots > :nth-child(5) { --lu-i: 4; }
+.lu-slots > :nth-child(6) { --lu-i: 5; }
+.lu-slots > :nth-child(7) { --lu-i: 6; }
+.lu-slots > :nth-child(n + 8) { --lu-i: 7; }
