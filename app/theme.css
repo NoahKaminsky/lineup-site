@@ -97,3 +97,24 @@
 .lu-slots > :nth-child(6) { --lu-i: 5; }
 .lu-slots > :nth-child(7) { --lu-i: 6; }
 .lu-slots > :nth-child(n + 8) { --lu-i: 7; }
+
+/* Day zoom: a lens grows out of the hovered calendar cell (DayZoom.tsx).
+   --zoom-from is the cell-to-lens size ratio, so the lens starts exactly at
+   the cell's size and scales up around its centre. */
+@keyframes lu-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--zoom-from, 0.5));
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.lu-zoom-in {
+  animation: lu-zoom-in var(--motion-enter) var(--ease-premium) both;
+}

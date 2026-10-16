@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import VerificationBanner from "@/app/components/VerificationBanner";
+import DayZoomArea from "@/app/components/DayZoom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -659,6 +660,69 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
     </div>
   );
 
+  // What the hovered day zooms into: the full day, Apple-Calendar style.
+  function renderDayLens(dateKey: string) {
+    const dayBookings = bookingsByDate[dateKey] || [];
+    const date = new Date(`${dateKey}T00:00:00`);
+    return (
+      <div className="overflow-hidden rounded-2xl bg-surface shadow-[0_2px_8px_rgba(0,0,0,0.06),0_28px_64px_-20px_rgba(0,0,0,0.35)] ring-1 ring-black/5">
+        <div className="flex items-end justify-between gap-3 border-b border-hairline px-4 pb-3 pt-4">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+              {date.toLocaleDateString("en-CA", { weekday: "long" })}
+              {dateKey === todayKey ? " · Today" : ""}
+            </p>
+            <p className="mt-0.5 text-3xl font-semibold tabular-nums tracking-[-0.03em] text-ink">
+              {date.getDate()}
+              <span className="ml-1.5 text-base font-medium text-neutral-400">
+                {date.toLocaleDateString("en-CA", { month: "short" })}
+              </span>
+            </p>
+          </div>
+          <span className="pb-1 text-sm tabular-nums text-neutral-500">
+            {dayBookings.length} booking{dayBookings.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {dayBookings.length === 0 ? (
+          <p className="px-4 py-5 text-sm text-neutral-500">Nothing booked. A free day.</p>
+        ) : (
+          <ol className="lu-lineup max-h-[260px] divide-y divide-hairline overflow-y-auto overscroll-contain">
+            {dayBookings.map((booking) => (
+              <li key={booking.id}>
+                <Link
+                  href={`/bookings/${booking.id}`}
+                  className="grid grid-cols-[46px_1fr] gap-3 px-4 py-3 transition-colors hover:bg-neutral-50"
+                >
+                  <span className="pt-0.5 text-right tabular-nums">
+                    <span className="block text-[13px] font-semibold text-ink">{formatTime(booking.start_time)}</span>
+                    <span className="block text-[11px] text-neutral-400">{formatTime(booking.end_time)}</span>
+                  </span>
+                  <span className="min-w-0 border-l-2 border-ink pl-3">
+                    <span className="block truncate text-sm font-semibold text-ink">{booking.service_name || "Booked service"}</span>
+                    <span className="block truncate text-xs text-neutral-500">
+                      {booking.client_name || "Client"} · {formatStatusLabel(booking.status)}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        <div className="border-t border-hairline px-4 py-2.5">
+          <button
+            type="button"
+            onClick={() => setSelectedDate(dateKey)}
+            className="rounded text-xs font-medium text-ink underline decoration-ink/20 underline-offset-4 transition-colors hover:decoration-ink"
+          >
+            Open this day
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Day agenda as a timeline: time on the left, the booking on the rail.
   const dayAgenda =
     selectedDateBookings.length === 0 ? (
@@ -847,69 +911,82 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               {monthNav}
             </div>
 
-            <div className="mt-4 overflow-hidden rounded-2xl border border-hairline bg-surface">
-              <div className="grid grid-cols-7 border-b border-hairline">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                  <div key={day} className="px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-500">
-                    {day}
-                  </div>
-                ))}
-              </div>
+            <DayZoomArea renderLens={renderDayLens} lensWidth={320} className="mt-4">
+              <div className="overflow-hidden rounded-2xl border border-hairline bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.04),0_28px_56px_-36px_rgba(0,0,0,0.3)]">
+                <div className="grid grid-cols-7 border-b border-hairline bg-paper/50">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                    <div key={day} className="px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-500">
+                      {day}
+                    </div>
+                  ))}
+                </div>
 
-              <div key={formatMonthYear(currentMonth)} className="lu-fade-in grid grid-cols-7 gap-px bg-hairline">
-                {monthCells.map((cell) => {
-                  if (!cell.date) {
-                    return <div key={cell.key} className="min-h-[92px] bg-paper/70" />;
-                  }
+                <div key={formatMonthYear(currentMonth)} className="lu-fade-in grid grid-cols-7 gap-px bg-hairline">
+                  {monthCells.map((cell, index) => {
+                    const isWeekend = index % 7 === 0 || index % 7 === 6;
+                    if (!cell.date) {
+                      return <div key={cell.key} className="min-h-[118px] bg-paper/70" />;
+                    }
 
-                  const dateKey = getDateKey(cell.date);
-                  const dayBookings = bookingsByDate[dateKey] || [];
-                  const isSelected = selectedDate === dateKey;
-                  const isToday = todayKey === dateKey;
-                  const awaitingCount = dayBookings.filter((booking) => booking.status === "completion_requested").length;
+                    const dateKey = getDateKey(cell.date);
+                    const dayBookings = bookingsByDate[dateKey] || [];
+                    const isSelected = selectedDate === dateKey;
+                    const isToday = todayKey === dateKey;
+                    const isPast = dateKey < todayKey;
 
-                  return (
-                    <button
-                      key={cell.key}
-                      type="button"
-                      aria-pressed={isSelected}
-                      aria-label={`${formatDateLabel(dateKey)}, ${dayBookings.length} booking${dayBookings.length === 1 ? "" : "s"}`}
-                      onClick={() => setSelectedDate(dateKey)}
-                      className={`relative flex min-h-[92px] flex-col items-start bg-surface p-2.5 text-left transition-colors duration-150 hover:bg-neutral-50 ${
-                        isSelected ? "z-10 shadow-[inset_0_0_0_2px_#0a0a0a]" : ""
-                      }`}
-                    >
-                      <span
-                        className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium tabular-nums ${
-                          isToday ? "bg-ink font-semibold text-white" : "text-ink"
-                        }`}
+                    return (
+                      <button
+                        key={cell.key}
+                        type="button"
+                        data-zoom-key={dateKey}
+                        aria-pressed={isSelected}
+                        aria-label={`${formatDateLabel(dateKey)}, ${dayBookings.length} booking${dayBookings.length === 1 ? "" : "s"}`}
+                        onClick={() => setSelectedDate(dateKey)}
+                        className={`relative flex min-h-[118px] flex-col items-stretch gap-1 p-2 text-left transition-colors duration-150 hover:bg-neutral-50 ${
+                          isWeekend ? "bg-paper/40" : "bg-surface"
+                        } ${isSelected ? "z-10 shadow-[inset_0_0_0_2px_#0a0a0a]" : ""}`}
                       >
-                        {cell.date.getDate()}
-                      </span>
-
-                      {dayBookings.length > 0 ? (
-                        <span className="mt-auto flex w-full items-center gap-1.5 px-0.5">
-                          <span aria-hidden="true" className="flex gap-0.5">
-                            {dayBookings.slice(0, 3).map((booking) => (
-                              <span
-                                key={booking.id}
-                                className={`h-1.5 w-1.5 rounded-full ${
-                                  booking.status === "completed" ? "bg-neutral-300" : "bg-ink"
-                                }`}
-                              />
-                            ))}
-                          </span>
-                          <span className="truncate text-[11px] tabular-nums text-neutral-600">
-                            {dayBookings.length}
-                            {awaitingCount > 0 ? ` · ${awaitingCount} awaiting` : ""}
-                          </span>
+                        <span
+                          className={`flex h-7 w-7 items-center justify-center self-start rounded-full text-sm tabular-nums ${
+                            isToday
+                              ? "bg-ink font-semibold text-white"
+                              : isPast
+                              ? "font-medium text-neutral-400"
+                              : "font-medium text-ink"
+                          }`}
+                        >
+                          {cell.date.getDate()}
                         </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
+
+                        {/* Preview of the day's bookings, right in the month view. */}
+                        {dayBookings.slice(0, 2).map((booking) => (
+                          <span
+                            key={booking.id}
+                            className={`flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-[3px] text-[11px] leading-tight ${
+                              booking.status === "completed"
+                                ? "bg-neutral-100/70 text-neutral-400"
+                                : booking.status === "completion_requested"
+                                ? "bg-surface text-ink ring-1 ring-inset ring-ink/25"
+                                : "bg-neutral-100 text-ink"
+                            }`}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`h-3 w-[3px] shrink-0 rounded-full ${booking.status === "completed" ? "bg-neutral-300" : "bg-ink"}`}
+                            />
+                            <span className="shrink-0 tabular-nums text-neutral-500">{formatTime(booking.start_time)}</span>
+                            <span className="truncate font-medium">{booking.service_name || "Booking"}</span>
+                          </span>
+                        ))}
+                        {dayBookings.length > 2 ? (
+                          <span className="px-1.5 text-[11px] font-medium text-neutral-500">+{dayBookings.length - 2} more</span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            </DayZoomArea>
           </section>
 
           <aside className="space-y-10 lg:col-span-4">

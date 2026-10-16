@@ -18,6 +18,7 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import PaymentModal from "@/app/components/payments/PaymentModal";
 import { getCached, setCached } from "@/app/lib/pageCache";
+import DayZoomArea from "@/app/components/DayZoom";
 import type { ProfileDetailInitialData } from "./getInitialData";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -1046,6 +1047,68 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     return "evening";
   }
 
+  function chooseBookingDay(date: string) {
+    setSelectedDay(date);
+    setSelectedSlot(null);
+    setSelectedServiceMode(null);
+    setLocationInput("");
+    setMessage("");
+  }
+
+  // Hovering a day on the booking strip zooms into its open times.
+  function renderBookingDayLens(date: string) {
+    const day = bookingCalendarDays.find((item) => item.date === date);
+    if (!day) return null;
+    const preview = day.slots.slice(0, 9);
+    return (
+      <div className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06),0_28px_64px_-20px_rgba(0,0,0,0.35)] ring-1 ring-black/5">
+        <div className="flex items-end justify-between gap-3 border-b border-neutral-100 px-4 pb-3 pt-4">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500">{day.dayLabel}</p>
+            <p className="mt-0.5 text-3xl font-semibold tabular-nums tracking-[-0.03em] text-neutral-900">
+              {new Date(`${day.date}T00:00:00`).getDate()}
+              <span className="ml-1.5 text-base font-medium text-neutral-400">{day.dateLabel.split(" ")[0]}</span>
+            </p>
+          </div>
+          <span className="pb-1 text-sm tabular-nums text-neutral-500">
+            {day.slots.length} open {day.slots.length === 1 ? "time" : "times"}
+          </span>
+        </div>
+
+        {day.slots.length === 0 ? (
+          <p className="px-4 py-5 text-sm text-neutral-500">Fully booked — try another day.</p>
+        ) : (
+          <div className="lu-slots grid grid-cols-3 gap-1.5 px-4 py-4">
+            {preview.map((slot) => (
+              <span
+                key={slot.key}
+                className="whitespace-nowrap rounded-lg bg-neutral-100 px-1 py-1.5 text-center text-[12px] font-medium tabular-nums text-neutral-800"
+              >
+                {formatTime(slot.start_time)}
+              </span>
+            ))}
+            {day.slots.length > preview.length ? (
+              <span className="col-span-3 text-center text-[11px] text-neutral-500">
+                +{day.slots.length - preview.length} more
+              </span>
+            ) : null}
+          </div>
+        )}
+
+        <div className="border-t border-neutral-100 px-4 py-2.5">
+          <button
+            type="button"
+            onClick={() => chooseBookingDay(day.date)}
+            disabled={day.slots.length === 0}
+            className="rounded text-xs font-medium text-neutral-900 underline decoration-neutral-300 underline-offset-4 transition-colors hover:decoration-neutral-900 disabled:text-neutral-400 disabled:no-underline"
+          >
+            Choose this day
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   function getDaySymbols(slots: GeneratedSlot[]) {
     const hasDaytime = slots.some((slot) => getSlotPeriod(slot.start_time) !== "evening");
     const hasEvening = slots.some((slot) => getSlotPeriod(slot.start_time) === "evening");
@@ -1567,6 +1630,7 @@ if (loading) {
               ) : (
                 <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
                   <div className="min-w-0 space-y-6">
+                    <DayZoomArea renderLens={renderBookingDayLens} lensWidth={300}>
                     <div className="w-full max-w-full overflow-visible rounded-panel border border-neutral-200 bg-white p-3 shadow-sm sm:p-4">
                       <div className="mb-3 flex items-center justify-between gap-3 px-1">
                         <div>
@@ -1577,8 +1641,8 @@ if (loading) {
                             {getSelectedMonthLabel()}
                           </p>
                         </div>
-                        <span className="hidden rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-600 sm:inline-flex">
-                          Swipe dates
+                        <span className="hidden text-xs text-neutral-500 sm:inline">
+                          Hover a day to preview times
                         </span>
                       </div>
 
@@ -1599,13 +1663,9 @@ if (loading) {
                                 dateButtonRefs.current[day.date] = element;
                               }}
                               type="button"
-                              onClick={() => {
-                                setSelectedDay(day.date);
-                                setSelectedSlot(null);
-                                setSelectedServiceMode(null);
-                                setLocationInput("");
-                                setMessage("");
-                              }}
+                              data-zoom-key={day.date}
+                              aria-pressed={isSelected}
+                              onClick={() => chooseBookingDay(day.date)}
                               className="flex min-w-[58px] snap-center flex-col items-center gap-2 rounded-3xl px-1 py-1 text-center transition active:scale-[0.97] sm:min-w-[74px]"
                             >
                               <span
@@ -1655,6 +1715,7 @@ if (loading) {
                         })}
                       </div>
                     </div>
+                    </DayZoomArea>
 
                     <div className="min-w-0 rounded-panel border border-neutral-200 bg-gradient-to-b from-neutral-50 to-white p-4 shadow-sm sm:p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
