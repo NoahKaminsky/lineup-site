@@ -506,11 +506,12 @@ function LocationAutocomplete({
 }
 
 
+// Each part of the setup is an always-open section with an anchor, so the
+// page can be scanned top to bottom and jumped around from the section nav.
 function AccordionSection({
   title,
   subtitle,
   summary,
-  defaultOpen = false,
   id,
   children,
 }: {
@@ -521,41 +522,16 @@ function AccordionSection({
   id?: string;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-
   return (
-    <section id={id} className="mt-5 scroll-mt-24 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-4 px-5 py-5 text-left transition hover:bg-neutral-50 sm:px-6"
-      >
-        <div className="min-w-0">
-          {subtitle ? (
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-              {subtitle}
-            </p>
-          ) : null}
-
-          <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
-            {title}
-          </h2>
-
-          {summary ? (
-            <p className="mt-1 text-sm leading-6 text-neutral-500">{summary}</p>
-          ) : null}
-        </div>
-
-        <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-200 text-2xl font-light transition ${
-            open ? "rotate-45 bg-ink text-white" : "bg-white text-neutral-900"
-          }`}
-        >
-          +
-        </span>
-      </button>
-
-      {open ? <div className="border-t border-neutral-100 p-5 sm:p-6">{children}</div> : null}
+    <section id={id} className="scroll-mt-32 rounded-2xl border border-hairline bg-surface lg:scroll-mt-24">
+      <div className="border-b border-hairline px-5 py-4 sm:px-6">
+        {subtitle ? (
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">{subtitle}</p>
+        ) : null}
+        <h2 className="mt-1.5 text-lg font-semibold tracking-[-0.02em] text-ink">{title}</h2>
+        {summary ? <p className="mt-0.5 text-sm leading-6 text-neutral-500">{summary}</p> : null}
+      </div>
+      <div className="p-5 sm:p-6">{children}</div>
     </section>
   );
 }
@@ -856,6 +832,23 @@ export default function ServicesPage() {
 
   function removeAvailabilityWindow(localId: string) {
     setAvailabilityWindows((prev) => prev.filter((window) => window.local_id !== localId));
+  }
+
+  // Copy one day's hours onto every other day (common case: same hours all week).
+  function copyDayToAllDays(dayIndex: number) {
+    setAvailabilityWindows((prev) => {
+      const source = prev.filter((window) => window.day_of_week === dayIndex);
+      const copies = dayLabels.flatMap((_, otherDay) =>
+        otherDay === dayIndex
+          ? []
+          : source.map((window) => ({ ...window, day_of_week: otherDay, local_id: makeLocalId() }))
+      );
+      return [...source, ...copies];
+    });
+  }
+
+  function closeDay(dayIndex: number) {
+    setAvailabilityWindows((prev) => prev.filter((window) => window.day_of_week !== dayIndex));
   }
 
   async function handleAddService() {
@@ -1283,23 +1276,13 @@ export default function ServicesPage() {
               Services & Availability
             </p>
             <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-              Manage your bookable setup
+              Services & availability
             </h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
-              Keep your services, location, booking settings, and weekly availability organized in one place.
+              What you offer, when you&apos;re open, and where clients find you.
             </p>
           </div>
 
-          {isSettingsDirty || saving || justSaved ? (
-            <button
-              type="button"
-              onClick={handleSaveSettings}
-              disabled={saving || justSaved}
-              className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60 sm:w-auto"
-            >
-              {saving ? "Saving…" : justSaved ? "Saved" : "Save changes"}
-            </button>
-          ) : null}
         </div>
 
         {message ? (
@@ -1308,7 +1291,33 @@ export default function ServicesPage() {
           </div>
         ) : null}
 
+        <div className="mt-8 lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-10">
+          {/* Section nav: sticky list on desktop, scrollable row on phones. */}
+          <nav aria-label="Setup sections" className="sticky top-16 z-20 -mx-4 mb-6 border-b border-hairline bg-paper/95 px-4 backdrop-blur sm:-mx-6 sm:px-6 lg:top-24 lg:mx-0 lg:mb-0 lg:self-start lg:border-0 lg:bg-transparent lg:px-0">
+            <ul className="flex gap-5 overflow-x-auto py-3 [scrollbar-width:none] lg:flex-col lg:gap-0.5 lg:py-0 [&::-webkit-scrollbar]:hidden">
+              {[
+              { id: "services", label: "Services" },
+              { id: "add-service", label: "Add a service" },
+              { id: "availability", label: "Availability" },
+              { id: "booking", label: "Booking settings" },
+              { id: "modes", label: "Where you work" },
+              { id: "address", label: "Address" },
+            ].map((item) => (
+                <li key={item.id} className="shrink-0">
+                  <a
+                    href={`#${item.id}`}
+                    className="block rounded-lg text-sm text-neutral-500 transition-colors hover:text-ink lg:px-3 lg:py-2 lg:hover:bg-surface"
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <div className="min-w-0 space-y-5 pb-28">
         <AccordionSection
+          id="services"
           title="Services offered"
           subtitle="Services"
           summary={`${services.length} service${services.length === 1 ? "" : "s"} added`}
@@ -1456,8 +1465,8 @@ export default function ServicesPage() {
             </div>
           )}
         </AccordionSection>
-
         <AccordionSection
+          id="add-service"
           title="Add a custom service"
           subtitle="Add service"
           summary="Create a new bookable service with duration and price"
@@ -1533,9 +1542,9 @@ export default function ServicesPage() {
             />
           </div>
         </AccordionSection>
-
         {presetServices.length > 0 ? (
           <AccordionSection
+            id="quick-add"
             title="Common services"
             subtitle="Quick add"
             summary="Add popular services for your category"
@@ -1561,8 +1570,264 @@ export default function ServicesPage() {
             </div>
           </AccordionSection>
         ) : null}
-
         <AccordionSection
+          id="availability"
+          title="Weekly availability"
+          subtitle="When clients can book you"
+          summary={
+            isSubscribed
+              ? `${availabilityWindows.length} saved availability window${
+                  availabilityWindows.length === 1 ? "" : "s"
+                }`
+              : "Upgrade to set your schedule"
+          }
+        >
+          {!isSubscribed ? (
+            <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-center">
+              <p className="text-sm font-semibold text-neutral-900">
+                The weekly availability schedule is a paid feature
+              </p>
+              <p className="mt-2 text-sm leading-6 text-neutral-500">
+                Upgrade from Basic to Apprentice, Pro, or Master to set your open hours and let customers book directly from your profile.
+              </p>
+              <Link
+                href="/subscription"
+                className="mt-4 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
+              >
+                View plans
+              </Link>
+            </div>
+          ) : (
+            <>
+          <p className="max-w-2xl text-sm leading-6 text-neutral-500">
+            Switch a day on to open it, then set your hours. Add more than one block if your day is split (e.g. 9–12 and 3–6). Use “Copy to all days” to repeat a day across the week.
+          </p>
+
+          <div className="mt-5 overflow-hidden rounded-xl border border-hairline">
+            {groupedAvailability.map((group, i) => (
+              <div key={group.dayIndex} className={`${i > 0 ? "border-t border-hairline" : ""} ${group.windows.length > 0 ? "bg-surface" : "bg-paper/50"}`}>
+                <div className="flex items-center justify-between gap-4 px-4 py-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-4">
+                    <p className="w-24 shrink-0 text-sm font-semibold text-neutral-900">{group.day}</p>
+                    <span className={`truncate text-xs font-medium ${group.windows.length > 0 ? "text-ink" : "text-neutral-400"}`}>
+                      {group.windows.length === 0
+                        ? "Closed"
+                        : group.windows.map((w) => `${formatTime(w.start_time)}–${formatTime(w.end_time)}`).join(" · ")}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {group.windows.length > 0 ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => copyDayToAllDays(group.dayIndex)}
+                          className="hidden rounded-full px-2.5 py-1.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink sm:inline-flex"
+                        >
+                          Copy to all days
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => addAvailabilityWindow(group.dayIndex)}
+                          className="rounded-full px-2.5 py-1.5 text-xs font-medium text-neutral-600 ring-1 ring-inset ring-ink/10 transition-colors hover:ring-ink/30"
+                        >
+                          + Hours
+                        </button>
+                      </>
+                    ) : null}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={group.windows.length > 0}
+                      aria-label={`${group.day} ${group.windows.length > 0 ? "open" : "closed"}`}
+                      onClick={() =>
+                        group.windows.length > 0 ? closeDay(group.dayIndex) : addAvailabilityWindow(group.dayIndex)
+                      }
+                      className={`relative h-6 w-10 shrink-0 rounded-full transition-colors duration-200 ${
+                        group.windows.length > 0 ? "bg-ink" : "bg-neutral-200"
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ease-premium ${
+                          group.windows.length > 0 ? "translate-x-[18px]" : "translate-x-0.5"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {group.windows.length > 0 ? (
+                  <div className="space-y-2 px-4 pb-3">
+                    {group.windows.map((window) => (
+                      <div
+                        key={window.local_id}
+                        className="grid gap-2 rounded-xl border border-neutral-100 bg-neutral-50 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-center"
+                      >
+                        <div className="flex items-center gap-2">
+                          <label className="w-8 shrink-0 text-xs font-medium text-neutral-500">From</label>
+                          <TimeSelect
+                            value={window.start_time}
+                            onChange={(value) =>
+                              updateAvailabilityWindow(window.local_id, "start_time", value)
+                            }
+                            selectClassName="w-full rounded-xl border border-neutral-200 bg-white px-1.5 py-2 text-sm outline-none transition focus:border-neutral-900"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="w-8 shrink-0 text-xs font-medium text-neutral-500">To</label>
+                          <TimeSelect
+                            value={window.end_time}
+                            onChange={(value) =>
+                              updateAvailabilityWindow(window.local_id, "end_time", value)
+                            }
+                            selectClassName="w-full rounded-xl border border-neutral-200 bg-white px-1.5 py-2 text-sm outline-none transition focus:border-neutral-900"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeAvailabilityWindow(window.local_id)}
+                          className="rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+            </>
+          )}
+        </AccordionSection>
+        {isSubscribed ? (
+          <AccordionSection
+            id="booking"
+            title="Booking settings"
+            subtitle="Direct booking"
+            summary={
+              directBookingEnabled && publicAvailabilityEnabled
+                ? "Instant booking is enabled"
+                : "Control direct booking and public availability"
+            }
+          >
+            <div className="space-y-4">
+              <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4">
+                <div className="pr-4">
+                  <p className="text-sm font-medium text-neutral-900">Allow instant booking</p>
+                  <p className="mt-1 text-sm text-neutral-500">
+                    Customers can book from open times on your profile.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={directBookingEnabled}
+                  onChange={(e) => setDirectBookingEnabled(e.target.checked)}
+                  className="h-5 w-5 accent-black"
+                />
+              </label>
+
+              <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4">
+                <div className="pr-4">
+                  <p className="text-sm font-medium text-neutral-900">Show availability publicly</p>
+                  <p className="mt-1 text-sm text-neutral-500">
+                    Display your open times on your public profile.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={publicAvailabilityEnabled}
+                  onChange={(e) => setPublicAvailabilityEnabled(e.target.checked)}
+                  className="h-5 w-5 accent-black"
+                />
+              </label>
+
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <label className="mb-2 block text-sm font-medium text-neutral-900">
+                  Default slot length shown on profile
+                </label>
+                <select
+                  value={defaultAppointmentDuration}
+                  onChange={(e) => setDefaultAppointmentDuration(Number(e.target.value))}
+                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
+                >
+                  {[30, 45, 60, 75, 90, 120].map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {minutes} minutes
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </AccordionSection>
+        ) : (
+          <div id="booking" className="scroll-mt-32 overflow-hidden rounded-2xl border border-hairline bg-surface lg:scroll-mt-24">
+            <div className="px-5 py-5 sm:px-6">
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                Direct booking
+              </p>
+              <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
+                Let clients book you instantly
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-neutral-500">
+                Any paid plan unlocks a real booking calendar on your profile — clients pick an
+                open time and pay right there, no back-and-forth. It turns on automatically the
+                moment you subscribe.
+              </p>
+              <Link
+                href="/subscription"
+                className="mt-4 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
+              >
+                See plans
+              </Link>
+            </div>
+          </div>
+        )}
+        <AccordionSection
+          id="modes"
+          title="Service modes"
+          subtitle="Where you work"
+          summary={
+            serviceModes.length > 0
+              ? serviceModes.map(formatModeLabel).join(" • ")
+              : "Choose how customers can book you"
+          }
+        >
+          <div className="flex flex-wrap gap-3">
+            {modeOptions.map((mode) => {
+              const selected = serviceModes.includes(mode);
+
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => toggleServiceMode(mode)}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                    selected
+                      ? "border-neutral-900 bg-neutral-900 text-white"
+                      : "border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50"
+                  }`}
+                >
+                  {formatModeLabel(mode)}
+                </button>
+              );
+            })}
+          </div>
+
+          {serviceModes.includes("at_home") ? (
+            <p className="mt-4 text-sm leading-6 text-neutral-500">
+              <span className="font-medium text-neutral-700">At-home:</span> your location is only shown as an approximate distance until a customer confirms a booking.
+            </p>
+          ) : null}
+
+          {serviceModes.includes("in_shop") || serviceModes.includes("home_studio") ? (
+            <p className="mt-2 text-sm leading-6 text-neutral-500">
+              <span className="font-medium text-neutral-700">In-shop / home studio:</span> your address is displayed to customers when they make a booking.
+            </p>
+          ) : null}
+        </AccordionSection>
+        <AccordionSection
+          id="address"
           title="Shop or studio address"
           subtitle="Business location"
           summary={
@@ -1670,253 +1935,25 @@ export default function ServicesPage() {
             </p>
           )}
         </AccordionSection>
-
-        <AccordionSection
-          title="Service modes"
-          subtitle="Where you work"
-          summary={
-            serviceModes.length > 0
-              ? serviceModes.map(formatModeLabel).join(" • ")
-              : "Choose how customers can book you"
-          }
-        >
-          <div className="flex flex-wrap gap-3">
-            {modeOptions.map((mode) => {
-              const selected = serviceModes.includes(mode);
-
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => toggleServiceMode(mode)}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
-                    selected
-                      ? "border-neutral-900 bg-neutral-900 text-white"
-                      : "border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50"
-                  }`}
-                >
-                  {formatModeLabel(mode)}
-                </button>
-              );
-            })}
           </div>
+        </div>
 
-          {serviceModes.includes("at_home") ? (
-            <p className="mt-4 text-sm leading-6 text-neutral-500">
-              <span className="font-medium text-neutral-700">At-home:</span> your location is only shown as an approximate distance until a customer confirms a booking.
-            </p>
-          ) : null}
-
-          {serviceModes.includes("in_shop") || serviceModes.includes("home_studio") ? (
-            <p className="mt-2 text-sm leading-6 text-neutral-500">
-              <span className="font-medium text-neutral-700">In-shop / home studio:</span> your address is displayed to customers when they make a booking.
-            </p>
-          ) : null}
-        </AccordionSection>
-
-        {isSubscribed ? (
-          <AccordionSection
-            title="Booking settings"
-            subtitle="Direct booking"
-            summary={
-              directBookingEnabled && publicAvailabilityEnabled
-                ? "Instant booking is enabled"
-                : "Control direct booking and public availability"
-            }
-          >
-            <div className="space-y-4">
-              <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4">
-                <div className="pr-4">
-                  <p className="text-sm font-medium text-neutral-900">Allow instant booking</p>
-                  <p className="mt-1 text-sm text-neutral-500">
-                    Customers can book from open times on your profile.
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={directBookingEnabled}
-                  onChange={(e) => setDirectBookingEnabled(e.target.checked)}
-                  className="h-5 w-5 accent-black"
-                />
-              </label>
-
-              <label className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-4">
-                <div className="pr-4">
-                  <p className="text-sm font-medium text-neutral-900">Show availability publicly</p>
-                  <p className="mt-1 text-sm text-neutral-500">
-                    Display your open times on your public profile.
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={publicAvailabilityEnabled}
-                  onChange={(e) => setPublicAvailabilityEnabled(e.target.checked)}
-                  className="h-5 w-5 accent-black"
-                />
-              </label>
-
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <label className="mb-2 block text-sm font-medium text-neutral-900">
-                  Default slot length shown on profile
-                </label>
-                <select
-                  value={defaultAppointmentDuration}
-                  onChange={(e) => setDefaultAppointmentDuration(Number(e.target.value))}
-                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
-                >
-                  {[30, 45, 60, 75, 90, 120].map((minutes) => (
-                    <option key={minutes} value={minutes}>
-                      {minutes} minutes
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </AccordionSection>
-        ) : (
-          <div className="mt-6 overflow-hidden rounded-panel border border-neutral-200 bg-neutral-50 shadow-sm">
-            <div className="px-5 py-5 sm:px-6">
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                Direct booking
-              </p>
-              <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
-                Let clients book you instantly
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-neutral-500">
-                Any paid plan unlocks a real booking calendar on your profile — clients pick an
-                open time and pay right there, no back-and-forth. It turns on automatically the
-                moment you subscribe.
-              </p>
-              <Link
-                href="/subscription"
-                className="mt-4 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
-              >
-                See plans
-              </Link>
-            </div>
-          </div>
-        )}
-
-        <AccordionSection
-          id="availability"
-          title="Set your open windows"
-          subtitle="Weekly availability"
-          summary={
-            isSubscribed
-              ? `${availabilityWindows.length} saved availability window${
-                  availabilityWindows.length === 1 ? "" : "s"
-                }`
-              : "Upgrade to set your schedule"
-          }
-        >
-          {!isSubscribed ? (
-            <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-center">
-              <p className="text-sm font-semibold text-neutral-900">
-                The weekly availability schedule is a paid feature
-              </p>
-              <p className="mt-2 text-sm leading-6 text-neutral-500">
-                Upgrade from Basic to Apprentice, Pro, or Master to set your open hours and let customers book directly from your profile.
-              </p>
-              <Link
-                href="/subscription"
-                className="mt-4 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
-              >
-                View plans
-              </Link>
-            </div>
-          ) : (
-            <>
-          <p className="max-w-2xl text-sm leading-6 text-neutral-500">
-            Add multiple windows per day if your schedule is split up. For example, Monday 9–12 and Monday 3–6.
-          </p>
-
-          <div className="mt-6 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-            {groupedAvailability.map((group, i) => (
-              <div key={group.dayIndex} className={i > 0 ? "border-t border-neutral-100" : ""}>
-                <div className="flex items-center justify-between gap-4 px-4 py-3">
-                  <div className="flex min-w-0 flex-1 items-center gap-4">
-                    <p className="w-24 shrink-0 text-sm font-semibold text-neutral-900">{group.day}</p>
-                    <span className={`truncate text-xs font-medium ${group.windows.length > 0 ? "text-ink" : "text-neutral-400"}`}>
-                      {group.windows.length === 0
-                        ? "Closed"
-                        : group.windows.map((w) => `${formatTime(w.start_time)}–${formatTime(w.end_time)}`).join(" · ")}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => addAvailabilityWindow(group.dayIndex)}
-                    className="shrink-0 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-100"
-                  >
-                    + Add
-                  </button>
-                </div>
-
-                {group.windows.length > 0 ? (
-                  <div className="space-y-2 px-4 pb-3">
-                    {group.windows.map((window) => (
-                      <div
-                        key={window.local_id}
-                        className="grid gap-2 rounded-xl border border-neutral-100 bg-neutral-50 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-center"
-                      >
-                        <div className="flex items-center gap-2">
-                          <label className="w-8 shrink-0 text-xs font-medium text-neutral-500">From</label>
-                          <TimeSelect
-                            value={window.start_time}
-                            onChange={(value) =>
-                              updateAvailabilityWindow(window.local_id, "start_time", value)
-                            }
-                            selectClassName="w-full rounded-xl border border-neutral-200 bg-white px-1.5 py-2 text-sm outline-none transition focus:border-neutral-900"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <label className="w-8 shrink-0 text-xs font-medium text-neutral-500">To</label>
-                          <TimeSelect
-                            value={window.end_time}
-                            onChange={(value) =>
-                              updateAvailabilityWindow(window.local_id, "end_time", value)
-                            }
-                            selectClassName="w-full rounded-xl border border-neutral-200 bg-white px-1.5 py-2 text-sm outline-none transition focus:border-neutral-900"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeAvailabilityWindow(window.local_id)}
-                          className="rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-            </>
-          )}
-        </AccordionSection>
-
+        {/* One save bar for location, booking settings and availability. */}
         {isSettingsDirty || saving || justSaved ? (
-          <div className="mt-8 flex flex-col gap-3 rounded-panel border border-neutral-200 bg-neutral-50 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-neutral-900">
-                {justSaved && !isSettingsDirty ? "Saved" : "Ready to save?"}
+          <div className="lu-fade-in fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 sm:inset-x-auto sm:bottom-6 sm:left-1/2 sm:w-[min(36rem,calc(100%-3rem))] sm:-translate-x-1/2">
+            <div role="status" className="flex items-center justify-between gap-4 rounded-2xl border border-hairline bg-surface/95 px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.06),0_20px_44px_-16px_rgba(0,0,0,0.3)] backdrop-blur">
+              <p className="text-sm text-neutral-700">
+                {justSaved && !isSettingsDirty ? "All changes saved." : "You have unsaved changes."}
               </p>
-              <p className="mt-1 text-sm text-neutral-500">
-                {justSaved && !isSettingsDirty
-                  ? "Your location, booking settings, and availability changes were saved."
-                  : "Save after changing location, booking settings, or weekly availability."}
-              </p>
+              <button
+                type="button"
+                onClick={handleSaveSettings}
+                disabled={saving || justSaved}
+                className="shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
+              >
+                {saving ? "Saving…" : justSaved ? "Saved" : "Save changes"}
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={handleSaveSettings}
-              disabled={saving || justSaved}
-              className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
-            >
-              {saving ? "Saving…" : justSaved ? "Saved" : "Save services & availability"}
-            </button>
           </div>
         ) : null}
       </div>
