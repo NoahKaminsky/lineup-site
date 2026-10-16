@@ -7,6 +7,54 @@ function timeToMinutes(timeString: string) {
   return hours * 60 + minutes;
 }
 
+// Postgres error codes that mean "this slot is already taken":
+// 23505 = unique violation (same start time / same request),
+// 23P01 = exclusion violation (overlapping time range, see
+//         supabase/migrations/20261016_prevent_double_bookings.sql).
+function isSlotTakenError(code: string | undefined) {
+  return code === "23505" || code === "23P01";
+}
+
+// A customer paid for a time that someone else secured first. Never leave them
+// charged without a booking: refund, claw back any deposit already sent to the
+// professional, and tell the customer. Returning (instead of throwing) also
+// stops Stripe from retrying this event forever.
+async function releaseTakenSlot(
+  supabase: ReturnType<typeof getServiceSupabase>,
+  params: {
+    paymentIntentId: string;
+    customerId: string | null;
+    depositTransferId?: string | null;
+    requestId?: string | null;
+  }
+) {
+  if (params.depositTransferId) {
+    try {
+      await stripe.transfers.createReversal(params.depositTransferId);
+    } catch (reversalError) {
+      console.error("Failed to reverse deposit for taken slot:", reversalError);
+    }
+  }
+
+  try {
+    await stripe.refunds.create({ payment_intent: params.paymentIntentId });
+  } catch (refundError) {
+    console.error("Failed to refund payment for taken slot:", refundError);
+  }
+
+  if (params.customerId) {
+    await supabase.from("notifications").insert([
+      {
+        user_id: params.customerId,
+        is_read: false,
+        type: "booking_slot_taken",
+        title: "That time was just booked by someone else — you've been fully refunded",
+        ...(params.requestId ? { request_id: params.requestId } : {}),
+      },
+    ]);
+  }
+}
+
 async function sendBookingConfirmedEmail(bookingId: string) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -113,7 +161,12 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
       .update({ status: "pending" })
       .eq("id", offer.id);
 
-    throw new Error("Booking conflict after payment.");
+    await releaseTakenSlot(supabase, {
+      paymentIntentId: paymentIntent.id,
+      customerId: requestRow.client_id,
+      requestId: requestRow.id,
+    });
+    return;
   }
 
   // Prefer the mode the professional actually proposed in their offer — a
@@ -239,12 +292,32 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
     .single();
 
   if (createBookingError || !createdBooking) {
+    if (createBookingError?.code === "23P01") {
+      // Overlapped another booking that landed a moment earlier.
+      await supabase.from("request_offers").update({ status: "pending" }).eq("id", offer.id);
+      await releaseTakenSlot(supabase, {
+        paymentIntentId: paymentIntent.id,
+        customerId: requestRow.client_id,
+        depositTransferId,
+        requestId: requestRow.id,
+      });
+      return;
+    }
+
     const isDuplicateRequestBooking = createBookingError?.code === "23505";
 
     if (isDuplicateRequestBooking) {
       // Another payment intent for this same request already created the booking
       // (race between two payment attempts). Refund this duplicate charge instead
       // of failing — failing here would make Stripe retry this event indefinitely.
+      // Also claw back any deposit this attempt already sent to the professional.
+      if (depositTransferId) {
+        try {
+          await stripe.transfers.createReversal(depositTransferId);
+        } catch (reversalError) {
+          console.error("Failed to reverse duplicate booking deposit:", reversalError);
+        }
+      }
       try {
         await stripe.refunds.create({ payment_intent: paymentIntent.id });
       } catch (refundError) {
@@ -429,7 +502,8 @@ async function handleDirectBookingPaymentSucceeded(
   });
 
   if (hasBookingConflict) {
-    throw new Error("Booking conflict after payment.");
+    await releaseTakenSlot(supabase, { paymentIntentId: paymentIntent.id, customerId });
+    return;
   }
 
   const { data: professionalProfile, error: professionalProfileError } = await supabase
@@ -518,18 +592,10 @@ async function handleDirectBookingPaymentSucceeded(
     .single();
 
   if (createBookingError || !createdBooking) {
-    const isDuplicateSlotBooking = createBookingError?.code === "23505";
-
-    if (isDuplicateSlotBooking) {
-      // Another payment intent for this same slot already created a booking
-      // (race between two concurrent direct-booking attempts). Refund this
-      // duplicate charge instead of failing — failing here would make Stripe
-      // retry this event indefinitely.
-      try {
-        await stripe.refunds.create({ payment_intent: paymentIntent.id });
-      } catch (refundError) {
-        console.error("Failed to refund duplicate direct booking payment:", refundError);
-      }
+    if (isSlotTakenError(createBookingError?.code)) {
+      // Another booking for this slot landed a moment earlier (race between
+      // two concurrent direct-booking attempts).
+      await releaseTakenSlot(supabase, { paymentIntentId: paymentIntent.id, customerId, depositTransferId });
       return;
     }
 

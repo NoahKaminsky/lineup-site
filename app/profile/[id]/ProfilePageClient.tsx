@@ -791,6 +791,13 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
           slotStart += 15
         ) {
           const slotEnd = slotStart + slotBlockMinutes;
+
+          // Today: never offer a time that has already started (15 min buffer).
+          if (offset === 0) {
+            const now = new Date();
+            if (slotStart <= now.getHours() * 60 + now.getMinutes() + 15) continue;
+          }
+
           const dateKey = formatDateKey(currentDate);
           const startTime = minutesToTime(slotStart);
           const endTime = minutesToTime(slotEnd);

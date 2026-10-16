@@ -190,6 +190,45 @@ async function handleDirectBookingIntent(req: Request, body: any) {
     return NextResponse.json({ error: "This service does not have a valid price set." }, { status: 400 });
   }
 
+  // The chosen service has to fit inside the time being reserved — otherwise
+  // the booking would block less time than the appointment actually takes and
+  // the next customer could book on top of it.
+  const requestedMinutes = timeToMinutes(normalizedEnd) - timeToMinutes(normalizedStart);
+  if (Number(service.duration_minutes) > requestedMinutes) {
+    return NextResponse.json(
+      { error: "That service is longer than the time you picked. Please choose a longer time." },
+      { status: 400 }
+    );
+  }
+
+  // The time must sit inside one of the professional's active availability
+  // windows for that weekday (the page already only offers these, but the
+  // server is the source of truth).
+  const weekday = new Date(`${date}T00:00:00`).getDay();
+  const { data: availabilityRows, error: availabilityError } = await serviceSupabase
+    .from("professional_availability")
+    .select("start_time, end_time, is_active")
+    .eq("professional_id", professionalId)
+    .eq("day_of_week", weekday)
+    .eq("is_active", true);
+
+  if (availabilityError) {
+    return NextResponse.json({ error: availabilityError.message }, { status: 500 });
+  }
+
+  const insideAvailability = (availabilityRows || []).some((row) => {
+    const windowStart = timeToMinutes(String(row.start_time).slice(0, 5));
+    const windowEnd = timeToMinutes(String(row.end_time).slice(0, 5));
+    return timeToMinutes(normalizedStart) >= windowStart && timeToMinutes(normalizedEnd) <= windowEnd;
+  });
+
+  if (!insideAvailability) {
+    return NextResponse.json(
+      { error: "That time is outside this professional's availability. Please pick another time." },
+      { status: 409 }
+    );
+  }
+
   const { data: existingBookings, error: bookingsCheckError } = await serviceSupabase
     .from("bookings")
     .select("id, start_time, end_time, status")
