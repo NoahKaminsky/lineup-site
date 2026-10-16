@@ -266,3 +266,9 @@ main {
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }
 }
+
+/* Landing relay: the request card pings once as it lands on the pro's phone. */
+@keyframes lu-ping {
+  0%   { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(1.12); }
+}
