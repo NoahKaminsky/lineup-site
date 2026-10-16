@@ -33,14 +33,14 @@ export default function PaymentModal({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/60 p-4 sm:items-center">
-      <div className="my-auto max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] bg-white p-6 shadow-2xl sm:rounded-[2rem]">
+    <div className="lu-fade-in fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-ink/60 p-4 sm:items-center">
+      <div className="lu-dialog-in my-auto max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-panel">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
               Secure payment
             </p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+            <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
               {title}
             </h2>
             <p className="mt-3 text-sm leading-6 text-neutral-600">

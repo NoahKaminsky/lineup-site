@@ -8,6 +8,7 @@ import BookingChat from "@/app/components/BookingChat";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { containsProfanity } from "@/app/lib/profanityFilter";
 
+import { MapPin } from "lucide-react";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -221,7 +222,7 @@ function getGoogleMapsEmbedUrl(
 
 function BookingLoadingSkeleton() {
   return (
-    <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
 
 
       <div className="mx-auto max-w-5xl py-8">
@@ -236,7 +237,7 @@ function BookingLoadingSkeleton() {
           <div className="h-11 w-24 animate-pulse rounded-full bg-neutral-100" />
         </div>
 
-        <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+        <div className="mt-10 rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
           <div className="flex flex-wrap gap-3">
             <div className="h-7 w-24 animate-pulse rounded-full bg-neutral-100" />
             <div className="h-7 w-36 animate-pulse rounded-full bg-neutral-100" />
@@ -272,7 +273,7 @@ function BookingLoadingSkeleton() {
           </div>
         </div>
 
-        <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+        <div className="mt-10 rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
           <div className="h-4 w-20 animate-pulse rounded-full bg-neutral-200" />
           <div className="mt-3 h-8 w-56 animate-pulse rounded-xl bg-neutral-200" />
           <div className="mt-3 h-4 w-full max-w-lg animate-pulse rounded-full bg-neutral-100" />
@@ -693,7 +694,7 @@ export default function BookingDetailPage() {
 
   if (!booking) {
     return (
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+      <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper py-10 text-neutral-900">
         <div className="mx-auto max-w-5xl">
 
           <div className="py-16">
@@ -720,20 +721,20 @@ export default function BookingDetailPage() {
 
   return (
     <>
-    <main className="min-h-screen bg-white px-6 pb-28 pt-10 text-neutral-900">
+    <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper pb-28 pt-10 text-neutral-900">
       <div className="mx-auto max-w-5xl">
 
 
         <div className="py-16">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                 Booking
               </p>
-              <h1 className="mt-4 text-4xl font-semibold tracking-tight md:text-5xl">
+              <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
                 {booking.service_name || "Booked service"}
               </h1>
-              <p className="mt-4 max-w-2xl text-lg leading-8 text-neutral-600">
+              <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
                 {formatBookingDate(booking.booking_date)} • {formatTime(booking.start_time)} -{" "}
                 {formatTime(booking.end_time)}
               </p>
@@ -753,20 +754,20 @@ export default function BookingDetailPage() {
             </div>
           ) : null}
 
-          <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+          <div className="mt-10 rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+              <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                 Booking
               </span>
 
-              <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+              <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                 {formatStatus(booking.status)}
               </span>
             </div>
 
             <div className="mt-8 grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                   Service
                 </p>
                 <p className="mt-3 text-lg font-semibold text-neutral-900">
@@ -778,7 +779,7 @@ export default function BookingDetailPage() {
               </div>
 
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                   Appointment type
                 </p>
                 <p className="mt-3 text-lg font-semibold text-neutral-900">
@@ -790,7 +791,7 @@ export default function BookingDetailPage() {
               </div>
 
               <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                   Professional
                 </p>
                 <div className="mt-3 flex items-center gap-3">
@@ -820,7 +821,7 @@ export default function BookingDetailPage() {
               </div>
 
               <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                   Client
                 </p>
                 <div className="mt-3 flex items-center gap-3">
@@ -850,11 +851,11 @@ export default function BookingDetailPage() {
               </div>
 
               <div className="rounded-2xl border border-neutral-200 p-5 md:col-span-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                   Location
                 </p>
                 <p className="mt-3 text-lg font-medium text-neutral-900">
-                  📍 {bookingAddress}
+                  <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{bookingAddress}
                 </p>
 
                 {mapEmbedUrl ? (
@@ -885,7 +886,7 @@ export default function BookingDetailPage() {
               </div>
 
               <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                   Time
                 </p>
                 <p className="mt-3 text-lg font-medium text-neutral-900">
@@ -897,7 +898,7 @@ export default function BookingDetailPage() {
               </div>
 
               <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                   Created
                 </p>
                 <p className="mt-3 text-lg font-medium text-neutral-900">
@@ -907,7 +908,7 @@ export default function BookingDetailPage() {
 
               {booking.completion_requested_at ? (
                 <div className="rounded-2xl border border-neutral-200 p-5">
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     Completion requested
                   </p>
                   <p className="mt-3 text-lg font-medium text-neutral-900">
@@ -918,7 +919,7 @@ export default function BookingDetailPage() {
 
               {booking.completed_at ? (
                 <div className="rounded-2xl border border-neutral-200 p-5">
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     Completed
                   </p>
                   <p className="mt-3 text-lg font-medium text-neutral-900">
@@ -950,10 +951,10 @@ export default function BookingDetailPage() {
                     type="button"
                     onClick={handleRequestCompletion}
                     disabled={actionLoading === "request-completion"}
-                    className="inline-flex rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                    className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                   >
                     {actionLoading === "request-completion"
-                      ? "Requesting..."
+                      ? "Requesting…"
                       : "Request completion"}
                   </button>
                 ) : (
@@ -968,9 +969,9 @@ export default function BookingDetailPage() {
                   type="button"
                   onClick={handleConfirmCompletion}
                   disabled={actionLoading === "confirm"}
-                  className="inline-flex rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                  className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                 >
-                  {actionLoading === "confirm" ? "Confirming..." : "Confirm completion"}
+                  {actionLoading === "confirm" ? "Confirming…" : "Confirm completion"}
                 </button>
               ) : null}
 
@@ -991,7 +992,7 @@ export default function BookingDetailPage() {
                       disabled={actionLoading === "cancel"}
                       className="inline-flex rounded-full border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
                     >
-                      {actionLoading === "cancel" ? "Working..." : "Yes, cancel"}
+                      {actionLoading === "cancel" ? "Working…" : "Yes, cancel"}
                     </button>
                     <button
                       type="button"
@@ -1041,7 +1042,7 @@ export default function BookingDetailPage() {
                 <button
                   type="button"
                   onClick={scrollToBookingChat}
-                  className="inline-flex rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                  className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
                 >
                   {isViewerCustomer ? "Message professional" : "Message client"}
                 </button>
@@ -1051,14 +1052,14 @@ export default function BookingDetailPage() {
 
           <div
             id="booking-chat"
-            className="mt-10 scroll-mt-28 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm"
+            className="mt-10 scroll-mt-28 rounded-panel border border-neutral-200 bg-white p-6 shadow-sm"
           >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                   Messaging
                 </p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+                <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
                   {isViewerCustomer ? "Message professional" : "Message client"}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-neutral-500">
@@ -1067,7 +1068,7 @@ export default function BookingDetailPage() {
               </div>
 
               {booking.status === "confirmed" || booking.status === "completion_requested" ? (
-                <span className="w-fit rounded-full bg-black px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
+                <span className="w-fit rounded-full bg-ink px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
                   Active chat
                 </span>
               ) : booking.status === "cancelled" ? (
@@ -1100,12 +1101,12 @@ export default function BookingDetailPage() {
     </main>
 
     {showReviewModal ? (
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4">
-        <div className="w-full max-w-md rounded-t-[2rem] bg-white p-6 shadow-2xl sm:rounded-[2rem]">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+      <div className="lu-fade-in fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-0 sm:items-center sm:p-4">
+        <div className="lu-dialog-in w-full max-w-md rounded-t-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-panel">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
             Service complete
           </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+          <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em]">
             How was {professional?.full_name?.split(" ")[0] ?? "your professional"}?
           </h2>
           <p className="mt-2 text-sm text-neutral-500">
@@ -1133,7 +1134,7 @@ export default function BookingDetailPage() {
             onChange={(e) => setReviewComment(e.target.value)}
             placeholder="Share details about your experience (optional)"
             rows={3}
-            className="mt-5 w-full resize-none rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+            className="mt-5 w-full resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-ink"
           />
 
           <div className="mt-5 flex gap-3">
@@ -1141,9 +1142,9 @@ export default function BookingDetailPage() {
               type="button"
               onClick={handleSubmitReview}
               disabled={reviewRating === 0 || reviewSubmitting}
-              className="flex-1 rounded-full bg-black py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+              className="flex-1 rounded-full bg-ink py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-40"
             >
-              {reviewSubmitting ? "Submitting..." : "Submit review"}
+              {reviewSubmitting ? "Submitting…" : "Submit review"}
             </button>
             <button
               type="button"

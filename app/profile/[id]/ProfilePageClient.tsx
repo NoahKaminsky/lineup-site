@@ -5,6 +5,7 @@ import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
+  BadgeCheck,
   CalendarDays,
   Clock3,
   MapPin,
@@ -352,16 +353,16 @@ function AccordionSection({
     return (
       <section
         id={id}
-        className="mt-6 scroll-mt-24 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm"
+        className="mt-6 scroll-mt-24 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm"
       >
         <div className="px-5 pt-5 sm:px-6 sm:pt-6">
           {subtitle ? (
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
               {subtitle}
             </p>
           ) : null}
 
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+          <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
             {title}
           </h2>
 
@@ -378,7 +379,7 @@ function AccordionSection({
   return (
     <section
       id={id}
-      className="mt-6 scroll-mt-24 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm"
+      className="mt-6 scroll-mt-24 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm"
     >
       <button
         type="button"
@@ -387,12 +388,12 @@ function AccordionSection({
       >
         <div className="min-w-0">
           {subtitle ? (
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
               {subtitle}
             </p>
           ) : null}
 
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+          <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
             {title}
           </h2>
 
@@ -403,7 +404,7 @@ function AccordionSection({
 
         <span
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-200 text-2xl font-light transition ${
-            open ? "rotate-45 bg-black text-white" : "bg-white text-neutral-900"
+            open ? "rotate-45 bg-ink text-white" : "bg-white text-neutral-900"
           }`}
         >
           +
@@ -1255,16 +1256,16 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
 if (loading) {
   return (
-    <main className="min-h-screen bg-white px-6 py-10">
+    <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper py-10">
 
       <div className="mx-auto max-w-6xl animate-pulse">
         {/* Hero */}
-        <div className="mt-10 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white">
+        <div className="mt-10 overflow-hidden rounded-panel border border-neutral-200 bg-white">
           <div className="h-56 w-full bg-neutral-200 md:h-72" />
 
           <div className="px-8 pb-8 pt-6">
             <div className="flex flex-col gap-5 md:flex-row">
-              <div className="h-28 w-28 rounded-[1.5rem] bg-neutral-200" />
+              <div className="h-28 w-28 rounded-2xl bg-neutral-200" />
 
               <div className="flex-1">
                 <div className="h-12 w-72 rounded bg-neutral-200" />
@@ -1287,7 +1288,7 @@ if (loading) {
 
         {/* Main Content */}
         <div className="mt-8 grid gap-6">
-          <div className="rounded-[2rem] border border-neutral-200 bg-white p-6">
+          <div className="rounded-panel border border-neutral-200 bg-white p-6">
             <div className="h-7 w-52 rounded bg-neutral-200" />
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -1296,7 +1297,7 @@ if (loading) {
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-neutral-200 bg-white p-6">
+          <div className="rounded-panel border border-neutral-200 bg-white p-6">
             <div className="h-7 w-40 rounded bg-neutral-200" />
 
             <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3">
@@ -1306,7 +1307,7 @@ if (loading) {
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-neutral-200 bg-white p-6">
+          <div className="rounded-panel border border-neutral-200 bg-white p-6">
             <div className="h-7 w-44 rounded bg-neutral-200" />
 
             <div className="mt-6 space-y-4">
@@ -1322,7 +1323,7 @@ if (loading) {
 
   if (!profile) {
     return (
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+      <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper py-10 text-neutral-900">
 
         <div className="mx-auto max-w-6xl py-10">
           <Link
@@ -1367,12 +1368,12 @@ if (loading) {
 
   return (
     <>
-      <main className="min-h-screen bg-white px-6 pb-10 pt-6 text-neutral-900">
+      <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper pb-10 pt-6 text-neutral-900">
 
 
         <div className="mx-auto max-w-6xl py-8">
-          <section className="mb-8 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
-            <div className="relative h-48 w-full bg-black md:h-64">
+          <section className="mb-8 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm">
+            <div className={`relative w-full ${profile.banner_url ? "h-48 bg-ink md:h-64" : "h-28 bg-[#ecebe7] md:h-36"}`}>
               {profile.banner_url ? (
                 <button
                   type="button"
@@ -1386,18 +1387,18 @@ if (loading) {
                   />
                 </button>
               ) : (
-                <div className="flex h-full w-full items-center justify-center bg-neutral-950 text-sm text-white/60">
-                  No cover photo
-                </div>
+                null
               )}
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/10 to-transparent" />
+              {profile.banner_url ? (
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-black/5 to-transparent" />
+              ) : null}
             </div>
 
             <div className="px-6 pb-6 pt-6 md:px-8">
               <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex min-w-0 gap-4">
-                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[1.5rem] border-4 border-white bg-neutral-100 shadow md:h-28 md:w-28">
+                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-neutral-100 shadow md:h-28 md:w-28">
                     {profile.avatar_url ? (
                       <img loading="lazy"
                         src={profile.avatar_url}
@@ -1412,8 +1413,15 @@ if (loading) {
                   </div>
 
                   <div className="min-w-0 pt-1">
-                    <h1 className="text-3xl font-semibold tracking-tight md:text-5xl">
-                      {profile.full_name || "Profile"}
+                    <h1 className="flex items-center gap-2 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+                      <span className="min-w-0 break-words">{profile.full_name || "Profile"}</span>
+                      {profileTags.includes("Verified") ? (
+                        <BadgeCheck
+                          aria-label="Verified professional"
+                          className="h-6 w-6 shrink-0 fill-ink text-white md:h-7 md:w-7"
+                          strokeWidth={2}
+                        />
+                      ) : null}
                     </h1>
 
                     {profile.username ? (
@@ -1430,18 +1438,6 @@ if (loading) {
                       </p>
                     ) : null}
 
-                    {isProfessional && professionalTypeLabels.length > 1 ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {professionalTypeLabels.map((label) => (
-                          <span
-                            key={label}
-                            className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700"
-                          >
-                            {label}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
 
                     <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-600">
                       {hasFixedServiceLocation && (profile.formatted_address || profile.location) ? (
@@ -1483,12 +1479,12 @@ if (loading) {
                       ) : null}
                     </div>
 
-                    {profileTags.length > 0 ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {profileTags.slice(0, 4).map((tag) => (
+                    {profileTags.filter((tag) => tag !== "Verified").length > 0 ? (
+                      <div className="mt-4 flex flex-wrap gap-1.5">
+                        {profileTags.filter((tag) => tag !== "Verified").slice(0, 4).map((tag) => (
                           <span
                             key={tag}
-                            className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700"
+                            className="rounded-md bg-neutral-100 px-2 py-1 text-[11px] font-medium text-neutral-700"
                           >
                             {tag}
                           </span>
@@ -1510,7 +1506,7 @@ if (loading) {
                     {canDirectBook ? (
                       <a
                         href="#availability"
-                        className="inline-flex items-center justify-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
                       >
                         <CalendarDays className="h-4 w-4" />
                         Book directly
@@ -1571,7 +1567,7 @@ if (loading) {
               ) : (
                 <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
                   <div className="min-w-0 space-y-6">
-                    <div className="w-full max-w-full overflow-visible rounded-[2rem] border border-neutral-200 bg-white p-3 shadow-sm sm:p-4">
+                    <div className="w-full max-w-full overflow-visible rounded-panel border border-neutral-200 bg-white p-3 shadow-sm sm:p-4">
                       <div className="mb-3 flex items-center justify-between gap-3 px-1">
                         <div>
                           <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-400">
@@ -1615,7 +1611,7 @@ if (loading) {
                               <span
                                 className={`relative flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold transition-all duration-200 sm:h-16 sm:w-16 sm:text-xl ${
                                   isSelected
-                                    ? "border-black bg-black text-white shadow-md ring-2 ring-black ring-offset-2"
+                                    ? "border-ink bg-ink text-white shadow-md ring-2 ring-black ring-offset-2"
                                     : hasSlots
                                     ? "border-neutral-200 bg-white text-neutral-900 shadow-[0_1px_0_rgba(0,0,0,0.03)] hover:border-neutral-400 hover:shadow-sm"
                                     : "border-neutral-200 bg-neutral-100 text-neutral-400"
@@ -1639,7 +1635,7 @@ if (loading) {
                                       key={symbol}
                                       className={`inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ${
                                         isSelected
-                                          ? "bg-black text-white ring-black"
+                                          ? "bg-ink text-white ring-black"
                                           : "bg-neutral-100 text-neutral-500 ring-neutral-200"
                                       }`}
                                     >
@@ -1660,13 +1656,13 @@ if (loading) {
                       </div>
                     </div>
 
-                    <div className="min-w-0 rounded-[2rem] border border-neutral-200 bg-gradient-to-b from-neutral-50 to-white p-4 shadow-sm sm:p-5">
+                    <div className="min-w-0 rounded-panel border border-neutral-200 bg-gradient-to-b from-neutral-50 to-white p-4 shadow-sm sm:p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                             Selected day
                           </p>
-                          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+                          <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
                             {selectedBookingDay
                               ? `${selectedBookingDay.dayLabel} ${selectedBookingDay.dateLabel}`
                               : "Choose a day"}
@@ -1700,7 +1696,7 @@ if (loading) {
                                     onClick={() => setSelectedPeriod(group.label)}
                                     className={`flex shrink-0 items-center justify-center gap-1.5 rounded-2xl border px-4 py-2.5 text-sm font-medium transition ${
                                       isActive
-                                        ? "border-black bg-black text-white"
+                                        ? "border-ink bg-ink text-white"
                                         : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400"
                                     }`}
                                   >
@@ -1743,13 +1739,13 @@ if (loading) {
                                     }}
                                     className={`min-w-0 rounded-2xl border px-3 py-3 text-left transition-all duration-150 ${
                                       selectedSlot?.key === slot.key
-                                        ? "border-black bg-black text-white shadow-md"
+                                        ? "border-ink bg-ink text-white shadow-md"
                                         : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 hover:shadow-sm"
                                     } disabled:cursor-not-allowed disabled:opacity-50`}
                                   >
                                     <p className="text-base font-semibold">
                                       {bookingSlotKey === slot.key
-                                        ? "Booking..."
+                                        ? "Booking…"
                                         : formatTime(slot.start_time)}
                                     </p>
                                     <p
@@ -1771,8 +1767,8 @@ if (loading) {
                     </div>
                   </div>
 
-                  <div className="h-fit rounded-[1.75rem] border border-neutral-200 bg-white p-5 xl:sticky xl:top-6">
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                  <div className="h-fit rounded-panel border border-neutral-200 bg-white p-5 xl:sticky xl:top-6">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       Booking summary
                     </p>
 
@@ -1782,14 +1778,14 @@ if (loading) {
                       </div>
                     ) : (
                       <>
-                        <div className="mt-4 rounded-2xl bg-black p-5 text-white">
-                          <p className="text-xs uppercase tracking-[0.2em] text-white/70">
+                        <div className="mt-4 rounded-2xl border border-ink bg-surface p-5 text-ink">
+                          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                             Selected time
                           </p>
                           <h3 className="mt-2 text-xl font-semibold">
                             {selectedSlot.dayLabel} {selectedSlot.dateLabel}
                           </h3>
-                          <p className="mt-2 text-sm text-white/80">
+                          <p className="mt-2 text-sm text-neutral-600">
                             {formatTime(selectedSlot.start_time)} -{" "}
                             {formatTime(selectedSlot.end_time)}
                           </p>
@@ -1804,7 +1800,7 @@ if (loading) {
                               setLocationLat(null);
                               setLocationLng(null);
                             }}
-                            className="mt-4 rounded-full border border-white/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                            className="mt-4 rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium text-ink transition hover:bg-neutral-50"
                           >
                             Clear
                           </button>
@@ -1840,7 +1836,7 @@ if (loading) {
                                       }}
                                       className={`rounded-full border px-4 py-2 text-sm transition ${
                                         selectedServiceMode === mode
-                                          ? "border-black bg-black text-white"
+                                          ? "border-ink bg-ink text-white"
                                           : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
                                       }`}
                                     >
@@ -1867,7 +1863,7 @@ if (loading) {
                                 {professionalBookingAddress ? (
                                   <div className="mt-3 rounded-xl border border-neutral-200 bg-white p-3">
                                     <p className="font-medium text-neutral-900">
-                                      📍 {formatDisplayAddress(professionalBookingAddress)}
+                                      <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{formatDisplayAddress(professionalBookingAddress)}
                                     </p>
                                     {profileDistanceLabel ? (
                                       <p className="mt-1 text-xs font-medium text-neutral-500">
@@ -1916,7 +1912,7 @@ if (loading) {
                                       handleStartBookingConfirmation(service);
                                     }}
                                     disabled={bookingSlotKey === selectedSlot.key}
-                                    className="w-full rounded-2xl border border-neutral-200 bg-white p-4 text-left transition hover:border-black hover:bg-neutral-50 disabled:opacity-60"
+                                    className="w-full rounded-2xl border border-neutral-200 bg-white p-4 text-left transition hover:border-ink hover:bg-neutral-50 disabled:opacity-60"
                                   >
                                     <p className="font-semibold text-neutral-900">
                                       {service.service_name}
@@ -1961,7 +1957,7 @@ if (loading) {
                 {services.map((service) => (
                   <div
                     key={service.id}
-                    className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-4"
+                    className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
@@ -2031,7 +2027,7 @@ if (loading) {
 
               {isProfessional && professionalTypeLabels.length > 0 ? (
                 <div className="mt-8">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Service categories
                   </p>
                   <div className="mt-3 flex flex-wrap gap-3">
@@ -2049,7 +2045,7 @@ if (loading) {
 
               {isProfessional && profile.specialties && profile.specialties.length > 0 ? (
                 <div className="mt-8">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Specialties
                   </p>
                   <div className="mt-3 flex flex-wrap gap-3">
@@ -2067,7 +2063,7 @@ if (loading) {
 
               {profile.instagram_handle ? (
                 <div className="mt-8">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Instagram
                   </p>
                   <a
@@ -2090,7 +2086,7 @@ if (loading) {
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                       Average rating
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-neutral-900">
@@ -2099,7 +2095,7 @@ if (loading) {
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                       Reviews
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-neutral-900">
@@ -2108,7 +2104,7 @@ if (loading) {
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                       Bookable services
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-neutral-900">
@@ -2117,7 +2113,7 @@ if (loading) {
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                       Next opening
                     </p>
                     <p className="mt-2 text-sm font-semibold text-neutral-900">
@@ -2156,7 +2152,7 @@ if (loading) {
                 {portfolioItems.map((item, index) => (
                   <div
                     key={item.id}
-                    className={`overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-white ${
+                    className={`overflow-hidden rounded-2xl border border-neutral-200 bg-white ${
                       index === 0 ? "sm:col-span-2 sm:row-span-2 lg:col-span-2" : ""
                     }`}
                   >
@@ -2280,13 +2276,13 @@ if (loading) {
       </main>
 
       {pendingBookingChoice ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 text-2xl">
-              📅
+        <div className="lu-fade-in fixed inset-0 z-[70] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
+          <div className="lu-dialog-in w-full max-w-md rounded-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-neutral-100 text-ink">
+              <CalendarDays aria-hidden="true" className="h-5 w-5" strokeWidth={1.8} />
             </div>
 
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900">
+            <h2 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
               Confirm booking
             </h2>
             <p className="mt-2 text-sm leading-6 text-neutral-600">
@@ -2295,7 +2291,7 @@ if (loading) {
 
             <div className="mt-4 space-y-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                   Service
                 </p>
                 <p className="mt-1 font-semibold text-neutral-900">
@@ -2305,7 +2301,7 @@ if (loading) {
 
               {formatPrice(pendingBookingChoice.service.price) ? (
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     Price
                   </p>
                   <p className="mt-1 font-semibold text-neutral-900">
@@ -2315,7 +2311,7 @@ if (loading) {
               ) : null}
 
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                   Date & time
                 </p>
                 <p className="mt-1 font-semibold text-neutral-900">
@@ -2324,7 +2320,7 @@ if (loading) {
               </div>
 
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                   Appointment type
                 </p>
                 <p className="mt-1 font-semibold text-neutral-900">
@@ -2334,11 +2330,11 @@ if (loading) {
 
               {pendingBookingChoice.address ? (
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     Location
                   </p>
                   <p className="mt-1 font-semibold text-neutral-900">
-                    📍 {formatDisplayAddress(pendingBookingChoice.address)}
+                    <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{formatDisplayAddress(pendingBookingChoice.address)}
                   </p>
                 </div>
               ) : null}
@@ -2353,9 +2349,9 @@ if (loading) {
                   handleBookServiceInSlot(choice.service, choice.slot, choice.mode);
                 }}
                 disabled={bookingSlotKey === pendingBookingChoice.slot.key}
-                className="inline-flex flex-1 items-center justify-center rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                className="inline-flex flex-1 items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
               >
-                {bookingSlotKey === pendingBookingChoice.slot.key ? "Booking..." : "Confirm booking"}
+                {bookingSlotKey === pendingBookingChoice.slot.key ? "Booking…" : "Confirm booking"}
               </button>
               <button
                 type="button"
@@ -2385,9 +2381,9 @@ if (loading) {
       ) : null}
 
       {confirmingPayment ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-[2rem] bg-white p-6 text-center shadow-2xl">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+        <div className="lu-fade-in fixed inset-0 z-[80] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
+          <div className="lu-dialog-in w-full max-w-sm rounded-panel bg-white p-6 text-center shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
               Confirming
             </p>
             <h2 className="mt-3 text-xl font-semibold tracking-tight text-neutral-900">
@@ -2399,13 +2395,13 @@ if (loading) {
       ) : null}
 
       {confirmedBooking ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[2rem] bg-white p-6 shadow-2xl">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-2xl">
+        <div className="lu-fade-in fixed inset-0 z-[70] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
+          <div className="lu-dialog-in w-full max-w-md rounded-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 text-2xl">
               ✓
             </div>
 
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-900">
+            <h2 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
               Booking confirmed
             </h2>
             <p className="mt-2 text-sm leading-6 text-neutral-600">
@@ -2421,7 +2417,7 @@ if (loading) {
               </p>
               {confirmedBooking.formatted_address ? (
                 <div className="mt-2 text-neutral-600">
-                  <p>📍 {formatDisplayAddress(confirmedBooking.formatted_address)}</p>
+                  <p><MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{formatDisplayAddress(confirmedBooking.formatted_address)}</p>
                   {userLocation && confirmedBooking.location_lat && confirmedBooking.location_lng ? (
                     <p className="mt-1 text-xs text-neutral-500">
                       {formatDistance(
@@ -2441,7 +2437,7 @@ if (loading) {
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link
                 href={`/bookings/${confirmedBooking.id}`}
-                className="inline-flex flex-1 items-center justify-center rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                className="inline-flex flex-1 items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
               >
                 View booking
               </Link>
@@ -2458,11 +2454,11 @@ if (loading) {
       ) : null}
 
       {showBannerPreview && profile.banner_url ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
+        <div className="lu-fade-in fixed inset-0 z-[60] flex items-center justify-center bg-ink/80 p-4">
           <button
             type="button"
             onClick={() => setShowBannerPreview(false)}
-            className="absolute right-4 top-4 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+            className="lu-dialog-in absolute right-4 top-4 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
           >
             Close
           </button>

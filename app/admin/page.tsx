@@ -272,13 +272,13 @@ export default function AdminPage() {
   }
 
   if (checking) {
-    return <main className="p-8 text-sm text-neutral-500">Checking access...</main>;
+    return <main className="px-4 py-8 sm:px-6 lg:px-8 text-sm text-neutral-500">Checking access...</main>;
   }
 
   if (!isAdmin) return null;
 
   return (
-    <main className="min-h-screen bg-neutral-50 px-4 py-8 text-neutral-900 sm:px-6">
+    <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -306,7 +306,7 @@ export default function AdminPage() {
             type="button"
             onClick={() => setTab("users")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              tab === "users" ? "bg-black text-white" : "bg-white text-neutral-700 border border-neutral-200"
+              tab === "users" ? "bg-ink text-white" : "bg-white text-neutral-700 border border-neutral-200"
             }`}
           >
             Users
@@ -315,7 +315,7 @@ export default function AdminPage() {
             type="button"
             onClick={() => setTab("verification")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              tab === "verification" ? "bg-black text-white" : "bg-white text-neutral-700 border border-neutral-200"
+              tab === "verification" ? "bg-ink text-white" : "bg-white text-neutral-700 border border-neutral-200"
             }`}
           >
             Verification
@@ -326,7 +326,7 @@ export default function AdminPage() {
               type="button"
               onClick={() => setTab(t.key)}
               className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                tab === t.key ? "bg-black text-white" : "bg-white text-neutral-700 border border-neutral-200"
+                tab === t.key ? "bg-ink text-white" : "bg-white text-neutral-700 border border-neutral-200"
               }`}
             >
               {t.label}
@@ -349,7 +349,7 @@ export default function AdminPage() {
               <button
                 type="button"
                 onClick={loadUsers}
-                className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white"
+                className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white"
               >
                 Search
               </button>
@@ -370,7 +370,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {usersLoading ? (
-                    <tr><td className="px-3 py-4 text-neutral-400" colSpan={6}>Loading...</td></tr>
+                    <tr><td className="px-3 py-4 text-neutral-400" colSpan={6}>Loading…</td></tr>
                   ) : users.length === 0 ? (
                     <tr><td className="px-3 py-4 text-neutral-400" colSpan={6}>No users found.</td></tr>
                   ) : (
@@ -379,7 +379,7 @@ export default function AdminPage() {
                         <td className="px-3 py-2">
                           <p className="font-medium">{u.full_name || "—"}</p>
                           <p className="text-xs text-neutral-500">{u.email}</p>
-                          {u.is_admin ? <span className="text-xs font-semibold text-emerald-600">admin</span> : null}
+                          {u.is_admin ? <span className="text-xs font-semibold text-ink">admin</span> : null}
                         </td>
                         <td className="px-3 py-2 text-neutral-600">{u.role || "—"}</td>
                         <td className="px-3 py-2">
@@ -441,7 +441,7 @@ export default function AdminPage() {
                                 : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300"
                             }`}
                           >
-                            {togglingFoundingArtistId === u.id ? "..." : u.is_founding_artist ? "🔥 Founding" : "Mark founding"}
+                            {togglingFoundingArtistId === u.id ? "..." : u.is_founding_artist ? "Founding" : "Mark founding"}
                           </button>
                         </td>
                         <td className="px-3 py-2">
@@ -449,9 +449,9 @@ export default function AdminPage() {
                             type="button"
                             onClick={() => handleSaveUserTier(u.id)}
                             disabled={savingUserId === u.id}
-                            className="rounded-md bg-black px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+                            className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
                           >
-                            {savingUserId === u.id ? "Saving..." : "Save"}
+                            {savingUserId === u.id ? "Saving…" : "Save"}
                           </button>
                         </td>
                       </tr>
@@ -474,7 +474,7 @@ export default function AdminPage() {
               <button
                 type="button"
                 onClick={() => loadContent(tab)}
-                className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white"
+                className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white"
               >
                 Search
               </button>
@@ -482,7 +482,7 @@ export default function AdminPage() {
 
             <div className="mt-4 space-y-2">
               {contentLoading ? (
-                <p className="text-sm text-neutral-400">Loading...</p>
+                <p className="text-sm text-neutral-400">Loading…</p>
               ) : items.length === 0 ? (
                 <p className="text-sm text-neutral-400">Nothing found.</p>
               ) : (
@@ -541,7 +541,7 @@ export default function AdminPage() {
                       disabled={deletingId === item.id}
                       className="shrink-0 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 disabled:opacity-60"
                     >
-                      {deletingId === item.id ? "Deleting..." : "Delete"}
+                      {deletingId === item.id ? "Deleting…" : "Delete"}
                     </button>
                   </div>
                 ))

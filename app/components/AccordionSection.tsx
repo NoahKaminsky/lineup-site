@@ -20,7 +20,7 @@ export default function AccordionSection({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section id={id} className="mt-8 scroll-mt-24 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
+    <section id={id} className="mt-8 scroll-mt-24 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
@@ -28,7 +28,7 @@ export default function AccordionSection({
       >
         <div>
           {subtitle ? (
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
               {subtitle}
             </p>
           ) : null}

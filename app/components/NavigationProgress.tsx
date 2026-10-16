@@ -58,7 +58,7 @@ export default function NavigationProgress() {
       aria-hidden="true"
     >
       <div
-        className="h-full bg-black transition-[width] duration-300 ease-out"
+        className="h-full bg-ink transition-[width] duration-300 ease-out"
         style={{ width: `${width}%` }}
       />
     </div>

@@ -919,7 +919,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
 
 
         <div className="mx-auto max-w-6xl py-8">
@@ -930,7 +930,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
             <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
           </div>
 
-          <div className="mt-8 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
+          <div className="mt-8 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm">
             <div className="h-56 w-full animate-pulse bg-neutral-100 md:h-72" />
 
             <div className="relative px-6 pb-6 pt-20 md:px-8 md:pt-24">
@@ -957,7 +957,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
             {[1, 2, 3].map((item) => (
               <div
                 key={item}
-                className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm"
+                className="rounded-panel border border-neutral-200 bg-white p-5 shadow-sm"
               >
                 <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                   <div className="flex min-w-0 flex-1 gap-4">
@@ -988,7 +988,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
   if (!profile) {
     return (
-      <main className="min-h-screen bg-white px-6 py-10">
+      <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper py-10">
         <div className="mx-auto max-w-5xl py-16">
           <p className="text-red-600">Could not load profile.</p>
         </div>
@@ -998,11 +998,11 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
   return (
     <>
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+      <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper py-10 text-neutral-900">
 
 
         <div className="mx-auto max-w-6xl py-10">
-          <div className="mb-6 rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
+          <div className="mb-6 rounded-panel border border-neutral-200 bg-white shadow-sm">
             <div className="relative">
               {/* Banner — click to change */}
               <button
@@ -1011,7 +1011,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 className="group relative block w-full"
                 aria-label="Change cover photo"
               >
-                <div className="h-56 w-full overflow-hidden rounded-t-[2rem] bg-neutral-100 md:h-72">
+                <div className="h-56 w-full overflow-hidden rounded-t-panel bg-neutral-100 md:h-72">
                   {profile.banner_url ? (
                     <img loading="lazy"
                       src={profile.banner_url}
@@ -1024,9 +1024,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     </div>
                   )}
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center rounded-t-[2rem] opacity-0 transition group-hover:opacity-100 group-active:opacity-100">
-                  <span className="rounded-full bg-black/60 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm">
-                    {bannerUploading ? "Uploading..." : "Change cover photo"}
+                <div className="absolute inset-0 flex items-center justify-center rounded-t-panel opacity-0 transition group-hover:opacity-100 group-active:opacity-100">
+                  <span className="rounded-full bg-ink/60 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm">
+                    {bannerUploading ? "Uploading…" : "Change cover photo"}
                   </span>
                 </div>
               </button>
@@ -1081,7 +1081,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
             <div className="px-6 pb-6 pt-20 md:px-8 md:pt-24">
               <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
                 <div className="min-w-0">
-                  <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
+                  <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
                     {profile.full_name || "No name yet"}
                   </h1>
 
@@ -1140,7 +1140,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       setMessage("");
                       setIsEditing(true);
                     }}
-                    className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                    className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
                   >
                     Edit profile
                   </button>
@@ -1154,13 +1154,13 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
           </div>
 
 {isProfessional ? (
-              <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+              <div className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                 <div className="flex flex-col gap-4">
                   <div>
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       Stripe payouts
                     </p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                    <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                       Get paid through LineUp
                     </h2>
                     <p className="mt-3 text-sm leading-6 text-neutral-600">
@@ -1170,7 +1170,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                   <div className="grid gap-3">
                     <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                      <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                         Account status
                       </p>
                       <p className="mt-2 text-sm font-semibold text-neutral-900">
@@ -1194,7 +1194,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                     {profile.stripe_account_id ? (
                       <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                           Stripe account
                         </p>
                         <p className="mt-2 break-all text-sm font-medium text-neutral-700">
@@ -1208,7 +1208,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     type="button"
                     onClick={handleConnectStripePayouts}
                     disabled={stripeLoading}
-                    className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                    className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                   >
                     {stripeLoading
                       ? "Opening Stripe..."
@@ -1227,11 +1227,11 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
             ) : null}
 
           <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+            <div className="rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
               {!isEditing ? (
                 <>
                   <div>
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       About
                     </p>
                     <p className="mt-4 max-w-3xl text-lg leading-8 text-neutral-600">
@@ -1241,7 +1241,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                   {isProfessional && profile.business_name?.trim() ? (
                     <div className="mt-8">
-                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                         Shop / studio
                       </p>
                       <p className="mt-3 text-base font-semibold text-neutral-900">
@@ -1252,7 +1252,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                   {isProfessional ? (
                     <div className="mt-8">
-                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                         Specialties
                       </p>
 
@@ -1275,7 +1275,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                   {profile.instagram_handle ? (
                     <div className="mt-8">
-                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                         Instagram
                       </p>
                       <a
@@ -1293,14 +1293,14 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   ) : null}
 
                   <div className="mt-8">
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       Email
                     </p>
                     <p className="mt-3 text-neutral-700">{profile.email}</p>
                   </div>
 
                   <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       Email notifications
                     </p>
                     <p className="mt-3 text-neutral-700">
@@ -1333,7 +1333,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                      className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
                     />
                   </div>
 
@@ -1352,7 +1352,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         }}
                         placeholder="yourname"
                         maxLength={20}
-                        className="w-full rounded-2xl border-none bg-transparent px-2 py-3 outline-none"
+                        className="w-full rounded-xl border-none bg-transparent px-2 py-3 outline-none"
                       />
                     </div>
                     {usernameError ? (
@@ -1366,8 +1366,8 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                   {isProfessional ? (
                     <>
-                      <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
-                        <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                           Professional categories
                         </p>
                         <p className="mt-2 text-sm text-neutral-500">
@@ -1405,7 +1405,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                           value={businessName}
                           onChange={(e) => setBusinessName(e.target.value)}
                           placeholder="e.g. Fade District Barbershop"
-                          className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                          className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
                         />
                         <p className="mt-2 text-xs text-neutral-500">
                           If you work out of a shop or studio, this shows alongside your location on your public profile.
@@ -1421,7 +1421,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                           value={bio}
                           onChange={(e) => setBio(e.target.value)}
                           placeholder="Tell clients a bit about your work..."
-                          className="w-full resize-none rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                          className="w-full resize-none rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
                         />
                       </div>
 
@@ -1434,12 +1434,12 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                           value={instagramHandle}
                           onChange={(e) => setInstagramHandle(e.target.value)}
                           placeholder="@yourhandle"
-                          className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                          className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
                         />
                       </div>
 
-                      <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
-                        <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                           Specialties
                         </p>
 
@@ -1473,7 +1473,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                               }
                             }}
                             placeholder="Add a specialty"
-                            className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                            className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
                           />
                           <button
                             type="button"
@@ -1486,7 +1486,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                         {suggestedSpecialties.length > 0 ? (
                           <div className="mt-5">
-                            <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                               Suggested
                             </p>
                             <div className="mt-3 flex flex-wrap gap-3">
@@ -1519,8 +1519,8 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     </>
                   ) : null}
 
-                  <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       Email notifications
                     </p>
 
@@ -1562,8 +1562,8 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   </div>
 
                   {SMS_SETTINGS_UI_ENABLED ? (
-                    <div className="rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5">
-                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
+                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                         Text alerts
                       </p>
                       <p className="mt-2 text-sm leading-6 text-neutral-500">
@@ -1582,7 +1582,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                             setPhoneError("");
                           }}
                           placeholder="+12045551234"
-                          className="w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                          className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-ink"
                         />
                         <p className="mt-1.5 text-xs text-neutral-500">
                           International format, e.g. +1 for Canada/US.
@@ -1618,9 +1618,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     <button
                       type="submit"
                       disabled={saving}
-                      className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                      className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                     >
-                      {saving ? "Saving..." : "Save changes"}
+                      {saving ? "Saving…" : "Save changes"}
                     </button>
 
                     <button
@@ -1646,14 +1646,14 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 <PushNotificationToggle />
               </div>
 
-              <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+              <div className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
+                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                   Account snapshot
                 </p>
 
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                       Account type
                     </p>
                     <p className="mt-2 text-2xl font-semibold text-neutral-900">
@@ -1662,7 +1662,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   </div>
 
                   <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                       Category
                     </p>
                     <p className="mt-2 text-base font-semibold text-neutral-900">
@@ -1675,7 +1675,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   {isProfessional ? (
                     <>
                       <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                           Average rating
                         </p>
                         <p className="mt-2 text-2xl font-semibold text-neutral-900">
@@ -1684,7 +1684,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       </div>
 
                       <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                           Total reviews
                         </p>
                         <p className="mt-2 text-2xl font-semibold text-neutral-900">
@@ -1693,7 +1693,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       </div>
 
                       <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                           Services page
                         </p>
                         <p className="mt-2 text-base font-semibold text-neutral-900">
@@ -1705,7 +1705,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         href="/analytics"
                         className="rounded-2xl border border-neutral-200 bg-white p-5 transition hover:border-neutral-300 hover:bg-neutral-50"
                       >
-                        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                           Analytics
                         </p>
                         <p className="mt-2 text-base font-semibold text-neutral-900">
@@ -1721,10 +1721,10 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
           </div>
 
           {isProfessional ? (
-            <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+            <div className="mt-10 rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
               <div className="flex items-end justify-between gap-4">
                 <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Portfolio
                   </p>
                   <h2 className="mt-3 text-3xl font-semibold tracking-tight">Past work</h2>
@@ -1733,7 +1733,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 <button
                   type="button"
                   onClick={() => setShowUpload(true)}
-                  className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+                  className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
                 >
                   Add work
                 </button>
@@ -1743,7 +1743,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 <button
                   type="button"
                   onClick={() => setShowUpload(true)}
-                  className="flex aspect-square items-center justify-center rounded-[1.5rem] border-2 border-dashed border-neutral-300 bg-white text-sm font-medium text-neutral-500 transition hover:bg-neutral-50"
+                  className="flex aspect-square items-center justify-center rounded-2xl border-2 border-dashed border-neutral-300 bg-white text-sm font-medium text-neutral-500 transition hover:bg-neutral-50"
                 >
                   + Add work
                 </button>
@@ -1751,7 +1751,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 {portfolioItems.map((item) => (
                   <div
                     key={item.id}
-                    className="group relative overflow-hidden rounded-[1.5rem] border border-neutral-200 bg-neutral-100"
+                    className="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100"
                   >
                     {item.media_type === "video" ? (
                       <video
@@ -1796,10 +1796,10 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
           ) : null}
 
           {isProfessional ? (
-            <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+            <div className="mt-10 rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Reviews
                   </p>
                   <h2 className="mt-3 text-3xl font-semibold tracking-tight">
@@ -1879,9 +1879,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       </main>
 
       {showUpload ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 px-6">
-          <div className="w-full max-w-lg rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+        <div className="lu-fade-in fixed inset-0 z-[100] flex items-center justify-center bg-ink/45 px-6">
+          <div className="lu-dialog-in w-full max-w-lg rounded-panel border border-neutral-200 bg-white p-8 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
               Portfolio
             </p>
             <h3 className="mt-3 text-3xl font-semibold tracking-tight text-neutral-900">
@@ -1904,7 +1904,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 value={uploadCaption}
                 onChange={(e) => setUploadCaption(e.target.value)}
                 placeholder="Caption (optional)"
-                className="w-full resize-none rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                className="w-full resize-none rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
               />
             </div>
 
@@ -1913,9 +1913,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 type="button"
                 onClick={handlePortfolioUpload}
                 disabled={portfolioUploading}
-                className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
               >
-                {portfolioUploading ? "Uploading..." : "Upload"}
+                {portfolioUploading ? "Uploading…" : "Upload"}
               </button>
 
               <button
@@ -1936,10 +1936,10 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
       {isProfessional ? (
         <div className="mx-auto mt-10 max-w-3xl">
-          <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+          <div className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                   Pro feature
                 </p>
                 <h2 className="mt-2 text-xl font-semibold tracking-tight text-neutral-900">
@@ -1972,7 +1972,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         setTimeout(() => setLinkCopied(false), 2000);
                       });
                     }}
-                    className="shrink-0 rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90"
+                    className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800"
                   >
                     {linkCopied ? "Copied!" : "Copy link"}
                   </button>
@@ -1993,7 +1993,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 </p>
                 <a
                   href="/subscription"
-                  className="mt-4 inline-flex items-center justify-center rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                  className="mt-4 inline-flex items-center justify-center rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
                 >
                   View plans
                 </a>
@@ -2004,7 +2004,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       ) : null}
 
       <div className="mx-auto mt-10 max-w-3xl">
-        <div className="rounded-[2rem] border border-red-200 bg-white p-6 shadow-sm">
+        <div className="rounded-panel border border-red-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-red-600">Danger zone</h2>
           <p className="mt-2 text-sm leading-6 text-neutral-500">
             Permanently deletes your account, profile, bookings, and all uploaded content. This cannot be undone.
@@ -2020,7 +2020,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
                 placeholder="DELETE"
-                className="w-full rounded-2xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-red-400"
+                className="w-full rounded-xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-red-400"
               />
               <div className="flex gap-3">
                 <button
@@ -2029,7 +2029,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   disabled={deleteConfirmText !== "DELETE" || deleting}
                   className="rounded-full bg-red-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-40"
                 >
-                  {deleting ? "Deleting..." : "Delete my account"}
+                  {deleting ? "Deleting…" : "Delete my account"}
                 </button>
                 <button
                   type="button"
@@ -2055,7 +2055,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
       {showBannerPreview && profile.banner_url ? (
         <div
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 px-6"
+          className="lu-fade-in fixed inset-0 z-[110] flex items-center justify-center bg-ink/80 px-6"
           onClick={() => setShowBannerPreview(false)}
         >
           <div className="relative max-h-[90vh] max-w-6xl">

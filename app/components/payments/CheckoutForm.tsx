@@ -58,9 +58,9 @@ export default function CheckoutForm({
       <button
         type="submit"
         disabled={!stripe || !elements || loading}
-        className="w-full rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+        className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
       >
-        {loading ? "Processing..." : "Confirm payment"}
+        {loading ? "Processing…" : "Confirm payment"}
       </button>
     </form>
   );

@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import TimeSelect from "@/app/components/TimeSelect";
 
+import { MapPin } from "lucide-react";
 type Profile = {
   id: string;
   role: string | null;
@@ -474,7 +475,7 @@ function LocationAutocomplete({
           onInputChange?.(e.target.value);
         }}
         placeholder={placeholder}
-        className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-black"
+        className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
       />
 
       {confirming ? (
@@ -523,7 +524,7 @@ function AccordionSection({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section id={id} className="mt-5 scroll-mt-24 overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-sm">
+    <section id={id} className="mt-5 scroll-mt-24 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
@@ -531,12 +532,12 @@ function AccordionSection({
       >
         <div className="min-w-0">
           {subtitle ? (
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
               {subtitle}
             </p>
           ) : null}
 
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+          <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
             {title}
           </h2>
 
@@ -547,7 +548,7 @@ function AccordionSection({
 
         <span
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-200 text-2xl font-light transition ${
-            open ? "rotate-45 bg-black text-white" : "bg-white text-neutral-900"
+            open ? "rotate-45 bg-ink text-white" : "bg-white text-neutral-900"
           }`}
         >
           +
@@ -1250,7 +1251,7 @@ export default function ServicesPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 sm:py-10">
+      <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8 sm:py-10">
 
         <div className="mx-auto max-w-6xl py-8">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -1263,7 +1264,7 @@ export default function ServicesPage() {
           </div>
           <div className="mt-8 space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 animate-pulse rounded-[1.5rem] bg-neutral-100" />
+              <div key={i} className="h-16 animate-pulse rounded-2xl bg-neutral-100" />
             ))}
           </div>
         </div>
@@ -1272,19 +1273,19 @@ export default function ServicesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 sm:py-10">
+    <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8 sm:py-10">
 
 
       <div className="mx-auto max-w-6xl py-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
               Services & Availability
             </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">
+            <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
               Manage your bookable setup
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">
+            <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
               Keep your services, location, booking settings, and weekly availability organized in one place.
             </p>
           </div>
@@ -1294,9 +1295,9 @@ export default function ServicesPage() {
               type="button"
               onClick={handleSaveSettings}
               disabled={saving || justSaved}
-              className="w-full rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60 sm:w-auto"
+              className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60 sm:w-auto"
             >
-              {saving ? "Saving..." : justSaved ? "Saved" : "Save changes"}
+              {saving ? "Saving…" : justSaved ? "Saved" : "Save changes"}
             </button>
           ) : null}
         </div>
@@ -1348,7 +1349,7 @@ export default function ServicesPage() {
                           onClick={() => handleToggleBookable(service.id, !service.is_bookable)}
                           className={`rounded-full px-4 py-2 text-xs font-medium transition ${
                             service.is_bookable
-                              ? "bg-black text-white hover:opacity-90"
+                              ? "bg-ink text-white hover:bg-neutral-800"
                               : "border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
                           }`}
                         >
@@ -1366,7 +1367,7 @@ export default function ServicesPage() {
                     </div>
 
                     <div className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4">
-                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                         Edit details
                       </p>
 
@@ -1381,7 +1382,7 @@ export default function ServicesPage() {
                             onChange={(e) =>
                               updateServiceDraft(service.id, "service_name", e.target.value)
                             }
-                            className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                            className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
                           />
                         </div>
 
@@ -1394,7 +1395,7 @@ export default function ServicesPage() {
                             onChange={(e) =>
                               updateServiceDraft(service.id, "duration_minutes", e.target.value)
                             }
-                            className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                            className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
                           >
                             {[15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150, 180].map(
                               (minutes) => (
@@ -1419,7 +1420,7 @@ export default function ServicesPage() {
                               updateServiceDraft(service.id, "price", e.target.value)
                             }
                             placeholder="50"
-                            className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                            className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
                           />
                         </div>
 
@@ -1427,7 +1428,7 @@ export default function ServicesPage() {
                           <button
                             type="button"
                             onClick={() => handleUpdateService(service.id)}
-                            className="w-full rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                            className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
                           >
                             Save
                           </button>
@@ -1445,7 +1446,7 @@ export default function ServicesPage() {
                           }
                           placeholder="Optional short description shown on your public profile."
                           rows={3}
-                          className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                          className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
                         />
                       </div>
                     </div>
@@ -1471,7 +1472,7 @@ export default function ServicesPage() {
                 value={newServiceName}
                 onChange={(e) => setNewServiceName(e.target.value)}
                 placeholder="Haircut, Beard Trim, Gel Set, Brow Wax..."
-                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
+                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
               />
             </div>
 
@@ -1482,7 +1483,7 @@ export default function ServicesPage() {
               <select
                 value={newServiceDuration}
                 onChange={(e) => setNewServiceDuration(Number(e.target.value))}
-                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
+                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
               >
                 {[15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150, 180].map((minutes) => (
                   <option key={minutes} value={minutes}>
@@ -1503,7 +1504,7 @@ export default function ServicesPage() {
                 value={newServicePrice}
                 onChange={(e) => setNewServicePrice(e.target.value)}
                 placeholder="50"
-                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
+                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
               />
             </div>
 
@@ -1512,9 +1513,9 @@ export default function ServicesPage() {
                 type="button"
                 onClick={handleAddService}
                 disabled={serviceSaving}
-                className="w-full rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
               >
-                {serviceSaving ? "Adding..." : "Add service"}
+                {serviceSaving ? "Adding…" : "Add service"}
               </button>
             </div>
           </div>
@@ -1528,7 +1529,7 @@ export default function ServicesPage() {
               onChange={(e) => setNewServiceDescription(e.target.value)}
               placeholder="Optional short description shown on your public profile."
               rows={3}
-              className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
+              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
             />
           </div>
         </AccordionSection>
@@ -1627,7 +1628,7 @@ export default function ServicesPage() {
                   {hasBusinessCoordinates ? "Google location selected with coordinates" : "Google location selected"}
                 </p>
                 <p className="mt-1 text-sm text-neutral-700">
-                  📍 {displayedBusinessAddress.primary}
+                  <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{displayedBusinessAddress.primary}
                 </p>
                 {displayedBusinessAddress.secondary ? (
                   <p className="mt-0.5 text-xs text-neutral-500">
@@ -1761,7 +1762,7 @@ export default function ServicesPage() {
                 <select
                   value={defaultAppointmentDuration}
                   onChange={(e) => setDefaultAppointmentDuration(Number(e.target.value))}
-                  className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
+                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
                 >
                   {[30, 45, 60, 75, 90, 120].map((minutes) => (
                     <option key={minutes} value={minutes}>
@@ -1773,12 +1774,12 @@ export default function ServicesPage() {
             </div>
           </AccordionSection>
         ) : (
-          <div className="mt-6 overflow-hidden rounded-[2rem] border border-neutral-200 bg-neutral-50 shadow-sm">
+          <div className="mt-6 overflow-hidden rounded-panel border border-neutral-200 bg-neutral-50 shadow-sm">
             <div className="px-5 py-5 sm:px-6">
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-500">
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                 Direct booking
               </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+              <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
                 Let clients book you instantly
               </h2>
               <p className="mt-2 text-sm leading-6 text-neutral-500">
@@ -1788,7 +1789,7 @@ export default function ServicesPage() {
               </p>
               <Link
                 href="/subscription"
-                className="mt-4 inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+                className="mt-4 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
               >
                 See plans
               </Link>
@@ -1818,7 +1819,7 @@ export default function ServicesPage() {
               </p>
               <Link
                 href="/subscription"
-                className="mt-4 inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+                className="mt-4 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
               >
                 View plans
               </Link>
@@ -1835,7 +1836,7 @@ export default function ServicesPage() {
                 <div className="flex items-center justify-between gap-4 px-4 py-3">
                   <div className="flex min-w-0 flex-1 items-center gap-4">
                     <p className="w-24 shrink-0 text-sm font-semibold text-neutral-900">{group.day}</p>
-                    <span className={`truncate text-xs font-medium ${group.windows.length > 0 ? "text-emerald-700" : "text-neutral-400"}`}>
+                    <span className={`truncate text-xs font-medium ${group.windows.length > 0 ? "text-ink" : "text-neutral-400"}`}>
                       {group.windows.length === 0
                         ? "Closed"
                         : group.windows.map((w) => `${formatTime(w.start_time)}–${formatTime(w.end_time)}`).join(" · ")}
@@ -1896,7 +1897,7 @@ export default function ServicesPage() {
         </AccordionSection>
 
         {isSettingsDirty || saving || justSaved ? (
-          <div className="mt-8 flex flex-col gap-3 rounded-[1.75rem] border border-neutral-200 bg-neutral-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-8 flex flex-col gap-3 rounded-panel border border-neutral-200 bg-neutral-50 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-neutral-900">
                 {justSaved && !isSettingsDirty ? "Saved" : "Ready to save?"}
@@ -1912,9 +1913,9 @@ export default function ServicesPage() {
               type="button"
               onClick={handleSaveSettings}
               disabled={saving || justSaved}
-              className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+              className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
             >
-              {saving ? "Saving..." : justSaved ? "Saved" : "Save services & availability"}
+              {saving ? "Saving…" : justSaved ? "Saved" : "Save services & availability"}
             </button>
           </div>
         ) : null}

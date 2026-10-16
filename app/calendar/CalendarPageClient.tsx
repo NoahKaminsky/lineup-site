@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import type { CalendarInitialData } from "./getInitialData";
 
+import { MapPin } from "lucide-react";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -235,7 +236,7 @@ function BookingCard({
             </h3>
 
             <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
-              booking.status === "confirmed" ? "bg-emerald-100 text-emerald-800" :
+              booking.status === "confirmed" ? "bg-neutral-100 text-ink" :
               booking.status === "completion_requested" ? "bg-amber-100 text-amber-800" :
               booking.status === "completed" ? "bg-neutral-100 text-neutral-600" :
               "bg-white text-neutral-700"
@@ -251,7 +252,7 @@ function BookingCard({
 
           {displayAddress ? (
             <p className="mt-1.5 truncate text-sm text-neutral-500">
-              📍 {displayAddress}
+              <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{displayAddress}
               {distance ? <span className="ml-1.5 text-neutral-400">· {distance}</span> : null}
             </p>
           ) : null}
@@ -579,7 +580,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
 
 
         <div className="mx-auto max-w-6xl py-8">
@@ -590,7 +591,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
             <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
           </div>
 
-          <div className="mt-8 grid grid-cols-3 gap-2 rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-2">
+          <div className="mt-8 grid grid-cols-3 gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-2">
             <div className="h-11 animate-pulse rounded-2xl bg-neutral-100" />
             <div className="h-11 animate-pulse rounded-2xl bg-neutral-100" />
             <div className="h-11 animate-pulse rounded-2xl bg-neutral-100" />
@@ -600,7 +601,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
             {[1, 2, 3].map((item) => (
               <div
                 key={item}
-                className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm"
+                className="rounded-panel border border-neutral-200 bg-white p-5 shadow-sm"
               >
                 <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                   <div className="flex min-w-0 flex-1 gap-4">
@@ -631,7 +632,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
 
   if (!subscribed) {
     return (
-      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl py-16 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-neutral-200 bg-neutral-50">
             <svg viewBox="0 0 24 24" className="h-6 w-6 text-neutral-400" fill="none" aria-hidden="true">
@@ -639,10 +640,10 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               <path d="M6.5 6h11A2.5 2.5 0 0 1 20 8.5v9A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-9A2.5 2.5 0 0 1 6.5 6Z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
             </svg>
           </div>
-          <p className="mt-6 text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+          <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
             Calendar
           </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
             The schedule is a paid feature
           </h1>
           <p className="mx-auto mt-4 max-w-md text-sm leading-6 text-neutral-500">
@@ -650,7 +651,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
           </p>
           <Link
             href="/subscription"
-            className="mt-6 inline-flex rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition hover:opacity-90"
+            className="mt-6 inline-flex rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
           >
             View plans
           </Link>
@@ -660,20 +661,20 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-white px-4 py-8 text-neutral-900 sm:px-6 sm:py-10">
+    <main className="min-h-screen overflow-x-hidden bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8 sm:py-10">
       <div className="mx-auto max-w-7xl">
 
 
         <div className="py-8 sm:py-16">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                 Calendar
               </p>
-              <h1 className="mt-4 text-4xl font-semibold tracking-tight md:text-6xl">
+              <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
                 Your schedule.
               </h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-600 sm:mt-6 sm:text-lg sm:leading-8">
+              <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
                 View confirmed bookings, upcoming appointments, and completed work in one place.
               </p>
             </div>
@@ -705,7 +706,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                 {bookingUsage.count >= bookingUsage.cap ? (
                   <Link
                     href="/subscription"
-                    className="rounded-full bg-black px-3.5 py-1.5 text-xs font-medium text-white transition hover:opacity-90"
+                    className="rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-neutral-800"
                   >
                     Upgrade for unlimited
                   </Link>
@@ -736,13 +737,13 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
 
           {/* MOBILE CALENDAR APP STYLE */}
           <div className="mt-8 block md:hidden">
-            <div className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+            <div className="rounded-panel border border-neutral-200 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-neutral-500">
                     Month
                   </p>
-                  <h2 className="mt-1 text-2xl font-semibold tracking-tight">
+                  <h2 className="mt-1 text-xl font-semibold tracking-[-0.02em]">
                     {formatMonthYear(currentMonth)}
                   </h2>
                 </div>
@@ -803,7 +804,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                         <span
                           className={`relative flex h-12 w-12 items-center justify-center rounded-full border text-lg font-semibold transition ${
                             isSelected
-                              ? "border-black bg-black text-white shadow-md"
+                              ? "border-ink bg-ink text-white shadow-md"
                               : isToday
                               ? "border-neutral-900 bg-white text-neutral-900"
                               : "border-neutral-200 bg-neutral-50 text-neutral-700"
@@ -816,7 +817,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                           {dayBookings.length > 0 ? (
                             <span
                               className={`h-1.5 w-1.5 rounded-full ${
-                                isSelected ? "bg-black" : "bg-neutral-400"
+                                isSelected ? "bg-ink" : "bg-neutral-400"
                               }`}
                             />
                           ) : (
@@ -830,7 +831,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               </div>
             </div>
 
-            <div className="mt-5 rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+            <div className="mt-5 rounded-panel border border-neutral-200 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-neutral-500">
@@ -869,7 +870,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                       </div>
 
                       <div className="relative min-w-0 border-l border-neutral-200 pl-4">
-                        <span className="absolute -left-[5px] top-3 h-2.5 w-2.5 rounded-full bg-black" />
+                        <span className="absolute -left-[5px] top-3 h-2.5 w-2.5 rounded-full bg-ink" />
                         <BookingCard booking={booking} compact userLat={userLocation?.lat} userLng={userLocation?.lng} />
                       </div>
                     </div>
@@ -879,7 +880,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
             </div>
 
             <div className="mt-5 space-y-5">
-              <div className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+              <div className="rounded-panel border border-neutral-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold tracking-tight">Upcoming</h2>
                   <span className="rounded-full bg-neutral-100 px-3 py-1 text-sm font-semibold text-neutral-600">
@@ -900,7 +901,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                 )}
               </div>
 
-              <div className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+              <div className="rounded-panel border border-neutral-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold tracking-tight">Awaiting confirmation</h2>
                   <span className="rounded-full bg-neutral-100 px-3 py-1 text-sm font-semibold text-neutral-600">
@@ -921,7 +922,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                 )}
               </div>
 
-              <div className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+              <div className="rounded-panel border border-neutral-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold tracking-tight">Recently completed</h2>
                   <span className="rounded-full bg-neutral-100 px-3 py-1 text-sm font-semibold text-neutral-600">
@@ -946,10 +947,10 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
 
           {/* DESKTOP/TABLET CALENDAR */}
           <div className="mt-8 hidden gap-8 md:grid xl:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+            <div className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-2xl font-semibold tracking-tight">
+                  <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     {formatMonthYear(currentMonth)}
                   </h2>
                   <p className="mt-2 text-sm text-neutral-500">Tap a day to view bookings.</p>
@@ -1024,7 +1025,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                       onClick={() => setSelectedDate(dateKey)}
                       className={`min-h-[108px] rounded-2xl border p-3 text-left transition ${
                         isSelected
-                          ? "border-black bg-black text-white"
+                          ? "border-ink bg-ink text-white"
                           : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-white"
                       }`}
                     >
@@ -1096,10 +1097,10 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
             </div>
 
             <div className="space-y-6">
-              <div className="flex h-[58vh] min-h-[420px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+              <div className="flex h-[58vh] min-h-[420px] flex-col rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                 <div className="flex shrink-0 items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-2xl font-semibold tracking-tight">{selectedDateLabel}</h2>
+                    <h2 className="text-xl font-semibold tracking-[-0.02em]">{selectedDateLabel}</h2>
                     <p className="mt-1 text-sm text-neutral-500">
                       {selectedDateBookings.length} booking
                       {selectedDateBookings.length === 1 ? "" : "s"}
@@ -1125,7 +1126,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               </div>
 
               <div className="grid gap-6 lg:grid-cols-3 xl:grid-cols-1">
-                <div className="flex max-h-[420px] min-h-[140px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                <div className="flex max-h-[420px] min-h-[140px] flex-col rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                   <div className="flex shrink-0 items-center justify-between">
                     <h2 className="text-xl font-semibold tracking-tight">Upcoming</h2>
                     {upcomingBookings.length > 0 ? (
@@ -1147,7 +1148,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                   )}
                 </div>
 
-                <div className="flex max-h-[420px] min-h-[140px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                <div className="flex max-h-[420px] min-h-[140px] flex-col rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                   <div className="flex shrink-0 items-center justify-between">
                     <h2 className="text-xl font-semibold tracking-tight">
                       Awaiting confirmation
@@ -1171,7 +1172,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                   )}
                 </div>
 
-                <div className="flex max-h-[420px] min-h-[140px] flex-col rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+                <div className="flex max-h-[420px] min-h-[140px] flex-col rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                   <div className="flex shrink-0 items-center justify-between">
                     <h2 className="text-xl font-semibold tracking-tight">
                       Recently completed

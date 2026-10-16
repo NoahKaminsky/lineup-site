@@ -117,7 +117,7 @@ const serviceDetailGroups: Record<string, ServiceDetailGroup[]> = {
 
 function NewRequestLoadingSkeleton() {
   return (
-    <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
 
 
       <div className="mx-auto max-w-2xl py-8">
@@ -128,7 +128,7 @@ function NewRequestLoadingSkeleton() {
           <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
         </div>
 
-        <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm">
+        <div className="mt-8 rounded-panel border border-neutral-200 bg-white p-5 shadow-sm">
           <div className="space-y-5">
             {[1, 2, 3, 4].map((item) => (
               <div key={item}>
@@ -350,7 +350,7 @@ function LocationAutocomplete({
           onInputChange?.(e.target.value);
         }}
         placeholder={placeholder}
-        className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900 focus:bg-white"
+        className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink focus:bg-white"
       />
 
       {confirming ? (
@@ -962,7 +962,7 @@ function NewRequestPageContent() {
   return (
     <>
 
-      <main className="min-h-screen bg-white pb-20">
+      <main className="min-h-screen bg-paper pb-20">
         <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
 
           {/* Page header */}
@@ -970,7 +970,7 @@ function NewRequestPageContent() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
               {isRebook ? "Rebook" : "New Request"}
             </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">
+            <h1 className="mt-2 text-neutral-900 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
               {isRebook ? "Book again" : "Post a request"}
             </h1>
             <p className="mt-1.5 text-sm leading-6 text-neutral-500">
@@ -982,18 +982,18 @@ function NewRequestPageContent() {
 
           {/* Rebook banner */}
           {isRebook && preferredProfessionalId ? (
-            <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-sm font-semibold text-emerald-800">
+            <div className="mb-6 rounded-2xl border border-neutral-200 bg-neutral-100 p-4">
+              <p className="text-sm font-semibold text-ink">
                 Rebooking with {rebookProName || "this professional"}
               </p>
-              <p className="mt-0.5 text-sm text-emerald-700">
+              <p className="mt-0.5 text-sm text-ink">
                 This request will be sent directly to them first.
               </p>
             </div>
           ) : null}
 
           {/* Form card */}
-          <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
 
               {/* Service category */}
@@ -1018,7 +1018,7 @@ function NewRequestPageContent() {
                         onClick={() => toggleCategory(opt.value)}
                         className={`flex flex-col items-center gap-1.5 rounded-2xl border px-3 py-3 text-center transition active:scale-[0.97] ${
                           isSelected
-                            ? "border-black bg-black text-white"
+                            ? "border-ink bg-ink text-white"
                             : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
                         }`}
                       >
@@ -1060,7 +1060,7 @@ function NewRequestPageContent() {
                                         onClick={() => toggleServiceDetail(c, option)}
                                         className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition active:scale-[0.97] ${
                                           isSelected
-                                            ? "border-black bg-black text-white"
+                                            ? "border-ink bg-ink text-white"
                                             : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400"
                                         }`}
                                       >
@@ -1140,7 +1140,7 @@ function NewRequestPageContent() {
                         }}
                         className={`flex flex-col items-start gap-1 rounded-2xl border p-3 text-left transition active:scale-[0.97] ${
                           isSelected
-                            ? "border-black bg-black text-white"
+                            ? "border-ink bg-ink text-white"
                             : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
                         }`}
                       >
@@ -1282,9 +1282,18 @@ function NewRequestPageContent() {
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`cursor-pointer rounded-2xl border border-dashed p-6 text-center transition ${
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Add reference photos"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  className={`cursor-pointer rounded-2xl border border-dashed p-6 text-center transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
                     isDragging
-                      ? "border-black bg-neutral-100"
+                      ? "border-ink bg-neutral-100"
                       : "border-neutral-300 bg-neutral-50 hover:border-neutral-400 hover:bg-white"
                   }`}
                 >
@@ -1292,7 +1301,7 @@ function NewRequestPageContent() {
                     <path d="M12 16V8M12 8L9 11M12 8L15 11M5 17.5V18C5 18.5523 5.44772 19 6 19H18C18.5523 19 19 18.5523 19 18V17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                   <p className="mt-2 text-sm font-semibold text-neutral-900">
-                    Drop photos here or click to upload
+                    Drop photos here or choose files
                   </p>
                   <p className="mt-1 text-xs text-neutral-500">
                     Up to {MAX_REFERENCE_PHOTOS} images · {remainingPhotoSlots} slot{remainingPhotoSlots === 1 ? "" : "s"} remaining
@@ -1340,7 +1349,7 @@ function NewRequestPageContent() {
               <button
                 type="submit"
                 disabled={submitting || uploadingPhotos}
-                className="w-full rounded-full bg-black py-3.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                className="w-full rounded-full bg-ink py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
               >
                 {uploadingPhotos
                   ? "Uploading photos..."
@@ -1360,7 +1369,7 @@ function NewRequestPageContent() {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm"
+            className="lu-fade-in fixed inset-0 z-50 bg-ink/30 backdrop-blur-sm"
             style={{ animation: "lu-overlay-in 0.2s ease forwards" }}
           />
 
@@ -1369,7 +1378,7 @@ function NewRequestPageContent() {
             className="fixed inset-0 z-50 flex items-center justify-center px-6"
             style={{ animation: "lu-overlay-in 0.25s ease forwards" }}
           >
-            <div className="flex w-full max-w-xs flex-col items-center rounded-[2rem] bg-white px-10 py-12 shadow-2xl">
+            <div className="flex w-full max-w-xs flex-col items-center rounded-panel bg-white px-10 py-12 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
 
               {/* Logo with left-to-right mask reveal */}
               <div
@@ -1415,7 +1424,7 @@ function NewRequestPageContent() {
                   style={{ animation: "lu-success-rise 0.35s ease forwards" }}
                 >
                   <div
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-black"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-ink"
                     style={{ animation: "lu-check-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards" }}
                   >
                     <svg viewBox="0 0 16 16" className="h-4 w-4 text-white" fill="none">

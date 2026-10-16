@@ -93,7 +93,7 @@ function StatCard({
     <div
       className={`rounded-2xl border p-5 ${
         accent
-          ? "border-neutral-900 bg-black text-white"
+          ? "border-neutral-900 bg-ink text-white"
           : "border-neutral-200 bg-white"
       }`}
     >
@@ -413,7 +413,7 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6">
+      <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl py-12">
           <div className="h-4 w-28 animate-pulse rounded-full bg-neutral-200" />
           <div className="mt-4 h-12 w-64 animate-pulse rounded-2xl bg-neutral-200" />
@@ -432,17 +432,17 @@ export default function AnalyticsPage() {
 
   if (!subscribed) {
     return (
-      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6">
+      <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl py-16">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
             Analytics
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight">
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
             Performance insights
           </h1>
 
-          <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-10 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+          <div className="mt-10 rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+            <div className="mx-auto flex h-8 w-8 items-center justify-center">
               <svg viewBox="0 0 24 24" className="h-6 w-6 text-neutral-400" fill="none">
                 <path d="M4 20V14M8 20V10M12 20V6M16 20V12M20 20V8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
               </svg>
@@ -455,7 +455,7 @@ export default function AnalyticsPage() {
             </p>
             <Link
               href="/subscription"
-              className="mt-6 inline-flex rounded-full bg-black px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+              className="mt-6 inline-flex rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800"
             >
               View plans
             </Link>
@@ -466,22 +466,22 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6">
+    <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl py-10">
 
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
               Analytics
             </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight">
+            <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
               Performance
             </h1>
           </div>
 
           <span className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide ${
             fullSuite
-              ? "bg-black text-white"
+              ? "bg-ink text-white"
               : "border border-neutral-200 bg-neutral-100 text-neutral-700"
           }`}>
             {fullSuite ? (profile?.subscription_plan === "master" ? "Master suite" : "Pro suite") : "Apprentice"}
@@ -546,10 +546,10 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Monthly trend */}
-            <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+            <div className="mt-8 rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     Trend
                   </p>
                   <h2 className="mt-1 text-xl font-semibold tracking-tight">
@@ -572,9 +572,9 @@ export default function AnalyticsPage() {
 
             {/* Busiest days + Weekly breakdown side by side */}
             <div className="mt-6 grid gap-6 md:grid-cols-2">
-              <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+              <div className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     Schedule
                   </p>
                   <h2 className="mt-1 text-xl font-semibold tracking-tight">
@@ -599,9 +599,9 @@ export default function AnalyticsPage() {
                 ) : null}
               </div>
 
-              <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
+              <div className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     Activity
                   </p>
                   <h2 className="mt-1 text-xl font-semibold tracking-tight">
@@ -629,8 +629,8 @@ export default function AnalyticsPage() {
 
             {/* Top services */}
             {topServices.length > 0 ? (
-              <div className="mt-6 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+              <div className="mt-6 rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                   Services
                 </p>
                 <h2 className="mt-1 text-xl font-semibold tracking-tight">
@@ -663,7 +663,7 @@ export default function AnalyticsPage() {
           </>
         ) : (
           /* Apprentice tier — upsell to full suite (Pro/Master) */
-          <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-8">
+          <div className="mt-8 rounded-panel border border-neutral-200 bg-neutral-50 p-8">
             <p className="text-sm font-medium uppercase tracking-wide text-neutral-500">
               Full analytics suite
             </p>
@@ -675,7 +675,7 @@ export default function AnalyticsPage() {
             </p>
             <Link
               href="/subscription"
-              className="mt-5 inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+              className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
             >
               Upgrade plan
             </Link>

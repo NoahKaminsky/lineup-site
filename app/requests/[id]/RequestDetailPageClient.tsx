@@ -18,6 +18,7 @@ import type { RequestDetailInitialData } from "./getInitialData";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { containsProfanity } from "@/app/lib/profanityFilter";
 
+import { MapPin } from "lucide-react";
 type ServiceRequest = {
   id: string;
   client_id: string;
@@ -150,7 +151,7 @@ function RequestOfferCheckoutForm({
   return (
     <form onSubmit={handlePaymentSubmit} className="mt-6 space-y-5">
       <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
           Offer total
         </p>
         <p className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
@@ -169,9 +170,9 @@ function RequestOfferCheckoutForm({
       <button
         type="submit"
         disabled={!stripe || !elements || paymentLoading}
-        className="w-full rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+        className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
       >
-        {paymentLoading ? "Processing..." : "Confirm and pay"}
+        {paymentLoading ? "Processing…" : "Confirm and pay"}
       </button>
     </form>
   );
@@ -1502,7 +1503,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
 
 
         <div className="mx-auto max-w-6xl py-8">
@@ -1513,7 +1514,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
           </div>
 
-          <div className="mt-8 grid grid-cols-3 gap-2 rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-2">
+          <div className="mt-8 grid grid-cols-3 gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-2">
             <div className="h-11 animate-pulse rounded-2xl bg-neutral-100" />
             <div className="h-11 animate-pulse rounded-2xl bg-neutral-100" />
             <div className="h-11 animate-pulse rounded-2xl bg-neutral-100" />
@@ -1523,7 +1524,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             {[1, 2, 3].map((item) => (
               <div
                 key={item}
-                className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm"
+                className="rounded-panel border border-neutral-200 bg-white p-5 shadow-sm"
               >
                 <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                   <div className="flex min-w-0 flex-1 gap-4">
@@ -1554,7 +1555,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
   if (!request) {
     return (
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+      <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper py-10 text-neutral-900">
         <div className="mx-auto max-w-5xl py-16">
           <Link
             href="/requests"
@@ -1606,27 +1607,27 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
   return (
     <>
 
-      <main className="min-h-screen bg-white px-6 pb-10 pt-6 text-neutral-900">
+      <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper pb-10 pt-6 text-neutral-900">
         <MarkRequestNotificationRead requestId={requestId} />
 
         <div className="mx-auto max-w-6xl py-6">
-          <section className="overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
-            <div className="bg-black px-6 py-8 text-white md:px-8 md:py-10">
+          <section className="overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm">
+            <div className="border-b border-hairline bg-surface px-6 py-8 text-ink md:px-8 md:py-10">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                  <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-ink">
                     {(request.categories?.length ? request.categories : [request.category])
                       .map((c) => formatCategory(c))
                       .join(" + ")}
                     {request.service_detail ? ` • ${request.service_detail}` : ""}
                   </span>
 
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-black">
+                  <span className="rounded-md bg-ink px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-white">
                     {getStatusLabel(request.status)}
                   </span>
 
                   {offers.length > 0 ? (
-                    <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                    <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-ink">
                       {offers.length} offer{offers.length === 1 ? "" : "s"}
                     </span>
                   ) : null}
@@ -1635,19 +1636,19 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 {isCustomer && request.status === "open" ? (
                   confirmingCancelRequest ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-white/70">Cancel this request?</span>
+                      <span className="text-xs text-neutral-600">Cancel this request?</span>
                       <button
                         type="button"
                         onClick={handleCancelRequest}
                         disabled={cancelingRequest}
-                        className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-black transition hover:opacity-90 disabled:opacity-60"
+                        className="rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
                       >
-                        {cancelingRequest ? "Cancelling..." : "Yes, cancel"}
+                        {cancelingRequest ? "Cancelling…" : "Yes, cancel"}
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmingCancelRequest(false)}
-                        className="rounded-full border border-white/30 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
+                        className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-neutral-50"
                       >
                         Never mind
                       </button>
@@ -1656,7 +1657,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     <button
                       type="button"
                       onClick={handleCancelRequest}
-                      className="rounded-full border border-white/30 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/10"
+                      className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-neutral-50"
                     >
                       Cancel request
                     </button>
@@ -1664,19 +1665,19 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 ) : null}
               </div>
 
-              <h1 className="mt-5 max-w-4xl text-4xl font-semibold tracking-tight md:text-5xl">
+              <h1 className="mt-5 max-w-4xl text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
                 {request.title}
               </h1>
 
               {request.description ? (
-                <p className="mt-5 max-w-3xl text-base leading-8 text-white/75 md:text-lg">
+                <p className="mt-5 max-w-3xl text-base leading-8 text-neutral-600 md:text-lg">
                   {request.description}
                 </p>
               ) : null}
 
               {requestOwner ? (
                 <div className="mt-6 flex items-center gap-3">
-                  <div className="h-12 w-12 overflow-hidden rounded-full border border-white/20 bg-white/10">
+                  <div className="h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
                     {requestOwner.avatar_url ? (
                       <img loading="lazy"
                         src={requestOwner.avatar_url}
@@ -1684,19 +1685,19 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-xs font-medium text-white/80">
+                      <div className="flex h-full w-full items-center justify-center text-xs font-medium text-neutral-600">
                         {requestOwner.full_name?.charAt(0).toUpperCase() || "C"}
                       </div>
                     )}
                   </div>
 
                   <div>
-                    <p className="text-sm text-white/60">Posted by</p>
-                    <p className="font-semibold text-white">
+                    <p className="text-sm text-neutral-500">Posted by</p>
+                    <p className="font-semibold text-ink">
                       {requestOwner.full_name || "Customer"}
                     </p>
                     {requestOwnerRating ? (
-                      <p className="mt-0.5 text-xs text-white/70">
+                      <p className="mt-0.5 text-xs text-neutral-600">
                         ★ {requestOwnerRating.average.toFixed(1)} ({requestOwnerRating.count} rating
                         {requestOwnerRating.count === 1 ? "" : "s"} from pros)
                       </p>
@@ -1709,7 +1710,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             <div className="grid items-start gap-4 px-4 py-5 sm:px-6 md:px-8 lg:grid-cols-[0.9fr_1.1fr]">
               <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
                 <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     Preferred time
                   </p>
                   <p className="mt-2 text-sm font-semibold text-neutral-900">
@@ -1718,7 +1719,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 </div>
 
                 <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     {acceptedOffer ? "Service mode" : "Open to"}
                   </p>
                   <p className="mt-2 text-sm font-semibold text-neutral-900">
@@ -1736,7 +1737,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 </div>
 
                 <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     Budget
                   </p>
                   <p className="mt-2 text-sm font-semibold text-neutral-900">
@@ -1748,7 +1749,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                       {usesProLocation ? "Professional's location" : "Location"}
                     </p>
                     {usesProLocation && !proLocationAddress ? (
@@ -1757,7 +1758,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       </p>
                     ) : (
                       <p className="mt-2 break-words text-sm font-semibold leading-6 text-neutral-900">
-                        📍 {displayAddress}
+                        <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{displayAddress}
                       </p>
                     )}
                     {distanceLabel && !usesProLocation ? (
@@ -1798,7 +1799,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             {scheduledSummary ? (
               <div className="px-4 pb-5 sm:px-6 md:px-8">
                 <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 sm:p-5">
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     Scheduled service time
                   </p>
                   <p className="mt-2 text-sm font-semibold text-neutral-900">
@@ -1812,13 +1813,13 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
           <div className="mt-8 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-8">
               {acceptedOffer ? (
-                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
+                <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                         Accepted professional
                       </p>
-                      <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                      <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                         This request has a winner
                       </h2>
                     </div>
@@ -1830,7 +1831,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                   <Link
                     href={`/profile/${acceptedOffer.professional_id}`}
-                    className="mt-6 flex items-center gap-4 rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-5 transition hover:opacity-90"
+                    className="mt-6 flex items-center gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 transition hover:opacity-90"
                   >
                     <div className="h-16 w-16 overflow-hidden rounded-full border border-neutral-200 bg-white">
                       {acceptedOffer.professional_avatar_url ? (
@@ -1873,13 +1874,13 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               ) : null}
 
               {request.reference_photos && request.reference_photos.length > 0 ? (
-                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
+                <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
                   <div className="flex items-end justify-between gap-4">
                     <div>
-                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                         Reference photos
                       </p>
-                      <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                      <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                         Visual inspiration
                       </h2>
                     </div>
@@ -1896,7 +1897,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                         key={`${photoUrl}-${index}`}
                         type="button"
                         onClick={() => setSelectedPhoto(photoUrl)}
-                        className={`overflow-hidden rounded-[1.5rem] border border-neutral-200 transition hover:opacity-90 ${
+                        className={`overflow-hidden rounded-2xl border border-neutral-200 transition hover:opacity-90 ${
                           index === 0 ? "sm:col-span-2" : ""
                         }`}
                       >
@@ -1911,13 +1912,13 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 </section>
               ) : null}
 
-              <section id="offers" className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
+              <section id="offers" className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
                 <div className="flex items-end justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       Offers
                     </p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                    <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                       {isCustomer ? "Choose the right professional" : "Offer activity"}
                     </h2>
                   </div>
@@ -1948,9 +1949,9 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       return (
                         <div
                           key={offer.id}
-                          className={`overflow-hidden rounded-[1.75rem] border shadow-sm ${
+                          className={`overflow-hidden rounded-panel border shadow-sm ${
                             isAccepted
-                              ? "border-black bg-black text-white"
+                              ? "border-ink bg-ink text-white"
                               : "border-neutral-200 bg-white text-neutral-900"
                           }`}
                         >
@@ -2000,7 +2001,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                               <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
                                 <div className="flex flex-wrap gap-2 sm:justify-end">
                                   {isCustomer && unreadOfferIds.includes(offer.id) ? (
-                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isAccepted ? "bg-white text-black" : "bg-black text-white"}`}>
+                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isAccepted ? "bg-white text-black" : "bg-ink text-white"}`}>
                                       New
                                     </span>
                                   ) : null}
@@ -2037,7 +2038,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                                   Their location
                                 </p>
                                 <p className={`mt-2 text-sm font-semibold ${isAccepted ? "text-white" : "text-neutral-900"}`}>
-                                  📍 {offer.professional_formatted_address}
+                                  <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{offer.professional_formatted_address}
                                 </p>
                               </div>
                             ) : null}
@@ -2080,7 +2081,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                               disabled={withdrawingOfferId === offer.id}
                               className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:opacity-60"
                             >
-                              {withdrawingOfferId === offer.id ? "Withdrawing..." : "Withdraw offer"}
+                              {withdrawingOfferId === offer.id ? "Withdrawing…" : "Withdraw offer"}
                             </button>
                           </div>
                         ) : null}
@@ -2112,7 +2113,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                                     onChange={(e) => setReofferMessage(e.target.value)}
                                     rows={4}
                                     placeholder="Update your offer based on the customer’s feedback."
-                                    className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+                                    className="mt-2 w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
                                   />
                                 </div>
 
@@ -2125,7 +2126,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                                     value={reofferPrice}
                                     onChange={(e) => setReofferPrice(e.target.value)}
                                     placeholder="Enter updated price"
-                                    className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+                                    className="mt-2 w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
                                   />
                                 </div>
 
@@ -2134,9 +2135,9 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                                     type="button"
                                     onClick={() => handleReoffer(offer.id)}
                                     disabled={reofferLoading}
-                                    className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                                    className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                                   >
-                                    {reofferLoading ? "Submitting..." : "Submit re-offer"}
+                                    {reofferLoading ? "Submitting…" : "Submit re-offer"}
                                   </button>
 
                                   <button
@@ -2165,7 +2166,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                                 type="button"
                                 onClick={() => handleAcceptOffer(offer.id)}
                                 disabled={acceptingOfferId === offer.id}
-                                className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                                className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                               >
                                 {acceptingOfferId === offer.id
                                   ? "Preparing payment..."
@@ -2197,7 +2198,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                                   onChange={(e) => setDeclineMessage(e.target.value)}
                                   rows={4}
                                   placeholder="Example: Timing doesn’t work for me, price is too high, or I’m looking for a different fit."
-                                  className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+                                  className="mt-2 w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
                                 />
 
                                 <div className="mt-3 flex flex-wrap gap-3">
@@ -2205,9 +2206,9 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                                     type="button"
                                     onClick={() => handleDeclineOffer(offer.id)}
                                     disabled={declineLoading}
-                                    className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                                    className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                                   >
-                                    {declineLoading ? "Declining..." : "Submit decline"}
+                                    {declineLoading ? "Declining…" : "Submit decline"}
                                   </button>
 
                                   <button
@@ -2241,12 +2242,12 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               ) : null}
 
               {isCustomer ? (
-                <section className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                <section className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Matched professionals
                   </p>
 
-                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                  <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                     Who this request is visible to
                   </h2>
 
@@ -2278,13 +2279,13 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
               <section
                 id="request-chat"
-                className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm"
+                className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm"
               >
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                   Chat
                 </p>
 
-                <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                   Live conversation
                 </h2>
 
@@ -2361,7 +2362,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                                 <div
                                   className={`rounded-2xl px-4 py-3 text-sm ${
                                     isMine
-                                      ? "bg-black text-white"
+                                      ? "bg-ink text-white"
                                       : "border border-neutral-200 bg-white text-neutral-900"
                                   }`}
                                 >
@@ -2399,16 +2400,16 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                             ? "This chat is now read-only because the service is completed."
                             : "Send a message..."
                         }
-                        className="flex-1 rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
+                        className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
                       />
 
                       <button
                         type="button"
                         onClick={handleSendChatMessage}
                         disabled={isChatReadOnly || sendingChatMessage || !newChatMessage.trim() || !chatBookingId}
-                        className="self-end rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                        className="self-end rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                       >
-                        {isChatReadOnly ? "Completed" : sendingChatMessage ? "Sending..." : "Send"}
+                        {isChatReadOnly ? "Completed" : sendingChatMessage ? "Sending…" : "Send"}
                       </button>
                     </div>
                   </>
@@ -2416,12 +2417,12 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               </section>
 
               {isCustomer && request.status === "completion_requested" ? (
-                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Customer actions
                   </p>
 
-                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                  <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                     Confirm completion
                   </h2>
 
@@ -2433,7 +2434,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     <button
                       type="button"
                       onClick={handleConfirmCompletion}
-                      className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                      className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
                     >
                       Confirm completion
                     </button>
@@ -2442,12 +2443,12 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               ) : null}
 
               {isProfessional && request.status === "open" ? (
-                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Professional actions
                   </p>
 
-                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                  <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                     Respond to this request
                   </h2>
 
@@ -2457,13 +2458,13 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                   <div className="mt-6">
                     {hasSubmittedOffer ? (
-                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+                      <div className="rounded-2xl border border-neutral-200 bg-neutral-100 p-4 text-sm text-ink">
                         You already have an active offer on this request.
                       </div>
                     ) : (
                       <Link
                         href={`/requests/${request.id}/respond`}
-                        className="inline-flex rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                        className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
                       >
                         Respond to request
                       </Link>
@@ -2473,12 +2474,12 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               ) : null}
 
               {isAcceptedProfessional && request.status === "accepted" ? (
-                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Professional actions
                   </p>
 
-                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                  <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                     Complete this service
                   </h2>
 
@@ -2496,7 +2497,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       <button
                         type="button"
                         onClick={handleRequestCompletion}
-                        className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                        className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
                       >
                         Mark service complete
                       </button>
@@ -2506,7 +2507,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               ) : null}
 
               {isAcceptedProfessional && request.status === "completion_requested" ? (
-                <section className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
+                <section className="rounded-panel border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
                   Completion request sent. Waiting for customer confirmation.
                 </section>
               ) : null}
@@ -2514,12 +2515,12 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               {(isCustomer || isAcceptedProfessional) &&
               (request.status === "accepted" || request.status === "completion_requested") &&
               request.scheduled_date && request.scheduled_start_time ? (
-                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Booking
                   </p>
 
-                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                  <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                     Need to cancel?
                   </h2>
 
@@ -2538,7 +2539,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                         disabled={cancelingBooking}
                         className="inline-flex rounded-full border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
                       >
-                        {cancelingBooking ? "Working..." : "Yes, cancel"}
+                        {cancelingBooking ? "Working…" : "Yes, cancel"}
                       </button>
                       <button
                         type="button"
@@ -2570,18 +2571,18 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               {isProfessional &&
               request.status === "completed" &&
               isAcceptedProfessional ? (
-                <section className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
+                <section className="rounded-panel border border-neutral-200 bg-neutral-50 p-6 text-sm text-neutral-500">
                   This service has been completed.
                 </section>
               ) : null}
 
               {isCustomer && request.status === "completed" ? (
-                <section className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Review
                   </p>
 
-                  <h2 className="mt-3 text-2xl font-semibold tracking-tight">
+                  <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                     {existingReview ? "Your review" : "Leave a review"}
                   </h2>
 
@@ -2613,7 +2614,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                         <select
                           value={reviewRating}
                           onChange={(e) => setReviewRating(Number(e.target.value))}
-                          className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+                          className="mt-2 w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
                         >
                           <option value={5}>5 - Excellent</option>
                           <option value={4}>4 - Good</option>
@@ -2632,7 +2633,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                           onChange={(e) => setReviewComment(e.target.value)}
                           rows={5}
                           placeholder="How was the service, professionalism, communication, and result?"
-                          className="mt-2 w-full rounded-2xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-500"
+                          className="mt-2 w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
                         />
                       </div>
 
@@ -2640,16 +2641,16 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                         type="button"
                         onClick={handleSubmitReview}
                         disabled={submittingReview}
-                        className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                        className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                       >
-                        {submittingReview ? "Submitting..." : "Submit review"}
+                        {submittingReview ? "Submitting…" : "Submit review"}
                       </button>
                     </div>
                   )}
 
                   {request.accepted_professional_id ? (
                     <div className="mt-6 border-t border-neutral-200 pt-6">
-                      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                         Book again
                       </p>
 
@@ -2676,7 +2677,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
       {selectedPhoto ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          className="lu-fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/80 p-4"
           onClick={() => setSelectedPhoto(null)}
         >
           <div
@@ -2701,15 +2702,15 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
       ) : null}
       
       {showPaymentModal && paymentClientSecret && selectedOfferForPayment ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4">
-          <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] bg-white p-6 shadow-2xl sm:rounded-[2rem]">
+        <div className="lu-fade-in fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-0 sm:items-center sm:p-4">
+          <div className="lu-dialog-in max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-panel">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                   Secure payment
                 </p>
 
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+                <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
                   Confirm your booking
                 </h2>
 
@@ -2785,9 +2786,9 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
       ) : null}
 
       {showBookingSuccessModal ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-6">
-          <div className="w-full max-w-md rounded-[2rem] bg-white p-7 shadow-2xl">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black text-white">
+        <div className="lu-fade-in fixed inset-0 z-[100] flex items-center justify-center bg-ink/50 px-6">
+          <div className="lu-dialog-in w-full max-w-md rounded-panel bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-ink text-white">
               <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none">
                 <path
                   d="M5 13l4 4L19 7"
@@ -2799,7 +2800,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               </svg>
             </div>
 
-            <h2 className="mt-5 text-2xl font-semibold tracking-tight text-neutral-900">
+            <h2 className="mt-5 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
               Booking confirmed
             </h2>
 
@@ -2844,7 +2845,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     }
                   });
                 }}
-                className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
               >
                 Message professional
               </button>

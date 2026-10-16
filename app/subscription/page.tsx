@@ -154,7 +154,7 @@ function statusLabel(status: SubscriptionStatus) {
 
 function statusColor(status: SubscriptionStatus) {
   if (status === "active" || status === "trialing")
-    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    return "bg-neutral-100 text-ink border-neutral-200";
   if (status === "past_due")
     return "bg-amber-50 text-amber-700 border-amber-200";
   if (status === "canceled" || status === "incomplete")
@@ -321,7 +321,7 @@ export default function SubscriptionPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6">
+      <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
 
         <div className="mx-auto max-w-5xl py-12">
           <div className="h-4 w-32 animate-pulse rounded-full bg-neutral-200" />
@@ -329,7 +329,7 @@ export default function SubscriptionPage() {
           <div className="mt-3 h-4 w-96 animate-pulse rounded-full bg-neutral-100" />
           <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-80 animate-pulse rounded-[2rem] bg-neutral-100" />
+              <div key={i} className="h-80 animate-pulse rounded-panel bg-neutral-100" />
             ))}
           </div>
         </div>
@@ -338,20 +338,20 @@ export default function SubscriptionPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6">
+    <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
 
 
       <div className="mx-auto max-w-5xl py-10">
 
         {/* Header */}
         <div className="mb-10">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
             LineUp Professional
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
             {isActiveSubscriber ? "Your subscription" : "Choose your plan"}
           </h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-500">
+          <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
             {isActiveSubscriber
               ? "Manage your plan, billing, and subscription details below."
               : "Unlock the tools to grow your beauty business. Cancel anytime."}
@@ -365,7 +365,7 @@ export default function SubscriptionPage() {
 
         {/* Success banner */}
         {showSuccess ? (
-          <div className="mb-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">
+          <div className="mb-8 rounded-2xl border border-neutral-200 bg-neutral-100 p-4 text-sm font-medium text-ink">
             You&apos;re subscribed! Your plan is now active.
           </div>
         ) : null}
@@ -379,16 +379,14 @@ export default function SubscriptionPage() {
 
         {/* Active subscription card */}
         {isActiveSubscriber && currentPlan ? (
-          <div className="mb-10 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
-            <div className="bg-black px-6 py-8 text-white sm:px-8">
+          <div className="mb-10 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm">
+            <div className="border-b border-hairline bg-surface px-6 py-8 text-ink sm:px-8">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-ink">
                   Current plan
                 </span>
                 <span
-                  className={`rounded-full border px-3 py-1 text-xs font-medium ${statusColor(
-                    profile?.subscription_status ?? null
-                  )}`}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium ${statusColor( profile?.subscription_status ?? null )}`}
                 >
                   {statusLabel(profile?.subscription_status ?? null)}
                 </span>
@@ -396,7 +394,7 @@ export default function SubscriptionPage() {
               <p className="mt-4 text-3xl font-semibold tracking-tight">
                 {currentPlan.name} Plan
               </p>
-              <p className="mt-1 text-sm text-white/60">
+              <p className="mt-1 text-sm text-neutral-500">
                 {currentPlan.priceLabel}/month
               </p>
             </div>
@@ -404,7 +402,7 @@ export default function SubscriptionPage() {
             <div className="px-6 py-6 sm:px-8">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     {profile?.subscription_status === "trialing"
                       ? "Trial ends"
                       : "Renews on"}
@@ -415,7 +413,7 @@ export default function SubscriptionPage() {
                 </div>
 
                 <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                     Included features
                   </p>
                   <p className="mt-2 text-base font-semibold text-neutral-900">
@@ -441,9 +439,9 @@ export default function SubscriptionPage() {
                   type="button"
                   onClick={() => handleManageBilling({ fallbackPlan: currentPlan })}
                   disabled={portalLoadingKey === "billing"}
-                  className="rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                  className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                 >
-                  {portalLoadingKey === "billing" ? "Opening..." : "Manage billing"}
+                  {portalLoadingKey === "billing" ? "Opening…" : "Manage billing"}
                 </button>
                 <Link
                   href="/account"
@@ -478,17 +476,17 @@ export default function SubscriptionPage() {
               return (
                 <div
                   key={plan.key}
-                  className={`relative flex flex-col overflow-hidden rounded-[2rem] border transition ${
+                  className={`relative flex flex-col overflow-hidden rounded-panel border transition ${
                     isCurrent
-                      ? "border-black ring-2 ring-black"
+                      ? "border-ink ring-2 ring-black"
                       : isRecommended
-                      ? "border-black shadow-lg"
+                      ? "border-ink shadow-lg"
                       : "border-neutral-200"
                   }`}
                 >
                   {/* Top badges */}
                   {(isRecommended || isCurrent) ? (
-                    <div className="bg-black px-5 py-2 text-center text-xs font-semibold uppercase tracking-widest text-white">
+                    <div className="bg-ink px-5 py-2 text-center text-xs font-semibold uppercase tracking-widest text-white">
                       {isCurrent ? "You" : "Most popular"}
                     </div>
                   ) : null}
@@ -508,7 +506,7 @@ export default function SubscriptionPage() {
                     {plan.isBasic ? (
                       <p className="mt-1 text-xs font-medium text-neutral-400">Always free</p>
                     ) : plan.trialDays ? (
-                      <p className="mt-1 text-xs font-medium text-emerald-600">
+                      <p className="mt-1 text-xs font-medium text-ink">
                         {plan.trialDays}-day free trial
                       </p>
                     ) : (
@@ -545,7 +543,7 @@ export default function SubscriptionPage() {
                           disabled={portalLoadingKey === "billing"}
                           className="w-full rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-60"
                         >
-                          {portalLoadingKey === "billing" ? "Opening..." : "Manage plan"}
+                          {portalLoadingKey === "billing" ? "Opening…" : "Manage plan"}
                         </button>
                       ) : isActiveSubscriber && plan.isBasic ? (
                         <button
@@ -554,7 +552,7 @@ export default function SubscriptionPage() {
                           disabled={portalLoadingKey === "basic"}
                           className="w-full rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-60"
                         >
-                          {portalLoadingKey === "basic" ? "Opening..." : "Downgrade to Basic"}
+                          {portalLoadingKey === "basic" ? "Opening…" : "Downgrade to Basic"}
                         </button>
                       ) : isActiveSubscriber ? (
                         <button
@@ -563,7 +561,7 @@ export default function SubscriptionPage() {
                           disabled={portalLoadingKey === plan.key}
                           className="w-full rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-60"
                         >
-                          {portalLoadingKey === plan.key ? "Opening..." : `Switch to ${plan.name}`}
+                          {portalLoadingKey === plan.key ? "Opening…" : `Switch to ${plan.name}`}
                         </button>
                       ) : (
                         <button
@@ -572,12 +570,12 @@ export default function SubscriptionPage() {
                           disabled={!!subscribing}
                           className={`w-full rounded-full px-5 py-3 text-sm font-medium transition disabled:opacity-60 ${
                             isRecommended
-                              ? "bg-black text-white hover:opacity-90"
+                              ? "bg-ink text-white hover:bg-neutral-800"
                               : "border border-neutral-900 bg-white text-neutral-900 hover:bg-neutral-50"
                           }`}
                         >
                           {subscribing === plan.key
-                            ? "Redirecting..."
+                            ? "Redirecting…"
                             : plan.trialDays
                             ? `Start ${plan.trialDays}-day free trial`
                             : "Subscribe"}
@@ -611,7 +609,7 @@ export default function SubscriptionPage() {
               disabled={portalLoadingKey === "billing"}
               className="mt-4 rounded-full bg-amber-700 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-amber-800 disabled:opacity-60"
             >
-              {portalLoadingKey === "billing" ? "Opening..." : "Update payment method"}
+              {portalLoadingKey === "billing" ? "Opening…" : "Update payment method"}
             </button>
           </div>
         ) : null}

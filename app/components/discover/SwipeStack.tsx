@@ -64,13 +64,13 @@ export default function SwipeStack({ cards }: { cards: SwipeCardData[] }) {
 
   if (index >= cards.length) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-[2rem] border border-dashed border-neutral-300 bg-neutral-50 px-6 py-16 text-center">
+      <div className="flex flex-col items-center justify-center rounded-panel border border-dashed border-neutral-300 bg-neutral-50 px-6 py-16 text-center">
         <p className="text-lg font-semibold text-neutral-900">You&apos;ve seen everyone</p>
         <p className="mt-1 text-sm text-neutral-500">Check back later, or start over to browse again.</p>
         <button
           type="button"
           onClick={() => setIndex(0)}
-          className="mt-4 rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+          className="mt-4 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
         >
           Start over
         </button>
@@ -115,7 +115,7 @@ export default function SwipeStack({ cards }: { cards: SwipeCardData[] }) {
                 onPointerUp={isTop ? finishDrag : undefined}
                 onPointerCancel={isTop ? finishDrag : undefined}
                 style={{ transform, opacity, transition, zIndex: 10 - i, touchAction: "pan-y" }}
-                className="absolute inset-0 flex select-none flex-col overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-lg"
+                className="absolute inset-0 flex select-none flex-col overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-lg"
               >
                 <div className="relative h-full w-full overflow-hidden bg-neutral-100">
                   {card.image ? (

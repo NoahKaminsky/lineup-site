@@ -19,8 +19,8 @@ export default function PushNotificationToggle() {
   // website trigger, so the only thing to do is show them exactly how.
   if (isIOS && !isStandalone) {
     return (
-      <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+      <div className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
+        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
           Push notifications
         </p>
         <p className="mt-2 text-sm leading-6 text-neutral-500">
@@ -70,8 +70,8 @@ export default function PushNotificationToggle() {
   }
 
   return (
-    <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
-      <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+    <div className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
+      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
         Push notifications
       </p>
       <p className="mt-2 text-sm leading-6 text-neutral-500">
@@ -83,7 +83,7 @@ export default function PushNotificationToggle() {
         {subscribed ? (
           <>
             <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-900">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="h-2 w-2 rounded-full bg-ink" />
               Notifications on
             </span>
             <button
@@ -104,9 +104,9 @@ export default function PushNotificationToggle() {
             type="button"
             onClick={handleEnable}
             disabled={working}
-            className="rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+            className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
           >
-            {working ? "Enabling..." : "Enable notifications"}
+            {working ? "Enabling…" : "Enable notifications"}
           </button>
         )}
       </div>

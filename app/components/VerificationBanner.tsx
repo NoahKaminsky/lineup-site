@@ -115,20 +115,20 @@ export default function VerificationBanner() {
         };
 
   return (
-    <div className="mt-8 rounded-2xl border border-neutral-900 bg-neutral-900 p-5 text-white">
+    <div className="mt-8 rounded-2xl border border-ink bg-surface p-5 text-ink">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-white/60">Verification required</p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Verification required</p>
           <p className="mt-1 text-lg font-semibold tracking-tight">{copy.title}</p>
-          <p className="mt-1 text-sm text-white/70">{copy.body}</p>
-          <p className="mt-1 text-sm text-white/70">
+          <p className="mt-1 text-sm text-neutral-600">{copy.body}</p>
+          <p className="mt-1 text-sm text-neutral-600">
             Licensed? Add your licence number and a photo. Still studying? Add proof of enrollment — you&apos;ll
             get a Student badge.
           </p>
         </div>
         <Link
           href="/verification"
-          className="inline-flex shrink-0 rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-900 transition hover:opacity-90"
+          className="inline-flex shrink-0 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
         >
           {copy.cta}
         </Link>

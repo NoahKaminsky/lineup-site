@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import LuLoader from "@/app/components/LuLoader";
 import { useRouter } from "next/navigation";
-import { Scissors, Wand2, Hand, Eye, Pencil, Palette, Flame, Leaf, Star, ShoppingBag, Briefcase } from "lucide-react";
+import { Scissors, Wand2, Hand, Eye, Pencil, Palette, Flame, Leaf, Star, ShoppingBag, Briefcase, Check } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 
@@ -200,45 +201,34 @@ export default function OnboardingPage() {
   }
 
   if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-white">
-        <div className="flex flex-col items-center gap-4">
-          <div className="text-2xl font-semibold tracking-tight text-neutral-900">
-            LineUp
-          </div>
-          <div className="h-1 w-24 overflow-hidden rounded-full bg-neutral-100">
-            <div className="h-full w-1/2 animate-[loading_1s_ease-in-out_infinite] rounded-full bg-neutral-300" />
-          </div>
-        </div>
-      </main>
-    );
+    return <LuLoader />;
   }
 
   return (
-    <main className="min-h-screen bg-white text-neutral-900">
+    <main className="min-h-screen bg-paper text-neutral-900">
       {/* Minimal header — no nav to distract during setup */}
-      <div className="border-b border-neutral-100 px-6 py-5">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <Link href="/" className="text-2xl font-semibold tracking-tight">
+      <header className="border-b border-hairline">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+          <Link href="/" className="rounded text-xl font-semibold tracking-tight text-ink">
             LineUp
           </Link>
-          <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-500">
+          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
             Account setup
           </span>
         </div>
-      </div>
+      </header>
 
       <div className="mx-auto grid max-w-6xl gap-10 px-6 py-12 md:grid-cols-2 md:items-start md:py-20">
         {/* Left: copy — hidden on mobile so form is first */}
         <div className="hidden md:block md:pt-4">
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-400">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
             Welcome to LineUp
           </p>
-          <h1 className="mt-4 max-w-xl text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
-            Let's set up your account.
+          <h1 className="mt-4 max-w-xl text-4xl font-semibold tracking-[-0.035em] md:text-5xl">
+            Let&apos;s set up your account.
           </h1>
           <p className="mt-5 max-w-md text-base leading-7 text-neutral-500">
-            Tell us who you are and we'll personalise your experience — whether you're booking services or offering them.
+            Tell us who you are and we&apos;ll personalise your experience — whether you&apos;re booking services or offering them.
           </p>
 
           <div className="mt-10 space-y-4">
@@ -279,27 +269,29 @@ export default function OnboardingPage() {
         </div>
 
         {/* Right: form */}
-        <div className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+        <div className="rounded-2xl border border-hairline bg-surface p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-8">
           {/* Mobile-only heading — desktop heading lives in the left column */}
           <div className="mb-6 md:hidden">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">Account setup</p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">Let's set up your account.</h1>
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Account setup</p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-neutral-900">Let&apos;s set up your account.</h1>
             <p className="mt-1.5 text-sm leading-6 text-neutral-500">Tell us who you are — takes less than a minute.</p>
           </div>
           <form onSubmit={handleSubmit} className="space-y-6">
 
             {/* Name */}
             <div>
-              <label className="mb-2 block text-sm font-semibold text-neutral-700">
+              <label htmlFor="onboarding-name" className="mb-2 block text-sm font-medium text-neutral-800">
                 Full name
               </label>
               <input
+                id="onboarding-name"
                 type="text"
                 required
+                autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your full name"
-                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"
+                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
               />
             </div>
 
@@ -311,10 +303,11 @@ export default function OnboardingPage() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
+                  aria-pressed={role === "customer"}
                   onClick={() => { setRole("customer"); setProfessionalTypes([]); }}
                   className={`flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition active:scale-[0.98] ${
                     role === "customer"
-                      ? "border-black bg-black text-white"
+                      ? "border-ink bg-ink text-white"
                       : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
                   }`}
                 >
@@ -329,10 +322,11 @@ export default function OnboardingPage() {
 
                 <button
                   type="button"
+                  aria-pressed={role === "professional"}
                   onClick={() => setRole("professional")}
                   className={`flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition active:scale-[0.98] ${
                     role === "professional"
-                      ? "border-black bg-black text-white"
+                      ? "border-ink bg-ink text-white"
                       : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
                   }`}
                 >
@@ -355,7 +349,7 @@ export default function OnboardingPage() {
                     What do you offer?
                   </label>
                   {professionalTypes.length > 0 ? (
-                    <span className="rounded-full bg-black px-2.5 py-0.5 text-xs font-semibold text-white">
+                    <span className="rounded-full bg-ink px-2.5 py-0.5 text-xs font-semibold text-white">
                       {professionalTypes.length} selected
                     </span>
                   ) : null}
@@ -368,17 +362,18 @@ export default function OnboardingPage() {
                       <button
                         key={option.value}
                         type="button"
+                        aria-pressed={isSelected}
                         onClick={() => toggleProfessionalType(option.value)}
                         className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition active:scale-[0.98] ${
                           isSelected
-                            ? "border-black bg-black text-white"
+                            ? "border-ink bg-ink text-white"
                             : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
                         }`}
                       >
                         <option.Icon className="h-4 w-4 shrink-0" />
                         {option.label}
                         {isSelected ? (
-                          <span className="ml-auto text-white/80">✓</span>
+                          <Check aria-hidden="true" className="ml-auto h-4 w-4 text-white/80" strokeWidth={2.25} />
                         ) : null}
                       </button>
                     );
@@ -404,7 +399,7 @@ export default function OnboardingPage() {
                       setPhoneError("");
                     }}
                     placeholder="+12045551234"
-                    className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+                    className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-ink"
                   />
                   {phoneError ? (
                     <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>
@@ -414,18 +409,24 @@ export default function OnboardingPage() {
                 </div>
 
                 <label className="flex cursor-pointer items-start gap-3">
-                  <div
-                    onClick={() => setSmsNotificationsEnabled((v) => !v)}
-                    className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
-                      smsNotificationsEnabled ? "border-black bg-black" : "border-neutral-300 bg-white"
-                    }`}
-                  >
-                    {smsNotificationsEnabled ? (
-                      <svg viewBox="0 0 10 8" className="h-2.5 w-2.5" fill="none">
-                        <path d="M1 4l2.5 2.5L9 1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    ) : null}
-                  </div>
+                  <input
+                  type="checkbox"
+                  checked={smsNotificationsEnabled}
+                  onChange={(e) => setSmsNotificationsEnabled(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <span
+                  aria-hidden="true"
+                  className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink ${
+                    smsNotificationsEnabled ? "border-ink bg-ink" : "border-neutral-300 bg-white"
+                  }`}
+                >
+                  {smsNotificationsEnabled ? (
+                    <svg viewBox="0 0 10 8" className="h-2.5 w-2.5" fill="none">
+                      <path d="M1 4l2.5 2.5L9 1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : null}
+                </span>
                   <span className="text-sm leading-6 text-neutral-700">
                     Text me time-sensitive alerts — new offers, matching requests, and upcoming
                     appointments. Faster than email. You can turn this off anytime in Account settings.
@@ -437,10 +438,16 @@ export default function OnboardingPage() {
             {/* Legal */}
             <div className="space-y-3 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
               <label className="flex cursor-pointer items-start gap-3">
-                <div
-                  onClick={() => setAcceptedTerms((v) => !v)}
-                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
-                    acceptedTerms ? "border-black bg-black" : "border-neutral-300 bg-white"
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <span
+                  aria-hidden="true"
+                  className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink ${
+                    acceptedTerms ? "border-ink bg-ink" : "border-neutral-300 bg-white"
                   }`}
                 >
                   {acceptedTerms ? (
@@ -448,20 +455,26 @@ export default function OnboardingPage() {
                       <path d="M1 4l2.5 2.5L9 1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   ) : null}
-                </div>
+                </span>
                 <span className="text-sm leading-6 text-neutral-700">
                   I agree to the{" "}
-                  <a href="/terms" target="_blank" rel="noreferrer" className="font-medium text-black underline underline-offset-2">
+                  <a href="/terms" target="_blank" rel="noreferrer" className="font-medium text-ink underline underline-offset-2">
                     Terms of Service
                   </a>
                 </span>
               </label>
 
               <label className="flex cursor-pointer items-start gap-3">
-                <div
-                  onClick={() => setAcceptedPrivacy((v) => !v)}
-                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
-                    acceptedPrivacy ? "border-black bg-black" : "border-neutral-300 bg-white"
+                <input
+                  type="checkbox"
+                  checked={acceptedPrivacy}
+                  onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <span
+                  aria-hidden="true"
+                  className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink ${
+                    acceptedPrivacy ? "border-ink bg-ink" : "border-neutral-300 bg-white"
                   }`}
                 >
                   {acceptedPrivacy ? (
@@ -469,20 +482,26 @@ export default function OnboardingPage() {
                       <path d="M1 4l2.5 2.5L9 1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   ) : null}
-                </div>
+                </span>
                 <span className="text-sm leading-6 text-neutral-700">
                   I agree to the{" "}
-                  <a href="/privacy" target="_blank" rel="noreferrer" className="font-medium text-black underline underline-offset-2">
+                  <a href="/privacy" target="_blank" rel="noreferrer" className="font-medium text-ink underline underline-offset-2">
                     Privacy Policy
                   </a>
                 </span>
               </label>
 
               <label className="flex cursor-pointer items-start gap-3">
-                <div
-                  onClick={() => setMarketingConsent((v) => !v)}
-                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
-                    marketingConsent ? "border-black bg-black" : "border-neutral-300 bg-white"
+                <input
+                  type="checkbox"
+                  checked={marketingConsent}
+                  onChange={(e) => setMarketingConsent(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <span
+                  aria-hidden="true"
+                  className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink ${
+                    marketingConsent ? "border-ink bg-ink" : "border-neutral-300 bg-white"
                   }`}
                 >
                   {marketingConsent ? (
@@ -490,7 +509,7 @@ export default function OnboardingPage() {
                       <path d="M1 4l2.5 2.5L9 1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   ) : null}
-                </div>
+                </span>
                 <span className="text-sm leading-6 text-neutral-500">
                   Send me LineUp news, launch updates, and promotions. Unsubscribe anytime.
                 </span>
@@ -499,7 +518,7 @@ export default function OnboardingPage() {
 
             {/* Error */}
             {errorMessage ? (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div role="alert" className="lu-fade-in rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {errorMessage}
               </div>
             ) : null}
@@ -508,10 +527,13 @@ export default function OnboardingPage() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-full bg-black py-3.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-ink py-3.5 text-sm font-semibold text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
             >
+              {saving ? (
+                <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : null}
               {saving
-                ? "Setting up your account..."
+                ? "Setting up your account…"
                 : role === "professional"
                 ? "Set up my professional account"
                 : role === "customer"

@@ -8,6 +8,7 @@ import { getCached, setCached } from "@/app/lib/pageCache";
 import { getProfileHref } from "@/app/lib/profileLink";
 import type { DiscoverCard as InitialDiscoverCard } from "./getInitialData";
 import SwipeStack, { type SwipeCardData } from "@/app/components/discover/SwipeStack";
+import { BadgeCheck, LayoutGrid, Layers, MapPin, Search, Star, X } from "lucide-react";
 
 type ProfileRow = {
   id: string;
@@ -161,11 +162,11 @@ function getBadges(profile: ProfileRow): { label: string; className: string }[] 
   }
 
   if (profile.is_founding_artist) {
-    badges.push({ label: "🔥 Founding Artist", className: "border border-orange-200 bg-orange-100 text-orange-800" });
+    badges.push({ label: "Founding Artist", className: "border border-neutral-300 bg-white text-ink" });
   }
 
   if (profile.is_featured) {
-    badges.push({ label: "🔥 LineUp Pick", className: "border border-rose-200 bg-rose-100 text-rose-800" });
+    badges.push({ label: "LineUp Pick", className: "border border-ink bg-ink text-white" });
   }
 
   if (profile.subscription_plan === "master") {
@@ -177,37 +178,120 @@ function getBadges(profile: ProfileRow): { label: string; className: string }[] 
   return badges;
 }
 
-const SERVICE_ACTION_LABELS: Record<string, string> = {
-  barber: "Haircut",
-  hairstylist: "Hairstyle",
-  nail_artist: "Manicure",
-  lash_artist: "Lash Set",
-  brow_artist: "Brow Service",
-  makeup_artist: "Makeup Look",
-  wax_technician: "Wax",
-  body_sugaring: "Sugaring",
-};
-
-function hashString(value: string) {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
-  }
-  return hash;
+// Cards carry at most one badge on the photo — the one that matters most —
+// so the work itself stays the focus. Full badges still show on the profile.
+function getPrimaryBadge(profile: ProfileRow): { label: string; tone: "ink" | "light" } | null {
+  if (profile.is_featured) return { label: "LineUp Pick", tone: "ink" };
+  if (profile.subscription_plan === "master") return { label: "Master", tone: "ink" };
+  if (profile.is_founding_artist) return { label: "Founding Artist", tone: "light" };
+  if (profile.subscription_plan === "pro") return { label: "Pro", tone: "light" };
+  if (profile.verification_track === "student") return { label: "Student", tone: "light" };
+  return null;
 }
 
-function getSpotlightSlogan(card: DiscoverCard) {
-  const primaryType = getProfessionalTypes(card.profile)[0] || null;
-  const actionLabel = SERVICE_ACTION_LABELS[primaryType || ""] || "Service";
-  const ratingPhrase = card.averageRating ? `${card.averageRating}★ rated` : "top-rated";
+type ProCardProps = {
+  href: string;
+  name: string;
+  role: string;
+  place: string | null;
+  services: string | null;
+  image: string | null;
+  badge: { label: string; tone: "ink" | "light" } | null;
+  rating: string | null;
+  reviewCount: number;
+  openThisWeek: boolean;
+  verified: boolean;
+  size?: "rail" | "grid";
+};
 
-  const templates = [
-    `Get a ${actionLabel} done with this ${ratingPhrase} pro`,
-    `Book a ${actionLabel} with a ${ratingPhrase} favorite`,
-    `Treat yourself to a ${actionLabel} — ${ratingPhrase} and ready to book`,
-  ];
+// A short, human location for cards: the profile's own location text, or the
+// locality part of their formatted address. Never invented.
+function getShortLocation(profile: ProfileRow) {
+  if (profile.location?.trim()) return profile.location.trim();
+  const parts = (profile.formatted_address || "").split(",").map((part) => part.trim()).filter(Boolean);
+  if (parts.length >= 3) return parts[parts.length - 3];
+  return parts[0] || null;
+}
 
-  return templates[hashString(card.profile.id) % templates.length];
+// The single card used everywhere on Browse: the work leads, then a tight,
+// three-line typographic summary. No box, no stacked pills.
+function ProCard({ href, name, role, place, services, image, badge, rating, reviewCount, openThisWeek, verified, size = "grid" }: ProCardProps) {
+  const initial = name.charAt(0).toUpperCase() || "P";
+  const ratingText = rating ? `rated ${rating} from ${reviewCount} review${reviewCount === 1 ? "" : "s"}` : "no reviews yet";
+  return (
+    <Link
+      href={href}
+      aria-label={`${name}, ${role}${place ? `, ${place}` : ""}, ${ratingText}`}
+      className={`group block rounded-2xl outline-offset-4 ${size === "rail" ? "w-[70vw] max-w-[16rem] shrink-0 snap-start" : ""}`}
+    >
+      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-[#ecebe7]">
+        {image ? (
+          <img
+            loading="lazy"
+            src={image}
+            alt=""
+            className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.035]"
+          />
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2">
+            <span className="text-6xl font-semibold tracking-[-0.05em] text-neutral-300">{initial}</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">{role}</span>
+          </div>
+        )}
+
+        {/* Hairline inner edge keeps light photos from bleeding into the page. */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/[0.06]" />
+
+        {badge ? (
+          <span
+            className={`absolute left-3 top-3 rounded-md px-2 py-1 text-[10px] font-semibold tracking-[0.02em] ${
+              badge.tone === "ink" ? "bg-ink text-white" : "bg-white/90 text-ink backdrop-blur"
+            }`}
+          >
+            {badge.label}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-3.5 px-0.5">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="flex min-w-0 items-center gap-1 text-[15px] font-semibold tracking-[-0.01em] text-ink">
+            <span className="truncate underline-offset-4 decoration-ink/30 group-hover:underline">{name}</span>
+            {verified ? (
+              <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0 fill-ink text-paper" strokeWidth={2} />
+            ) : null}
+          </p>
+          {rating ? (
+            <span className="flex shrink-0 items-center gap-1 text-[13px] tabular-nums text-ink" aria-hidden="true">
+              <Star className="h-3 w-3 fill-current" strokeWidth={0} />
+              {rating}
+              <span className="hidden text-neutral-400 sm:inline">({reviewCount})</span>
+            </span>
+          ) : (
+            <span className="hidden shrink-0 text-[12px] text-neutral-400 sm:inline" aria-hidden="true">New</span>
+          )}
+        </div>
+
+        <p className="mt-0.5 truncate text-sm text-neutral-600">
+          {role}
+          {place ? <span className="text-neutral-400"> · {place}</span> : null}
+        </p>
+
+        {openThisWeek || services ? (
+          <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-neutral-500">
+            {openThisWeek ? (
+              <span className="inline-flex shrink-0 items-center gap-1.5 font-medium text-ink">
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ink" />
+                Open this week
+              </span>
+            ) : null}
+            {openThisWeek && services ? <span aria-hidden="true" className="text-neutral-300">·</span> : null}
+            {services ? <span className="truncate">{services}</span> : null}
+          </p>
+        ) : null}
+      </div>
+    </Link>
+  );
 }
 
 function getCardDistanceKm(
@@ -349,6 +433,9 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<(typeof categoryOptions)[number]["value"]>("all");
   const [selectedModes, setSelectedModes] = useState<string[]>([]);
+  const [openThisWeekOnly, setOpenThisWeekOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<"recommended" | "nearest" | "rating">("recommended");
+  const [mobileView, setMobileView] = useState<"grid" | "swipe">("grid");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<
     "idle" | "allowed" | "denied" | "unsupported"
@@ -648,8 +735,9 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         .toLowerCase();
 
       const matchesSearch = !query || searchableText.includes(query);
+      const matchesOpen = !openThisWeekOnly || hasOpenThisWeek(profile, card.availability, card.bookings);
 
-      return matchesCategory && matchesModes && matchesSearch;
+      return matchesCategory && matchesModes && matchesSearch && matchesOpen;
     });
 
     if (!userLocation) return filtered;
@@ -664,7 +752,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
 
       return distanceA - distanceB;
     });
-  }, [cards, search, selectedCategory, selectedModes, userLocation]);
+  }, [cards, search, selectedCategory, selectedModes, openThisWeekOnly, userLocation]);
 
   // Subscription tier is the primary ranking signal everywhere on this page —
   // paying for Master/Pro should reliably outrank free accounts, not just get
@@ -703,18 +791,27 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
       });
   }, [filteredCards]);
 
-  // Admin-curated picks get their own dedicated lane, separate from the tier-based
-  // Spotlight section below, so a hand-picked promotion doesn't just blend into the
-  // usual Master/Pro sort order.
-  const pickedCards = useMemo(() => {
-    return [...filteredCards]
-      .filter((card) => card.profile.is_featured)
-      .sort((a, b) => (b.averageRatingNumber || 0) - (a.averageRatingNumber || 0));
-  }, [filteredCards]);
 
 
-  // All pros sorted: featured/tier first, then active, then by completeness
+  // All pros, in the order the visitor picked. "Recommended" keeps the
+  // business ranking (featured/tier first, then active, then completeness);
+  // "Nearest" and "Top rated" sort purely on real distance / review data.
   const sortedCards = useMemo(() => {
+    if (sortBy === "nearest" && userLocation) {
+      return [...filteredCards].sort((a, b) => {
+        const da = getCardDistanceKm(a, userLocation);
+        const db = getCardDistanceKm(b, userLocation);
+        if (da === null && db === null) return 0;
+        if (da === null) return 1;
+        if (db === null) return -1;
+        return da - db;
+      });
+    }
+    if (sortBy === "rating") {
+      return [...filteredCards].sort(
+        (a, b) => (b.averageRatingNumber || 0) - (a.averageRatingNumber || 0) || b.reviewCount - a.reviewCount
+      );
+    }
     return [...filteredCards].sort((a, b) => {
       const score = (card: DiscoverCard) => {
         const activeScore = card.isActive ? 50 : 0;
@@ -726,7 +823,17 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
       };
       return score(b) - score(a);
     });
-  }, [filteredCards]);
+  }, [filteredCards, sortBy, userLocation]);
+
+  const hasActiveFilters =
+    search.trim() !== "" || selectedCategory !== "all" || selectedModes.length > 0 || openThisWeekOnly;
+
+  function clearFilters() {
+    setSearch("");
+    setSelectedCategory("all");
+    setSelectedModes([]);
+    setOpenThisWeekOnly(false);
+  }
 
   function toggleMode(mode: string) {
     setSelectedModes((prev) =>
@@ -735,7 +842,33 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   }
 
   function getCardImage(card: DiscoverCard) {
-    return card.portfolioPreview?.image_url || card.profile.banner_url || null;
+    return card.portfolioPreview?.image_url || card.profile.banner_url || card.profile.avatar_url || null;
+  }
+
+  function getCardProps(card: DiscoverCard): ProCardProps {
+    const roles = getProfessionalTypes(card.profile);
+    const roleLabel = roles.slice(0, 2).map(formatLabel).join(" & ") || "Professional";
+    const serviceNames = Array.from(
+      new Set(card.services.filter((service) => service.is_active).map((service) => service.service_name.trim()).filter(Boolean))
+    );
+    return {
+      href: getProfileHref(card.profile),
+      name: card.profile.full_name || "Professional",
+      role: roleLabel,
+      place: formatDistanceLabel(getCardDistanceKm(card, userLocation)) ?? getShortLocation(card.profile),
+      services:
+        serviceNames.length === 0
+          ? null
+          : serviceNames.length <= 2
+          ? serviceNames.join(", ")
+          : `${serviceNames.slice(0, 2).join(", ")} +${serviceNames.length - 2}`,
+      image: getCardImage(card),
+      badge: getPrimaryBadge(card.profile),
+      rating: card.averageRating,
+      reviewCount: card.reviewCount,
+      openThisWeek: hasOpenThisWeek(card.profile, card.availability, card.bookings),
+      verified: isVerifiedNow(card.profile),
+    };
   }
 
   const swipeCards = useMemo<SwipeCardData[]>(() => {
@@ -757,76 +890,30 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
     });
   }, [sortedCards, userLocation]);
 
+  const sectionLabel = "font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500";
+
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
-
-
+      <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8" aria-busy="true">
         <div className="mx-auto max-w-6xl py-8">
-          <div className="max-w-3xl">
-            <div className="h-4 w-28 animate-pulse rounded-full bg-neutral-200" />
-            <div className="mt-5 h-12 w-full max-w-xl animate-pulse rounded-2xl bg-neutral-200 md:h-16" />
-            <div className="mt-5 h-5 w-full max-w-2xl animate-pulse rounded-full bg-neutral-100" />
-            <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
+          <div className="h-3 w-16 animate-pulse rounded-full bg-neutral-200" />
+          <div className="mt-4 h-9 w-72 animate-pulse rounded-lg bg-neutral-200" />
+          <div className="mt-4 h-4 w-full max-w-md animate-pulse rounded-full bg-neutral-200/70" />
+
+          <div className="mt-10 h-12 w-full animate-pulse rounded-full bg-neutral-200/70" />
+          <div className="mt-5 flex gap-7 border-b border-hairline pb-3.5">
+            {[1, 2, 3, 4, 5, 6].map((item) => (
+              <div key={item} className="h-4 w-14 shrink-0 animate-pulse rounded-full bg-neutral-200/70" />
+            ))}
           </div>
 
-          <div className="mt-8 rounded-[1.5rem] border border-neutral-200 bg-white p-4 shadow-sm">
-            <div className="h-12 w-full animate-pulse rounded-full bg-neutral-100" />
-
-            <div className="mt-3 flex gap-2 overflow-hidden">
-              {[1, 2, 3, 4, 5, 6].map((item) => (
-                <div
-                  key={item}
-                  className="h-10 w-24 shrink-0 animate-pulse rounded-full bg-neutral-100"
-                />
-              ))}
-            </div>
-
-            <div className="mt-3 flex gap-2 overflow-hidden">
-              {[1, 2, 3].map((item) => (
-                <div
-                  key={item}
-                  className="h-8 w-20 shrink-0 animate-pulse rounded-full bg-neutral-100"
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <div className="mb-3 flex items-end justify-between">
-              <div>
-                <div className="h-4 w-24 animate-pulse rounded-full bg-neutral-200" />
-                <div className="mt-3 h-7 w-48 animate-pulse rounded-xl bg-neutral-200" />
-              </div>
-              <div className="h-4 w-12 animate-pulse rounded-full bg-neutral-100" />
-            </div>
-
-            <div className="flex gap-3 overflow-hidden">
-              {[1, 2, 3, 4].map((item) => (
-                <div
-                  key={item}
-                  className="h-72 w-52 shrink-0 animate-pulse rounded-[1.75rem] bg-neutral-100"
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="mt-12 h-3 w-20 animate-pulse rounded-full bg-neutral-200" />
+          <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => (
-              <div
-                key={item}
-                className="overflow-hidden rounded-[1.35rem] border border-neutral-200 bg-white shadow-sm"
-              >
-                <div className="aspect-[4/5] animate-pulse bg-neutral-100" />
-
-                <div className="p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="h-4 w-24 animate-pulse rounded-full bg-neutral-200" />
-                    <div className="h-4 w-10 animate-pulse rounded-full bg-neutral-100" />
-                  </div>
-
-                  <div className="mt-2 h-3 w-32 animate-pulse rounded-full bg-neutral-100" />
-                </div>
+              <div key={item}>
+                <div className="aspect-[4/5] animate-pulse rounded-2xl bg-neutral-200/60" />
+                <div className="mt-3 h-4 w-2/3 animate-pulse rounded-full bg-neutral-200/70" />
+                <div className="mt-2 h-3 w-1/2 animate-pulse rounded-full bg-neutral-200/50" />
               </div>
             ))}
           </div>
@@ -835,404 +922,289 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
     );
   }
 
+  const isSearching = search.trim() !== "";
+  const showFeatured = spotlightCards.length > 0 && !isSearching && selectedCategory === "all" && !openThisWeekOnly;
+  const categoryLabel = categoryOptions.find((c) => c.value === selectedCategory)?.label;
+
   return (
     <>
-    <main className="min-h-screen bg-white text-neutral-900">
-
-
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl py-6 sm:py-8">
+        {/* Intro — compact, so real professionals start above the fold. */}
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-neutral-500">
-              Browse
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-5xl">
-              Explore services
+            <p className={sectionLabel}>Browse</p>
+            <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+              Find your professional.
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-neutral-500 sm:text-base">
-              Browse top professionals, portfolio work, and bookable services in one place.
+            <p className="mt-2.5 max-w-xl text-base leading-7 text-neutral-600">
+              Discover independent beauty and personal-care professionals, see their work, and book directly
+              — or post a request and let offers come to you.
             </p>
           </div>
 
           <Link
             href="/requests/new"
-            className="inline-flex w-fit rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+            className="inline-flex w-fit shrink-0 items-center rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-ink transition-colors hover:border-ink"
           >
-            Post a request
+            Post a request instead
           </Link>
         </div>
 
-        <div className="sticky top-0 z-20 -mx-4 mt-5 border-y border-neutral-100 bg-white/95 px-4 py-4 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
-          <div className="rounded-[1.5rem] border border-neutral-200 bg-white p-3 shadow-sm sm:p-4">
+        {/* Search + filters. Kept in normal flow on phones — pinning all of this
+            would eat a third of a small screen. */}
+        <div className="mt-7 sm:mt-8">
+          <div className="relative">
+            <label htmlFor="browse-search" className="sr-only">
+              Search professionals by name, service, or area
+            </label>
+            <Search aria-hidden="true" className="pointer-events-none absolute left-5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-neutral-400" strokeWidth={2} />
             <input
-              type="text"
+              id="browse-search"
+              type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search pros, lashes, brows, nails..."
-              className="w-full rounded-full border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"
+              onKeyDown={(e) => {
+                if (e.key === "Escape" && search) {
+                  e.preventDefault();
+                  setSearch("");
+                }
+              }}
+              placeholder="Search name, service, or area"
+              autoComplete="off"
+              className="h-14 w-full rounded-full border border-neutral-200 bg-surface pl-[3.25rem] pr-12 text-[15px] outline-none transition-colors placeholder:text-neutral-400 focus:border-ink [&::-webkit-search-cancel-button]:hidden"
             />
+            {search ? (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
+              >
+                <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+              </button>
+            ) : null}
+          </div>
 
-            <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {categoryOptions.map((category) => {
-                const selected = selectedCategory === category.value;
-
-                return (
-                  <button
-                    key={category.value}
-                    type="button"
-                    onClick={() => setSelectedCategory(category.value)}
-                    className={`shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition ${
-                      selected
-                        ? "border-black bg-black text-white"
-                        : "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-400"
+          <div
+            role="group"
+            aria-label="Category"
+            className="-mx-4 mt-5 flex gap-6 overflow-x-auto border-b border-hairline px-4 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:gap-7 sm:px-0 [&::-webkit-scrollbar]:hidden"
+          >
+            {categoryOptions.map((category) => {
+              const selected = selectedCategory === category.value;
+              return (
+                <button
+                  key={category.value}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setSelectedCategory(category.value)}
+                  className={`relative shrink-0 pb-3.5 pt-1 text-sm transition-colors ${
+                    selected ? "font-medium text-ink" : "text-neutral-500 hover:text-ink"
+                  }`}
+                >
+                  {category.label}
+                  <span
+                    aria-hidden="true"
+                    className={`absolute inset-x-0 bottom-0 h-[1.5px] bg-ink transition-transform duration-300 ease-premium ${
+                      selected ? "scale-x-100" : "scale-x-0"
                     }`}
-                  >
-                    {category.label}
-                  </button>
-                );
-              })}
-            </div>
+                  />
+                </button>
+              );
+            })}
+          </div>
 
-            <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {serviceModeOptions.map((mode) => {
-                const selected = selectedModes.includes(mode.value);
+          {/* Refinements: where it happens, availability, ordering. */}
+          <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+            {serviceModeOptions.map((mode) => {
+              const selected = selectedModes.includes(mode.value);
+              return (
+                <button
+                  key={mode.value}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => toggleMode(mode.value)}
+                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                    selected ? "bg-ink text-white" : "bg-surface text-neutral-700 ring-1 ring-inset ring-ink/10 hover:ring-ink/30"
+                  }`}
+                >
+                  {mode.label}
+                </button>
+              );
+            })}
 
-                return (
-                  <button
-                    key={mode.value}
-                    type="button"
-                    onClick={() => toggleMode(mode.value)}
-                    className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
-                      selected
-                        ? "border-neutral-900 bg-neutral-900 text-white"
-                        : "border-neutral-200 bg-neutral-50 text-neutral-600 hover:border-neutral-400"
-                    }`}
-                  >
-                    {mode.label}
-                  </button>
-                );
-              })}
-            </div>
+            <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-ink/10" />
 
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <p className="text-xs text-neutral-500">
-                {userLocation
-                  ? "Sorted by distance from you."
-                  : locationPermissionStatus === "denied"
-                  ? "Allow location access to sort nearby professionals first."
-                  : locationPermissionStatus === "unsupported"
-                  ? "Location sorting is not supported in this browser."
-                  : "Allow location access to see nearby professionals first."}
-              </p>
+            <button
+              type="button"
+              aria-pressed={openThisWeekOnly}
+              onClick={() => setOpenThisWeekOnly((prev) => !prev)}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                openThisWeekOnly ? "bg-ink text-white" : "bg-surface text-neutral-700 ring-1 ring-inset ring-ink/10 hover:ring-ink/30"
+              }`}
+            >
+              <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${openThisWeekOnly ? "bg-white" : "bg-ink"}`} />
+              Open this week
+            </button>
 
-              {userLocation ? (
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setNearbyPanelOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700 transition hover:border-neutral-300"
-                  >
-                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
-                      <path d="M10 18s6-5.2 6-10A6 6 0 0 0 4 8c0 4.8 6 10 6 10Z" stroke="currentColor" strokeWidth="1.5" />
-                      <circle cx="10" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
-                    </svg>
-                    {nearbyCount === null ? "Nearby" : `${nearbyCount} nearby`}
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="shrink-0 rounded px-2 py-1.5 text-[13px] text-neutral-500 underline decoration-neutral-300 underline-offset-4 transition-colors hover:text-ink hover:decoration-ink"
+              >
+                Clear all
+              </button>
+            ) : null}
           </div>
         </div>
 
         {message ? (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {message}
           </div>
         ) : null}
 
         {sortedCards.length === 0 ? (
-          <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-8 text-center">
-            <p className="text-sm text-neutral-500">No professionals matched those filters.</p>
-            <button
-              type="button"
-              onClick={() => { setSearch(""); setSelectedCategory("all"); setSelectedModes([]); }}
-              className="mt-4 rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-            >
-              Clear filters
-            </button>
+          <div className="mt-10 rounded-panel border border-dashed border-neutral-300 px-6 py-16 text-center">
+            <p className="font-medium text-ink">
+              {isSearching ? `No professionals match “${search.trim()}”` : "No professionals match those filters"}
+            </p>
+            <p className="mx-auto mt-1.5 max-w-sm text-sm leading-6 text-neutral-500">
+              Try another category or a broader search — or post a request and let nearby professionals send you offers.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-ink"
+              >
+                Clear filters
+              </button>
+              <Link
+                href="/requests/new"
+                className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+              >
+                Post a request
+              </Link>
+            </div>
           </div>
         ) : (
           <>
-            {/* LineUp Picks — admin hand-picked professionals, kept separate from the tier-based Spotlight */}
-            {pickedCards.length > 0 ? (
-              <section className="mt-8">
-                <div className="mb-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-400">
-                    Hand-picked
-                  </p>
-                  <h2 className="mt-1 text-xl font-semibold tracking-tight">
-                    🔥 LineUp Picks
+            {/* Featured: LineUp Picks first, then Master and Pro members.
+                Hidden while searching/filtering so results come first. */}
+            {showFeatured ? (
+              <section aria-labelledby="featured-heading" className="mt-8">
+                <div className="flex items-baseline justify-between gap-4">
+                  <h2 id="featured-heading" className="text-lg font-semibold tracking-[-0.02em]">
+                    Featured on LineUp
                   </h2>
+                  <p className="hidden text-xs text-neutral-500 sm:block">Hand-picked and top-tier members</p>
                 </div>
 
-                <div className="-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6">
-                  {pickedCards.map((card) => {
-                    const image = getCardImage(card);
-                    const slogan = getSpotlightSlogan(card);
-
-                    return (
-                      <Link
-                        key={`picked-${card.profile.id}`}
-                        href={getProfileHref(card.profile)}
-                        className="group flex w-64 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border border-rose-200 bg-gradient-to-b from-rose-50 to-white shadow-sm transition hover:border-rose-300 hover:shadow-md sm:w-72"
-                      >
-                        <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
-                          {image ? (
-                            <img loading="lazy"
-                              src={image}
-                              alt={card.profile.full_name || "Professional"}
-                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-rose-50 to-rose-100">
-                              <div className="flex h-20 w-20 items-center justify-center rounded-full border border-rose-200 bg-white text-3xl font-semibold text-rose-400">
-                                {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="absolute left-2.5 top-2.5">
-                            <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-100 px-2.5 py-1 text-[10px] font-semibold text-rose-800 shadow-sm">
-                              🔥 LineUp Pick
-                            </span>
-                          </div>
-
-                          {card.averageRating ? (
-                            <div className="absolute right-2.5 top-2.5">
-                              <span className="inline-flex items-center gap-0.5 rounded-full border border-neutral-200 bg-white px-2 py-1 text-[10px] font-bold text-neutral-900 shadow-sm">
-                                ★ {card.averageRating}
-                              </span>
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="flex flex-1 flex-col gap-1.5 p-3.5">
-                          <p className="truncate text-sm font-semibold leading-tight text-neutral-900">
-                            {card.profile.full_name || "Professional"}
-                          </p>
-                          <p className="text-xs leading-5 text-rose-700">
-                            {slogan}
-                          </p>
-                        </div>
-                      </Link>
-                    );
-                  })}
+                {/* Phones: a swipeable rail. Tablet/desktop: one aligned row on the same
+                    grid as the results, so a short list never leaves a ragged gap. */}
+                <div className="-mx-4 mt-4 flex snap-x snap-proximity scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
+                  {spotlightCards.map((card) => (
+                    <ProCard key={`featured-${card.profile.id}`} {...getCardProps(card)} size="rail" />
+                  ))}
+                </div>
+                <div className="mt-5 hidden gap-x-5 gap-y-10 sm:grid sm:grid-cols-3 lg:grid-cols-4">
+                  {spotlightCards.slice(0, 4).map((card, index) => (
+                    <div key={`featured-grid-${card.profile.id}`} className={index === 3 ? "hidden lg:block" : undefined}>
+                      <ProCard {...getCardProps(card)} />
+                    </div>
+                  ))}
                 </div>
               </section>
             ) : null}
 
-            {/* Spotlight — subscribed professionals (Master first, then Pro) */}
-            {spotlightCards.length > 0 ? (
-              <section className="mt-8">
-                <div className="mb-4 flex items-end justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
-                      Spotlight
-                    </p>
-                    <h2 className="mt-1 text-xl font-semibold tracking-tight">
-                      Top-rated professionals
-                    </h2>
+            <section aria-labelledby="all-heading" className={showFeatured ? "mt-12 border-t border-hairline pt-8" : "mt-6"}>
+              {/* Results toolbar: count on the left, ordering (and view on phones) on the right. */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 id="all-heading" className="text-lg font-semibold tracking-[-0.02em]" aria-live="polite">
+                  {sortedCards.length} {sortedCards.length === 1 ? "professional" : "professionals"}
+                  {categoryLabel && selectedCategory !== "all" ? (
+                    <span className="text-neutral-400"> · {categoryLabel}</span>
+                  ) : null}
+                </h2>
+
+                <div className="flex items-center gap-2">
+                  <label className="relative flex items-center">
+                    <span className="sr-only">Sort professionals</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                      className="h-9 appearance-none rounded-full bg-surface pl-3.5 pr-8 text-[13px] font-medium text-ink outline-none ring-1 ring-inset ring-ink/10 transition-shadow hover:ring-ink/30 focus:ring-ink"
+                    >
+                      <option value="recommended">Recommended</option>
+                      <option value="rating">Top rated</option>
+                      <option value="nearest" disabled={!userLocation}>
+                        {userLocation ? "Nearest" : "Nearest (allow location)"}
+                      </option>
+                    </select>
+                    <svg aria-hidden="true" viewBox="0 0 12 12" className="pointer-events-none absolute right-3 h-3 w-3 text-neutral-500" fill="none">
+                      <path d="M3 4.5 6 7.5 9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </label>
+
+                  <div role="group" aria-label="View" className="flex rounded-full bg-surface p-0.5 ring-1 ring-inset ring-ink/10 sm:hidden">
+                    {[
+                      { value: "grid" as const, label: "Grid view", Icon: LayoutGrid },
+                      { value: "swipe" as const, label: "Swipe view", Icon: Layers },
+                    ].map(({ value, label, Icon }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        aria-label={label}
+                        aria-pressed={mobileView === value}
+                        onClick={() => setMobileView(value)}
+                        className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                          mobileView === value ? "bg-ink text-white" : "text-neutral-500"
+                        }`}
+                      >
+                        <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={1.8} />
+                      </button>
+                    ))}
                   </div>
                 </div>
-
-                <div className="-mx-4 flex gap-3.5 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6">
-                  {spotlightCards.map((card) => {
-                    const image = getCardImage(card);
-                    const roles = getProfessionalTypes(card.profile);
-                    const badges = getBadges(card.profile);
-                    const distanceLabel = formatDistanceLabel(getCardDistanceKm(card, userLocation));
-
-                    return (
-                      <Link
-                        key={`spotlight-${card.profile.id}`}
-                        href={getProfileHref(card.profile)}
-                        className="group flex w-52 shrink-0 flex-col overflow-hidden rounded-[1.75rem] border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 hover:shadow-md sm:w-64"
-                      >
-                        <div className="relative aspect-[4/5] overflow-hidden bg-neutral-100">
-                          {image ? (
-                            <img loading="lazy"
-                              src={image}
-                              alt={card.profile.full_name || "Professional"}
-                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-neutral-50 to-neutral-100">
-                              <div className="flex h-20 w-20 items-center justify-center rounded-full border border-neutral-200 bg-white text-3xl font-semibold text-neutral-400">
-                                {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
-                              </div>
-                            </div>
-                          )}
-
-                          {badges.length > 0 ? (
-                            <div className="absolute left-2.5 top-2.5 flex flex-wrap gap-1">
-                              {badges.map((badge) => (
-                                <span key={badge.label} className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold shadow-sm ${badge.className}`}>
-                                  {badge.label}
-                                </span>
-                              ))}
-                            </div>
-                          ) : null}
-
-                          {card.averageRating ? (
-                            <div className="absolute right-2.5 top-2.5">
-                              <span className="inline-flex items-center gap-0.5 rounded-full border border-neutral-200 bg-white px-2 py-1 text-[10px] font-bold text-neutral-900 shadow-sm">
-                                ★ {card.averageRating}
-                              </span>
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="flex flex-1 flex-col gap-2 p-3.5">
-                          <div className="flex items-center gap-2">
-                            <div className="h-7 w-7 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
-                              {card.profile.avatar_url ? (
-                                <img loading="lazy" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center text-xs font-bold text-neutral-400">
-                                  {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold leading-tight text-neutral-900">
-                                {card.profile.full_name || "Professional"}
-                              </p>
-                              <p className="truncate text-xs text-neutral-500">
-                                {card.profile.business_name?.trim()
-                                  ? `${card.profile.business_name} · ${roles.map(formatLabel).join(" · ")}`
-                                  : roles.map(formatLabel).join(" · ")}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-neutral-400">
-                            {card.isActive ? (
-                              <span className="inline-flex items-center gap-1">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                Active
-                              </span>
-                            ) : null}
-                            {distanceLabel ? <span className="truncate">{distanceLabel}</span> : null}
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
-
-            {/* All professionals */}
-            <section className="mt-8">
-              <div className="mb-4 flex items-end justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
-                    Explore
-                  </p>
-                  <h2 className="mt-1 text-xl font-semibold tracking-tight">
-                    {sortedCards.length} professional{sortedCards.length === 1 ? "" : "s"}
-                  </h2>
-                </div>
               </div>
 
-              <div className="sm:hidden">
-                <SwipeStack cards={swipeCards} />
-              </div>
-
-              <div className="hidden gap-3 sm:grid sm:grid-cols-3 lg:grid-cols-4">
-                {sortedCards.map((card) => {
-                  const image = getCardImage(card);
-                  const roles = getProfessionalTypes(card.profile);
-                  const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
-                  const badges = getBadges(card.profile);
-                  const distanceKm = getCardDistanceKm(card, userLocation);
-                  const distanceLabel = formatDistanceLabel(distanceKm);
-                  const secondaryTags = card.tagBadges.filter((tag) => tag !== "Active").slice(0, 1);
-
-                  return (
-                    <Link
-                      key={card.profile.id}
-                      href={getProfileHref(card.profile)}
-                      className="group flex flex-col overflow-hidden rounded-[1.25rem] border border-neutral-200 bg-white shadow-sm transition hover:border-neutral-300 hover:shadow-md active:scale-[0.98]"
+              <p className="mt-1.5 flex items-center gap-1.5 text-xs text-neutral-500">
+                {userLocation ? (
+                  <>
+                    Distances are from your current location.
+                    <button
+                      type="button"
+                      onClick={() => setNearbyPanelOpen(true)}
+                      className="inline-flex items-center gap-1 rounded font-medium text-ink underline decoration-ink/20 underline-offset-4 transition-colors hover:decoration-ink"
                     >
-                      {/* image */}
-                      <div className="relative aspect-square overflow-hidden bg-neutral-100 sm:aspect-[4/5]">
-                        {image ? (
-                          <img loading="lazy"
-                            src={image}
-                            alt={card.profile.full_name || "Professional"}
-                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-b from-neutral-50 to-neutral-100">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-neutral-200 bg-white text-lg font-semibold text-neutral-400">
-                              {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
-                            </div>
-                          </div>
-                        )}
+                      <MapPin aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
+                      {nearbyCount === null ? "See who's nearby" : `${nearbyCount} nearby`}
+                    </button>
+                  </>
+                ) : locationPermissionStatus === "unsupported" ? (
+                  "Location isn't available in this browser."
+                ) : (
+                  "Allow location access to see distances and sort by nearest."
+                )}
+              </p>
 
-                        {badges.length > 0 ? (
-                          <div className="absolute left-2 top-2 flex flex-wrap gap-1">
-                            {badges.map((badge) => (
-                              <span key={badge.label} className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-semibold shadow-sm ${badge.className}`}>
-                                {badge.label}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
+              {mobileView === "swipe" ? (
+                <div className="mt-6 sm:hidden">
+                  <SwipeStack cards={swipeCards} />
+                </div>
+              ) : null}
 
-                        {card.averageRating ? (
-                          <span className="absolute right-2 top-2 rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-[10px] font-bold text-neutral-900 shadow-sm">
-                            ★ {card.averageRating}
-                          </span>
-                        ) : null}
-                      </div>
-
-                      {/* info */}
-                      <div className="flex flex-1 flex-col gap-1 p-2.5">
-                        <div className="flex items-center gap-1.5">
-                          <div className="h-5 w-5 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
-                            {card.profile.avatar_url ? (
-                              <img loading="lazy" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-[8px] font-bold text-neutral-400">
-                                {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
-                              </div>
-                            )}
-                          </div>
-                          <p className="truncate text-[12px] font-semibold leading-tight text-neutral-900">
-                            {card.profile.full_name || "Professional"}
-                          </p>
-                        </div>
-                        <p className="truncate text-[11px] text-neutral-500">
-                          {card.profile.business_name?.trim() || primaryRole}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[10px] text-neutral-400">
-                          {card.isActive ? (
-                            <span className="inline-flex items-center gap-1">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                              Active
-                            </span>
-                          ) : null}
-                          {distanceLabel ? <span className="truncate">{distanceLabel}</span> : null}
-                          {!distanceLabel && secondaryTags.length > 0 ? (
-                            <span className="truncate">{secondaryTags[0]}</span>
-                          ) : null}
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
+              <div
+                className={`mt-6 grid-cols-2 gap-x-3 gap-y-8 sm:grid sm:grid-cols-3 sm:gap-x-5 sm:gap-y-10 lg:grid-cols-4 ${
+                  mobileView === "swipe" ? "hidden" : "grid"
+                }`}
+              >
+                {sortedCards.map((card) => (
+                  <ProCard key={card.profile.id} {...getCardProps(card)} />
+                ))}
               </div>
             </section>
           </>
@@ -1242,15 +1214,15 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
 
     {nearbyPanelOpen ? (
       <div
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+        className="lu-fade-in fixed inset-0 z-[100] flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
         onClick={() => setNearbyPanelOpen(false)}
       >
         <div
-          className="w-full max-w-sm rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-2xl"
+          className="lu-dialog-in w-full max-w-sm rounded-panel border border-neutral-200 bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
               Professionals near you
             </p>
             <button
@@ -1385,7 +1357,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           ) : null}
 
           <p className="mt-4 text-center text-[11px] leading-4 text-neutral-400">
-            This is a quick snapshot of who's nearby — full details show once you open a profile.
+            This is a quick snapshot of who&apos;s nearby — full details show once you open a profile.
           </p>
         </div>
       </div>

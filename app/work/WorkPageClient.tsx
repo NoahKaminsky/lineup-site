@@ -10,6 +10,7 @@ import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/cus
 import { containsProfanity } from "@/app/lib/profanityFilter";
 import VerificationBanner from "@/app/components/VerificationBanner";
 
+import { MapPin } from "lucide-react";
 type Profile = {
   id: string;
   email: string | null;
@@ -1128,7 +1129,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
   if (loading) {
     return (
-      <main className="min-h-dvh bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <main className="min-h-dvh bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
 
 
         <div className="mx-auto max-w-6xl py-8">
@@ -1139,7 +1140,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
             <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
           </div>
 
-          <div className="mt-8 grid grid-cols-3 gap-2 rounded-[1.5rem] border border-neutral-200 bg-neutral-50 p-2">
+          <div className="mt-8 grid grid-cols-3 gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-2">
             <div className="h-11 animate-pulse rounded-2xl bg-neutral-100" />
             <div className="h-11 animate-pulse rounded-2xl bg-neutral-100" />
             <div className="h-11 animate-pulse rounded-2xl bg-neutral-100" />
@@ -1149,7 +1150,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
             {[1, 2, 3].map((item) => (
               <div
                 key={item}
-                className="rounded-[2rem] border border-neutral-200 bg-white p-5 shadow-sm"
+                className="rounded-panel border border-neutral-200 bg-white p-5 shadow-sm"
               >
                 <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                   <div className="flex min-w-0 flex-1 gap-4">
@@ -1180,7 +1181,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
   if (!profile) {
     return (
-      <main className="min-h-dvh bg-white px-6 py-10 text-neutral-900">
+      <main className="px-4 sm:px-6 lg:px-8 min-h-dvh bg-paper py-10 text-neutral-900">
 
         <div className="mx-auto max-w-6xl py-16">
           <p className="text-red-600">Could not load profile.</p>
@@ -1225,19 +1226,19 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
   return (
     <>
-    <main className="min-h-dvh bg-white px-4 py-6 text-neutral-900 sm:px-6 sm:py-8 lg:px-8">
+    <main className="min-h-dvh bg-paper px-4 py-6 text-neutral-900 sm:px-6 sm:py-8 lg:px-8">
 
       <div className="mx-auto max-w-6xl py-4 sm:py-6">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-500">
             {isProfessional ? "Work" : "My services"}
           </p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:mt-3 md:text-5xl">
+          <h1 className="mt-2 sm:mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
             {isProfessional
               ? `Hey, ${profile.full_name?.split(" ")[0] ?? "there"}`
               : "Your services"}
           </h1>
-          <p className="mt-2 max-w-xl text-sm text-neutral-500 sm:mt-3 sm:text-base">
+          <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
             {isProfessional
               ? "Track your upcoming jobs, offers, and completed work."
               : "Track your bookings, requests, and service history."}
@@ -1246,7 +1247,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
         <VerificationBanner />
 
-        <div className="mt-5 grid grid-cols-3 gap-1.5 rounded-[1.5rem] border border-neutral-200 bg-neutral-100 p-1.5 sm:mt-8">
+        <div className="mt-5 grid grid-cols-3 gap-1.5 rounded-2xl border border-neutral-200 bg-neutral-100 p-1.5 sm:mt-8">
           {(["requests", "booked", "completed"] as TabKey[]).map((tab) => {
             const labels: Record<TabKey, string> = {
               booked: "Booking",
@@ -1291,8 +1292,8 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
         <div className="mt-5 min-h-[60vh] sm:mt-8">
           {activeTab === "requests" ? (
             openRequestItems.length === 0 && offerItems.length === 0 ? (
-              <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-10 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+              <div className="rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+                <div className="mx-auto flex h-8 w-8 items-center justify-center">
                   <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                     <path d="M6 2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5"/>
                     <path d="M7 7h6M7 10h6M7 13h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -1307,7 +1308,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                     : "Post a request and professionals will send you offers to compare."}
                 </p>
                 {!isProfessional ? (
-                  <Link href="/requests/new" className="mt-5 inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90">
+                  <Link href="/requests/new" className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800">
                     Post a request
                   </Link>
                 ) : null}
@@ -1316,7 +1317,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
               <div className="space-y-6">
                 {openRequestItems.length > 0 ? (
                   <div>
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                    <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       {isProfessional ? "Open requests" : "Your requests"}
                       <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{openRequestItems.length}</span>
                     </p>
@@ -1330,7 +1331,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
                 {offerItems.length > 0 ? (
                   <div>
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                    <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       {isProfessional ? "Offers sent" : "Offers received"}
                       <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{offerItems.length}</span>
                     </p>
@@ -1347,8 +1348,8 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
           {activeTab === "booked" ? (
             activeBookedItems.length === 0 ? (
-              <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-10 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+              <div className="rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+                <div className="mx-auto flex h-8 w-8 items-center justify-center">
                   <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                     <path d="M6 2v2M14 2v2M3 8h14M4 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                   </svg>
@@ -1378,8 +1379,8 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
           {activeTab === "completed" ? (
             completedItems.length === 0 && cancelledItems.length === 0 && cancelledRequestItems.length === 0 && resolvedOfferItems.length === 0 ? (
-              <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-10 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+              <div className="rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+                <div className="mx-auto flex h-8 w-8 items-center justify-center">
                   <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                     <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5"/>
                     <path d="M6.5 10.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1422,7 +1423,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
                 {cancelledItems.length > 0 ? (
                   <div>
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                    <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       Cancelled bookings
                       <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{cancelledItems.length}</span>
                     </p>
@@ -1441,7 +1442,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
                 {cancelledRequestItems.length > 0 ? (
                   <div>
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                    <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       Cancelled requests
                       <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{cancelledRequestItems.length}</span>
                     </p>
@@ -1455,7 +1456,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
                 {resolvedOfferItems.length > 0 ? (
                   <div>
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                    <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       Past offers
                       <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{resolvedOfferItems.length}</span>
                     </p>
@@ -1474,12 +1475,12 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
     </main>
 
     {reviewItem ? (
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4">
-        <div className="w-full max-w-md rounded-t-[2rem] bg-white p-6 shadow-2xl sm:rounded-[2rem]">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+      <div className="lu-fade-in fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-0 sm:items-center sm:p-4">
+        <div className="lu-dialog-in w-full max-w-md rounded-t-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-panel">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
             Service complete
           </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+          <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em]">
             How was {reviewItem.professionalName?.split(" ")[0] ?? "your professional"}?
           </h2>
           <p className="mt-2 text-sm text-neutral-500">
@@ -1507,7 +1508,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
             onChange={(e) => setReviewComment(e.target.value)}
             placeholder="Share details about your experience (optional)"
             rows={3}
-            className="mt-5 w-full resize-none rounded-2xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-neutral-900"
+            className="mt-5 w-full resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-ink"
           />
 
           <div className="mt-5 flex gap-3">
@@ -1515,9 +1516,9 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
               type="button"
               onClick={handleSubmitReview}
               disabled={reviewRating === 0 || reviewSubmitting}
-              className="flex-1 rounded-full bg-black py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-40"
+              className="flex-1 rounded-full bg-ink py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-40"
             >
-              {reviewSubmitting ? "Submitting..." : "Submit review"}
+              {reviewSubmitting ? "Submitting…" : "Submit review"}
             </button>
             <button
               type="button"
@@ -1672,7 +1673,7 @@ function BookedList({
                       {item.source === "request" || item.originRequestId ? "Accepted request" : "Direct booking"}
                     </span>
                     {item.status === "cancelled" && item.refundStatus === "refunded" ? (
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink">
                         Refunded
                       </span>
                     ) : null}
@@ -1695,7 +1696,7 @@ function BookedList({
 
                 {item.location ? (
                   <p className="mt-1 truncate text-xs text-neutral-400">
-                    📍 {item.location}
+                    <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{item.location}
                   </p>
                 ) : null}
 
@@ -1710,7 +1711,7 @@ function BookedList({
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3">
               <Link
                 href={item.href}
-                className="rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90"
+                className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800"
               >
                 View details
               </Link>
@@ -1732,7 +1733,7 @@ function BookedList({
                     disabled={isLoadingAction}
                     className="rounded-full border border-neutral-300 px-4 py-2 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-60"
                   >
-                    {isLoadingAction ? "Working..." : "Request completion"}
+                    {isLoadingAction ? "Working…" : "Request completion"}
                   </button>
                 ) : (
                   <span className="rounded-full bg-neutral-50 px-3 py-2 text-xs text-neutral-400">
@@ -1746,9 +1747,9 @@ function BookedList({
                   type="button"
                   onClick={() => updateBookedItemStatus(item, "completed")}
                   disabled={isLoadingAction}
-                  className="rounded-full bg-black px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                  className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
                 >
-                  {isLoadingAction ? "Working..." : "Confirm completion"}
+                  {isLoadingAction ? "Working…" : "Confirm completion"}
                 </button>
               ) : null}
 

@@ -47,7 +47,7 @@ export default function UnsubscribeClient({
           LineUp Aesthetics
         </p>
 
-        <h1 className="mb-4 text-4xl font-semibold tracking-tight">
+        <h1 className="mb-4 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
           Unsubscribe
         </h1>
 
@@ -73,7 +73,7 @@ export default function UnsubscribeClient({
               disabled={loading || !email}
               className="rounded-full bg-white px-5 py-3 text-sm font-medium text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Unsubscribing..." : "Confirm unsubscribe"}
+              {loading ? "Unsubscribing…" : "Confirm unsubscribe"}
             </button>
           </>
         )}

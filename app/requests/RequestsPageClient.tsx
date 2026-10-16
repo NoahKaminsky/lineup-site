@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Inbox, Briefcase, Wand2, UserCircle, Images, Star, ClipboardList, Handshake } from "lucide-react";
+import { Sparkles, Inbox, Briefcase, Wand2, UserCircle, Images, Star, ClipboardList, Handshake, MapPin } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import type { RequestsInitialData } from "./getInitialData";
@@ -482,8 +482,8 @@ function UberLocationCard({
     <div className={`overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 ${compact ? "mt-3" : "mt-5"}`}>
       <div className="flex items-stretch">
         <div className="flex min-w-0 flex-1 gap-3 p-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black text-sm text-white">
-            📍
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink text-white">
+            <MapPin aria-hidden="true" className="h-4 w-4" strokeWidth={1.8} />
           </div>
 
           <div className="min-w-0">
@@ -1609,7 +1609,7 @@ if (profileError || !profile) {
 
 if (loading) {
   return (
-    <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
 
 
       <div className="mx-auto max-w-6xl py-8">
@@ -1625,7 +1625,7 @@ if (loading) {
               {[1, 2, 3].map((item) => (
                 <div
                   key={item}
-                  className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm"
+                  className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm"
                 >
                   <div className="flex gap-4">
                     <div className="h-16 w-16 shrink-0 animate-pulse rounded-2xl bg-neutral-100" />
@@ -1657,22 +1657,22 @@ if (loading) {
   }
 
 return (
-  <main className="min-h-screen bg-white px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+  <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
 
 
     <div className="mx-auto max-w-6xl py-8">
       <div>
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                 Dashboard
               </p>
 
-              <h1 className="mt-4 text-5xl font-semibold tracking-tight md:text-6xl">
+              <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
                 Welcome back{userName ? `, ${userName.split(" ")[0]}` : ""}.
               </h1>
 
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-neutral-600">
+              <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
                 {isCustomer
                   ? "Track your requests, bookings, and completed services in one place."
                   : "Here’s what’s happening with your work this week."}
@@ -1682,7 +1682,7 @@ return (
             {isCustomer ? (
               <Link
                 href="/requests/new"
-                className="inline-flex rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
               >
                 New request
               </Link>
@@ -1722,10 +1722,10 @@ return (
           ) : null}
 
           {isCustomer && pendingCompletionBookings.length > 0 ? (
-            <div className="mt-8 rounded-2xl border border-neutral-900 bg-neutral-900 p-5 text-white">
+            <div role="status" className="mt-8 rounded-2xl border border-ink bg-surface p-5">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.14em] text-white/60">
+                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Action needed
                   </p>
                   <p className="mt-1 text-lg font-semibold tracking-tight">
@@ -1733,7 +1733,7 @@ return (
                       ? `Confirm your ${pendingCompletionBookings[0].service_name || "service"} is done`
                       : `Confirm ${pendingCompletionBookings.length} completed services`}
                   </p>
-                  <p className="mt-1 text-sm text-white/70">
+                  <p className="mt-1 text-sm text-neutral-600">
                     Your professional marked this done — confirming it wraps up the booking and releases their payout.
                   </p>
                 </div>
@@ -1741,10 +1741,10 @@ return (
                   type="button"
                   onClick={() => handleConfirmBookingCompletion(pendingCompletionBookings[0].id)}
                   disabled={bookingActionLoadingId === pendingCompletionBookings[0].id}
-                  className="inline-flex shrink-0 rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-900 transition hover:opacity-90 disabled:opacity-60"
+                  className="inline-flex shrink-0 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
                 >
                   {bookingActionLoadingId === pendingCompletionBookings[0].id
-                    ? "Confirming..."
+                    ? "Confirming…"
                     : "Confirm completion"}
                 </button>
               </div>
@@ -1773,8 +1773,8 @@ return (
           ) : null}
 
           {!message && isCustomer && requests.length === 0 && bookings.length === 0 ? (
-            <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-10 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+            <div className="mt-10 rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+              <div className="mx-auto flex h-8 w-8 items-center justify-center">
                 <svg viewBox="0 0 20 20" className="h-6 w-6 text-neutral-400" fill="none">
                   <path d="M10 2C6.686 2 4 4.686 4 8c0 4 6 10 6 10s6-6 6-10c0-3.314-2.686-6-6-6z" stroke="currentColor" strokeWidth="1.5"/>
                   <circle cx="10" cy="8" r="2" stroke="currentColor" strokeWidth="1.5"/>
@@ -1786,7 +1786,7 @@ return (
               </p>
               <Link
                 href="/requests/new"
-                className="mt-5 inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
               >
                 Post a request
               </Link>
@@ -1798,8 +1798,8 @@ return (
           professionalOpenRequests.length === 0 &&
           unifiedProfessionalUpcomingWork.length === 0 &&
           unifiedProfessionalCompletedWork.length === 0 ? (
-            <div className="mt-10 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-10 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+            <div className="mt-10 rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+              <div className="mx-auto flex h-8 w-8 items-center justify-center">
                 <svg viewBox="0 0 20 20" className="h-6 w-6 text-neutral-400" fill="none">
                   <path d="M10 2l2 5h5l-4 3 1.5 5L10 12l-4.5 3L7 10 3 7h5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
                 </svg>
@@ -1809,7 +1809,7 @@ return (
                 Make sure your services, availability, and service area are set up so clients can find you.
               </p>
               <div className="mt-5 flex flex-wrap justify-center gap-3">
-                <Link href="/services" className="inline-flex rounded-full bg-black px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90">
+                <Link href="/services" className="inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800">
                   Set up services
                 </Link>
                 <Link href="/services#availability" className="inline-flex rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-semibold text-neutral-900 transition hover:bg-neutral-50">
@@ -1822,13 +1822,13 @@ return (
           {isCustomer ? (
             <>
               <div className="mt-10">
-                <h2 className="text-2xl font-semibold tracking-tight">
+                <h2 className="text-xl font-semibold tracking-[-0.02em]">
                   Active bookings
                 </h2>
 
                 {activeBookings.length === 0 ? (
-                  <div className="mt-6 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-8 text-center">
-                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+                  <div className="mt-6 rounded-panel border border-dashed border-neutral-300 px-6 py-10 text-center">
+                    <div className="mx-auto flex h-8 w-8 items-center justify-center">
                       <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                         <path d="M6 2v2M14 2v2M3 8h14M4 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                       </svg>
@@ -1845,7 +1845,7 @@ return (
                       return (
                         <div
                           key={booking.id}
-                          className="rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm"
+                          className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm"
                         >
                           <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                             <div className="flex min-w-0 flex-1 gap-4">
@@ -1867,18 +1867,18 @@ return (
 
                               <div className="min-w-0 max-w-3xl">
                                 <div className="flex flex-wrap items-center gap-3">
-                                  <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                                  <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                                     Booking
                                   </span>
 
-                                  <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                                  <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                                     {booking.status === "completion_requested"
                                       ? "Awaiting confirmation"
                                       : booking.status}
                                   </span>
 
                                   {booking.professional_type ? (
-                                    <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                                    <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                                       {formatProfessionalType(
                                         booking.professional_type
                                       )}
@@ -1886,7 +1886,7 @@ return (
                                   ) : null}
                                 </div>
 
-                                <h2 className="mt-4 text-2xl font-semibold tracking-tight">
+                                <h2 className="mt-3 text-lg font-semibold tracking-[-0.015em]">
                                   {booking.service_name || "Booked service"}
                                 </h2>
 
@@ -1939,10 +1939,10 @@ return (
                                   handleConfirmBookingCompletion(booking.id)
                                 }
                                 disabled={isLoadingAction}
-                                className="inline-flex rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                                className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                               >
                                 {isLoadingAction
-                                  ? "Confirming..."
+                                  ? "Confirming…"
                                   : "Confirm completion"}
                               </button>
                             ) : null}
@@ -1989,7 +1989,7 @@ return (
 
               {activeRequests.length > 0 ? (
                 <div className="mt-10">
-                  <h2 className="text-2xl font-semibold tracking-tight">
+                  <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     Active requests
                   </h2>
 
@@ -1998,7 +1998,7 @@ return (
                       <Link
                         key={request.id}
                         href={`/requests/${request.id}`}
-                        className="block rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
+                        className="block rounded-panel border border-neutral-200 bg-white p-6 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
                       >
                         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                           <div className="flex min-w-0 flex-1 gap-4">
@@ -2015,7 +2015,7 @@ return (
 
                             <div className="min-w-0 max-w-3xl">
                               <div className="flex flex-wrap items-center gap-3">
-                                <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                                <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                                   {formatCategory(request.category)}
                                   {request.service_detail
                                     ? ` • ${request.service_detail}`
@@ -2023,12 +2023,12 @@ return (
                                 </span>
 
                                 {request.is_direct_rebook ? (
-                                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-800">
+                                  <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-ink">
                                     Direct rebook
                                   </span>
                                 ) : null}
 
-                                <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                                <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                                   {request.status === "open"
                                     ? "Pending"
                                     : request.status === "accepted"
@@ -2039,14 +2039,14 @@ return (
                                 </span>
 
                                 {unreadOfferCountsByRequest[request.id] ? (
-                                  <span className="animate-notification-pop rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                                  <span className="animate-notification-pop rounded-md bg-ink px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-white">
                                     {unreadOfferCountsByRequest[request.id]} of{" "}
                                     {offerCountsByRequest[request.id] || 0} offers new
                                   </span>
                                 ) : null}
                               </div>
 
-                              <h2 className="mt-4 text-2xl font-semibold tracking-tight">
+                              <h2 className="mt-3 text-lg font-semibold tracking-[-0.015em]">
                                 {request.title}
                               </h2>
 
@@ -2100,7 +2100,7 @@ return (
 
               {completedBookings.length > 0 ? (
                 <div className="mt-14">
-                  <h2 className="text-2xl font-semibold tracking-tight">
+                  <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     Completed bookings
                   </h2>
 
@@ -2108,7 +2108,7 @@ return (
                     {completedBookings.map((booking) => (
                       <div
                         key={booking.id}
-                        className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 shadow-sm"
+                        className="rounded-panel border border-neutral-200 bg-neutral-50 p-6 shadow-sm"
                       >
                         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                           <div className="flex min-w-0 flex-1 gap-4">
@@ -2130,16 +2130,16 @@ return (
 
                             <div className="min-w-0 max-w-3xl">
                               <div className="flex flex-wrap items-center gap-3">
-                                <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                                <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                                   Booking
                                 </span>
 
-                                <span className="rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                                <span className="rounded-md bg-ink px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-white">
                                   Completed
                                 </span>
                               </div>
 
-                              <h2 className="mt-4 text-2xl font-semibold tracking-tight">
+                              <h2 className="mt-3 text-lg font-semibold tracking-[-0.015em]">
                                 {booking.service_name || "Booked service"}
                               </h2>
 
@@ -2188,7 +2188,7 @@ return (
 
               {cancelledBookings.length > 0 ? (
                 <div className="mt-14">
-                  <h2 className="text-2xl font-semibold tracking-tight">
+                  <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     Cancelled bookings
                   </h2>
 
@@ -2200,11 +2200,11 @@ return (
                         className="block rounded-2xl border border-neutral-200 bg-neutral-50 p-5 transition hover:border-neutral-300"
                       >
                         <div className="flex flex-wrap items-center gap-3">
-                          <span className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                          <span className="rounded-md bg-neutral-900 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-white">
                             Cancelled
                           </span>
                           {booking.refund_status === "refunded" ? (
-                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-700">
+                            <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-ink">
                               Refunded
                             </span>
                           ) : null}
@@ -2224,7 +2224,7 @@ return (
 
               {completedRequests.length > 0 ? (
                 <div className="mt-14">
-                  <h2 className="text-2xl font-semibold tracking-tight">
+                  <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     Completed services
                   </h2>
 
@@ -2232,7 +2232,7 @@ return (
                     {completedRequests.map((request) => (
                       <div
                         key={request.id}
-                        className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
+                        className="rounded-panel border border-neutral-200 bg-neutral-50 p-6 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
                       >
                         <Link href={`/requests/${request.id}`}>
                           <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
@@ -2250,7 +2250,7 @@ return (
 
                               <div className="min-w-0 max-w-3xl">
                                 <div className="flex flex-wrap items-center gap-3">
-                                  <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                                  <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                                     {formatCategory(request.category)}
                                     {request.service_detail
                                       ? ` • ${request.service_detail}`
@@ -2258,17 +2258,17 @@ return (
                                   </span>
 
                                   {request.is_direct_rebook ? (
-                                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-800">
+                                    <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-ink">
                                       Direct rebook
                                     </span>
                                   ) : null}
 
-                                  <span className="rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                                  <span className="rounded-md bg-ink px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-white">
                                     Completed
                                   </span>
                                 </div>
 
-                                <h2 className="mt-4 text-2xl font-semibold tracking-tight">
+                                <h2 className="mt-3 text-lg font-semibold tracking-[-0.015em]">
                                   {request.title}
                                 </h2>
 
@@ -2304,7 +2304,7 @@ return (
 
               {cancelledRequests.length > 0 ? (
                 <div className="mt-14">
-                  <h2 className="text-2xl font-semibold tracking-tight">
+                  <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     Cancelled requests
                   </h2>
 
@@ -2316,10 +2316,10 @@ return (
                         className="block rounded-2xl border border-neutral-200 bg-neutral-50 p-5 transition hover:border-neutral-300"
                       >
                         <div className="flex flex-wrap items-center gap-3">
-                          <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                          <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                             {formatCategory(request.category)}
                           </span>
-                          <span className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                          <span className="rounded-md bg-neutral-900 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-white">
                             Cancelled
                           </span>
                         </div>
@@ -2338,7 +2338,7 @@ return (
             <>
               <div className="mt-10">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-semibold tracking-tight">
+                  <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     Week at a glance
                   </h2>
 
@@ -2351,8 +2351,8 @@ return (
                 </div>
 
                 {professionalWeekAtGlanceWork.length === 0 ? (
-                  <div className="mt-6 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-8 text-center">
-                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+                  <div className="mt-6 rounded-panel border border-dashed border-neutral-300 px-6 py-10 text-center">
+                    <div className="mx-auto flex h-8 w-8 items-center justify-center">
                       <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                         <path d="M6 2v2M14 2v2M3 8h14M4 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                       </svg>
@@ -2396,10 +2396,10 @@ return (
                           </div>
 
                           <div className="flex shrink-0 items-center gap-2">
-                            <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                            <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                               {item.source === "booking" ? "Booking" : "Request"}
                             </span>
-                            <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                            <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                               {item.status === "completion_requested"
                                 ? "Awaiting confirmation"
                                 : item.status}
@@ -2422,13 +2422,13 @@ return (
               </div>
 
               <div className="mt-14">
-                <h2 className="text-2xl font-semibold tracking-tight">
+                <h2 className="text-xl font-semibold tracking-[-0.02em]">
                   Recommended opportunities
                 </h2>
 
                 {professionalOpenRequests.length === 0 ? (
-                  <div className="mt-6 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-8 text-center">
-                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+                  <div className="mt-6 rounded-panel border border-dashed border-neutral-300 px-6 py-10 text-center">
+                    <div className="mx-auto flex h-8 w-8 items-center justify-center">
                       <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                         <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.5"/>
                         <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -2443,10 +2443,10 @@ return (
                       <Link
                         key={request.id}
                         href={`/requests/${request.id}`}
-                        className="block rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
+                        className="block rounded-panel border border-neutral-200 bg-white p-6 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
                       >
                         <div className="flex flex-wrap items-center gap-3">
-                          <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                          <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                             {formatCategory(request.category)}
                             {request.service_detail
                               ? ` • ${request.service_detail}`
@@ -2454,14 +2454,14 @@ return (
                           </span>
 
                           {request.is_direct_rebook ? (
-                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-800">
+                            <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-ink">
                               Direct rebook
                             </span>
                           ) : null}
 
                           {professionalUnreadRequestIds.includes(request.id) &&
                           !respondedRequestIds.includes(request.id) ? (
-                            <span className="animate-notification-pop rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                            <span className="animate-notification-pop rounded-md bg-ink px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-white">
                               New
                             </span>
                           ) : null}
@@ -2519,7 +2519,7 @@ return (
                               Responded
                             </span>
                           ) : (
-                            <span className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white">
+                            <span className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white">
                               Respond now →
                             </span>
                           )}
@@ -2531,7 +2531,7 @@ return (
               </div>
 
               <div className="mt-14">
-                <h2 className="text-2xl font-semibold tracking-tight">
+                <h2 className="text-xl font-semibold tracking-[-0.02em]">
                   This month
                 </h2>
 
@@ -2561,7 +2561,7 @@ return (
 
               <div className="mt-14">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-semibold tracking-tight">
+                  <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     Completed work
                   </h2>
 
@@ -2574,8 +2574,8 @@ return (
                 </div>
 
                 {unifiedProfessionalCompletedWork.length === 0 ? (
-                  <div className="mt-6 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-8 text-center">
-                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl border border-neutral-200 bg-white">
+                  <div className="mt-6 rounded-panel border border-dashed border-neutral-300 px-6 py-10 text-center">
+                    <div className="mx-auto flex h-8 w-8 items-center justify-center">
                       <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                         <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5"/>
                         <path d="M6.5 10.5l2.5 2.5 4.5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -2589,7 +2589,7 @@ return (
                     {unifiedProfessionalCompletedWork.slice(0, 4).map((item) => (
                       <div
                         key={`${item.source}-${item.id}`}
-                        className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6 shadow-sm"
+                        className="rounded-panel border border-neutral-200 bg-neutral-50 p-6 shadow-sm"
                       >
                         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                           <div className="flex min-w-0 flex-1 gap-4">
@@ -2617,16 +2617,16 @@ return (
 
                             <div className="min-w-0 max-w-3xl">
                               <div className="flex flex-wrap items-center gap-3">
-                                <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+                                <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                                   {item.source === "booking" ? "Booking" : "Request"}
                                 </span>
 
-                                <span className="rounded-full bg-black px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                                <span className="rounded-md bg-ink px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-white">
                                   Completed
                                 </span>
                               </div>
 
-                              <h2 className="mt-4 text-2xl font-semibold tracking-tight">
+                              <h2 className="mt-3 text-lg font-semibold tracking-[-0.015em]">
                                 {item.title}
                               </h2>
 
@@ -2675,7 +2675,7 @@ return (
 
               {cancelledProfessionalBookings.length > 0 ? (
                 <div className="mt-14">
-                  <h2 className="text-2xl font-semibold tracking-tight">
+                  <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     Cancelled bookings
                   </h2>
 
@@ -2687,11 +2687,11 @@ return (
                         className="block rounded-2xl border border-neutral-200 bg-neutral-50 p-5 transition hover:border-neutral-300"
                       >
                         <div className="flex flex-wrap items-center gap-3">
-                          <span className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium uppercase tracking-wide text-white">
+                          <span className="rounded-md bg-neutral-900 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-white">
                             Cancelled
                           </span>
                           {booking.refund_status === "refunded" ? (
-                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium uppercase tracking-wide text-emerald-700">
+                            <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-ink">
                               Client refunded
                             </span>
                           ) : null}

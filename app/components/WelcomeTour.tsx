@@ -113,8 +113,8 @@ export default function WelcomeTour({
   const isLast = stepIndex === steps.length - 1;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center overscroll-none bg-black/50 p-4 backdrop-blur-sm">
-      <div className="relative w-full max-w-md rounded-[2rem] bg-white p-7 shadow-2xl sm:p-8">
+    <div className="lu-fade-in fixed inset-0 z-[100] flex items-center justify-center overscroll-none bg-ink/50 p-4 backdrop-blur-sm">
+      <div className="lu-dialog-in relative w-full max-w-md rounded-panel bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8">
         <button
           type="button"
           onClick={finish}
@@ -131,7 +131,7 @@ export default function WelcomeTour({
             <div
               key={i}
               className={`h-1 flex-1 rounded-full transition-colors ${
-                i <= stepIndex ? "bg-black" : "bg-neutral-100"
+                i <= stepIndex ? "bg-ink" : "bg-neutral-100"
               }`}
             />
           ))}
@@ -141,10 +141,10 @@ export default function WelcomeTour({
           <step.Icon className="h-6 w-6 text-neutral-700" />
         </div>
 
-        <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+        <p className="mt-5 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
           {step.eyebrow}
         </p>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
+        <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
           {step.title}
         </h2>
         <p className="mt-3 text-sm leading-6 text-neutral-600">{step.description}</p>
@@ -164,7 +164,7 @@ export default function WelcomeTour({
             <button
               type="button"
               onClick={handleFinalCta}
-              className="flex-1 rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+              className="flex-1 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
             >
               {finalCtaLabel}
             </button>
@@ -172,7 +172,7 @@ export default function WelcomeTour({
             <button
               type="button"
               onClick={() => setStepIndex((i) => Math.min(steps.length - 1, i + 1))}
-              className="flex-1 rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+              className="flex-1 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
             >
               Next
             </button>

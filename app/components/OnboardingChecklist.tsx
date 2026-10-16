@@ -119,7 +119,7 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
   const allDone = completed === total;
 
   return (
-    <div className="mt-8 overflow-hidden rounded-[2rem] border border-neutral-200 bg-white shadow-sm">
+    <div className="mt-8 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 px-6 pt-6 sm:px-8 sm:pt-8">
         <div>
@@ -152,7 +152,7 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
       <div className="mt-5 px-6 sm:px-8">
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
           <div
-            className="h-full rounded-full bg-black transition-all duration-500"
+            className="h-full rounded-full bg-ink transition-all duration-500"
             style={{ width: `${(completed / total) * 100}%` }}
           />
         </div>
@@ -170,7 +170,7 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
               {/* Check circle */}
               <div
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition ${
-                  done ? "bg-black" : "border-2 border-neutral-200 bg-white"
+                  done ? "bg-ink" : "border-2 border-neutral-200 bg-white"
                 }`}
               >
                 {done ? (

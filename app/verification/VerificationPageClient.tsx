@@ -306,11 +306,11 @@ export default function VerificationPageClient({ initialData }: VerificationPage
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-6 py-12 text-neutral-900">
+      <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper py-12 text-neutral-900">
         <div className="mx-auto max-w-2xl">
           <div className="h-4 w-28 animate-pulse rounded-full bg-neutral-200" />
           <div className="mt-4 h-10 w-3/4 animate-pulse rounded-2xl bg-neutral-200" />
-          <div className="mt-8 h-40 animate-pulse rounded-[2rem] bg-neutral-100" />
+          <div className="mt-8 h-40 animate-pulse rounded-panel bg-neutral-100" />
         </div>
       </main>
     );
@@ -320,18 +320,18 @@ export default function VerificationPageClient({ initialData }: VerificationPage
   const canAddMore = pendingCount < MAX_PENDING_SUBMISSIONS;
 
   return (
-    <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+    <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper py-10 text-neutral-900">
       <div className="mx-auto max-w-2xl">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">Verification</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight">Verify your credentials</h1>
-        <p className="mt-4 max-w-xl leading-7 text-neutral-600">
+        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Verification</p>
+        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Verify your credentials</h1>
+        <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
           Clients book with confidence when they know a professional has been checked. Submit your
           licence or, if you&apos;re still studying, proof of enrollment — our team reviews it before
           you appear in Browse or can send offers.
         </p>
 
         {/* Status */}
-        <div className="mt-8 rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
+        <div className="mt-8 rounded-panel border border-neutral-200 bg-neutral-50 p-6">
           {verifiedNow ? (
             <div className="flex items-start gap-3">
               <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-900">
@@ -450,7 +450,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
         ) : null}
 
         {formVisible && canAddMore ? (
-          <form id="verification-form" onSubmit={handleSubmit} className="mt-8 space-y-6 rounded-[2rem] border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+          <form id="verification-form" onSubmit={handleSubmit} className="mt-8 space-y-6 rounded-panel border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
             <div>
               <label className={labelClass}>I am a…</label>
               <div className="grid grid-cols-2 gap-2">
@@ -466,7 +466,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
                     onClick={() => setTrack(option.value)}
                     className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition ${
                       track === option.value
-                        ? "border-black bg-black text-white"
+                        ? "border-ink bg-ink text-white"
                         : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
                     }`}
                   >
@@ -631,7 +631,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
               >
                 {submitting ? "Submitting…" : "Submit for review"}
               </button>
@@ -667,9 +667,9 @@ export default function VerificationPageClient({ initialData }: VerificationPage
         {status !== "verified" && status !== "pending" ? (
           <div className="mt-6">
             {confirmSkip ? (
-              <div className="rounded-2xl border border-neutral-900 bg-neutral-900 p-5 text-white">
+              <div className="rounded-2xl border border-ink bg-surface p-5 text-ink">
                 <p className="text-lg font-semibold tracking-tight">You can&apos;t use LineUp until you&apos;re verified</p>
-                <p className="mt-2 text-sm leading-6 text-white/70">
+                <p className="mt-2 text-sm leading-6 text-neutral-600">
                   Without verification you won&apos;t appear in Browse, you can&apos;t send offers, and clients
                   can&apos;t book or pay you. You can still set up your profile, but nothing works for getting
                   clients until this is done — your dashboard will keep reminding you.
@@ -681,14 +681,14 @@ export default function VerificationPageClient({ initialData }: VerificationPage
                       setConfirmSkip(false);
                       document.getElementById("verification-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}
-                    className="rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-900 transition hover:opacity-90"
+                    className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
                   >
                     Verify now
                   </button>
                   <button
                     type="button"
                     onClick={() => router.push("/requests")}
-                    className="rounded-full border border-white/30 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                    className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-ink transition hover:bg-neutral-50"
                   >
                     Skip for now
                   </button>

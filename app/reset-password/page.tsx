@@ -128,7 +128,7 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+    <main className="min-h-screen bg-paper px-6 py-10 text-neutral-900">
       <div className="mx-auto flex max-w-6xl items-center justify-between border-b border-neutral-200 pb-6">
         <Link href="/" className="text-2xl font-semibold tracking-tight">
           LineUp
@@ -144,22 +144,22 @@ export default function ResetPasswordPage() {
 
       <div className="mx-auto grid max-w-6xl gap-10 py-16 md:grid-cols-2 md:items-center">
         <div>
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
             Reset password
           </p>
 
-          <h1 className="mt-4 max-w-xl text-5xl font-semibold tracking-tight md:text-6xl">
+          <h1 className="mt-4 max-w-xl text-4xl font-semibold tracking-[-0.035em] md:text-5xl">
             {linkState === "invalid" ? "This link can't be used." : "Create a new password."}
           </h1>
 
-          <p className="mt-6 max-w-xl text-lg leading-8 text-neutral-600">
+          <p className="mt-5 max-w-md text-lg leading-8 text-neutral-600">
             {linkState === "invalid"
               ? "Reset links work once and expire after an hour."
               : "Enter a new password for your LineUp account."}
           </p>
         </div>
 
-        <div className="rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+        <div className="rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
           {linkState === "checking" ? (
             <div className="space-y-4" aria-busy="true">
               <div className="h-12 animate-pulse rounded-2xl bg-neutral-100" />
@@ -179,7 +179,7 @@ export default function ResetPasswordPage() {
               </p>
               <Link
                 href="/login?mode=forgot"
-                className="block w-full rounded-2xl bg-black py-3 text-center text-white transition hover:opacity-90"
+                className="block w-full rounded-2xl bg-ink py-3 text-center text-white transition hover:bg-neutral-800"
               >
                 Get a new reset link
               </Link>
@@ -198,7 +198,7 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter new password"
-                  className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                  className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
                 />
               </div>
 
@@ -214,16 +214,16 @@ export default function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm new password"
-                  className="w-full rounded-2xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-neutral-900"
+                  className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-2xl bg-black py-3 text-white transition hover:opacity-90 disabled:opacity-60"
+                className="w-full rounded-2xl bg-ink py-3 text-white transition hover:bg-neutral-800 disabled:opacity-60"
               >
-                {loading ? "Updating..." : "Update password"}
+                {loading ? "Updating…" : "Update password"}
               </button>
 
               {message ? (

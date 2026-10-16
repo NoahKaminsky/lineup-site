@@ -221,7 +221,7 @@ export default function AdminVerifications() {
                         type="button"
                         disabled={busyId === s.id}
                         onClick={() => post({ action: "reject", id: s.id, reason: reasons[s.id] || "" }, s.id)}
-                        className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                        className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                       >
                         Confirm reject
                       </button>
@@ -240,7 +240,7 @@ export default function AdminVerifications() {
                       type="button"
                       disabled={busyId === s.id}
                       onClick={() => post({ action: "approve", id: s.id }, s.id)}
-                      className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                      className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                     >
                       {busyId === s.id ? "Working…" : "Approve"}
                     </button>
@@ -289,7 +289,7 @@ export default function AdminVerifications() {
                   onClick={() =>
                     post({ action: "manual_approve", professionalId: p.id, note: notes[p.id] || "" }, p.id)
                   }
-                  className="rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60"
+                  className="rounded-md bg-ink px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60"
                 >
                   {busyId === p.id ? "Working…" : "Approve"}
                 </button>

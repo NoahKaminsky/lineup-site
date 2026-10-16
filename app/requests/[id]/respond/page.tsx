@@ -431,10 +431,10 @@ export default function RespondToRequestPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+      <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper py-10 text-neutral-900">
 
         <div className="mx-auto grid max-w-6xl gap-8 py-10 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
+          <div className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
             <div className="h-3 w-28 animate-pulse rounded-full bg-neutral-200" />
             <div className="mt-5 h-7 w-48 animate-pulse rounded-2xl bg-neutral-200" />
             <div className="mt-4 h-4 w-full animate-pulse rounded-full bg-neutral-100" />
@@ -444,7 +444,7 @@ export default function RespondToRequestPage() {
               ))}
             </div>
           </div>
-          <div className="rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
+          <div className="rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
             <div className="h-3 w-24 animate-pulse rounded-full bg-neutral-200" />
             <div className="mt-3 h-8 w-56 animate-pulse rounded-2xl bg-neutral-200" />
             <div className="mt-8 space-y-5">
@@ -462,7 +462,7 @@ export default function RespondToRequestPage() {
 
   if (!request) {
     return (
-      <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
+      <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper py-10 text-neutral-900">
 
         <div className="mx-auto max-w-4xl py-10">
           <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
@@ -475,12 +475,12 @@ export default function RespondToRequestPage() {
 
   return (
     <>
-    <main className="min-h-screen bg-white px-6 pb-10 pt-6 text-neutral-900">
+    <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper pb-10 pt-6 text-neutral-900">
       <MarkRequestNotificationRead requestId={requestId} />
 
       <div className="mx-auto grid max-w-6xl gap-8 py-10 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-[2rem] border border-neutral-200 bg-neutral-50 p-6">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+        <div className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
             Request summary
           </p>
 
@@ -488,24 +488,24 @@ export default function RespondToRequestPage() {
             {(request.categories?.length ? request.categories : [request.category]).map((c) => (
               <span
                 key={c}
-                className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700"
+                className="rounded-md bg-white px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700"
               >
                 {formatCategory(c)}
               </span>
             ))}
 
             {request.service_detail ? (
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+              <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                 {request.service_detail}
               </span>
             ) : null}
 
-            <span className="rounded-full bg-white px-3 py-1 text-xs font-medium uppercase tracking-wide text-neutral-700">
+            <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
               {request.status}
             </span>
           </div>
 
-          <h1 className="mt-5 text-3xl font-semibold tracking-tight">
+          <h1 className="mt-5 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
             {request.title}
           </h1>
 
@@ -517,7 +517,7 @@ export default function RespondToRequestPage() {
 
           <div className="mt-6 space-y-4 text-sm text-neutral-700">
             <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                 Customer preferred time
               </p>
               <p className="mt-2 font-medium text-neutral-900">
@@ -529,7 +529,7 @@ export default function RespondToRequestPage() {
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                 Location
               </p>
               <p className="mt-2 font-medium text-neutral-900">
@@ -538,7 +538,7 @@ export default function RespondToRequestPage() {
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                 Open to
               </p>
               <p className="mt-2 font-medium text-neutral-900">
@@ -554,7 +554,7 @@ export default function RespondToRequestPage() {
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                 Budget
               </p>
               <p className="mt-2 font-medium text-neutral-900">
@@ -564,8 +564,8 @@ export default function RespondToRequestPage() {
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+        <div className="rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
             Send an offer
           </p>
 
@@ -592,46 +592,46 @@ export default function RespondToRequestPage() {
               <div className="mt-4">
                 <Link
                   href={`/requests/${requestId}`}
-                  className="inline-flex rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+                  className="inline-flex rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
                 >
                   Back to request
                 </Link>
               </div>
             </div>
           ) : existingOffer ? (
-            <div className="mt-8 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-              <p className="text-sm font-medium text-emerald-700">
+            <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-100 p-5">
+              <p className="text-sm font-medium text-ink">
                 You already submitted an offer for this request.
               </p>
-              <p className="mt-2 text-sm text-emerald-700/90">
+              <p className="mt-2 text-sm text-ink/90">
                 Go back to the request page to review its status.
               </p>
 
               <div className="mt-4">
                 <Link
                   href={`/requests/${requestId}`}
-                  className="inline-flex rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+                  className="inline-flex rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
                 >
                   Back to request
                 </Link>
               </div>
             </div>
           ) : needsVerification ? (
-            <div className="mt-8 rounded-2xl border border-neutral-900 bg-neutral-900 p-5 text-white">
-              <p className="text-sm font-semibold uppercase tracking-[0.14em] text-white/60">
+            <div className="mt-8 rounded-2xl border border-ink bg-surface p-5 text-ink">
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                 Verification needed
               </p>
               <p className="mt-1 text-lg font-semibold tracking-tight">
                 Get verified to send offers
               </p>
-              <p className="mt-1 text-sm text-white/70">
+              <p className="mt-1 text-sm text-neutral-600">
                 Clients see offers only from professionals whose credentials we&apos;ve reviewed.
                 Submit your licence, or proof of enrollment if you&apos;re a student.
               </p>
               <div className="mt-4">
                 <Link
                   href="/verification"
-                  className="inline-flex rounded-full bg-white px-5 py-3 text-sm font-medium text-neutral-900 transition hover:opacity-90"
+                  className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
                 >
                   Verify now
                 </Link>
@@ -648,7 +648,7 @@ export default function RespondToRequestPage() {
                   value={proposedPrice}
                   onChange={(e) => setProposedPrice(e.target.value)}
                   placeholder="$55"
-                  className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"
+                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
                 />
               </div>
 
@@ -670,7 +670,7 @@ export default function RespondToRequestPage() {
                           onClick={() => setProposedServiceMode(mode)}
                           className={`rounded-2xl border px-3 py-3 text-sm font-medium transition active:scale-[0.97] ${
                             isSelected
-                              ? "border-black bg-black text-white"
+                              ? "border-ink bg-ink text-white"
                               : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
                           }`}
                         >
@@ -701,7 +701,7 @@ export default function RespondToRequestPage() {
                         }}
                         className={`rounded-2xl border p-4 text-left transition active:scale-[0.98] ${
                           timingMode === "match"
-                            ? "border-black bg-black text-white"
+                            ? "border-ink bg-ink text-white"
                             : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
                         }`}
                       >
@@ -720,7 +720,7 @@ export default function RespondToRequestPage() {
                       onClick={() => setTimingMode("different")}
                       className={`rounded-2xl border p-4 text-left transition active:scale-[0.98] ${
                         timingMode === "different"
-                          ? "border-black bg-black text-white"
+                          ? "border-ink bg-ink text-white"
                           : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
                       }`}
                     >
@@ -764,7 +764,7 @@ export default function RespondToRequestPage() {
                           type="date"
                           value={proposedDate}
                           onChange={(e) => setProposedDate(e.target.value)}
-                          className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"
+                          className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
                         />
                       </div>
 
@@ -803,7 +803,7 @@ export default function RespondToRequestPage() {
                   value={offerMessage}
                   onChange={(e) => setOfferMessage(e.target.value)}
                   placeholder="Hi, I’d be a great fit for this request because..."
-                  className="w-full resize-none rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-neutral-900 focus:bg-white"
+                  className="w-full resize-none rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
                 />
               </div>
 
@@ -816,7 +816,7 @@ export default function RespondToRequestPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full rounded-full bg-black py-3.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                className="w-full rounded-full bg-ink py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
               >
                 {submitting ? "Sending offer..." : "Send offer"}
               </button>
@@ -829,14 +829,14 @@ export default function RespondToRequestPage() {
     {(submitting || showSuccess) ? (
       <>
         <div
-          className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm"
+          className="lu-fade-in fixed inset-0 z-50 bg-ink/30 backdrop-blur-sm"
           style={{ animation: "lu-overlay-in 0.2s ease forwards" }}
         />
         <div
           className="fixed inset-0 z-50 flex items-center justify-center px-6"
           style={{ animation: "lu-overlay-in 0.25s ease forwards" }}
         >
-          <div className="flex w-full max-w-xs flex-col items-center rounded-[2rem] bg-white px-10 py-12 shadow-2xl">
+          <div className="lu-dialog-in flex w-full max-w-xs flex-col items-center rounded-panel bg-white px-10 py-12 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
             <div
               className="h-28 w-28"
               style={{
@@ -866,7 +866,7 @@ export default function RespondToRequestPage() {
                 style={{ animation: "lu-success-rise 0.35s ease forwards" }}
               >
                 <div
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-black"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-ink"
                   style={{ animation: "lu-check-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards" }}
                 >
                   <svg viewBox="0 0 16 16" className="h-4 w-4 text-white" fill="none">

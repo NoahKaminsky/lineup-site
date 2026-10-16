@@ -1,12 +1,79 @@
 @import "tailwindcss";
 
+/* LineUp design tokens — shared by the landing page and the app.
+   Primitive values get semantic names so every screen reads as one system:
+   ink on paper, white surfaces, hairline borders, one easing curve. */
+@theme inline {
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --color-ink: #0a0a0a;
+  --color-paper: #f7f7f5;
+  --color-surface: #ffffff;
+  --color-hairline: rgb(10 10 10 / 0.08);
+  /* Radius scale: panel (page-level surfaces) > 2xl card > xl control. */
+  --radius-panel: 1.25rem;
+  --ease-premium: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Motion tokens: everyday UI feedback is fast; larger surfaces a touch slower. */
+:root {
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+}
+
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  background: white;
+  background: var(--color-paper);
   color: #171717;
+}
+
+::selection {
+  background: var(--color-ink);
+  color: #fff;
+}
+
+/* App-wide interaction defaults. Layered as base so any explicit utility on a
+   component still wins — these only fill in what components left unstated. */
+@layer base {
+  /* One visible, consistent keyboard focus treatment everywhere. */
+  :where(a, button, [role="button"], [role="tab"], summary, input[type="checkbox"], input[type="radio"]):focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  /* Text fields: a soft halo on focus on top of each field's own border
+     change, so focus is unmistakable without shouting. */
+  :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select):focus {
+    box-shadow: 0 0 0 4px rgb(10 10 10 / 0.06);
+  }
+
+  :where(input, textarea, select)[aria-invalid="true"] {
+    border-color: rgb(220 38 38);
+  }
+
+  /* Colour/opacity changes animate quietly instead of snapping. */
+  :where(a, button, [role="button"], [role="tab"], summary) {
+    transition-property: color, background-color, border-color, opacity, box-shadow, scale;
+    transition-duration: var(--motion-fast);
+    transition-timing-function: var(--ease-premium);
+  }
+
+  /* Tactile press feedback. Uses the standalone `scale` property so it
+     composes with Tailwind v4's translate utilities rather than replacing
+     a component's own positioning transform. */
+  :where(button, [role="button"]):not(:disabled):active {
+    scale: 0.98;
+  }
+
+  :where(button):disabled {
+    cursor: not-allowed;
+  }
+
+  :where(button, [role="button"], [role="tab"], summary, label[for]) {
+    cursor: pointer;
+  }
 }
 
 /* Reserve space for the fixed mobile bottom nav so the last bit of page content
@@ -56,10 +123,14 @@ body {
   }
 }
 
-/* Page enter animation — subtle settle on mount, no opacity dip so cached navigations feel instant, not like a reload */
+/* Page enter — a short settle on every route change. No opacity dip, so
+   cached navigations still feel instant rather than like a reload.
+   `backwards` (not `both`) matters: once the settle finishes no transform is
+   left on <main>, so position:fixed modals and sheets inside a page stay
+   anchored to the viewport instead of to <main>. */
 @keyframes page-enter {
   from {
-    transform: translateY(4px);
+    transform: translateY(6px);
   }
   to {
     transform: translateY(0);
@@ -67,7 +138,50 @@ body {
 }
 
 main {
-  animation: page-enter 140ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation: page-enter var(--motion-base) var(--ease-premium) backwards;
+}
+
+/* Menus, popovers and panels: open from their trigger with a quick
+   fade + settle (enter only; they unmount on close). */
+@keyframes lu-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.lu-pop-in {
+  animation: lu-pop-in var(--motion-fast) var(--ease-premium) both;
+  transform-origin: top right;
+}
+
+/* Dialogs: backdrop fades, panel rises slightly. */
+@keyframes lu-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes lu-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.lu-fade-in {
+  animation: lu-fade-in var(--motion-base) var(--ease-premium) both;
+}
+
+.lu-dialog-in {
+  animation: lu-dialog-in var(--motion-base) var(--ease-premium) both;
 }
 
 /* LineUp submit animation */
@@ -124,4 +238,26 @@ main {
 @keyframes vt-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+/* Respect the OS "reduce motion" setting: scroll-reveals, parallax-free
+   transitions and smooth scrolling all snap straight to their final state. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
+}
+
+/* Hero step indicator: a hairline that fills while each step is shown. */
+@keyframes lu-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }

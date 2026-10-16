@@ -1,10 +1,15 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useGSAP } from "@gsap/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowRight, Check } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import LuLoader from "@/app/components/LuLoader";
 
 const appTourScreens = [
   {
@@ -76,115 +81,179 @@ const appTourScreens = [
   },
 ];
 
-function SectionFade() {
+// The tour is told in chapters rather than as 13 loose screens. `at` is the
+// index in appTourScreens where each chapter begins.
+const tourChapters = [
+  { at: 0, short: "Find", title: "Find a professional", body: "Browse nearby pros, their work, and real reviews before you commit." },
+  { at: 3, short: "Request", title: "Post your request", body: "Share the service, your budget, preferred timing, and where you want it done." },
+  { at: 6, short: "Offers", title: "Professionals respond", body: "Nearby professionals send you offers with their pricing, availability, and details." },
+  { at: 8, short: "Choose", title: "Choose the best fit", body: "Review offers side by side — price, reviews, specialty, and timing — then book." },
+  { at: 9, short: "Book", title: "Book and stay in touch", body: "Pay securely, message your professional, and keep every booking in one place." },
+];
+
+const heroSteps = [
+  { label: "Find a pro", src: "/images/app-screenshots/01-browse.png", alt: "Browsing nearby professionals in LineUp" },
+  { label: "Compare offers", src: "/images/app-screenshots/04-offers-compare.png", alt: "Comparing offers from professionals" },
+  { label: "Book & pay", src: "/images/app-screenshots/07-payment.png", alt: "Paying securely for a booking" },
+];
+
+const details = [
+  {
+    label: "Service mode",
+    title: "Choose where it happens",
+    body: "Have the professional come to you, visit their shop, or head to their home studio — whatever setup fits best.",
+  },
+  {
+    label: "Direct booking",
+    title: "Skip the request next time",
+    body: "Already found someone you like? Book straight from their calendar. For professionals, it doubles as a real scheduling tool — no separate booking system needed.",
+  },
+  {
+    label: "Transparency",
+    title: "Every offer, side by side",
+    body: "Clients choose the service style and location they want, then compare offers in one place.",
+  },
+];
+
+const proFeatures = [
+  { title: "Live marketplace matching", body: "Post a request once and get real offers from professionals ready to work — no cold outreach either way." },
+  { title: "Secure payments built in", body: "Every booking is paid through LineUp — protected and tracked." },
+  { title: "In-app messaging", body: "Coordinate details without ever leaving the platform." },
+  { title: "Verified reviews", body: "Every completed job adds to a professional's public track record." },
+  { title: "Verified payouts", body: "Identity confirmed with our payment partner — every payment processed securely through Stripe." },
+  { title: "Free to start", body: "No subscription required to take on real, paying clients — upgrade later if you want more." },
+];
+
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink focus-visible:ring-offset-2 focus-visible:ring-offset-paper";
+
+// A heading line that GSAP lifts out from behind its own baseline. The outer
+// span is the mask; `.js-line` is what moves.
+function Line({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className="pointer-events-none relative -mt-10 h-10 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/80" />
+    <span className={`block overflow-hidden pb-[0.08em] ${className}`}>
+      <span className="js-line block will-change-transform">{children}</span>
+    </span>
+  );
+}
+
+// Modern device frame: thin bezel, pill-shaped island, one soft layered shadow.
+function PhoneFrame({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={`relative aspect-[9/19.5] rounded-[2.6rem] bg-ink p-[5px] shadow-[0_1px_2px_rgba(0,0,0,0.08),0_30px_60px_-28px_rgba(0,0,0,0.4)] ring-1 ring-black/5 ${className}`}
+    >
+      <div className="relative h-full w-full overflow-hidden rounded-[2.25rem] bg-white">
+        {children}
+        <div aria-hidden="true" className="absolute left-1/2 top-[1.4%] z-10 h-[3.1%] w-[31%] -translate-x-1/2 rounded-full bg-ink" />
+      </div>
     </div>
   );
 }
 
-// Shared scroll-reveal primitive — generalizes the one-off IntersectionObserver
-// the app-tour carousel already used (see appTourRevealed below) so every
-// section gets the same one-shot "reveal once, never hide again" behavior
-// instead of each section hand-rolling its own observer.
-function useReveal<T extends HTMLElement>(options?: { threshold?: number; enabled?: boolean }) {
-  const ref = useRef<T | null>(null);
-  const [revealed, setRevealed] = useState(false);
-  const enabled = options?.enabled ?? true;
-
-  useEffect(() => {
-    if (!enabled) return;
-    const node = ref.current;
-    if (!node) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setRevealed(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: options?.threshold ?? 0.15 }
-    );
-
-    observer.observe(node);
-
-    // Same safety net as the existing carousel reveal: never leave content
-    // permanently invisible if the observer doesn't fire for some reason.
-    const fallback = setTimeout(() => setRevealed(true), 4000);
-
-    return () => {
-      observer.disconnect();
-      clearTimeout(fallback);
-    };
-  }, [enabled, options?.threshold]);
-
-  return [ref, revealed] as const;
+function Phone({ src, alt, sizes, className = "" }: { src: string; alt: string; sizes: string; className?: string }) {
+  return (
+    <PhoneFrame className={className}>
+      <Image src={src} alt={alt} fill sizes={sizes} className="object-cover object-top" />
+    </PhoneFrame>
+  );
 }
 
-// A headline that rises into place from behind its own baseline instead of
-// just fading — reads as considered, not a generic opacity tween. The outer
-// span clips; the inner one carries the actual transform.
-function RevealText({
-  as: Tag = "span",
-  revealed,
-  delay = 0,
-  className = "",
-  children,
-}: {
-  as?: "span" | "div";
-  revealed: boolean;
-  delay?: number;
-  className?: string;
-  children: React.ReactNode;
-}) {
+// Hero product shot: one device cycling through the three moments that
+// matter, with labelled controls underneath. The fill animation pauses on
+// hover/focus, and with Reduce Motion there's no auto-advance at all — the
+// steps become plain buttons.
+function HeroDevice() {
+  const [active, setActive] = useState(0);
+  // Only ever mounts client-side (the page shows a loader until auth
+  // resolves), so reading matchMedia during init is safe.
+  const [autoplay] = useState(
+    () => typeof window !== "undefined" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+
   return (
-    <Tag className={`block overflow-hidden ${className}`}>
-      <span
-        className={`block transition-all duration-700 ease-out ${
-          revealed ? "translate-y-0 opacity-100" : "translate-y-[110%] opacity-0"
-        }`}
-        style={{ transitionDelay: `${delay}ms` }}
-      >
-        {children}
-      </span>
-    </Tag>
+    <div className="group/device flex flex-col items-center">
+      <div className="hero-device relative w-[236px] sm:w-[256px] lg:w-[min(268px,30vh)]">
+        <div
+          aria-hidden="true"
+          className="absolute -bottom-8 left-1/2 h-12 w-[80%] -translate-x-1/2 rounded-[50%] bg-black/20 blur-2xl"
+        />
+        <PhoneFrame>
+          {heroSteps.map((step, index) => (
+            <Image
+              key={step.src}
+              src={step.src}
+              alt={index === active ? step.alt : ""}
+              aria-hidden={index !== active}
+              fill
+              priority
+              sizes="(min-width: 1024px) 268px, 256px"
+              className={`object-cover object-top transition-[opacity,transform] duration-700 ease-premium ${
+                index === active ? "scale-100 opacity-100" : "scale-[1.03] opacity-0"
+              }`}
+            />
+          ))}
+        </PhoneFrame>
+      </div>
+
+      <div className="hero-fade mt-12 grid w-full max-w-[380px] grid-cols-3 gap-5">
+        {heroSteps.map((step, index) => (
+          <button
+            key={step.label}
+            type="button"
+            aria-pressed={index === active}
+            onClick={() => setActive(index)}
+            className={`group cursor-pointer rounded-sm pt-0 text-left ${focusRing}`}
+          >
+            <span className="block h-px w-full overflow-hidden bg-ink/15">
+              {index === active &&
+                (autoplay ? (
+                  <span
+                    key={active}
+                    onAnimationEnd={() => setActive((active + 1) % heroSteps.length)}
+                    className="block h-px origin-left animate-[lu-progress_4.5s_linear_forwards] bg-ink group-hover/device:[animation-play-state:paused] group-focus-within/device:[animation-play-state:paused]"
+                  />
+                ) : (
+                  <span className="block h-px bg-ink" />
+                ))}
+            </span>
+            <span className="mt-3 block font-mono text-[11px] tabular-nums text-neutral-400">0{index + 1}</span>
+            <span
+              className={`mt-0.5 block text-sm font-medium transition-colors duration-300 ${
+                index === active ? "text-ink" : "text-neutral-400 group-hover:text-neutral-600"
+              }`}
+            >
+              {step.label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p data-reveal className="font-mono text-[11px] uppercase tracking-[0.2em] text-neutral-500">
+      {children}
+    </p>
   );
 }
 
 export default function Page() {
   const router = useRouter();
-
   const [authResolved, setAuthResolved] = useState<boolean>(false);
-  const [appTourRevealed, setAppTourRevealed] = useState(false);
-  const appTourRef = useRef<HTMLDivElement | null>(null);
 
-  // Hero copy rises into place on arrival rather than just appearing — it's
-  // above the fold, so this triggers on a short timer once the page is
-  // actually ready to show, not on scroll.
-  const [heroRevealed, setHeroRevealed] = useState(false);
-  useEffect(() => {
-    if (!authResolved) return;
-    const timer = setTimeout(() => setHeroRevealed(true), 120);
-    return () => clearTimeout(timer);
-  }, [authResolved]);
-
-  // Each section gets its own reveal so the page animates in as you actually
-  // scroll to each part, not all at once — `enabled: authResolved` re-attaches
-  // the observer once the real sections exist (see the app-tour effect below
-  // for why that matters on this particular page).
-  const [howItWorksRef, howItWorksRevealed] = useReveal<HTMLDivElement>({ enabled: authResolved });
-  const [usingLineupRef, usingLineupRevealed] = useReveal<HTMLDivElement>({ enabled: authResolved });
-  const [foundersRef, foundersRevealed] = useReveal<HTMLDivElement>({ enabled: authResolved });
-  const [joinRef, joinRevealed] = useReveal<HTMLDivElement>({ enabled: authResolved, threshold: 0.3 });
+  const rootRef = useRef<HTMLElement | null>(null);
+  const tourSectionRef = useRef<HTMLElement | null>(null);
+  const tourTrackRef = useRef<HTMLDivElement | null>(null);
+  const tourProgressRef = useRef<HTMLDivElement | null>(null);
 
   // Lets the header nav underline the section currently in view.
-  const [activeSection, setActiveSection] = useState<string>("app-tour");
-  const sectionIds = ["app-tour", "how-it-works", "using-lineup", "founders"];
+  const [activeSection, setActiveSection] = useState<string>("");
   useEffect(() => {
     if (!authResolved) return;
-    const sections = sectionIds
+    const sections = ["app-tour", "how-it-works", "using-lineup", "founders"]
       .map((id) => document.getElementById(id))
       .filter((el): el is HTMLElement => !!el);
     if (sections.length === 0) return;
@@ -201,67 +270,48 @@ export default function Page() {
 
     sections.forEach((section) => observer.observe(section));
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authResolved]);
 
-  // Subtle parallax on the decorative blur shapes behind "How It Works" —
-  // cheap (two pointer-events-none divs, no layout impact) and the kind of
-  // detail that reads as deliberate rather than templated.
-  const howItWorksSectionRef = useRef<HTMLElement | null>(null);
-  const [parallaxY, setParallaxY] = useState(0);
+  // Header steps out of the way while reading down the page and returns the
+  // moment you scroll up.
+  const [headerHidden, setHeaderHidden] = useState(false);
   useEffect(() => {
     if (!authResolved) return;
+    let lastY = window.scrollY;
     let raf = 0;
     function onScroll() {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        const node = howItWorksSectionRef.current;
-        if (!node) return;
-        const rect = node.getBoundingClientRect();
-        const progress = 1 - Math.min(1, Math.max(0, rect.top / window.innerHeight));
-        setParallaxY(progress * 36);
+        const y = window.scrollY;
+        if (Math.abs(y - lastY) < 6) return;
+        setHeaderHidden(y > 160 && y > lastY);
+        lastY = y;
       });
     }
     window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
     return () => {
       window.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [authResolved]);
 
+  // The tour's one video only plays while it's on screen, and never with
+  // Reduce Motion on (the poster frame stands in).
   useEffect(() => {
-    // This page early-returns a loading screen until authResolved flips, so the
-    // carousel (and its ref) doesn't exist in the DOM on the very first mount.
-    // Re-running this whenever authResolved changes ensures the observer actually
-    // attaches once the real section is rendered, instead of finding a null ref
-    // once and never trying again.
     if (!authResolved) return;
-
-    const node = appTourRef.current;
-    if (!node) return;
-
+    const video = document.querySelector<HTMLVideoElement>("#app-tour video");
+    if (!video) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          setAppTourRevealed(true);
-          observer.disconnect();
-        }
+        if (entry.isIntersecting) video.play().catch(() => {});
+        else video.pause();
       },
-      { threshold: 0.15 }
+      { threshold: 0.4 }
     );
-
-    observer.observe(node);
-
-    // Safety net: if the observer never fires for any reason, don't leave the
-    // cards permanently invisible — reveal them anyway after a few seconds.
-    const fallback = setTimeout(() => setAppTourRevealed(true), 4000);
-
-    return () => {
-      observer.disconnect();
-      clearTimeout(fallback);
-    };
+    observer.observe(video);
+    return () => observer.disconnect();
   }, [authResolved]);
 
   useEffect(() => {
@@ -298,25 +348,121 @@ export default function Page() {
     };
   }, [router]);
 
+  // All motion lives here, inside a "no-preference" matchMedia: with Reduce
+  // Motion on nothing is ever hidden or moved — the page renders final.
+  useGSAP(
+    () => {
+      if (!authResolved) return;
+      gsap.registerPlugin(ScrollTrigger);
+      const mm = gsap.matchMedia();
+
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        // First visit of a session shows the splash for ~1.1s — start the hero
+        // as it lifts instead of playing the intro underneath it.
+        const splashUp = !!document.querySelector(".z-\\[200\\]");
+        gsap
+          .timeline({ delay: splashUp ? 0.95 : 0.1, defaults: { ease: "expo.out" } })
+          .from(".hero .js-line", { yPercent: 115, duration: 1.3, stagger: 0.1 })
+          .from(".hero-fade", { y: 14, autoAlpha: 0, duration: 1, stagger: 0.07 }, "-=1")
+          .from(".hero-device", { y: 70, autoAlpha: 0, duration: 1.6 }, 0.2);
+
+        gsap.utils.toArray<HTMLElement>("[data-split]").forEach((heading) => {
+          gsap.from(heading.querySelectorAll(".js-line"), {
+            yPercent: 115,
+            duration: 1.2,
+            stagger: 0.08,
+            ease: "expo.out",
+            scrollTrigger: { trigger: heading, start: "top 85%" },
+          });
+        });
+
+        // Supporting copy settles in — the skill's "Subtle" tier (small y,
+        // short stagger) so it reads as arrival, not choreography.
+        ScrollTrigger.batch("[data-reveal]", {
+          start: "top 90%",
+          once: true,
+          onEnter: (batch) => gsap.from(batch, { y: 14, autoAlpha: 0, duration: 0.9, stagger: 0.07, ease: "power3.out" }),
+        });
+
+        gsap.from(".cta-line .js-line", {
+          yPercent: 115,
+          stagger: 0.1,
+          ease: "none",
+          scrollTrigger: { trigger: "#join-lineup", start: "top 85%", end: "top 40%", scrub: 1 },
+        });
+      });
+
+      // Desktop: pin the tour and move it sideways with the vertical scroll.
+      // The only pinned section on the page, per the skill's guidance.
+      mm.add("(min-width: 1024px) and (prefers-reduced-motion: no-preference)", () => {
+        const section = tourSectionRef.current;
+        const track = tourTrackRef.current;
+        if (!section || !track) return;
+
+        track.style.overflow = "visible";
+        const distance = () => track.scrollWidth - track.clientWidth;
+        const markers = gsap.utils.toArray<HTMLElement>(".js-chapter", track);
+        const labels = gsap.utils.toArray<HTMLElement>(".js-chapter-label", section);
+
+        const setChapter = (index: number) =>
+          labels.forEach((label, i) => {
+            label.classList.toggle("text-ink", i === index);
+            label.classList.toggle("text-neutral-400", i !== index);
+          });
+
+        gsap.to(track, {
+          x: () => -distance(),
+          ease: "none",
+          scrollTrigger: {
+            trigger: section,
+            start: "top top",
+            end: () => `+=${distance()}`,
+            pin: true,
+            scrub: 1,
+            invalidateOnRefresh: true,
+            onUpdate: (self) => {
+              if (tourProgressRef.current) gsap.set(tourProgressRef.current, { scaleX: self.progress });
+              const x = -distance() * self.progress;
+              const anchor = window.innerWidth * 0.55;
+              let current = 0;
+              markers.forEach((marker, i) => {
+                if (marker.offsetLeft + x < anchor) current = i;
+              });
+              setChapter(current);
+            },
+          },
+        });
+
+        const onLoad = () => ScrollTrigger.refresh();
+        window.addEventListener("load", onLoad);
+        return () => {
+          window.removeEventListener("load", onLoad);
+          track.style.overflow = "";
+        };
+      });
+    },
+    { dependencies: [authResolved], scope: rootRef }
+  );
+
   if (!authResolved) {
-    return (
-      <main className="min-h-screen bg-white text-neutral-900">
-        <div className="flex min-h-screen items-center justify-center px-6">
-          <p className="text-sm text-neutral-500">Loading...</p>
-        </div>
-      </main>
-    );
+    return <LuLoader />;
   }
 
+  // animate-none!: the global page-enter animation leaves a transform on
+  // <main>, which would break ScrollTrigger's position:fixed pinning.
   return (
-    <main className="min-h-screen bg-white text-neutral-900">
-      <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/85 backdrop-blur-md">
+    <main ref={rootRef} className="min-h-screen animate-none! overflow-x-clip bg-paper text-ink">
+      <header
+        className={`sticky top-0 z-50 border-b border-ink/[0.08] bg-paper/80 backdrop-blur-md transition-transform duration-500 ease-premium focus-within:translate-y-0 ${
+          headerHidden ? "-translate-y-full" : "translate-y-0"
+        }`}
+      >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <Link href="/" className="text-xl font-semibold tracking-tight">
+          <Link href="/" className={`rounded text-xl font-semibold tracking-tight ${focusRing}`}>
             LineUp
           </Link>
 
-          <nav className="hidden items-center gap-8 text-sm md:flex">
+          <nav aria-label="Sections" className="hidden items-center gap-8 text-sm lg:flex">
             {[
               { id: "app-tour", label: "See It In Action" },
               { id: "how-it-works", label: "For clients" },
@@ -326,13 +472,13 @@ export default function Page() {
               <a
                 key={item.id}
                 href={`#${item.id}`}
-                className={`relative pb-1 transition-colors ${
-                  activeSection === item.id ? "text-neutral-900" : "text-neutral-600 hover:text-neutral-900"
+                className={`relative rounded pb-1 transition-colors ${focusRing} ${
+                  activeSection === item.id ? "text-ink" : "text-neutral-500 hover:text-ink"
                 }`}
               >
                 {item.label}
                 <span
-                  className={`absolute inset-x-0 -bottom-0.5 h-px bg-neutral-900 transition-transform duration-300 ease-out ${
+                  className={`absolute inset-x-0 -bottom-0.5 h-px bg-ink transition-transform duration-300 ease-premium ${
                     activeSection === item.id ? "scale-x-100" : "scale-x-0"
                   }`}
                 />
@@ -340,17 +486,13 @@ export default function Page() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-sm text-neutral-600 hover:text-neutral-900"
-            >
+          <div className="flex items-center gap-5">
+            <Link href="/login" className={`rounded text-sm text-neutral-600 hover:text-ink ${focusRing}`}>
               Sign in
             </Link>
-
             <Link
               href="/login?mode=signup"
-              className="rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+              className={`rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 ${focusRing}`}
             >
               Join LineUp
             </Link>
@@ -358,478 +500,352 @@ export default function Page() {
         </div>
       </header>
 
-      <section id="app-tour" ref={appTourRef} className="overflow-hidden bg-white py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="max-w-2xl">
-            <RevealText
-              as="div"
-              revealed={heroRevealed}
-              className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500"
-            >
-              See It In Action
-            </RevealText>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-              <RevealText revealed={heroRevealed} delay={90}>
-                This is LineUp — from posting a request to getting booked.
-              </RevealText>
+      {/* ───────────────────────── Hero ───────────────────────── */}
+      <section className="hero">
+        <div className="mx-auto grid max-w-7xl items-center gap-16 px-6 pb-24 pt-14 sm:pt-20 lg:grid-cols-12 lg:gap-10 lg:pb-28 lg:pt-14">
+          <div className="lg:col-span-7">
+            <p className="hero-fade font-mono text-[11px] uppercase tracking-[0.2em] text-neutral-500">
+              Beauty marketplace · Winnipeg, MB
+            </p>
+
+            <h1 className="mt-6 max-w-[15ch] text-[clamp(2.5rem,4.6vw,4rem)] font-semibold leading-[1.03] tracking-[-0.04em] lg:max-w-none">
+              <Line>This is LineUp.</Line>
+              <Line className="text-balance text-neutral-400">From posting a request to getting booked.</Line>
             </h1>
+
+            <p className="hero-fade mt-7 max-w-md text-lg leading-8 text-neutral-600">
+              Post what you need once. Nearby beauty professionals send offers with their price and timing — you
+              pick the one that fits.
+            </p>
+
+            <div className="hero-fade mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Link
+                href="/login?mode=signup"
+                className={`group inline-flex items-center justify-center gap-2 rounded-full bg-ink px-7 py-4 font-medium text-white transition-colors hover:bg-neutral-800 ${focusRing}`}
+              >
+                Post a request
+                <ArrowRight
+                  aria-hidden="true"
+                  className="h-4 w-4 transition-transform duration-300 ease-premium group-hover:translate-x-1"
+                />
+              </Link>
+              <a
+                href="#using-lineup"
+                className={`inline-flex items-center justify-center rounded-full px-7 py-4 font-medium text-ink ring-1 ring-ink/15 transition hover:ring-ink ${focusRing}`}
+              >
+                I&apos;m a professional
+              </a>
+            </div>
+
+            <ul className="hero-fade mt-10 flex flex-wrap gap-x-6 gap-y-2 border-t border-ink/[0.08] pt-6 text-sm text-neutral-500">
+              {["Secure payments via Stripe", "Verified reviews", "Free to start"].map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <Check aria-hidden="true" className="h-4 w-4 text-ink" strokeWidth={2.25} />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="lg:col-span-5">
+            <HeroDevice />
+          </div>
+        </div>
+      </section>
+
+      {/* ──────────────────── App tour (pinned on desktop) ──────────────────── */}
+      <section
+        id="app-tour"
+        ref={tourSectionRef}
+        className="relative overflow-hidden border-t border-ink/[0.08] bg-white py-24 lg:flex lg:h-screen lg:flex-col lg:justify-center lg:pb-0 lg:pt-[72px]"
+      >
+        <div className="mx-auto w-full max-w-7xl px-6">
+          <div className="flex items-end justify-between gap-8">
+            <div>
+              <SectionLabel>See it in action</SectionLabel>
+              <h2
+                data-split
+                className="mt-5 text-[clamp(2rem,3.6vw,3rem)] font-semibold leading-[1.04] tracking-[-0.035em]"
+              >
+                <Line>Every step,</Line>
+                <Line className="text-neutral-400">right in the app.</Line>
+              </h2>
+            </div>
+
+            <div className="hidden shrink-0 flex-col items-end gap-3 lg:flex" aria-hidden="true">
+              <ol className="flex items-center gap-5 font-mono text-[11px] uppercase tracking-[0.16em]">
+                {tourChapters.map((chapter, i) => (
+                  <li
+                    key={chapter.short}
+                    className={`js-chapter-label transition-colors duration-300 ${i === 0 ? "text-ink" : "text-neutral-400"}`}
+                  >
+                    {chapter.short}
+                  </li>
+                ))}
+              </ol>
+              <div className="h-px w-full bg-ink/10">
+                <div ref={tourProgressRef} className="h-px origin-left scale-x-0 bg-ink" />
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="mx-auto max-w-7xl">
-        <div className="mt-10 flex gap-6 overflow-x-auto px-6 pb-6 pt-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-12 sm:gap-8">
+        <div
+          ref={tourTrackRef}
+          className="mt-14 flex snap-x snap-proximity scroll-px-6 gap-8 overflow-x-auto px-6 pb-6 pt-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mt-[5vh] lg:gap-12 lg:px-[max(1.5rem,calc((100vw-80rem)/2+1.5rem))]"
+        >
           {appTourScreens.map((screen, index) => {
-            const tiltClasses = ["-rotate-3", "rotate-2", "-rotate-2", "rotate-3", "-rotate-1"];
-            const tilt = tiltClasses[index % tiltClasses.length];
+            const chapterIndex = tourChapters.findIndex((c) => c.at === index);
+            const chapter = chapterIndex >= 0 ? tourChapters[chapterIndex] : null;
 
             return (
-              <div
-                key={screen.src}
-                className={`group flex ${screen.stackedSrc ? "w-[270px] sm:w-[300px]" : "w-[220px] sm:w-[240px]"} shrink-0 flex-col transition-all duration-700 ease-out ${
-                  appTourRevealed ? "translate-y-0 opacity-100" : "translate-y-12 opacity-0"
-                }`}
-                style={{ transitionDelay: `${index * 90}ms` }}
-              >
-                {screen.stackedSrc ? (
-                  <div className="relative h-[477px] w-full sm:h-[520px]">
-                    <div className="absolute left-0 top-0 aspect-[9/19.5] w-[190px] -rotate-6 overflow-hidden rounded-[2rem] border-[5px] border-neutral-900 bg-neutral-900 shadow-lg transition-transform duration-300 ease-out sm:w-[208px] group-hover:-translate-x-2 group-hover:-translate-y-1 group-hover:-rotate-3">
-                      <div className="absolute left-1/2 top-0 z-10 h-4 w-20 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
-                      <Image
-                        src={screen.stackedSrc}
-                        alt=""
-                        fill
-                        sizes="208px"
-                        className="object-cover object-top"
-                        loading={index < 2 ? "eager" : "lazy"}
-                      />
-                    </div>
-                    <div className="absolute bottom-0 right-0 aspect-[9/19.5] w-[190px] rotate-3 overflow-hidden rounded-[2rem] border-[5px] border-neutral-900 bg-neutral-900 shadow-2xl transition-transform duration-300 ease-out sm:w-[208px] group-hover:translate-x-2 group-hover:translate-y-1 group-hover:rotate-0">
-                      <div className="absolute left-1/2 top-0 z-10 h-4 w-20 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
-                      <Image
-                        src={screen.src}
-                        alt={screen.tag}
-                        fill
-                        sizes="208px"
-                        className="object-cover object-top"
-                        loading={index < 2 ? "eager" : "lazy"}
-                      />
-                    </div>
+              <React.Fragment key={screen.src}>
+                {chapter ? (
+                  <div className="js-chapter flex w-[200px] shrink-0 snap-start flex-col border-l border-ink/10 pl-6 lg:w-[220px]">
+                    <span className="text-5xl font-light tabular-nums tracking-[-0.04em] text-ink">
+                      0{chapterIndex + 1}
+                    </span>
+                    <p className="mt-6 text-lg font-semibold leading-snug tracking-tight">{chapter.title}</p>
+                    <p className="mt-2 text-sm leading-6 text-neutral-500">{chapter.body}</p>
                   </div>
-                ) : (
-                  <div
-                    className={`relative aspect-[9/19.5] w-full overflow-hidden rounded-[2.25rem] border-[6px] border-neutral-900 bg-neutral-900 shadow-xl transition-transform duration-300 ease-out ${tilt} group-hover:-translate-y-3 group-hover:rotate-0 group-hover:scale-105 group-hover:shadow-2xl`}
-                  >
-                    <div className="absolute left-1/2 top-0 z-10 h-5 w-24 -translate-x-1/2 rounded-b-2xl bg-neutral-900" />
-                    {screen.video ? (
+                ) : null}
+
+                <figure
+                  className={`group flex shrink-0 snap-start flex-col ${
+                    screen.stackedSrc ? "w-[270px] lg:w-[min(300px,31vh)]" : "w-[220px] lg:w-[min(236px,24vh)]"
+                  }`}
+                >
+                  {screen.stackedSrc ? (
+                    <div className="relative h-[470px] w-full lg:h-[min(512px,52vh)]">
+                      <div className="absolute left-0 top-0 w-[186px] -rotate-[5deg] transition-transform duration-700 ease-premium group-hover:-translate-x-1.5 group-hover:-rotate-[3deg] lg:w-[min(204px,21vh)]">
+                        <Phone src={screen.stackedSrc} alt="" sizes="204px" />
+                      </div>
+                      <div className="absolute bottom-0 right-0 w-[186px] rotate-[3deg] transition-transform duration-700 ease-premium group-hover:translate-x-1.5 group-hover:rotate-[1deg] lg:w-[min(204px,21vh)]">
+                        <Phone src={screen.src} alt={screen.tag} sizes="204px" />
+                      </div>
+                    </div>
+                  ) : screen.video ? (
+                    <PhoneFrame>
                       <video
                         src={screen.video}
                         poster={screen.src}
-                        autoPlay
                         muted
                         loop
                         playsInline
                         preload="metadata"
+                        aria-label={screen.tag}
                         className="h-full w-full object-cover object-top"
                       />
-                    ) : (
-                      <Image
-                        src={screen.src}
-                        alt={screen.tag}
-                        fill
-                        sizes="(min-width: 640px) 240px, 220px"
-                        className="object-cover object-top"
-                        loading={index < 2 ? "eager" : "lazy"}
-                      />
-                    )}
-                  </div>
-                )}
-                <p
-                  className={`mt-5 text-base font-semibold tracking-tight text-neutral-900 transition-all duration-500 ease-out ${
-                    appTourRevealed ? "translate-x-0 opacity-100" : "-translate-x-3 opacity-0"
-                  }`}
-                  style={{ transitionDelay: `${index * 90 + 200}ms` }}
-                >
-                  {screen.tag}
-                </p>
-                <p className="mt-1 text-sm leading-6 text-neutral-500">
-                  {screen.description}
-                </p>
-              </div>
+                    </PhoneFrame>
+                  ) : (
+                    <Phone src={screen.src} alt={screen.tag} sizes="(min-width: 1024px) 236px, 220px" />
+                  )}
+                  <figcaption className="mt-6">
+                    <p className="text-[15px] font-semibold tracking-tight">{screen.tag}</p>
+                    <p className="mt-1 text-sm leading-6 text-neutral-500">{screen.description}</p>
+                  </figcaption>
+                </figure>
+              </React.Fragment>
             );
           })}
         </div>
-        </div>
       </section>
 
-      <section id="how-it-works" ref={howItWorksSectionRef} className="relative overflow-hidden bg-white">
-        <div className="pointer-events-none absolute inset-0">
-          <div
-            className="absolute right-[-12%] top-0 h-[26rem] w-[26rem] rounded-full bg-neutral-100/80 blur-3xl md:right-0 will-change-transform"
-            style={{ transform: `translate3d(0, ${parallaxY * -1}px, 0)` }}
-          />
-          <div
-            className="absolute bottom-[-10%] right-[18%] h-72 w-72 rounded-full bg-amber-50 blur-3xl will-change-transform"
-            style={{ transform: `translate3d(0, ${parallaxY}px, 0)` }}
-          />
-          <div
-            className="absolute inset-0 opacity-[0.3]"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle, rgba(23,23,23,0.07) 1px, transparent 1px)",
-              backgroundSize: "22px 22px",
-            }}
-          />
-        </div>
-
-        <div ref={howItWorksRef} className="relative mx-auto max-w-7xl px-6 py-20">
-          <div className="max-w-2xl">
-            <RevealText as="div" revealed={howItWorksRevealed} className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-              How It Works
-            </RevealText>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-              <RevealText revealed={howItWorksRevealed} delay={80}>
-                Built for cleaner booking decisions.
-              </RevealText>
-            </h2>
-          </div>
-
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {[
-              { n: "1", title: "Post your request", body: "Share the service, your budget, preferred timing, and where you want it done." },
-              { n: "2", title: "Professionals respond", body: "Nearby professionals send you offers with their pricing, availability, and details." },
-              { n: "3", title: "Choose the best fit", body: "Review offers side by side — price, reviews, specialty, and timing — then book." },
-            ].map((step, index) => (
-              <div
-                key={step.n}
-                className={`rounded-3xl border border-neutral-200 p-7 transition-all duration-700 ease-out ${
-                  howItWorksRevealed ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
-                }`}
-                style={{ transitionDelay: `${160 + index * 110}ms` }}
+      {/* ───────────────────────── For clients ───────────────────────── */}
+      <section id="how-it-works" className="border-t border-ink/[0.08] bg-paper">
+        <div className="mx-auto grid max-w-7xl gap-16 px-6 py-28 lg:grid-cols-12 lg:gap-10 lg:py-36">
+          <div className="lg:col-span-5">
+            <div className="lg:sticky lg:top-28">
+              <SectionLabel>For clients</SectionLabel>
+              <h2
+                data-split
+                className="mt-5 text-[clamp(2rem,3.6vw,3rem)] font-semibold leading-[1.04] tracking-[-0.035em]"
               >
-                <div
-                  className={`flex h-9 w-9 items-center justify-center rounded-full bg-neutral-900 text-sm font-semibold text-white transition-all duration-500 ${
-                    howItWorksRevealed ? "scale-100 opacity-100" : "scale-50 opacity-0"
-                  }`}
-                  style={{ transitionDelay: `${320 + index * 110}ms`, transitionTimingFunction: "cubic-bezier(0.34, 1.56, 0.64, 1)" }}
-                >
-                  {step.n}
-                </div>
-                <h3 className="mt-4 text-xl font-semibold">{step.title}</h3>
-                <p className="mt-3 leading-7 text-neutral-600">{step.body}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-12 grid gap-4 sm:grid-cols-3">
-            {[
-              {
-                eyebrow: "Service mode",
-                title: "Choose where it happens",
-                body: "Have the professional come to you, visit their shop, or head to their home studio — whatever setup fits best.",
-                dark: false,
-                icon: null,
-              },
-              {
-                eyebrow: "Direct booking",
-                title: "Skip the request next time",
-                body: "Already found someone you like? Book straight from their calendar. For professionals, it doubles as a real scheduling tool — no separate booking system needed.",
-                dark: false,
-                icon: (
-                  <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-900" fill="none">
-                    <rect x="6" y="1.5" width="1.4" height="3.5" rx="0.7" fill="currentColor" />
-                    <rect x="12.6" y="1.5" width="1.4" height="3.5" rx="0.7" fill="currentColor" />
-                    <rect x="2.25" y="3.75" width="15.5" height="14.75" rx="3" stroke="currentColor" strokeWidth="1.4" />
-                    <path d="M2.25 8.25h15.5" stroke="currentColor" strokeWidth="1.4" />
-                    <circle cx="13.25" cy="12.5" r="1.55" fill="currentColor" />
-                  </svg>
-                ),
-              },
-              {
-                eyebrow: "Core value",
-                title: "Booking becomes more flexible and transparent",
-                body: "Clients choose the service style and location they want, then compare offers in one place.",
-                dark: true,
-                icon: null,
-              },
-            ].map((card, index) => (
-              <div
-                key={card.title}
-                className={`rounded-[1.75rem] border p-6 transition-all duration-700 ease-out ${
-                  card.dark ? "border-neutral-200 bg-neutral-900 text-white" : "border-neutral-200 bg-neutral-50"
-                } ${howItWorksRevealed ? "translate-y-0 scale-100 opacity-100" : "translate-y-6 scale-[0.97] opacity-0"}`}
-                style={{ transitionDelay: `${620 + index * 90}ms` }}
-              >
-                {card.icon ? (
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm">{card.icon}</div>
-                ) : null}
-                <p
-                  className={`${card.icon ? "mt-4" : ""} text-sm font-medium uppercase tracking-[0.16em] ${
-                    card.dark ? "text-neutral-300" : "text-neutral-500"
-                  }`}
-                >
-                  {card.eyebrow}
-                </p>
-                <h3 className="mt-2 text-lg font-semibold">{card.title}</h3>
-                <p className={`mt-2 leading-7 ${card.dark ? "text-neutral-300" : "text-neutral-600"}`}>{card.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <SectionFade />
-
-      <section id="using-lineup" className="border-t border-neutral-200 bg-neutral-50">
-        <div ref={usingLineupRef} className="mx-auto max-w-7xl px-6 py-20">
-          <div className="max-w-2xl">
-            <RevealText as="div" revealed={usingLineupRevealed} className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-              Using LineUp
-            </RevealText>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-              <RevealText revealed={usingLineupRevealed} delay={80}>
-                Reach clients who are already looking for you.
-              </RevealText>
-            </h2>
-            <p
-              className={`mt-5 leading-8 text-neutral-600 transition-all duration-700 ease-out ${
-                usingLineupRevealed ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
-              }`}
-              style={{ transitionDelay: "200ms" }}
-            >
-              Whether you're just starting out or have years of clients behind you,
-              growing further usually means building visibility — and a strong
-              Instagram following is real work that pays off for a lot of
-              professionals. LineUp gives you another way in alongside that: clients
-              post exactly what they need, and you get matched directly, wherever
-              you already work — home, a shared space, or a shop chair.
-            </p>
-          </div>
-
-          <h3 className="mt-14 text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-            What you get
-          </h3>
-
-          {/* Asymmetric bento grid, not six identical boxed-icon cards: the
-              two things that matter most for deciding to join (how the
-              matching actually works, and that it costs nothing to start)
-              get a wider, bolder treatment and bookend the row; the rest
-              stay compact. */}
-          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              {
-                title: "Live marketplace matching",
-                body: "Post a request once and get real offers from professionals ready to work — no cold outreach either way.",
-                featured: true,
-                icon: <path d="M4 7h9m0 0l-3-3m3 3l-3 3M16 13H7m0 0l3-3m-3 3l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />,
-              },
-              {
-                title: "Secure payments built in",
-                body: "Every booking is paid through LineUp — protected and tracked.",
-                featured: false,
-                icon: (
-                  <>
-                    <rect x="5" y="9" width="10" height="8" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M7 9V6a3 3 0 016 0v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </>
-                ),
-              },
-              {
-                title: "In-app messaging",
-                body: "Coordinate details without ever leaving the platform.",
-                featured: false,
-                icon: <path d="M3 5.5A2.5 2.5 0 015.5 3h9A2.5 2.5 0 0117 5.5v6A2.5 2.5 0 0114.5 14H9l-4 3v-3H5.5A2.5 2.5 0 013 11.5v-6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />,
-              },
-              {
-                title: "Verified reviews",
-                body: "Every completed job adds to a professional's public track record.",
-                featured: false,
-                icon: <path d="M10 2.5l2.1 4.5 4.9.6-3.6 3.4.9 4.9L10 13.5l-4.3 2.4.9-4.9L3 7.6l4.9-.6L10 2.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />,
-              },
-              {
-                title: "Verified payouts",
-                body: "Identity confirmed with our payment partner — every payment processed securely through Stripe.",
-                featured: false,
-                icon: (
-                  <>
-                    <path d="M10 2.5l6 2.2v4.8c0 4-2.6 6.9-6 8-3.4-1.1-6-4-6-8V4.7l6-2.2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                    <path d="M7.2 10l1.9 1.9L13 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </>
-                ),
-              },
-              {
-                title: "Free to start",
-                body: "No subscription required to take on real, paying clients — upgrade later if you want more.",
-                featured: true,
-                icon: (
-                  <>
-                    <path d="M3 3h6.5L17 10.5 10.5 17 3 9.5V3z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-                    <circle cx="6.5" cy="6.5" r="1" fill="currentColor" />
-                  </>
-                ),
-              },
-            ].map((card, index) => {
-              const col = index % 3;
-              const row = Math.floor(index / 3);
-              return (
-                <div
-                  key={card.title}
-                  className={`rounded-3xl bg-white transition-all duration-700 ease-out ${
-                    card.featured
-                      ? "sm:col-span-2 lg:col-span-2 border-2 border-neutral-900 p-8 sm:p-9"
-                      : "border border-neutral-200 p-7"
-                  } ${usingLineupRevealed ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}
-                  style={{ transitionDelay: `${120 + col * 90 + row * 70}ms` }}
-                >
-                  {card.featured ? (
-                    <svg viewBox="0 0 20 20" className="h-9 w-9 text-neutral-900" fill="none">
-                      {card.icon}
-                    </svg>
-                  ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-neutral-100">
-                      <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-700" fill="none">
-                        {card.icon}
-                      </svg>
-                    </div>
-                  )}
-                  <h3 className={card.featured ? "mt-5 text-2xl font-semibold tracking-tight" : "mt-4 text-xl font-semibold"}>
-                    {card.title}
-                  </h3>
-                  <p className={card.featured ? "mt-2 max-w-sm leading-7 text-neutral-600" : "mt-2 leading-7 text-neutral-600"}>
-                    {card.body}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      <SectionFade />
-
-      <section id="founders" className="border-t border-neutral-200 bg-neutral-50">
-        <div ref={foundersRef} className="mx-auto max-w-7xl px-6 py-20">
-          <div className="grid gap-10 md:grid-cols-[1.05fr_0.95fr]">
-            <div>
-              <RevealText as="div" revealed={foundersRevealed} className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
-                About the Founders
-              </RevealText>
-
-              <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight md:text-4xl">
-                <RevealText revealed={foundersRevealed} delay={80}>
-                  Built by founders who saw the problem firsthand.
-                </RevealText>
+                <Line>Built for cleaner</Line>
+                <Line className="text-neutral-400">booking decisions.</Line>
               </h2>
-
-              <p
-                className={`mt-6 max-w-2xl text-base leading-8 text-neutral-600 transition-all duration-700 ease-out ${
-                  foundersRevealed ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
-                }`}
-                style={{ transitionDelay: "180ms" }}
-              >
-                LineUp was founded by two University of Manitoba students — Dan
-                Latimer and Noah Kaminsky — with backgrounds in design and
-                agriculture.
-              </p>
-
-              <p
-                className={`mt-5 max-w-2xl text-base leading-8 text-neutral-600 transition-all duration-700 ease-out ${
-                  foundersRevealed ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
-                }`}
-                style={{ transitionDelay: "260ms" }}
-              >
-                We created LineUp to solve a simple problem: discovering trusted beauty
-                professionals in a fragmented and inconsistent industry should not be
-                difficult. LineUp is a marketplace built to connect clients with vetted
-                beauty professionals in a way that is more transparent, reliable, and
-                convenient.
-              </p>
-
-              <p
-                className={`mt-5 max-w-2xl text-base leading-8 text-neutral-600 transition-all duration-700 ease-out ${
-                  foundersRevealed ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
-                }`}
-                style={{ transitionDelay: "340ms" }}
-              >
-                Launching first in Winnipeg, Manitoba, our goal is to build a platform
-                that makes finding and booking aesthetic services feel just as rewarding
-                as the service itself.
-              </p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-1">
-              {[
-                { name: "Noah Kaminsky", title: "Co-Founder & CEO", initials: "NK" },
-                { name: "Dan Latimer", title: "Co-Founder & CFO", initials: "DL" },
-              ].map((founder, index) => (
-                <div
-                  key={founder.name}
-                  className={`flex items-center gap-4 rounded-[1.75rem] border border-neutral-200 bg-white p-5 shadow-sm transition-all duration-700 ease-out ${
-                    foundersRevealed ? "translate-x-0 scale-100 opacity-100" : "translate-x-4 scale-95 opacity-0"
-                  }`}
-                  style={{ transitionDelay: `${260 + index * 120}ms` }}
+              <div data-reveal className="mt-10">
+                <Link
+                  href="/login?mode=signup"
+                  className={`group inline-flex items-center gap-2 rounded-full font-medium text-ink underline decoration-ink/20 underline-offset-[6px] transition hover:decoration-ink ${focusRing}`}
                 >
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-sm font-semibold text-white">
-                    {founder.initials}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-neutral-900">{founder.name}</p>
-                    <p className="mt-0.5 text-sm text-neutral-500">{founder.title}</p>
-                  </div>
-                </div>
-              ))}
+                  Post your first request
+                  <ArrowRight
+                    aria-hidden="true"
+                    className="h-4 w-4 transition-transform duration-300 ease-premium group-hover:translate-x-1"
+                  />
+                </Link>
+              </div>
             </div>
+          </div>
+
+          <dl className="lg:col-span-6 lg:col-start-7">
+            {details.map((item, index) => (
+              <div
+                key={item.title}
+                data-reveal
+                className={`py-10 ${index === 0 ? "pt-0 lg:pt-2" : "border-t border-ink/10"}`}
+              >
+                <div>
+                  <dt>
+                    <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-neutral-500">{item.label}</span>
+                    <span className="mt-3 block text-2xl font-semibold tracking-[-0.025em]">{item.title}</span>
+                  </dt>
+                  <dd className="mt-3 max-w-md leading-7 text-neutral-600">{item.body}</dd>
+                </div>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      {/* ───────────────────────── For professionals ───────────────────────── */}
+      <section id="using-lineup" className="border-t border-ink/[0.08] bg-white text-ink">
+        <div className="mx-auto max-w-7xl px-6 py-28 lg:py-36">
+          <div className="grid gap-10 lg:grid-cols-12">
+            <div className="lg:col-span-3 lg:pt-3">
+              <SectionLabel>For professionals</SectionLabel>
+            </div>
+            <div className="lg:col-span-9">
+              <h2 data-split className="text-[clamp(2rem,3.6vw,3rem)] font-semibold leading-[1.04] tracking-[-0.035em]">
+                <Line>Reach clients who are</Line>
+                <Line className="text-neutral-400">already looking for you.</Line>
+              </h2>
+              <p data-reveal className="mt-8 max-w-2xl text-lg leading-8 text-neutral-600">
+                Whether you&apos;re just starting out or have years of clients behind you, growing further usually
+                means building visibility — and a strong Instagram following is real work that pays off for a lot of
+                professionals. LineUp gives you another way in alongside that: clients post exactly what they need,
+                and you get matched directly, wherever you already work — home, a shared space, or a shop chair.
+              </p>
+            </div>
+          </div>
+
+          <ul className="mt-20 border-t border-ink/10 lg:ml-[25%]">
+            {proFeatures.map((feature, index) => (
+              <li
+                key={feature.title}
+                data-reveal
+                className="group grid gap-2 border-b border-ink/10 py-7 transition-colors duration-500 hover:bg-paper md:grid-cols-12 md:items-baseline md:gap-6"
+              >
+                <span className="font-mono text-[11px] tabular-nums text-neutral-400 md:col-span-1">
+                  0{index + 1}
+                </span>
+                <h3 className="text-xl font-semibold tracking-[-0.02em] transition-transform duration-500 ease-premium group-hover:translate-x-1 md:col-span-5">
+                  {feature.title}
+                </h3>
+                <p className="leading-7 text-neutral-600 md:col-span-6">{feature.body}</p>
+              </li>
+            ))}
+          </ul>
+
+          <div data-reveal className="mt-14 lg:ml-[25%]">
+            <Link
+              href="/login?mode=signup"
+              className={`group inline-flex items-center gap-2 rounded-full bg-ink px-7 py-4 font-medium text-white transition-colors hover:bg-neutral-800 ${focusRing}`}
+            >
+              Join as a professional
+              <ArrowRight
+                aria-hidden="true"
+                className="h-4 w-4 transition-transform duration-300 ease-premium group-hover:translate-x-1"
+              />
+            </Link>
           </div>
         </div>
       </section>
 
-      <SectionFade />
+      {/* ───────────────────────── Founders ───────────────────────── */}
+      <section id="founders" className="bg-paper">
+        <div className="mx-auto max-w-7xl px-6 py-28 lg:py-36">
+          <div className="grid gap-10 lg:grid-cols-12">
+            <div className="lg:col-span-3 lg:pt-3">
+              <SectionLabel>About the founders</SectionLabel>
+            </div>
+            <blockquote data-split className="lg:col-span-9">
+              <p className="text-[clamp(1.75rem,3.2vw,2.75rem)] font-semibold leading-[1.12] tracking-[-0.03em]">
+                <Line className="-ml-[0.42em] pl-[0.42em]">
+                  <span className="-ml-[0.42em]">“</span>Discovering trusted beauty professionals
+                </Line>
+                <Line className="text-neutral-400">shouldn&apos;t be difficult.”</Line>
+              </p>
+            </blockquote>
+          </div>
 
-      <section id="join-lineup" ref={joinRef} className="mx-auto max-w-5xl px-6 pb-24 pt-20">
-        <div
-          className={`rounded-[2rem] bg-neutral-900 px-6 py-12 text-white transition-all duration-[900ms] ease-out md:px-10 md:py-14 ${
-            joinRevealed ? "scale-100 opacity-100" : "scale-[0.96] opacity-0"
-          }`}
-        >
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-300">
-              Get started
-            </p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight md:text-5xl">
-              Ready to join LineUp?
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-neutral-300 md:text-lg">
-              Create your account in under a minute — as a customer looking to book, or a professional ready to get matched with work.
-            </p>
+          <div className="mt-16 grid gap-12 lg:grid-cols-12">
+            <div className="space-y-5 text-base leading-8 text-neutral-600 lg:col-span-5 lg:col-start-4">
+              <p data-reveal>
+                LineUp was founded by two University of Manitoba students — Dan Latimer and Noah Kaminsky — with
+                backgrounds in design and agriculture.
+              </p>
+              <p data-reveal>
+                We created LineUp to solve a simple problem: discovering trusted beauty professionals in a fragmented
+                and inconsistent industry should not be difficult. LineUp is a marketplace built to connect clients
+                with vetted beauty professionals in a way that is more transparent, reliable, and convenient.
+              </p>
+              <p data-reveal>
+                Launching first in Winnipeg, Manitoba, our goal is to build a platform that makes finding and booking
+                aesthetic services feel just as rewarding as the service itself.
+              </p>
+            </div>
 
-            <div className="mx-auto mt-8 flex max-w-md flex-col gap-3 sm:flex-row">
+            <ul className="lg:col-span-3 lg:col-start-10">
+              {[
+                { name: "Noah Kaminsky", title: "Co-Founder & CEO" },
+                { name: "Dan Latimer", title: "Co-Founder & CFO" },
+              ].map((founder) => (
+                <li key={founder.name} data-reveal className="border-t border-ink/10 py-5">
+                  <p className="font-semibold tracking-tight">{founder.name}</p>
+                  <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.16em] text-neutral-500">
+                    {founder.title}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* ───────────────────────── Closing CTA ───────────────────────── */}
+      <section id="join-lineup" className="overflow-hidden border-t border-ink/[0.08] bg-white text-ink">
+        <div className="mx-auto max-w-7xl px-6 pb-20 pt-28 lg:pt-36">
+          <h2 className="cta-line text-[clamp(2.75rem,6.5vw,5.5rem)] font-semibold leading-[1] tracking-[-0.045em]">
+            <Line>Ready when</Line>
+            <Line className="text-neutral-400">you are.</Line>
+          </h2>
+
+          <div className="mt-14 grid gap-10 border-t border-ink/10 pt-10 lg:grid-cols-12 lg:items-end">
+            <p className="max-w-md text-lg leading-8 text-neutral-600 lg:col-span-6">
+              Create your account in under a minute — as a customer looking to book, or a professional ready to get
+              matched with work.
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row lg:col-span-6 lg:justify-end">
               <Link
                 href="/login?mode=signup"
-                className="flex-1 rounded-full bg-white px-6 py-3 text-center font-medium text-neutral-900 transition hover:scale-[1.03] hover:opacity-90"
+                className={`inline-flex items-center justify-center rounded-full bg-ink px-8 py-4 font-medium text-white transition-colors hover:bg-neutral-800 ${focusRing}`}
               >
                 Join LineUp
               </Link>
               <Link
                 href="/login"
-                className="flex-1 rounded-full border border-white/20 px-6 py-3 text-center font-medium text-white transition hover:bg-white/10"
+                className={`inline-flex items-center justify-center rounded-full px-8 py-4 font-medium text-ink ring-1 ring-ink/15 transition hover:ring-ink ${focusRing}`}
               >
                 Log in
               </Link>
             </div>
           </div>
         </div>
-      </section>
 
-      <footer className="border-t border-neutral-200 px-6 py-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 text-sm text-neutral-500 md:flex-row md:items-center md:justify-between">
-          <p>© {new Date().getFullYear()} LineUp — Beauty marketplace for trusted on-demand services.</p>
-          <div className="flex items-center gap-6">
-            <Link href="/terms" className="transition hover:text-neutral-900">Terms</Link>
-            <Link href="/privacy" className="transition hover:text-neutral-900">Privacy</Link>
-            <a href="mailto:lineupmb@gmail.com" className="transition hover:text-neutral-900">Contact</a>
-            <Link href="/login" className="transition hover:text-neutral-900">Sign in</Link>
+        <footer className="border-t border-ink/[0.08] py-8">
+          <div className="mx-auto flex max-w-7xl flex-col px-6 gap-4 text-sm text-neutral-500 md:flex-row md:items-center md:justify-between">
+            <p>© {new Date().getFullYear()} LineUp — Beauty marketplace for trusted on-demand services.</p>
+            <div className="flex items-center gap-6">
+              <Link href="/terms" className="transition-colors hover:text-ink">Terms</Link>
+              <Link href="/privacy" className="transition-colors hover:text-ink">Privacy</Link>
+              <a href="mailto:lineupmb@gmail.com" className="transition-colors hover:text-ink">Contact</a>
+              <Link href="/login" className="transition-colors hover:text-ink">Sign in</Link>
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
+      </section>
     </main>
   );
 }

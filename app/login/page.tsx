@@ -211,27 +211,26 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white px-6 py-10 text-neutral-900">
-      <div className="mx-auto flex max-w-6xl items-center justify-between border-b border-neutral-200 pb-6">
-        <Link href="/" className="text-2xl font-semibold tracking-tight">
-          LineUp
-        </Link>
+    <main className="min-h-screen bg-paper text-neutral-900">
+      <header className="border-b border-hairline">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+          <Link href="/" className="rounded text-xl font-semibold tracking-tight text-ink">
+            LineUp
+          </Link>
 
-        <Link
-          href="/"
-          className="text-sm font-medium text-neutral-500 transition hover:text-neutral-900"
-        >
-          Back to site
-        </Link>
-      </div>
+          <Link href="/" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
+            Back to site
+          </Link>
+        </div>
+      </header>
 
-      <div className="mx-auto grid max-w-6xl gap-10 py-16 md:grid-cols-2 md:items-center">
+      <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-2 md:items-center md:gap-16 md:py-24">
         <div>
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-neutral-500">
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
             {isForgot ? "Reset password" : isSignup ? "Create account" : "Sign in"}
           </p>
 
-          <h1 className="mt-4 max-w-xl text-5xl font-semibold tracking-tight md:text-6xl">
+          <h1 className="mt-4 max-w-xl text-4xl font-semibold tracking-[-0.035em] md:text-5xl">
             {isForgot
               ? "Reset your LineUp password."
               : isSignup
@@ -239,7 +238,7 @@ export default function LoginPage() {
               : "Sign in to LineUp."}
           </h1>
 
-          <p className="mt-6 max-w-xl text-lg leading-8 text-neutral-600">
+          <p className="mt-5 max-w-md text-lg leading-8 text-neutral-600">
             {isForgot
               ? "Enter your email and we’ll send you a secure password reset link."
               : isSignup
@@ -248,48 +247,66 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="rounded-[2rem] border border-neutral-200 bg-white p-8 shadow-sm">
-          <form onSubmit={handleAuth} className="space-y-4">
+        <div className="rounded-2xl border border-hairline bg-surface p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-9">
+          <form onSubmit={handleAuth} className="space-y-5" aria-busy={loading}>
             <div>
-              <label className="mb-2 block text-sm font-medium text-neutral-700">
+              <label htmlFor="auth-email" className="mb-2 block text-sm font-medium text-neutral-800">
                 Email
               </label>
 
               <input
+                id="auth-email"
                 type="email"
                 required
+                autoComplete="email"
+                inputMode="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
+                placeholder="you@example.com"
+                className="w-full rounded-xl border border-neutral-200 bg-paper/60 px-4 py-3 outline-none transition-colors placeholder:text-neutral-400 focus:border-ink focus:bg-surface"
               />
             </div>
 
             {!isForgot ? (
               <div>
-                <label className="mb-2 block text-sm font-medium text-neutral-700">
+                <label htmlFor="auth-password" className="mb-2 block text-sm font-medium text-neutral-800">
                   Password
                 </label>
 
                 <input
+                  id="auth-password"
                   type="password"
                   required
                   minLength={6}
+                  autoComplete={isSignup ? "new-password" : "current-password"}
+                  aria-describedby={isSignup ? "auth-password-hint" : undefined}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={isSignup ? "Create a password" : "Enter your password"}
-                  className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-neutral-900"
+                  className="w-full rounded-xl border border-neutral-200 bg-paper/60 px-4 py-3 outline-none transition-colors placeholder:text-neutral-400 focus:border-ink focus:bg-surface"
                 />
+                {isSignup ? (
+                  <p id="auth-password-hint" className="mt-2 text-xs text-neutral-500">
+                    At least 6 characters.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-full bg-black py-3 text-white transition hover:opacity-90 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-ink py-3.5 font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
             >
+              {loading ? (
+                <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : null}
               {loading
-                ? "Loading..."
+                ? isForgot
+                  ? "Sending link…"
+                  : isSignup
+                  ? "Creating account…"
+                  : "Signing in…"
                 : isForgot
                 ? "Send reset link"
                 : isSignup
@@ -297,11 +314,12 @@ export default function LoginPage() {
                 : "Sign in"}
             </button>
 
+            <div className="flex flex-col items-center gap-2.5 border-t border-hairline pt-5">
             {!isForgot ? (
               <button
                 type="button"
                 onClick={() => switchMode(isSignup ? "signin" : "signup")}
-                className="w-full text-sm font-medium text-neutral-600 underline underline-offset-4"
+                className="rounded text-sm text-neutral-600 underline decoration-neutral-300 underline-offset-4 transition-colors hover:text-ink hover:decoration-ink"
               >
                 {isSignup
                   ? "Already have an account? Sign in"
@@ -313,15 +331,17 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => switchMode(isForgot ? "signin" : "forgot")}
-                className="w-full text-sm font-medium text-neutral-600 underline underline-offset-4"
+                className="rounded text-sm text-neutral-500 underline decoration-neutral-300 underline-offset-4 transition-colors hover:text-ink hover:decoration-ink"
               >
                 {isForgot ? "Back to sign in" : "Forgot password?"}
               </button>
             ) : null}
+            </div>
 
             {message ? (
               <p
-                className={`rounded-2xl border p-4 text-sm ${
+                role={messageTone === "success" ? "status" : "alert"}
+                className={`lu-fade-in rounded-xl border px-4 py-3 text-sm leading-6 ${
                   messageTone === "success"
                     ? "border-neutral-200 bg-neutral-50 text-neutral-800"
                     : "border-red-200 bg-red-50 text-red-700"
@@ -335,13 +355,18 @@ export default function LoginPage() {
       </div>
 
       {showConfirmModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-black text-2xl font-semibold text-white">
+        <div className="lu-fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4 backdrop-blur-[2px]">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-email-title"
+            className="lu-dialog-in w-full max-w-md rounded-2xl bg-surface p-8 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.35)]"
+          >
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-ink text-base font-semibold text-white">
               LU
             </div>
 
-            <h2 className="mt-6 text-center text-3xl font-semibold tracking-tight">
+            <h2 id="confirm-email-title" className="mt-6 text-center text-2xl font-semibold tracking-[-0.03em]">
               Confirm your email
             </h2>
 
@@ -358,13 +383,13 @@ export default function LoginPage() {
                 disabled={resending}
                 className="w-full rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-60"
               >
-                {resending ? "Sending..." : "Resend confirmation email"}
+                {resending ? "Sending…" : "Resend confirmation email"}
               </button>
 
               <button
                 type="button"
                 onClick={() => setShowConfirmModal(false)}
-                className="w-full rounded-full bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
+                className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
               >
                 Back to sign in
               </button>
