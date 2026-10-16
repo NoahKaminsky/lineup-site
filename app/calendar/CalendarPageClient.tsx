@@ -553,6 +553,16 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       .sort((a, b) => new Date(b.completed_at || b.created_at).getTime() - new Date(a.completed_at || a.created_at).getTime());
   }, [bookings]);
 
+  // The list only shows the last 24 hours; older work lives in /archive.
+  // (The month grid still shows every completed booking on its day.)
+  const recentCompletedBookings = useMemo(
+    () =>
+      completedBookings.filter(
+        (booking) => Date.now() - new Date(booking.completed_at || booking.created_at).getTime() <= 24 * 60 * 60 * 1000
+      ),
+    [completedBookings]
+  );
+
   const selectedDateLabel = useMemo(() => formatDateLabel(selectedDate), [selectedDate]);
   const todayKey = getTodayKey();
 
@@ -749,7 +759,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   const bookingLists = [
     { key: "upcoming", title: "Upcoming", items: upcomingBookings, empty: "No upcoming bookings." },
     { key: "awaiting", title: "Awaiting confirmation", items: completionRequestedBookings, empty: "Nothing waiting on a client." },
-    { key: "completed", title: "Recently completed", items: completedBookings, empty: "No completed bookings yet." },
+    { key: "completed", title: "Recently completed", items: recentCompletedBookings, empty: "Completed jobs show here for 24 hours, then move to your archive." },
   ];
 
   const listsSection = (

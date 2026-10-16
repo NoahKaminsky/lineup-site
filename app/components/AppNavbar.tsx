@@ -434,6 +434,7 @@ function NavbarComponent() {
   const accountLinks = [
     { href: "/account", label: "Profile", show: true },
     { href: "/work", label: isProfessional ? "Work" : "Bookings", show: true },
+    { href: "/archive", label: "Archived services", show: true },
     { href: "/services", label: "Services & availability", show: isProfessional },
     { href: "/analytics", label: "Analytics", show: isProfessional },
     { href: "/subscription", label: "Subscription", show: isProfessional },

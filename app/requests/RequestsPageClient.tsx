@@ -13,6 +13,12 @@ import OnboardingChecklist from "../components/OnboardingChecklist";
 import VerificationBanner from "../components/VerificationBanner";
 import NotificationNudge from "../components/NotificationNudge";
 
+// "Recently completed" lists show the last 24 hours only (older work lives in
+// Archived services).
+function isWithinLastDay(iso: string | null | undefined) {
+  return !!iso && Date.now() - new Date(iso).getTime() <= 24 * 60 * 60 * 1000;
+}
+
 const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
   {
     Icon: Sparkles,
@@ -1254,6 +1260,19 @@ if (profileError || !profile) {
     [bookings]
   );
 
+  // "Recently completed" lists only show the last 24 hours; everything older
+  // lives in Archived services (/archive). Same rule the app already uses for
+  // cancelled requests.
+  const recentCompletedBookings = useMemo(
+    () => completedBookings.filter((booking) => isWithinLastDay(booking.completed_at || booking.created_at)),
+    [completedBookings]
+  );
+
+  const recentCompletedRequests = useMemo(
+    () => completedRequests.filter((request) => isWithinLastDay(request.completed_at || request.created_at)),
+    [completedRequests]
+  );
+
   const unreviewedCompletedBookings = useMemo(
     () => completedBookings.filter((booking) => !reviewedBookingIds.has(booking.id)),
     [completedBookings, reviewedBookingIds]
@@ -1506,6 +1525,15 @@ if (profileError || !profile) {
         new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime()
     );
   }, [professionalCompletedRequests, professionalCompletedBookings, professionalBookedRequestIds]);
+
+  const recentProfessionalCompletedWork = useMemo(
+    () =>
+      unifiedProfessionalCompletedWork.filter(
+        (item) => !!(item.completed_at || item.created_at) &&
+          Date.now() - new Date(item.completed_at || item.created_at).getTime() <= 24 * 60 * 60 * 1000
+      ),
+    [unifiedProfessionalCompletedWork]
+  );
 
   const now = useMemo(
     () => new Date(),
@@ -2095,14 +2123,17 @@ return (
                 </div>
               ) : null}
 
-              {completedBookings.length > 0 ? (
+              {recentCompletedBookings.length > 0 ? (
                 <div className="mt-12">
-                  <h2 className="text-xl font-semibold tracking-[-0.02em]">
-                    Completed bookings
-                  </h2>
+                  <div className="flex items-baseline justify-between gap-4">
+                    <h2 className="text-xl font-semibold tracking-[-0.02em]">Recently completed</h2>
+                    <Link href="/archive" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
+                      View archive →
+                    </Link>
+                  </div>
 
                   <div className="lu-lineup mt-5 grid gap-4">
-                    {completedBookings.map((booking) => (
+                    {recentCompletedBookings.map((booking) => (
                       <div
                         key={booking.id}
                         className="rounded-2xl border border-hairline bg-surface/60 p-5 sm:p-6"
@@ -2219,14 +2250,17 @@ return (
                 </div>
               ) : null}
 
-              {completedRequests.length > 0 ? (
+              {recentCompletedRequests.length > 0 ? (
                 <div className="mt-12">
-                  <h2 className="text-xl font-semibold tracking-[-0.02em]">
-                    Completed services
-                  </h2>
+                  <div className="flex items-baseline justify-between gap-4">
+                    <h2 className="text-xl font-semibold tracking-[-0.02em]">Recently completed requests</h2>
+                    <Link href="/archive" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
+                      View archive →
+                    </Link>
+                  </div>
 
                   <div className="lu-lineup mt-5 grid gap-4">
-                    {completedRequests.map((request) => (
+                    {recentCompletedRequests.map((request) => (
                       <div
                         key={request.id}
                         className="rounded-2xl border border-hairline bg-surface/60 p-5 transition-colors hover:bg-surface sm:p-6"
@@ -2499,14 +2533,19 @@ return (
                   </section>
 
                   <section aria-labelledby="completed-heading">
-                    <h2 id="completed-heading" className="text-base font-semibold tracking-[-0.01em]">Completed work</h2>
-                    {unifiedProfessionalCompletedWork.length === 0 ? (
+                    <div className="flex items-baseline justify-between gap-4">
+                      <h2 id="completed-heading" className="text-base font-semibold tracking-[-0.01em]">Recently completed</h2>
+                      <Link href="/archive" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
+                        Archive →
+                      </Link>
+                    </div>
+                    {recentProfessionalCompletedWork.length === 0 ? (
                       <p className="mt-3 rounded-xl border border-dashed border-neutral-300 px-4 py-4 text-sm text-neutral-500">
-                        Finished jobs will appear here once marked complete.
+                        Jobs you finish show here for 24 hours, then move to your archive.
                       </p>
                     ) : (
                       <ul className="lu-lineup mt-3 divide-y divide-hairline rounded-2xl border border-hairline bg-surface">
-                        {unifiedProfessionalCompletedWork.slice(0, 4).map((item) => (
+                        {recentProfessionalCompletedWork.slice(0, 4).map((item) => (
                           <li key={`${item.source}-${item.id}`}>
                             <Link href={item.href} className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-neutral-50">
                               <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-neutral-100">
