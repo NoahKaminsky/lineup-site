@@ -1995,16 +1995,16 @@ if (loading) {
                         ) : null}
                       </div>
 
-                      {canDirectBook ? (
+                      {viewerIsCustomer && viewerUserId !== profile.id && canDirectBook ? (
                         <a
                           href="#availability"
                           className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
                         >
                           View times
                         </a>
-                      ) : profileVerified ? (
+                      ) : viewerIsCustomer && viewerUserId !== profile.id && profileVerified ? (
                         <Link
-                          href={`/requests/new?rebook=1&pro=${profile.id}`}
+                          href={`/requests/new?rebook=1&pro=${profile.id}&service=${encodeURIComponent(service.service_name)}${service.price ? `&price=${service.price}` : ""}`}
                           className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
                         >
                           Request service

@@ -394,6 +394,11 @@ function NewRequestPageContent() {
   const originalRequestId = searchParams.get("request");
   const isRebook =
     searchParams.get("rebook") === "1" && !!preferredProfessionalId;
+  // Set only when the customer clicked a specific priced service on a
+  // professional's profile (rather than the generic "Request service" CTA) —
+  // used to pre-fill the title/budget below instead of leaving them blank.
+  const clickedServiceName = searchParams.get("service");
+  const clickedServicePrice = searchParams.get("price");
 
   const [rebookProName, setRebookProName] = useState<string | null>(null);
   const [rebookProTypes, setRebookProTypes] = useState<string[] | null>(null);
@@ -417,7 +422,7 @@ function NewRequestPageContent() {
     });
   }
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(() => clickedServiceName || "");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [locationPlaceId, setLocationPlaceId] = useState("");
@@ -425,7 +430,12 @@ function NewRequestPageContent() {
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
   const [serviceModes, setServiceModes] = useState<string[]>([]);
-  const [budget, setBudget] = useState("");
+  const [budget, setBudget] = useState(() => {
+    const numeric = Number(clickedServicePrice);
+    return clickedServicePrice && !Number.isNaN(numeric)
+      ? new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 }).format(numeric)
+      : "";
+  });
 
   const [preferredDate, setPreferredDate] = useState("");
   const [preferredStartTime, setPreferredStartTime] = useState("");
@@ -533,6 +543,15 @@ function NewRequestPageContent() {
     setCategories((prev) => prev.filter((c) => availableValues.has(c)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableCategoryOptions.map((opt) => opt.value).join(",")]);
+
+  // Clicked a specific service on a single-category professional's profile —
+  // the category isn't ambiguous, so pick it instead of making them reselect it.
+  useEffect(() => {
+    if (!clickedServiceName || categories.length > 0) return;
+    if (availableCategoryOptions.length !== 1) return;
+    setCategories([availableCategoryOptions[0].value]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clickedServiceName, availableCategoryOptions.map((opt) => opt.value).join(",")]);
 
   const remainingPhotoSlots = useMemo(
     () => MAX_REFERENCE_PHOTOS - referencePhotos.length,

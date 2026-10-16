@@ -21,6 +21,8 @@ type CompletedBooking = {
   customer_id: string;
   completed_at: string | null;
   created_at: string;
+  payment_status: string | null;
+  professional_payout_cents: number | null;
 };
 
 type OfferRow = {
@@ -43,8 +45,16 @@ function isFull(plan: string | null) {
   return plan === "pro" || plan === "master";
 }
 
+// A plain "YYYY-MM-DD" date (e.g. booking_date) is otherwise parsed by Date()
+// as UTC midnight, which shifts to the previous calendar day in any
+// negative-UTC-offset timezone (all of Canada/US) once read back with
+// getDay()/getDate() — anchoring to local midnight avoids that off-by-one.
+function parseLocalDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00`) : new Date(value);
+}
+
 function getWeekKey(dateStr: string) {
-  const d = new Date(dateStr);
+  const d = parseLocalDate(dateStr);
   const day = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(d);
@@ -58,7 +68,7 @@ function formatWeekLabel(mondayStr: string) {
 }
 
 function getMonthKey(dateStr: string) {
-  return dateStr.slice(0, 7);
+  return parseLocalDate(dateStr).toISOString().slice(0, 7);
 }
 
 function formatMonthLabel(monthKey: string) {
@@ -251,7 +261,7 @@ export default function AnalyticsPage() {
       const [bookingsRes, offersRes, reviewsRes] = await Promise.all([
         supabase
           .from("bookings")
-          .select("id, booking_date, service_name, customer_id, completed_at, created_at")
+          .select("id, booking_date, service_name, customer_id, completed_at, created_at, payment_status, professional_payout_cents")
           .eq("professional_id", user.id)
           .eq("status", "completed"),
 
@@ -308,6 +318,17 @@ export default function AnalyticsPage() {
     offers.length > 0
       ? Math.round((acceptedOffers / offers.length) * 100)
       : null;
+
+  const totalEarnedCents = bookings.reduce(
+    (sum, b) => (b.payment_status === "paid" ? sum + (b.professional_payout_cents || 0) : sum),
+    0
+  );
+  const paidBookingCount = bookings.filter((b) => b.payment_status === "paid").length;
+  const totalEarnedLabel = new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+    maximumFractionDigits: 0,
+  }).format(totalEarnedCents / 100);
 
   const uniqueClients = new Set(bookings.map((b) => b.customer_id));
   const repeatClients = useMemo(() => {
@@ -374,7 +395,7 @@ export default function AnalyticsPage() {
   const busiestDaysData = useMemo(() => {
     const countsByDay: number[] = [0, 0, 0, 0, 0, 0, 0];
     bookings.forEach((b) => {
-      const d = new Date(b.booking_date);
+      const d = parseLocalDate(b.booking_date);
       countsByDay[d.getDay()]++;
     });
     const maxDay = countsByDay.indexOf(Math.max(...countsByDay));
@@ -387,9 +408,7 @@ export default function AnalyticsPage() {
 
   const monthOverMonthChange =
     lastMonthCount === 0
-      ? thisMonthCount > 0
-        ? null
-        : null
+      ? null
       : Math.round(((thisMonthCount - lastMonthCount) / lastMonthCount) * 100);
 
   if (loading) {
@@ -470,12 +489,17 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Core stats */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <StatCard
+            label="Total earned"
+            value={paidBookingCount > 0 ? totalEarnedLabel : "—"}
+            sub={paidBookingCount > 0 ? `${paidBookingCount} paid booking${paidBookingCount === 1 ? "" : "s"}` : "Paid through LineUp"}
+            accent
+          />
           <StatCard
             label="Completed jobs"
             value={totalCompleted}
             sub="All time"
-            accent
           />
           <StatCard
             label="This month"
