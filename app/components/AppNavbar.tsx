@@ -11,6 +11,8 @@ type NavbarProfile = {
   full_name: string | null;
   avatar_url?: string | null;
   is_admin?: boolean | null;
+  subscription_plan?: string | null;
+  subscription_status?: string | null;
 };
 
 type NavItem = {
@@ -127,7 +129,7 @@ function NavbarComponent() {
 
         const { data } = await supabase
           .from("profiles")
-          .select("id, role, full_name, avatar_url, is_admin")
+          .select("id, role, full_name, avatar_url, is_admin, subscription_plan, subscription_status")
           .eq("id", user.id)
           .maybeSingle();
 
@@ -350,6 +352,17 @@ function NavbarComponent() {
     role === "I am a professional" ||
     (!!role && role !== "customer" && role !== "I am a customer");
 
+  // Header badge: a pro's current tier (Apprentice / Pro / Master) while the
+  // subscription is live, otherwise "Free". Customers get no badge.
+  const planBadge = useMemo(() => {
+    if (!isProfessional || !profile) return null;
+    const live = profile.subscription_status === "active" || profile.subscription_status === "trialing";
+    if (live && profile.subscription_plan === "master") return "Master";
+    if (live && profile.subscription_plan === "pro") return "Pro";
+    if (live && profile.subscription_plan === "apprentice") return "Apprentice";
+    return "Free";
+  }, [isProfessional, profile]);
+
   // Tag the page with the signed-in side (theme.css reads data-role for motion
   // tempo and accent hooks) and remember it so the next load paints correctly.
   useEffect(() => {
@@ -441,9 +454,13 @@ function NavbarComponent() {
             className="order-1 flex h-16 shrink-0 items-center gap-2 rounded text-xl font-semibold tracking-tight text-ink"
           >
             LineUp
-            {hasUser && !loading && profile ? (
-              <span className="rounded-md bg-accent-soft px-1.5 py-0.5 text-[11px] font-semibold tracking-[0.02em] text-accent">
-                {isProfessional ? "Pro" : "Client"}
+            {hasUser && !loading && planBadge ? (
+              <span
+                className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold tracking-[0.02em] ${
+                  planBadge === "Free" ? "text-neutral-500 ring-1 ring-inset ring-ink/10" : "bg-ink text-white"
+                }`}
+              >
+                {planBadge}
               </span>
             ) : null}
           </Link>
