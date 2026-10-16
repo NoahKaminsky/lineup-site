@@ -1820,14 +1820,14 @@ return (
           ) : null}
 
           {isCustomer ? (
-            <>
+            <div className="lg:max-w-3xl">
               <div className="mt-10">
                 <h2 className="text-xl font-semibold tracking-[-0.02em]">
                   Active bookings
                 </h2>
 
                 {activeBookings.length === 0 ? (
-                  <div className="mt-6 rounded-panel border border-dashed border-neutral-300 px-6 py-10 text-center">
+                  <div className="mt-6 rounded-2xl border border-dashed border-neutral-300 px-6 py-10 text-center">
                     <div className="mx-auto flex h-8 w-8 items-center justify-center">
                       <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                         <path d="M6 2v2M14 2v2M3 8h14M4 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -1837,7 +1837,7 @@ return (
                     <p className="mt-1 text-sm text-neutral-500">Confirmed upcoming services will appear here.</p>
                   </div>
                 ) : (
-                  <div className="mt-6 grid gap-6">
+                  <div className="lu-lineup mt-5 grid gap-4">
                     {activeBookings.map((booking) => {
                       const isLoadingAction =
                         bookingActionLoadingId === booking.id;
@@ -1845,7 +1845,7 @@ return (
                       return (
                         <div
                           key={booking.id}
-                          className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm"
+                          className="rounded-2xl border border-hairline bg-surface p-5 sm:p-6"
                         >
                           <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                             <div className="flex min-w-0 flex-1 gap-4">
@@ -1867,9 +1867,6 @@ return (
 
                               <div className="min-w-0 max-w-3xl">
                                 <div className="flex flex-wrap items-center gap-3">
-                                  <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
-                                    Booking
-                                  </span>
 
                                   <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                                     {booking.status === "completion_requested"
@@ -1993,12 +1990,12 @@ return (
                     Active requests
                   </h2>
 
-                  <div className="mt-6 grid gap-6">
+                  <div className="lu-lineup mt-5 grid gap-4">
                     {activeRequests.map((request) => (
                       <Link
                         key={request.id}
                         href={`/requests/${request.id}`}
-                        className="block rounded-panel border border-neutral-200 bg-white p-6 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
+                        className="block rounded-2xl border border-hairline bg-surface p-5 transition-[border-color,box-shadow] duration-200 hover:border-neutral-300 hover:shadow-[0_12px_32px_-18px_rgba(0,0,0,0.25)] sm:p-6"
                       >
                         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                           <div className="flex min-w-0 flex-1 gap-4">
@@ -2099,16 +2096,16 @@ return (
               ) : null}
 
               {completedBookings.length > 0 ? (
-                <div className="mt-14">
+                <div className="mt-12">
                   <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     Completed bookings
                   </h2>
 
-                  <div className="mt-6 grid gap-6">
+                  <div className="lu-lineup mt-5 grid gap-4">
                     {completedBookings.map((booking) => (
                       <div
                         key={booking.id}
-                        className="rounded-panel border border-neutral-200 bg-neutral-50 p-6 shadow-sm"
+                        className="rounded-2xl border border-hairline bg-surface/60 p-5 sm:p-6"
                       >
                         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                           <div className="flex min-w-0 flex-1 gap-4">
@@ -2187,12 +2184,12 @@ return (
               ) : null}
 
               {cancelledBookings.length > 0 ? (
-                <div className="mt-14">
+                <div className="mt-12">
                   <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     Cancelled bookings
                   </h2>
 
-                  <div className="mt-6 grid gap-4">
+                  <div className="lu-lineup mt-5 grid gap-3">
                     {cancelledBookings.map((booking) => (
                       <Link
                         key={booking.id}
@@ -2223,16 +2220,16 @@ return (
               ) : null}
 
               {completedRequests.length > 0 ? (
-                <div className="mt-14">
+                <div className="mt-12">
                   <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     Completed services
                   </h2>
 
-                  <div className="mt-6 grid gap-6">
+                  <div className="lu-lineup mt-5 grid gap-4">
                     {completedRequests.map((request) => (
                       <div
                         key={request.id}
-                        className="rounded-panel border border-neutral-200 bg-neutral-50 p-6 shadow-sm transition hover:border-neutral-300 hover:shadow-md"
+                        className="rounded-2xl border border-hairline bg-surface/60 p-5 transition-colors hover:bg-surface sm:p-6"
                       >
                         <Link href={`/requests/${request.id}`}>
                           <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
@@ -2303,12 +2300,12 @@ return (
               ) : null}
 
               {cancelledRequests.length > 0 ? (
-                <div className="mt-14">
+                <div className="mt-12">
                   <h2 className="text-xl font-semibold tracking-[-0.02em]">
                     Cancelled requests
                   </h2>
 
-                  <div className="mt-6 grid gap-4">
+                  <div className="lu-lineup mt-5 grid gap-3">
                     {cancelledRequests.map((request) => (
                       <Link
                         key={request.id}
@@ -2331,7 +2328,7 @@ return (
                   </div>
                 </div>
               ) : null}
-            </>
+            </div>
           ) : null}
 
           {isProfessional ? (
