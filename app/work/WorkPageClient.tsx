@@ -1230,13 +1230,11 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
       <div className="mx-auto max-w-6xl py-4 sm:py-6">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-neutral-500">
-            {isProfessional ? "Work" : "My services"}
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+            {isProfessional ? "Work" : "Bookings"}
           </p>
-          <h1 className="mt-2 sm:mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-            {isProfessional
-              ? `Hey, ${profile.full_name?.split(" ")[0] ?? "there"}`
-              : "Your services"}
+          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+            {isProfessional ? "Your work" : "Your bookings"}
           </h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
             {isProfessional
@@ -1247,11 +1245,11 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
         <VerificationBanner />
 
-        <div className="mt-5 grid grid-cols-3 gap-1.5 rounded-2xl border border-neutral-200 bg-neutral-100 p-1.5 sm:mt-8">
+        <div role="tablist" aria-label={isProfessional ? "Work" : "Bookings"} className="mt-8 flex gap-7 overflow-x-auto border-b border-hairline [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {(["requests", "booked", "completed"] as TabKey[]).map((tab) => {
             const labels: Record<TabKey, string> = {
-              booked: "Booking",
-              requests: "Activity",
+              booked: "Upcoming",
+              requests: isProfessional ? "Activity" : "Requests",
               completed: "History",
             };
             const counts: Record<TabKey, number> = {
@@ -1263,33 +1261,41 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
               <button
                 key={tab}
                 type="button"
+                role="tab"
+                aria-selected={activeTab === tab}
                 onClick={() => setActiveTab(tab)}
-                className={`relative rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                  activeTab === tab
-                    ? "bg-white text-neutral-900 shadow-sm"
-                    : "text-neutral-500 hover:text-neutral-700"
+                className={`relative flex shrink-0 items-center gap-2 pb-3.5 pt-1 text-sm transition-colors ${
+                  activeTab === tab ? "font-medium text-ink" : "text-neutral-500 hover:text-ink"
                 }`}
               >
                 {labels[tab]}
                 {counts[tab] > 0 ? (
-                  <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                    activeTab === tab ? "bg-neutral-100 text-neutral-600" : "bg-neutral-200 text-neutral-500"
-                  }`}>
+                  <span
+                    className={`min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[10px] font-semibold tabular-nums transition-colors ${
+                      activeTab === tab ? "bg-ink text-white" : "bg-neutral-200/70 text-neutral-600"
+                    }`}
+                  >
                     {counts[tab]}
                   </span>
                 ) : null}
+                <span
+                  aria-hidden="true"
+                  className={`absolute inset-x-0 bottom-0 h-[1.5px] bg-accent transition-transform duration-300 ease-premium ${
+                    activeTab === tab ? "scale-x-100" : "scale-x-0"
+                  }`}
+                />
               </button>
             );
           })}
         </div>
 
         {message ? (
-          <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+          <div role="status" className="mt-6 rounded-xl border border-neutral-200 bg-surface px-4 py-3 text-sm text-neutral-700">
             {message}
           </div>
         ) : null}
 
-        <div className="mt-5 min-h-[60vh] sm:mt-8">
+        <div key={activeTab} role="tabpanel" className="lu-fade-in mt-6 min-h-[60vh]">
           {activeTab === "requests" ? (
             openRequestItems.length === 0 && offerItems.length === 0 ? (
               <div className="rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
@@ -1314,7 +1320,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                 ) : null}
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="lu-lineup space-y-6">
                 {openRequestItems.length > 0 ? (
                   <div>
                     <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
@@ -1390,7 +1396,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                 <p className="mt-1.5 text-sm text-neutral-500">Your service history will build up here over time.</p>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="lu-lineup space-y-6">
                 {completedGroups.map((group) => (
                   <details key={group.key} open={group.defaultOpen} className="group/period">
                     <summary className="mb-3 flex cursor-pointer list-none items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
