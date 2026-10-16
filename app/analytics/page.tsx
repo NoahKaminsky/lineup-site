@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 import { getCached, setCached } from "@/app/lib/pageCache";
 
 type Profile = {
@@ -213,12 +214,9 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     async function load() {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         router.push("/login");
         return;
       }

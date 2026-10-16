@@ -94,6 +94,135 @@ function NavIcon({ icon }: { icon: NavItem["icon"] }) {
   );
 }
 
+// Phone tab bar. One ink pill slides between tabs; you can also grab it and
+// drag across the bar (like Instagram) — it follows your finger and opens the
+// tab you let go on. A plain tap behaves like a normal link.
+function MobileTabBar({
+  items,
+  isActive,
+  onNavigate,
+  onTap,
+}: {
+  items: NavItem[];
+  isActive: (href: string) => boolean;
+  onNavigate: (href: string) => void;
+  onTap: () => void;
+}) {
+  const barRef = useRef<HTMLUListElement | null>(null);
+  const dragRef = useRef<{ startX: number; dragging: boolean; pointerId: number; lastIndex: number } | null>(null);
+  const suppressClickRef = useRef(false);
+  const [dragPos, setDragPos] = useState<number | null>(null);
+
+  const activeIndex = items.findIndex((item) => isActive(item.href));
+  const count = items.length;
+  const pillPos = dragPos ?? activeIndex;
+  const highlighted = dragPos !== null ? Math.round(dragPos) : activeIndex;
+
+  function positionFromPointer(clientX: number) {
+    const bar = barRef.current;
+    if (!bar) return 0;
+    const rect = bar.getBoundingClientRect();
+    const inner = rect.width - 12; // p-1.5 on both sides
+    const cell = inner / count;
+    const pos = (clientX - rect.left - 6) / cell - 0.5;
+    return Math.max(0, Math.min(count - 1, pos));
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLUListElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    dragRef.current = { startX: event.clientX, dragging: false, pointerId: event.pointerId, lastIndex: activeIndex };
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLUListElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag.dragging) {
+      if (Math.abs(event.clientX - drag.startX) < 8) return;
+      drag.dragging = true;
+      barRef.current?.setPointerCapture(event.pointerId);
+    }
+    const pos = positionFromPointer(event.clientX);
+    const index = Math.round(pos);
+    if (index !== drag.lastIndex) {
+      drag.lastIndex = index;
+      try { navigator.vibrate?.(6); } catch {}
+    }
+    setDragPos(pos);
+  }
+
+  function endDrag(event: React.PointerEvent<HTMLUListElement>) {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (!drag || !drag.dragging) return;
+    suppressClickRef.current = true;
+    const index = Math.round(positionFromPointer(event.clientX));
+    setDragPos(null);
+    const target = items[index];
+    if (target && index !== activeIndex) onNavigate(target.href);
+  }
+
+  return (
+    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:hidden">
+      <ul
+        ref={barRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={() => {
+          dragRef.current = null;
+          setDragPos(null);
+        }}
+        onClickCapture={(event) => {
+          if (suppressClickRef.current) {
+            suppressClickRef.current = false;
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }}
+        className="relative mx-auto grid max-w-md touch-pan-y select-none rounded-[26px] bg-white/80 p-1.5 shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_10px_36px_-10px_rgba(0,0,0,0.3)] ring-1 ring-black/[0.06] backdrop-blur-2xl backdrop-saturate-150"
+        style={{ gridTemplateColumns: `repeat(${count}, minmax(0, 1fr))` }}
+      >
+        {/* The sliding pill. */}
+        {pillPos >= 0 ? (
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 rounded-[20px] bg-ink shadow-[0_6px_16px_-6px_rgba(0,0,0,0.45)] ${
+              dragPos !== null ? "scale-[1.04]" : "transition-[transform,scale] duration-[420ms] ease-[cubic-bezier(0.2,0.9,0.2,1.15)]"
+            }`}
+            style={{
+              width: `calc((100% - 12px) / ${count})`,
+              transform: `translateX(${pillPos * 100}%)`,
+            }}
+          />
+        ) : null}
+
+        {items.map((item, index) => {
+          const lit = index === highlighted;
+          return (
+            <li key={item.href} className="relative">
+              <Link
+                href={item.href}
+                prefetch
+                onClick={onTap}
+                draggable={false}
+                aria-current={isActive(item.href) ? "page" : undefined}
+                className={`flex min-h-[54px] flex-col items-center justify-center gap-[3px] rounded-[20px] transition-colors duration-200 ${
+                  lit ? "text-white" : "text-neutral-500 active:text-ink"
+                }`}
+              >
+                <NavIcon icon={item.icon} />
+                <span className="max-w-full truncate px-0.5 text-[10.5px] font-medium leading-none tracking-[-0.01em]">
+                  {item.label}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
 function NavbarComponent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -709,38 +838,7 @@ function NavbarComponent() {
       </header>
 
       {navItems.length > 0 ? (
-        <nav
-          aria-label="Main"
-          className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:hidden"
-        >
-          <ul
-            className="mx-auto grid max-w-md gap-1 rounded-[1.6rem] border border-hairline bg-surface/90 p-1.5 shadow-[0_2px_6px_rgba(0,0,0,0.04),0_12px_32px_-12px_rgba(0,0,0,0.25)] backdrop-blur-xl"
-            style={{ gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))` }}
-          >
-            {navItems.map((item) => {
-              const active = isActive(item.href);
-
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    prefetch
-                    onClick={handleNavClick}
-                    aria-current={active ? "page" : undefined}
-                    className={`relative flex min-h-[54px] flex-col items-center justify-center gap-1 rounded-[1.2rem] transition-colors duration-200 ${
-                      active ? "bg-accent-soft text-accent" : "text-neutral-400 active:bg-ink/[0.04]"
-                    }`}
-                  >
-                    <NavIcon icon={item.icon} />
-                    <span className={`text-[10px] leading-none tracking-tight ${active ? "font-semibold" : "font-medium"}`}>
-                      {item.shortLabel}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
+        <MobileTabBar items={navItems} isActive={isActive} onNavigate={(href) => { handleNavClick(); router.push(href); }} onTap={handleNavClick} />
       ) : null}
     </>
   );

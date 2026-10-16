@@ -11,6 +11,7 @@ import { containsProfanity } from "@/app/lib/profanityFilter";
 import VerificationBanner from "@/app/components/VerificationBanner";
 
 import { MapPin } from "lucide-react";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 type Profile = {
   id: string;
   email: string | null;
@@ -425,12 +426,9 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       if (!silent) setLoading(true);
       setMessage("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         router.push("/login");
         return;
       }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 import BookingChat from "@/app/components/BookingChat";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { containsProfanity } from "@/app/lib/profanityFilter";
@@ -317,12 +318,9 @@ export default function BookingDetailPage() {
       if (!silent) setLoading(true);
       setMessage("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         router.push("/login");
         return;
       }

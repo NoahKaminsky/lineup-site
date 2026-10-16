@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Scissors, Wand2, Hand, Eye, Pencil, Palette, Flame, Leaf, Star, ShoppingBag, Briefcase, Check } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 
 // See the matching flag in app/account/AccountPageClient.tsx — same reasoning.
 const SMS_SIGNUP_UI_ENABLED = false;
@@ -40,12 +41,9 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     async function checkExistingProfile() {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         router.push("/login");
         return;
       }
@@ -105,12 +103,9 @@ export default function OnboardingPage() {
     setErrorMessage("");
     setSaving(true);
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    const user = await getSignedInUser();
 
-    if (userError || !user) {
+    if (!user) {
       setSaving(false);
       setErrorMessage("Could not find signed-in user.");
       return;

@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import TimeSelect from "@/app/components/TimeSelect";
 
@@ -652,12 +653,9 @@ export default function ServicesPage() {
     }
 
     async function loadPage() {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         router.push("/login");
         return;
       }

@@ -11,6 +11,7 @@ import { getProfileHref } from "@/app/lib/profileLink";
 import { containsProfanity } from "@/app/lib/profanityFilter";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 import PushNotificationToggle from "@/app/components/PushNotificationToggle";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 
 // SMS alerts are superseded by push notifications (free, no Twilio account
 // needed) -- hidden from the UI for now rather than removed, since the
@@ -197,12 +198,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
   useEffect(() => {
     async function loadProfile() {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         router.push("/login");
         return;
       }
@@ -413,12 +411,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       setAvatarUploading(true);
       setMessage("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         setMessage("You must be signed in to upload a photo.");
         return;
       }
@@ -473,12 +468,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       setBannerUploading(true);
       setMessage("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         setMessage("You must be signed in to upload a banner.");
         return;
       }
@@ -534,12 +526,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       setPortfolioUploading(true);
       setMessage("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         setMessage("You must be signed in to upload portfolio work.");
         return;
       }

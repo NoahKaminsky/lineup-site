@@ -6,6 +6,7 @@ import { Scissors, Hand, Eye, Pencil, Palette, Leaf, Droplet } from "lucide-reac
 import { supabase } from "../../../lib/supabaseClient";
 import TimeSelect from "../../components/TimeSelect";
 import { containsProfanity } from "../../lib/profanityFilter";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
@@ -454,12 +455,9 @@ function NewRequestPageContent() {
     async function loadUser() {
       setMessage("Loading user...");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         router.push("/login");
         return;
       }

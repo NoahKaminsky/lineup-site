@@ -6,6 +6,7 @@ import DayZoomArea from "@/app/components/DayZoom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import type { CalendarInitialData } from "./getInitialData";
 
@@ -318,12 +319,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       if (!silent) setLoading(true);
       setMessage("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         router.push("/login");
         return;
       }

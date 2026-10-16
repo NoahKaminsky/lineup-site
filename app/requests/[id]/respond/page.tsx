@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 import TimeSelect from "@/app/components/TimeSelect";
 import MarkRequestNotificationRead from "@/app/components/MarkRequestNotificationRead";
 import { containsProfanity } from "@/app/lib/profanityFilter";
@@ -62,12 +63,9 @@ export default function RespondToRequestPage() {
       setLoading(true);
       setMessage("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         router.push("/login");
         return;
       }

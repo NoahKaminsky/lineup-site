@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 import AdminVerifications from "@/app/components/AdminVerifications";
 
 type AdminUser = {
@@ -84,9 +85,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     async function check() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
       if (!user) {
         router.push("/login");

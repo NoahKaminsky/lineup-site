@@ -19,6 +19,7 @@ import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/cus
 import { containsProfanity } from "@/app/lib/profanityFilter";
 
 import { MapPin } from "lucide-react";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 type ServiceRequest = {
   id: string;
   client_id: string;
@@ -614,12 +615,9 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
     if (!silent) setLoading(true);
     setMessage("");
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    const user = await getSignedInUser();
 
-    if (userError || !user) {
+    if (!user) {
       router.push("/login");
       return;
     }

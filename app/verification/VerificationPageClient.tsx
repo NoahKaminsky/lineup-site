@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 import type { VerificationInitialData } from "./getInitialData";
 import {
   JURISDICTIONS,
@@ -112,9 +113,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
   const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getSignedInUser();
 
     if (!user) {
       router.push("/login");

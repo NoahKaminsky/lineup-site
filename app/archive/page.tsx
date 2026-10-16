@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 
 // Archived services: every completed booking for the signed-in user (as the
 // professional or the client). The dashboard and calendar only show the last
@@ -53,9 +54,7 @@ export default function ArchivePage() {
     let cancelled = false;
 
     async function load() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
       if (!user) {
         router.replace("/login");

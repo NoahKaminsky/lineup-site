@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Inbox, Briefcase, Wand2, UserCircle, Images, Star, ClipboardList, Handshake, MapPin } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import type { RequestsInitialData } from "./getInitialData";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
@@ -909,12 +910,9 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
 
       setMessage("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         router.push("/login");
         return;
       }
@@ -1076,12 +1074,9 @@ if (profileError || !profile) {
       setBookingActionLoadingId(bookingId);
       setMessage("");
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
-      if (userError || !user) {
+      if (!user) {
         router.push("/login");
         return;
       }
@@ -1152,9 +1147,7 @@ if (profileError || !profile) {
       setBookingActionLoadingId(bookingId);
       setMessage("");
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
       if (!user) {
         router.push("/login");
