@@ -363,17 +363,17 @@ export default function LoginPage() {
             aria-labelledby="confirm-email-title"
             className="lu-dialog-in w-full max-w-md rounded-2xl bg-surface p-8 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.35)]"
           >
-            {/* LineUp lockup: the brush mark (public/images/logo.svg) beside the
-                wordmark, painted in left to right as the dialog opens. */}
-            <div
-              className="flex items-center justify-center gap-1.5"
+            {/* The LineUp brush mark (public/images/logo.svg), painted in left
+                to right as the dialog opens. */}
+            <svg
+              viewBox="0 0 1024 1024"
+              role="img"
+              aria-label="LineUp"
+              className="mx-auto -my-4 block h-24 w-24 text-ink"
               style={{ animation: "lu-logo-reveal 900ms var(--ease-arrive) 120ms both" }}
             >
-              <svg viewBox="0 0 1024 1024" aria-hidden="true" className="-my-2 h-14 w-14 text-ink">
-                <LuMarkPaths />
-              </svg>
-              <span className="text-2xl font-semibold tracking-[-0.04em] text-ink">LineUp</span>
-            </div>
+              <LuMarkPaths />
+            </svg>
 
             <h2 id="confirm-email-title" className="mt-6 text-center text-2xl font-semibold tracking-[-0.03em]">
               Confirm your email
