@@ -124,7 +124,8 @@ export function getNewsletterLaunchHtml(email: string) {
                       &bull; <strong>Create your account</strong> and pick every profession you do<br />
                       &bull; <strong>Get verified</strong> &mdash; upload your licence or certificate once<br />
                       &bull; <strong>Connect payouts</strong> so you get paid straight to your bank<br />
-                      &bull; <strong>Add your services</strong> and photos of your work
+                      &bull; <strong>Add your services</strong> and photos of your work<br /><br />
+                      <span style="color:#5d6478;">It&rsquo;s free to start, with up to 15 request bookings a month. Paid plans unlock more bookings and an instant-booking calendar &mdash; upgrade anytime.</span>
                     </td>
                   </tr>
                   <tr>
@@ -150,8 +151,8 @@ export function getNewsletterLaunchHtml(email: string) {
 
             <tr>
               <td style="padding:0 0 30px 0; font-family:Arial, Helvetica, sans-serif; font-size:18px; line-height:32px; color:#ffffff;">
-                Noah &amp; Dan<br />
-                <span style="color:#8a90a5; font-size:15px;">Co-founders, LineUp</span>
+                Noah Kaminsky<br />
+                <span style="color:#8a90a5; font-size:15px;">Co-founder &amp; CEO, LineUp</span>
               </td>
             </tr>
 
