@@ -2,11 +2,14 @@ import type { getServiceSupabase } from "@/app/lib/serverSupabase";
 
 type Service = ReturnType<typeof getServiceSupabase>;
 
-// Everyone we may email marketing to: account holders (profiles) and
-// waitlist sign-ups (lineup_signups) who said yes to marketing emails and
-// haven't unsubscribed. Deduplicated, so someone on both lists gets one copy.
-// Consent is required by Canadian anti-spam law (CASL), so people who never
-// opted in are counted but not emailed.
+// Who gets the launch email, deduplicated (someone on both lists gets one copy):
+// - Waitlist sign-ups (lineup_signups): everyone. They joined specifically
+//   for "early access before launch" — the old form never had a separate
+//   marketing checkbox, so marketing_consent is empty for all of them. Only
+//   someone who explicitly said no (false) is left out.
+// - Account holders (profiles): only those who ticked "yes" to marketing at
+//   signup, since they were asked and some said no.
+// Anyone who unsubscribed from either list is always left out.
 export async function getNewsletterAudience(service: Service) {
   const [profilesAll, signupsAll] = await Promise.all([
     service.from("profiles").select("email, marketing_consent, unsubscribed_from_marketing").not("email", "is", null),
@@ -29,13 +32,15 @@ export async function getNewsletterAudience(service: Service) {
     [...profiles, ...signups].filter((row) => row.unsubscribed_from_marketing).map((row) => row.email)
   );
 
-  const recipients = Array.from(
-    new Set(
-      [...profiles, ...signups]
-        .filter((row) => row.marketing_consent === true && !unsubscribed.has(row.email))
-        .map((row) => row.email)
-    )
-  );
+  // An explicit "no" on either list always wins.
+  const saidNo = new Set([...profiles, ...signups].filter((row) => row.marketing_consent === false).map((row) => row.email));
+
+  const candidates = new Set([
+    ...signups.map((row) => row.email),
+    ...profiles.filter((row) => row.marketing_consent === true).map((row) => row.email),
+  ]);
+
+  const recipients = Array.from(candidates).filter((email) => !unsubscribed.has(email) && !saidNo.has(email));
 
   const everyone = new Set([...profiles, ...signups].map((row) => row.email));
 
