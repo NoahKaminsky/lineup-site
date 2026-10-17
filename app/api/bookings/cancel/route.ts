@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
+import { CANCELLATION_CUTOFF_HOURS, canCancelForRefund } from "@/app/lib/bookingTime";
 
-const CANCELLATION_CUTOFF_HOURS = 24;
 
 export async function POST(req: Request) {
   try {
@@ -44,10 +44,9 @@ export async function POST(req: Request) {
     // Cancellations are only allowed more than 24 hours before the appointment.
     // Both sides are told this policy when the booking is made, so this should
     // never trip for a good-faith cancellation.
-    const appointmentAt = new Date(`${booking.booking_date}T${booking.start_time}`);
-    const hoursUntilAppointment = (appointmentAt.getTime() - Date.now()) / (1000 * 60 * 60);
-
-    if (hoursUntilAppointment < CANCELLATION_CUTOFF_HOURS) {
+    // Times are stored in LineUp's local zone; the server runs in UTC, so
+    // parse them in the booking zone (this used to land 5-6 hours early).
+    if (!canCancelForRefund(booking.booking_date, booking.start_time)) {
       return NextResponse.json(
         {
           error: `Bookings can only be cancelled more than ${CANCELLATION_CUTOFF_HOURS} hours before the appointment. Message the ${

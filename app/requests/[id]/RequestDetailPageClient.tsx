@@ -21,6 +21,12 @@ import { containsProfanity } from "@/app/lib/profanityFilter";
 import { MapPin } from "lucide-react";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { BookedSheet, MomentOverlay, formatMomentPrice } from "@/app/components/moments/Moments";
+import {
+  CANCELLATION_CUTOFF_HOURS as CUTOFF_HOURS,
+  canCancelForRefund,
+  formatCancellationDeadline,
+  hasAppointmentEnded,
+} from "@/app/lib/bookingTime";
 type ServiceRequest = {
   id: string;
   client_id: string;
@@ -345,28 +351,18 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
   }
 
   function isServiceOver(bookingDate: string, endTime: string) {
-    const end = new Date(`${bookingDate}T${String(endTime).slice(0, 5)}:00`);
-    return new Date() >= end;
+    // Booking zone, not the viewer's device zone (see app/lib/bookingTime).
+    return hasAppointmentEnded(bookingDate, endTime);
   }
 
-  const CANCELLATION_CUTOFF_HOURS = 24;
+  const CANCELLATION_CUTOFF_HOURS = CUTOFF_HOURS;
 
   function canCancelBooking(bookingDate: string, startTime: string) {
-    const start = new Date(`${bookingDate}T${String(startTime).slice(0, 5)}:00`);
-    const hoursUntilStart = (start.getTime() - Date.now()) / (1000 * 60 * 60);
-    return hoursUntilStart >= CANCELLATION_CUTOFF_HOURS;
+    return canCancelForRefund(bookingDate, startTime);
   }
 
   function formatCancellationCutoff(bookingDate: string, startTime: string) {
-    const start = new Date(`${bookingDate}T${String(startTime).slice(0, 5)}:00`);
-    const cutoff = new Date(start.getTime() - CANCELLATION_CUTOFF_HOURS * 60 * 60 * 1000);
-    return cutoff.toLocaleString("en-CA", {
-      weekday: "long",
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
+    return formatCancellationDeadline(bookingDate, startTime);
   }
 
   async function handleCancelBooking() {
@@ -2806,6 +2802,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
         <BookedSheet
           subtitle={acceptedOffer?.professional_name ? `With ${acceptedOffer.professional_name}.` : undefined}
           body="Message your professional to sort out arrival, prep, timing or anything else."
+          note="Free cancellation until 24 hours before your appointment. Within 24 hours it can't be cancelled."
           rows={
             acceptedOffer
               ? [

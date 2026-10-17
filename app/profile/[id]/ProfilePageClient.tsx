@@ -21,6 +21,7 @@ import { getCached, setCached } from "@/app/lib/pageCache";
 import DayZoomArea from "@/app/components/DayZoom";
 import type { ProfileDetailInitialData } from "./getInitialData";
 import { BookedSheet, MomentOverlay } from "@/app/components/moments/Moments";
+import { formatCancellationDeadline } from "@/app/lib/bookingTime";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -2425,6 +2426,13 @@ if (loading) {
               ) : null}
             </div>
 
+            {/* The cancellation policy, stated before anyone pays. */}
+            <p className="mt-5 rounded-2xl bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-600 ring-1 ring-ink/[0.05]">
+              <span className="font-semibold text-neutral-900">Cancellation policy:</span> cancel for a full refund until{" "}
+              {formatCancellationDeadline(pendingBookingChoice.slot.date, pendingBookingChoice.slot.start_time)}. Within 24
+              hours of the appointment, bookings can&apos;t be cancelled.
+            </p>
+
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
@@ -2473,6 +2481,7 @@ if (loading) {
         <BookedSheet
           subtitle={profile.full_name ? `With ${profile.full_name}.` : undefined}
           body="Full details, location and directions are on the booking page."
+          note={`Free cancellation until ${formatCancellationDeadline(confirmedBooking.booking_date, confirmedBooking.start_time)}. Within 24 hours of the appointment it can't be cancelled.`}
           rows={[
             { label: "Service", value: confirmedBooking.service_name || "Appointment" },
             {

@@ -13,6 +13,7 @@ import WelcomeTour, { type TourStep } from "../components/WelcomeTour";
 import OnboardingChecklist from "../components/OnboardingChecklist";
 import VerificationBanner from "../components/VerificationBanner";
 import NotificationNudge from "../components/NotificationNudge";
+import { canCancelForRefund, formatCancellationDeadline } from "@/app/lib/bookingTime";
 
 // "Recently completed" lists show the last 24 hours only (older work lives in
 // Archived services).
@@ -1997,9 +1998,16 @@ return (
 
                             {(booking.status === "confirmed" ||
                               booking.status === "completion_requested") ? (
-                              cancelBookingConfirmId === booking.id ? (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-neutral-600">Cancel booking?</span>
+                              !canCancelForRefund(booking.booking_date, booking.start_time) ? (
+                                // Inside 24h: say so instead of offering a button the
+                                // server will refuse.
+                                <p className="text-xs leading-5 text-neutral-500">
+                                  Within 24 hours of the appointment, so it can no longer be cancelled. Message the
+                                  professional if something&apos;s come up.
+                                </p>
+                              ) : cancelBookingConfirmId === booking.id ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-sm text-neutral-600">Cancel and get a full refund?</span>
                                   <button
                                     type="button"
                                     onClick={() => handleCancelBooking(booking.id)}
@@ -2026,6 +2034,12 @@ return (
                                   Cancel booking
                                 </button>
                               )
+                            ) : null}
+                            {(booking.status === "confirmed" || booking.status === "completion_requested") &&
+                            canCancelForRefund(booking.booking_date, booking.start_time) ? (
+                              <p className="text-xs text-neutral-400">
+                                Free cancellation until {formatCancellationDeadline(booking.booking_date, booking.start_time)}.
+                              </p>
                             ) : null}
                           </div>
                         </div>

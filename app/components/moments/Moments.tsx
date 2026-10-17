@@ -186,11 +186,14 @@ export function BookedSheet({
   subtitle,
   body,
   rows,
+  note,
   children,
   labelledBy = "lu-booked-title",
 }: {
   subtitle?: string;
   body?: React.ReactNode;
+  // Small print under the details, e.g. the cancellation policy.
+  note?: React.ReactNode;
   rows: { label: string; value: React.ReactNode }[];
   children: React.ReactNode;
   labelledBy?: string;
@@ -226,6 +229,8 @@ export function BookedSheet({
             ))}
           </dl>
         ) : null}
+
+        {note ? <p className="lu-fade-in mt-4 text-xs leading-5 text-neutral-500">{note}</p> : null}
 
         <div className="mt-7 flex flex-col gap-3">{children}</div>
       </div>
