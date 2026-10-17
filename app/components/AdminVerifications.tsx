@@ -157,7 +157,7 @@ export default function AdminVerifications() {
 
                 <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
                   <div>
-                    <dt className="inline text-neutral-500">Profession: </dt>
+                    <dt className="inline text-neutral-500">Checked against: </dt>
                     <dd className="inline font-medium">{s.profession_type.replaceAll("_", " ")}</dd>
                   </div>
                   {s.track === "licensed" ? (

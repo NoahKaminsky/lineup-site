@@ -9,6 +9,7 @@ import { containsProfanity } from "../../lib/profanityFilter";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { MomentCard, MomentOverlay, formatMomentDate, formatMomentPrice } from "@/app/components/moments/Moments";
 import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
+import { professionsForCategories } from "@/app/lib/professions";
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
@@ -566,25 +567,7 @@ function NewRequestPageContent() {
   );
 
   function getTargetProfessions(selectedCategory: string) {
-    switch (selectedCategory) {
-      case "haircut":
-        return ["barber", "hairstylist"];
-      case "nails":
-        return ["nail_artist"];
-      case "lashes":
-        return ["lash_artist"];
-      case "brow_artist":
-      case "brows":
-        return ["brow_artist"];
-      case "makeup":
-        return ["makeup_artist"];
-      case "waxing":
-        return ["wax_technician"];
-      case "body_sugaring":
-        return ["body_sugaring"];
-      default:
-        return [];
-    }
+    return professionsForCategories([selectedCategory]);
   }
 
   function toggleCategory(value: string) {

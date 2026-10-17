@@ -6,7 +6,7 @@ import {
   JURISDICTIONS,
   MAX_PENDING_SUBMISSIONS,
   VERIFICATION_BUCKET,
-  getLicensedRule,
+  getStrictestLicensedRule,
   todayDateString,
 } from "@/app/lib/verificationRules";
 
@@ -51,10 +51,17 @@ export async function POST(req: Request) {
     : profile?.professional_type
     ? [profile.professional_type]
     : [];
-  const professionType = clean(body.professionType, 60);
-  if (!professionType || !ownTypes.includes(professionType)) {
-    return NextResponse.json({ error: "Choose one of your professions." }, { status: 400 });
+  if (ownTypes.length === 0) {
+    return NextResponse.json(
+      { error: "Add your profession in your account settings first." },
+      { status: 400 }
+    );
   }
+  // One submission covers every profession on the account. For licensed
+  // pros the rule (and the profession recorded) is the strictest of theirs
+  // in that province — see getStrictestLicensedRule. Whatever the browser
+  // sends is ignored.
+  let professionType = ownTypes[0];
 
   const { count: pendingCount } = await service
     .from("professional_verifications")
@@ -84,7 +91,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Choose where you're licensed." }, { status: 400 });
     }
 
-    const rule = getLicensedRule(jurisdiction, professionType);
+    const strictest = getStrictestLicensedRule(jurisdiction, ownTypes);
+    const rule = strictest.rule;
+    professionType = strictest.profession;
+    row.profession_type = professionType;
     const licenseNumber = clean(body.licenseNumber, 64);
     const issuingBody = clean(body.issuingBody, 120);
     const licenseExpiry = clean(body.licenseExpiry, 10);

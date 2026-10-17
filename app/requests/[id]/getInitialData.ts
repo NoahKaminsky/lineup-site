@@ -13,6 +13,7 @@
 // server-renders correctly either way.
 
 import { createSupabaseServerClient } from "@/app/lib/serverSupabase";
+import { formatProfessions } from "@/app/lib/professions";
 
 type ServiceRequest = {
   id: string;
@@ -148,13 +149,13 @@ export async function getInitialRequestDetailData(requestId: string): Promise<Re
 
       const professionalIds = [...new Set(offersData.map((o) => o.professional_id))];
 
-      type OfferProfileRow = { id: string; full_name: string | null; avatar_url: string | null; professional_type: string | null; formatted_address: string | null };
+      type OfferProfileRow = { id: string; full_name: string | null; avatar_url: string | null; professional_type: string | null; professional_types?: string[] | null; formatted_address: string | null };
       type OfferReviewRow = { professional_id: string; rating: number };
 
       const [profileResult, reviewsResult] =
         professionalIds.length > 0
           ? await Promise.all([
-              supabase.from("profiles").select("id, full_name, avatar_url, professional_type, formatted_address").in("id", professionalIds),
+              supabase.from("profiles").select("id, full_name, avatar_url, professional_type, professional_types, formatted_address").in("id", professionalIds),
               supabase.from("professional_reviews").select("professional_id, rating").in("professional_id", professionalIds),
             ])
           : [{ data: [] as OfferProfileRow[] }, { data: [] as OfferReviewRow[] }];
@@ -162,7 +163,7 @@ export async function getInitialRequestDetailData(requestId: string): Promise<Re
       const profilesMap = new Map(
         ((profileResult.data || []) as OfferProfileRow[]).map((p) => [
           p.id,
-          { full_name: p.full_name ?? null, avatar_url: p.avatar_url ?? null, professional_type: p.professional_type ?? null, formatted_address: p.formatted_address ?? null },
+          { full_name: p.full_name ?? null, avatar_url: p.avatar_url ?? null, professional_type: formatProfessions(p, "") || null, formatted_address: p.formatted_address ?? null },
         ])
       );
 
