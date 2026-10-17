@@ -12,6 +12,7 @@ import VerificationBanner from "@/app/components/VerificationBanner";
 
 import { MapPin } from "lucide-react";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { useDismissedRequests } from "@/app/lib/requestDismissals";
 type Profile = {
   id: string;
   email: string | null;
@@ -377,6 +378,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
   const isCustomer = isCustomerRole(profile?.role);
   const isProfessional = isProfessionalRole(profile?.role);
+  const { dismissed: dismissedRequestIds } = useDismissedRequests(profile?.id, isProfessional);
 
   useEffect(() => {
     loadWork(!!seed);
@@ -1192,7 +1194,9 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
     (item) =>
       (item.kind === "open_request" || item.kind === "posted_request") &&
       item.status !== "Cancelled" &&
-      item.status !== "Completed"
+      item.status !== "Completed" &&
+      // Requests this pro cleared from their dashboard stay cleared here too.
+      !(item.kind === "open_request" && item.requestId && dismissedRequestIds.has(item.requestId))
   );
   const isUnresolvedOffer = (item: RequestAndOfferItem) =>
     item.rawOfferStatus === "pending" || item.rawOfferStatus === "payment_pending";

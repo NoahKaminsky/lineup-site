@@ -14,6 +14,7 @@ import OnboardingChecklist from "../components/OnboardingChecklist";
 import VerificationBanner from "../components/VerificationBanner";
 import NotificationNudge from "../components/NotificationNudge";
 import { canCancelForRefund, formatCancellationDeadline } from "@/app/lib/bookingTime";
+import { useDismissedRequests } from "@/app/lib/requestDismissals";
 
 // "Recently completed" lists show the last 24 hours only (older work lives in
 // Archived services).
@@ -1313,16 +1314,20 @@ if (profileError || !profile) {
     [bookings]
   );
 
+  // Requests this pro chose to clear ("not for me").
+  const { dismissed: dismissedRequestIds, dismiss: dismissRequest } = useDismissedRequests(userId, isProfessional);
+
   const professionalOpenRequests = useMemo(
     () =>
       requests.filter((request) => {
         if (request.status !== "open") return false;
+        if (dismissedRequestIds.has(request.id)) return false;
         if (request.is_direct_rebook) {
           return request.preferred_professional_id === userId;
         }
         return true;
       }),
-    [requests, userId]
+    [requests, userId, dismissedRequestIds]
   );
 
   const [openRequestOwnerRatings, setOpenRequestOwnerRatings] = useState<
@@ -2472,10 +2477,23 @@ return (
                         ].filter(Boolean);
 
                         return (
+                          <div key={request.id} className="group/req relative">
+                          {!responded ? (
+                            <button
+                              type="button"
+                              onClick={() => dismissRequest(request.id)}
+                              aria-label={`Dismiss request: ${request.title}`}
+                              title="Not for me — clear this request"
+                              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-100 hover:text-ink focus-visible:opacity-100 sm:opacity-0 sm:group-hover/req:opacity-100"
+                            >
+                              <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                                <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                              </svg>
+                            </button>
+                          ) : null}
                           <Link
-                            key={request.id}
                             href={`/requests/${request.id}`}
-                            className="group block rounded-2xl border border-hairline bg-surface p-5 transition-[border-color,box-shadow] duration-200 hover:border-neutral-300 hover:shadow-[0_12px_32px_-18px_rgba(0,0,0,0.25)] sm:p-6"
+                            className="group block rounded-2xl border border-hairline bg-surface p-5 pr-12 transition-[border-color,box-shadow] duration-200 hover:border-neutral-300 hover:shadow-[0_12px_32px_-18px_rgba(0,0,0,0.25)] sm:p-6 sm:pr-12"
                           >
                             <div className="flex items-center gap-2">
                               <span className="truncate font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
@@ -2540,6 +2558,7 @@ return (
                               <span className="text-xs text-neutral-400">View request</span>
                             </div>
                           </Link>
+                          </div>
                         );
                       })}
                     </div>

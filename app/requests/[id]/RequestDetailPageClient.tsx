@@ -27,6 +27,7 @@ import {
   formatCancellationDeadline,
   hasAppointmentEnded,
 } from "@/app/lib/bookingTime";
+import { dismissRequestOnce } from "@/app/lib/requestDismissals";
 type ServiceRequest = {
   id: string;
   client_id: string;
@@ -1834,12 +1835,26 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       line on why you&apos;re the right fit go a long way.
                     </p>
                   </div>
-                  <Link
-                    href={`/requests/${request.id}/respond`}
-                    className="inline-flex shrink-0 items-center justify-center rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-ink transition hover:bg-neutral-200"
-                  >
-                    Respond to request
-                  </Link>
+                  <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+                    <Link
+                      href={`/requests/${request.id}/respond`}
+                      className="inline-flex items-center justify-center rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-ink transition hover:bg-neutral-200"
+                    >
+                      Respond to request
+                    </Link>
+                    {currentUserId ? (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await dismissRequestOnce(currentUserId, request.id);
+                          router.push("/requests");
+                        }}
+                        className="text-center text-xs font-medium text-white/55 underline-offset-2 transition hover:text-white hover:underline sm:text-right"
+                      >
+                        Not for me, clear it
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </section>
 
