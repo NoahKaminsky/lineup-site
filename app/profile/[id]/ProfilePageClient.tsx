@@ -312,10 +312,11 @@ function getPlainServiceModes(value: string | string[] | null | undefined) {
   return Array.isArray(value) ? value.filter(Boolean) : [value].filter(Boolean);
 }
 
+// Booking-flow wording: says where the appointment physically happens.
 function formatModeLabel(mode: string) {
-  if (mode === "in_shop") return "In shop";
-  if (mode === "home_studio") return "Home studio";
-  if (mode === "at_home") return "At home";
+  if (mode === "in_shop") return "At their shop";
+  if (mode === "home_studio") return "At their home studio";
+  if (mode === "at_home") return "At your place";
   return mode.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
@@ -1626,6 +1627,21 @@ if (loading) {
               summary={getNextOpeningText() ? `Next opening: ${getNextOpeningText()}` : "View available times"}
               collapsible={false}
             >
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-neutral-50 px-4 py-3 text-sm ring-1 ring-ink/[0.05]">
+                <p className="text-neutral-600">
+                  Pick an open time below and book instantly
+                  {directBookingModes.length > 0
+                    ? ` (${directBookingModes.map((m) => formatModeLabel(m).toLowerCase()).join(" or ")})`
+                    : ""}
+                  .
+                </p>
+                <Link
+                  href={`/requests/new?rebook=1&pro=${profile.id}`}
+                  className="font-medium text-ink underline decoration-ink/25 underline-offset-4 transition hover:decoration-ink"
+                >
+                  Make a direct service request instead
+                </Link>
+              </div>
 
               {services.length === 0 ? (
                 <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
@@ -1883,7 +1899,7 @@ if (loading) {
                           <div className="mt-4 space-y-4">
                             <div>
                               <p className="text-sm font-medium text-neutral-900">
-                                Appointment location
+                                Where it happens
                               </p>
                               <p className="mt-1 text-xs leading-5 text-neutral-500">
                                 Direct bookings are for appointments at the professional’s shop or studio. For at-home work, post a request instead.
@@ -1923,7 +1939,7 @@ if (loading) {
                             {selectedServiceMode === "in_shop" || selectedServiceMode === "home_studio" ? (
                               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600">
                                 <p className="font-medium text-neutral-900">
-                                  {formatModeLabel(selectedServiceMode)} appointment
+                                  {formatModeLabel(selectedServiceMode)}
                                 </p>
                                 <p className="mt-1">
                                   This booking will use the professional’s saved business location.
@@ -2390,7 +2406,7 @@ if (loading) {
 
               <div>
                 <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                  Appointment type
+                  Where
                 </p>
                 <p className="mt-1 font-semibold text-neutral-900">
                   {formatModeLabel(pendingBookingChoice.mode)}
@@ -2469,6 +2485,9 @@ if (loading) {
                     label: "Where",
                     value: (
                       <>
+                        {confirmedBooking.service_mode ? (
+                          <span className="block font-semibold">{formatModeLabel(confirmedBooking.service_mode)}</span>
+                        ) : null}
                         <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />
                         {formatDisplayAddress(confirmedBooking.formatted_address)}
                         {userLocation && confirmedBooking.location_lat && confirmedBooking.location_lng ? (

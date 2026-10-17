@@ -402,6 +402,9 @@ function NewRequestPageContent() {
   // used to pre-fill the title/budget below instead of leaving them blank.
   const clickedServiceName = searchParams.get("service");
   const clickedServicePrice = searchParams.get("price");
+  // A specific service picked on a pro's profile: the service is already
+  // decided, so the category/type pickers are replaced by a summary of it.
+  const requestingSpecificService = isRebook && !!clickedServiceName;
 
   const [rebookProName, setRebookProName] = useState<string | null>(null);
   const [rebookProTypes, setRebookProTypes] = useState<string[] | null>(null);
@@ -413,7 +416,9 @@ function NewRequestPageContent() {
 
   const [categories, setCategories] = useState<string[]>([]);
   const [serviceDetailsByCategory, setServiceDetailsByCategory] = useState<Record<string, string[]>>({});
-  const [otherServiceDetail, setOtherServiceDetail] = useState("");
+  const [otherServiceDetail, setOtherServiceDetail] = useState(() =>
+    requestingSpecificService ? clickedServiceName || "" : ""
+  );
 
   function toggleServiceDetail(categoryValue: string, option: string) {
     setServiceDetailsByCategory((prev) => {
@@ -548,7 +553,9 @@ function NewRequestPageContent() {
   // the category isn't ambiguous, so pick it instead of making them reselect it.
   useEffect(() => {
     if (!clickedServiceName || categories.length > 0) return;
-    if (availableCategoryOptions.length !== 1) return;
+    // With the pickers hidden for a specific service, fall back to the pro's
+    // first category so the request still has one to file under.
+    if (availableCategoryOptions.length !== 1 && !(requestingSpecificService && availableCategoryOptions.length > 0)) return;
     setCategories([availableCategoryOptions[0].value]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clickedServiceName, availableCategoryOptions.map((opt) => opt.value).join(",")]);
@@ -997,6 +1004,31 @@ function NewRequestPageContent() {
           <div className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
 
+              {requestingSpecificService ? (
+                <div>
+                  <label className={labelClass}>Service</label>
+                  <div className="flex items-center justify-between gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-[15px] font-semibold text-neutral-900">{clickedServiceName}</p>
+                      <p className="mt-0.5 text-sm text-neutral-500">
+                        {[
+                          clickedServicePrice ? `$${String(clickedServicePrice).replace(/^\$/, "")}` : null,
+                          rebookProName ? `with ${rebookProName}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                    <a
+                      href={`/requests/new?rebook=1&pro=${preferredProfessionalId}`}
+                      className="shrink-0 text-sm font-medium text-neutral-500 underline-offset-2 hover:text-ink hover:underline"
+                    >
+                      Change
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <>
               {/* Service category */}
               <div>
                 <label className={labelClass}>Service</label>
@@ -1089,6 +1121,8 @@ function NewRequestPageContent() {
                   </div>
                 </div>
               ) : null}
+                </>
+              )}
 
               {/* Title */}
               <div>
