@@ -488,6 +488,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
     const map: Record<string, CalendarBooking[]> = {};
 
     bookings.forEach((booking) => {
+      // Finished work leaves the calendar (it's under "Recently completed"
+      // for a day, then in the archive); the grid is for what's ahead.
+      if (booking.status === "completed") return;
       if (!map[booking.booking_date]) map[booking.booking_date] = [];
       map[booking.booking_date].push(booking);
     });
@@ -552,7 +555,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   }, [bookings]);
 
   // The list only shows the last 24 hours; older work lives in /archive.
-  // (The month grid still shows every completed booking on its day.)
+  // (Completed bookings are not shown on the month grid.)
   const recentCompletedBookings = useMemo(
     () =>
       completedBookings.filter(
