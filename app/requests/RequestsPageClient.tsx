@@ -121,6 +121,9 @@ type ServiceRequest = {
   reference_photos: string[] | null;
   preferred_professional_id?: string | null;
   is_direct_rebook?: boolean | null;
+  // Set when the client started this from a past job with the pro ("Request
+  // again"): only then is it a rebook; otherwise it's a direct request.
+  original_request_id?: string | null;
   preferred_date?: string | null;
   preferred_start_time?: string | null;
   timing_flexibility?: string | null;
@@ -2097,7 +2100,7 @@ return (
 
                                 {request.is_direct_rebook ? (
                                   <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-ink">
-                                    Direct rebook
+                                    {request.original_request_id ? "Rebook" : "Direct request"}
                                   </span>
                                 ) : null}
 
@@ -2338,7 +2341,7 @@ return (
 
                                   {request.is_direct_rebook ? (
                                     <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-ink">
-                                      Direct rebook
+                                      {request.original_request_id ? "Rebook" : "Direct request"}
                                     </span>
                                   ) : null}
 
@@ -2481,7 +2484,7 @@ return (
                               </span>
                               {request.is_direct_rebook ? (
                                 <span className="shrink-0 rounded-md bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink">
-                                  Direct rebook
+                                  {request.original_request_id ? "Rebook" : "Direct request"}
                                 </span>
                               ) : null}
                               {isNew ? (

@@ -957,13 +957,14 @@ function NewRequestPageContent() {
       <main className="min-h-screen bg-paper pb-20">
         <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
 
-          {/* Page header */}
+          {/* Page header. "Rebook" only for a repeat client (started from a
+              past job); any other request aimed at one pro is a direct request. */}
           <div className="mb-8">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
-              {isRebook ? "Rebook" : "New Request"}
+              {isRebook ? (originalRequestId ? "Rebook" : "Direct request") : "New Request"}
             </p>
             <h1 className="mt-2 text-neutral-900 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-              {isRebook ? "Book again" : "Post a request"}
+              {isRebook ? (originalRequestId ? "Book again" : `Request ${rebookProName || "this professional"}`) : "Post a request"}
             </h1>
             <p className="mt-1.5 text-sm leading-6 text-neutral-500">
               {isRebook
@@ -972,11 +973,11 @@ function NewRequestPageContent() {
             </p>
           </div>
 
-          {/* Rebook banner */}
+          {/* Direct request / rebook banner */}
           {isRebook && preferredProfessionalId ? (
             <div className="mb-6 rounded-2xl border border-neutral-200 bg-neutral-100 p-4">
               <p className="text-sm font-semibold text-ink">
-                Rebooking with {rebookProName || "this professional"}
+                {originalRequestId ? "Rebooking" : "Direct request to"} {rebookProName || "this professional"}
               </p>
               <p className="mt-0.5 text-sm text-ink">
                 This request will be sent directly to them first.
@@ -1374,8 +1375,10 @@ function NewRequestPageContent() {
                   ? "Uploading photos..."
                   : submitting
                   ? "Posting your request..."
-                  : isRebook
+                  : isRebook && originalRequestId
                   ? "Send rebook request"
+                  : isRebook
+                  ? "Send direct request"
                   : "Post request"}
               </button>
 
