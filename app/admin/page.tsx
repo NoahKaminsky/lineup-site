@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import AdminVerifications from "@/app/components/AdminVerifications";
+import AdminNewsletter from "@/app/components/AdminNewsletter";
 
 type AdminUser = {
   id: string;
@@ -66,7 +67,7 @@ export default function AdminPage() {
 
   const [checking, setChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [tab, setTab] = useState<"users" | "verification" | ContentType>("users");
+  const [tab, setTab] = useState<"users" | "verification" | "newsletter" | ContentType>("users");
   const [message, setMessage] = useState("");
 
   const [userQuery, setUserQuery] = useState("");
@@ -154,7 +155,7 @@ export default function AdminPage() {
     if (!isAdmin) return;
     if (tab === "users") {
       loadUsers();
-    } else if (tab !== "verification") {
+    } else if (tab !== "verification" && tab !== "newsletter") {
       loadContent(tab);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -319,6 +320,15 @@ export default function AdminPage() {
           >
             Verification
           </button>
+          <button
+            type="button"
+            onClick={() => setTab("newsletter")}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+              tab === "newsletter" ? "bg-ink text-white" : "bg-white text-neutral-700 border border-neutral-200"
+            }`}
+          >
+            Newsletter
+          </button>
           {CONTENT_TABS.map((t) => (
             <button
               key={t.key}
@@ -335,6 +345,8 @@ export default function AdminPage() {
 
         {tab === "verification" ? (
           <AdminVerifications />
+        ) : tab === "newsletter" ? (
+          <AdminNewsletter />
         ) : tab === "users" ? (
           <div className="mt-6">
             <div className="flex gap-2">
