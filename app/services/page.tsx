@@ -9,6 +9,7 @@ import { getCached, setCached } from "@/app/lib/pageCache";
 import TimeSelect from "@/app/components/TimeSelect";
 
 import { MapPin } from "lucide-react";
+import { useHashTarget } from "@/app/lib/useHashTarget";
 type Profile = {
   id: string;
   role: string | null;
@@ -556,6 +557,8 @@ export default function ServicesPage() {
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
   const [locationPlaceId, setLocationPlaceId] = useState("");
+  // Checklist deep links (/services#modes, #add-service).
+  useHashTarget(!loading);
 
   const [savedSnapshot, setSavedSnapshot] = useState("");
   const [justSaved, setJustSaved] = useState(false);

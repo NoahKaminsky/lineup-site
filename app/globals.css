@@ -340,6 +340,21 @@ main {
   animation: lu-step-in-back 560ms var(--ease-arrive) backwards;
 }
 
+/* Deep-linked target (e.g. a checklist item): one outline that settles in
+   and fades, so the eye lands on the exact field. */
+@keyframes lu-target {
+  0% { outline-color: rgb(10 10 10 / 0); outline-offset: 10px; }
+  20% { outline-color: rgb(10 10 10 / 0.9); outline-offset: 4px; }
+  75% { outline-color: rgb(10 10 10 / 0.9); outline-offset: 4px; }
+  100% { outline-color: rgb(10 10 10 / 0); outline-offset: 4px; }
+}
+
+.lu-target {
+  outline: 2px solid transparent;
+  border-radius: 1rem;
+  animation: lu-target 2.2s var(--ease-arrive) both;
+}
+
 /* The bell swings once when something new arrives. */
 @keyframes lu-bell {
   0%, 100% { transform: rotate(0deg); }

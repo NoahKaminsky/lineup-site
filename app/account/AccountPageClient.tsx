@@ -13,6 +13,7 @@ import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 import PushNotificationToggle from "@/app/components/PushNotificationToggle";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
+import { useHashTarget } from "@/app/lib/useHashTarget";
 
 // SMS alerts are superseded by push notifications (free, no Twilio account
 // needed) -- hidden from the UI for now rather than removed, since the
@@ -172,6 +173,11 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
   const [location, setLocation] = useState(() => seed?.profile?.location ?? "");
   const [bio, setBio] = useState(() => seed?.profile?.bio ?? "");
   const [instagramHandle, setInstagramHandle] = useState(() => seed?.profile?.instagram_handle ?? "");
+  // Checklist deep links (/account#bio etc.). Bio and Instagram live in the
+  // edit form, so open it first.
+  useHashTarget(!loading && !!profile, (id) => {
+    if (id === "bio" || id === "instagram") setIsEditing(true);
+  });
   const [businessName, setBusinessName] = useState(() => seed?.profile?.business_name ?? "");
   const [specialties, setSpecialties] = useState<string[]>(() => seed?.profile?.specialties ?? []);
   const [professionalTypes, setProfessionalTypes] = useState<string[]>(() => {
@@ -1005,6 +1011,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 onClick={() => bannerInputRef.current?.click()}
                 className="group relative block w-full"
                 aria-label="Change cover photo"
+                id="cover"
               >
                 <div className="h-56 w-full overflow-hidden rounded-t-panel bg-neutral-100 md:h-72">
                   {profile.banner_url ? (
@@ -1039,6 +1046,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   type="button"
                   onClick={() => avatarInputRef.current?.click()}
                   aria-label="Change profile photo"
+                  id="photo"
                   className="group relative h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-neutral-100 shadow md:h-40 md:w-40"
                 >
                   {profile.avatar_url ? (
@@ -1149,7 +1157,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
           </div>
 
 {isProfessional ? (
-              <div className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
+              <div id="payouts" className="scroll-mt-28 rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                 <div className="flex flex-col gap-4">
                   <div>
                     <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
@@ -1412,6 +1420,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                           Bio
                         </label>
                         <textarea
+                          id="bio"
                           rows={5}
                           value={bio}
                           onChange={(e) => setBio(e.target.value)}
@@ -1425,6 +1434,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                           Instagram handle
                         </label>
                         <input
+                          id="instagram"
                           type="text"
                           value={instagramHandle}
                           onChange={(e) => setInstagramHandle(e.target.value)}
@@ -1716,7 +1726,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
           </div>
 
           {isProfessional ? (
-            <div className="mt-10 rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
+            <div id="portfolio" className="mt-10 scroll-mt-28 rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">

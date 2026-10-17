@@ -22,6 +22,7 @@ import {
   type VerificationStatus,
   type VerificationTrack,
 } from "@/app/lib/verificationRules";
+import { useHashTarget } from "@/app/lib/useHashTarget";
 
 type Submission = {
   id: string;
@@ -179,6 +180,8 @@ export default function VerificationPageClient({ initialData }: VerificationPage
   const [profile, setProfile] = useState<ProfileState | null>(
     (initialData?.profile as ProfileState | undefined) ?? null
   );
+  // Checklist deep link (/verification#verification-form).
+  useHashTarget(!loading && !!profile);
   const [submissions, setSubmissions] = useState<Submission[]>(
     (initialData?.submissions as Submission[] | undefined) ?? []
   );
