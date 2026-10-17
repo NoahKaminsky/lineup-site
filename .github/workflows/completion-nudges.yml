@@ -1,0 +1,22 @@
+# Calls the completion-nudge job every 15 minutes, so professionals hear
+# "mark it complete" shortly after an appointment ends. (Vercel's free plan
+# only allows daily cron jobs; GitHub's scheduler is free.)
+#
+# Needs one repository secret: CRON_SECRET, the same value as the
+# CRON_SECRET environment variable on Vercel.
+name: Completion nudges
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  nudge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run completion nudges
+        run: |
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://www.lineup-aesthetics.ca/api/cron/completion-nudges

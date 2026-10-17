@@ -211,6 +211,65 @@ export function CancelMoment({ title, meta, holdMs = 1700 }: { title: string; me
   );
 }
 
+/* Completion reminder: the step that releases a professional's payout. Shown
+   as a sheet once per booking (the caller remembers "Not now"). */
+export function CompletionReminderSheet({
+  eyebrow,
+  title,
+  subtitle,
+  body,
+  actionLabel,
+  busy,
+  onAction,
+  onLater,
+}: {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  body: string;
+  actionLabel: string;
+  busy?: boolean;
+  onAction: () => void;
+  onLater: () => void;
+}) {
+  return (
+    <div className="lu-fade-in fixed inset-0 z-[100] flex items-end justify-center bg-ink/40 p-3 backdrop-blur-sm sm:items-center sm:p-6">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="lu-completion-title"
+        className="lu-sheet-in w-full max-w-md rounded-[28px] bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8"
+      >
+        <span className="inline-flex rounded-full bg-ink px-3 py-1 text-xs font-medium text-white">{eyebrow}</span>
+        <h2 id="lu-completion-title" className="mt-5 text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink">
+          <MaskLine delay={120}>{title}</MaskLine>
+          <MaskLine delay={210} className="text-neutral-500">
+            {subtitle}
+          </MaskLine>
+        </h2>
+        <p className="lu-fade-in mt-4 text-sm leading-6 text-neutral-600">{body}</p>
+        <div className="mt-7 flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={onAction}
+            disabled={busy}
+            className="rounded-full bg-ink px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+          >
+            {busy ? "Working…" : actionLabel}
+          </button>
+          <button
+            type="button"
+            onClick={onLater}
+            className="rounded-full px-5 py-2.5 text-sm font-medium text-neutral-500 transition hover:text-ink"
+          >
+            Not now
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* "You're booked." A sheet on phones, a dialog on desktop. Detail rows step
    into line one after another, like everything else in LineUp. */
 export function BookedSheet({

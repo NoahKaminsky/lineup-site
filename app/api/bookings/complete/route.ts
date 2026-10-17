@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { completeBooking, requestBookingCompletion } from "@/app/lib/bookingCompletion";
 import { hasAppointmentEnded } from "@/app/lib/bookingTime";
+import { sendPushToUser } from "@/app/lib/push";
+import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 
 export async function POST(req: Request) {
   try {
@@ -71,6 +73,14 @@ export async function POST(req: Request) {
         },
       ]);
 
+      // The moment the customer needs to act: confirming is what pays the pro.
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.lineup-aesthetics.ca";
+      await sendPushToUser(booking.customer_id, {
+        title: "Confirm your appointment is complete",
+        body: `${cleanServiceLabel(booking.service_name) || "Your service"} is marked done. Tap to confirm so your professional gets paid.`,
+        url: `${siteUrl}/bookings/${booking.id}`,
+      }).catch((error) => console.error("Completion-request push failed:", error));
+
       return NextResponse.json({ ok: true });
     }
 
@@ -98,6 +108,15 @@ export async function POST(req: Request) {
         title: `${booking.service_name || "Your service"} was confirmed complete`,
       },
     ]);
+
+    {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.lineup-aesthetics.ca";
+      await sendPushToUser(booking.professional_id, {
+        title: "Confirmed complete",
+        body: `Your client confirmed ${cleanServiceLabel(booking.service_name) || "the service"}. Your payout is on its way.`,
+        url: `${siteUrl}/bookings/${booking.id}`,
+      }).catch((error) => console.error("Completion-confirmed push failed:", error));
+    }
 
     const { data: existingReview } = await supabase
       .from("professional_reviews")

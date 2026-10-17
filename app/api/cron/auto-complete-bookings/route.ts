@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 import { completeBooking } from "@/app/lib/bookingCompletion";
+import { appointmentInstant } from "@/app/lib/bookingTime";
 
 const AUTO_COMPLETE_HOURS_PAST_END = 24;
 
@@ -35,7 +36,8 @@ export async function GET(req: Request) {
 
     const stale = (candidates || []).filter((booking) => {
       if (!booking.booking_date || !booking.end_time) return false;
-      const endAt = new Date(`${booking.booking_date}T${String(booking.end_time).slice(0, 5)}`);
+      // Booking times are local (Winnipeg); the server runs in UTC.
+      const endAt = appointmentInstant(booking.booking_date, booking.end_time);
       return endAt.getTime() <= cutoff;
     });
 

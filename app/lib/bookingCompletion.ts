@@ -1,8 +1,6 @@
 import { stripe } from "@/app/lib/stripe";
 import { getServiceSupabase, getProfileEmail } from "@/app/lib/serverSupabase";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
-import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
-import { sendPushToUser } from "@/app/lib/push";
 
 type CompleteBookingResult = {
   ok: boolean;
@@ -74,7 +72,7 @@ export async function completeBooking(
   // right now nothing ever prompts a customer to leave one unless they
   // happen to come back to this exact booking on their own. A failure here
   // (email provider down, etc.) shouldn't undo the completion itself.
-  notifyCustomerForReview(supabase, booking).catch((error) => {
+  notifyCustomerForReview(supabase, booking, trigger).catch((error) => {
     console.error(`Failed to send review request for booking ${booking.id}:`, error);
   });
 
@@ -83,8 +81,14 @@ export async function completeBooking(
 
 async function notifyCustomerForReview(
   supabase: ReturnType<typeof getServiceSupabase>,
-  booking: { id: string; request_id: string | null; professional_id: string; customer_id: string; service_name: string | null }
+  booking: { id: string; request_id: string | null; professional_id: string; customer_id: string; service_name: string | null },
+  trigger: string
 ) {
+  // When the customer confirms in the app, the review sheet opens right
+  // there, so no bell notification, push or text is needed. Only an
+  // auto-completed booking (customer never confirmed) gets a review email.
+  if (trigger !== "auto") return;
+
   // Already reviewed (shouldn't normally happen right at completion, but the
   // auto-complete cron and a manual confirm could theoretically race) —
   // don't prompt for a review that already exists.
@@ -105,27 +109,6 @@ async function notifyCustomerForReview(
   const reviewUrl = booking.request_id ? `${siteUrl}/requests/${booking.request_id}` : `${siteUrl}/bookings/${booking.id}`;
   const serviceLabel = booking.service_name || "your service";
   const professionalName = professional.data?.full_name || "your professional";
-
-  await supabase.from("notifications").insert({
-    user_id: booking.customer_id,
-    request_id: booking.request_id || null,
-    is_read: false,
-    type: "review_requested",
-    title: `How was ${serviceLabel} with ${professionalName}? Leave a review`,
-  });
-
-  // SMS and push don't depend on email existing — give each channel its own
-  // independent shot rather than gating everything on the email check below.
-  sendSmsToProfileIfOptedIn(
-    customer,
-    `How was ${serviceLabel} with ${professionalName}? Leave a review on LineUp: ${reviewUrl}`
-  ).catch((error) => console.error(`Failed to send review-request SMS to ${booking.customer_id}:`, error));
-
-  sendPushToUser(booking.customer_id, {
-    title: "How did it go?",
-    body: `Rate your ${serviceLabel} with ${professionalName}`,
-    url: reviewUrl,
-  }).catch((error) => console.error(`Failed to send review-request push to ${booking.customer_id}:`, error));
 
   if (!customer.email) return;
 

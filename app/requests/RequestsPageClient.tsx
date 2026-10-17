@@ -13,9 +13,10 @@ import WelcomeTour, { type TourStep } from "../components/WelcomeTour";
 import OnboardingChecklist from "../components/OnboardingChecklist";
 import VerificationBanner from "../components/VerificationBanner";
 import NotificationNudge from "../components/NotificationNudge";
-import { canCancelForRefund, formatCancellationDeadline } from "@/app/lib/bookingTime";
+import { canCancelForRefund, formatCancellationDeadline, hasAppointmentEnded } from "@/app/lib/bookingTime";
 import { useDismissedRequests } from "@/app/lib/requestDismissals";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
+import { CompletionReminderSheet } from "@/app/components/moments/Moments";
 
 // "Recently completed" lists show the last 24 hours only (older work lives in
 // Archived services).
@@ -1075,6 +1076,39 @@ if (profileError || !profile) {
     };
   }, [role, loadRequestsLive]);
 
+  // Pro marks an ended appointment done; the client is then pushed to confirm.
+  async function handleMarkBookingComplete(bookingId: string) {
+    try {
+      setBookingActionLoadingId(bookingId);
+      setMessage("");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const response = await fetch("/api/bookings/complete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ bookingId, action: "request" }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setMessage(data?.error || "Could not mark this complete.");
+        return;
+      }
+      setProfessionalBookings((prev) =>
+        prev.map((booking) => (booking.id === bookingId ? { ...booking, status: "completion_requested" } : booking))
+      );
+      await loadRequestsLive({ silent: true });
+    } catch (error) {
+      console.error(error);
+      setMessage("Something went wrong marking this complete.");
+    } finally {
+      setBookingActionLoadingId(null);
+    }
+  }
+
   async function handleConfirmBookingCompletion(bookingId: string) {
     try {
       setBookingActionLoadingId(bookingId);
@@ -1391,6 +1425,42 @@ if (profileError || !profile) {
         booking.status === "completion_requested"
     );
   }, [professionalBookings]);
+
+  // Appointments that are over but the pro hasn't marked done yet: the step
+  // that starts their payout, so the dashboard prompts it hard.
+  const professionalEndedBookings = useMemo(
+    () =>
+      professionalUpcomingBookings.filter(
+        (booking) => booking.status === "confirmed" && hasAppointmentEnded(booking.booking_date, booking.end_time)
+      ),
+    [professionalUpcomingBookings]
+  );
+
+  // One completion reminder sheet per booking per device. Waits a moment
+  // after the dashboard loads (and for the browser) before checking storage.
+  const [reminderReady, setReminderReady] = useState(false);
+  const [reminderDismissedNow, setReminderDismissedNow] = useState<string[]>([]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setReminderReady(true), 700);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const reminderKey = (id: string, step: string) => `lu_completion_reminder_${id}_${step}`;
+  const reminderSeen = (key: string) => {
+    if (reminderDismissedNow.includes(key)) return true;
+    try {
+      return !!localStorage.getItem(key);
+    } catch {
+      return false;
+    }
+  };
+  const dismissReminder = (key: string) => {
+    try {
+      localStorage.setItem(key, "1");
+    } catch {
+      // storage unavailable: still hide for this visit
+    }
+    setReminderDismissedNow((prev) => [...prev, key]);
+  };
 
   const cancelledProfessionalBookings = useMemo(
     () =>
@@ -1785,6 +1855,79 @@ return (
           {message ? (
             <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               {message}
+            </div>
+          ) : null}
+
+          {(() => {
+            if (!reminderReady) return null;
+            const customerTarget = isCustomer ? pendingCompletionBookings[0] : undefined;
+            const proTarget = isProfessional ? professionalEndedBookings[0] : undefined;
+            if (customerTarget) {
+              const key = reminderKey(customerTarget.id, "confirm");
+              if (reminderSeen(key)) return null;
+              const service = cleanServiceLabel(customerTarget.service_name) || "service";
+              return (
+                <CompletionReminderSheet
+                  eyebrow="Action needed"
+                  title={`Was your ${service} done?`}
+                  subtitle="Confirm it to wrap it up."
+                  body="Your professional marked it complete. Confirming is what pays them out, then you can leave a quick review."
+                  actionLabel="Confirm service completed"
+                  busy={bookingActionLoadingId === customerTarget.id}
+                  onAction={() => {
+                    dismissReminder(key);
+                    handleConfirmBookingCompletion(customerTarget.id);
+                  }}
+                  onLater={() => dismissReminder(key)}
+                />
+              );
+            }
+            if (proTarget) {
+              const key = reminderKey(proTarget.id, "mark");
+              if (reminderSeen(key)) return null;
+              const service = cleanServiceLabel(proTarget.service_name) || "Your appointment";
+              return (
+                <CompletionReminderSheet
+                  eyebrow="Action needed"
+                  title={`${service} is over.`}
+                  subtitle="Mark it complete to get paid."
+                  body="Your client is asked to confirm as soon as you do, and confirming releases your payout."
+                  actionLabel="Mark complete"
+                  busy={bookingActionLoadingId === proTarget.id}
+                  onAction={() => {
+                    dismissReminder(key);
+                    handleMarkBookingComplete(proTarget.id);
+                  }}
+                  onLater={() => dismissReminder(key)}
+                />
+              );
+            }
+            return null;
+          })()}
+
+          {isProfessional && professionalEndedBookings.length > 0 ? (
+            <div role="status" className="lu-dialog-in mt-8 rounded-[24px] bg-ink p-6 text-white">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-medium text-white/60">Action needed</p>
+                  <p className="mt-1 text-lg font-semibold tracking-tight">
+                    {professionalEndedBookings.length === 1
+                      ? `Mark your ${cleanServiceLabel(professionalEndedBookings[0].service_name) || "appointment"} complete`
+                      : `Mark ${professionalEndedBookings.length} appointments complete`}
+                  </p>
+                  <p className="mt-1 max-w-md text-sm text-white/70">
+                    The appointment is over. Once you mark it, your client confirms and your payout is released.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleMarkBookingComplete(professionalEndedBookings[0].id)}
+                  disabled={bookingActionLoadingId === professionalEndedBookings[0].id}
+                  className="inline-flex shrink-0 rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-neutral-200 disabled:opacity-60"
+                >
+                  {bookingActionLoadingId === professionalEndedBookings[0].id ? "Working…" : "Mark complete"}
+                </button>
+              </div>
             </div>
           ) : null}
 

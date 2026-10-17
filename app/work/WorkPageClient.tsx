@@ -14,6 +14,8 @@ import { MapPin } from "lucide-react";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { useDismissedRequests } from "@/app/lib/requestDismissals";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
+import { DrawnCheck } from "@/app/components/moments/Moments";
+import { canCancelForRefund, hasAppointmentEnded } from "@/app/lib/bookingTime";
 type Profile = {
   id: string;
   email: string | null;
@@ -168,8 +170,8 @@ function isProfessionalRole(role: string | null | undefined) {
 
 function isServiceOver(date: string | null, endTime: string | null) {
   if (!date || !endTime) return false;
-  const end = new Date(`${date}T${String(endTime).slice(0, 5)}:00`);
-  return new Date() >= end;
+  // Booking zone, not the device zone (see app/lib/bookingTime).
+  return hasAppointmentEnded(date, endTime);
 }
 
 function formatCategory(category: string | null | undefined) {
@@ -1013,7 +1015,8 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       );
 
       if (nextStatus === "completion_requested") {
-        setMessage("Completion requested. Waiting for customer confirmation.");
+        // The card itself now shows "Marked done. Waiting for ..." instead.
+        setMessage("");
       } else if (nextStatus === "completed") {
         if (isCustomer && !skipReviewPrompt) {
           setReviewItem(item);
@@ -1676,13 +1679,15 @@ function BookedList({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                      item.status === "completion_requested"
-                        ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-                        : item.status === "completed"
-                        ? "bg-neutral-100 text-neutral-500"
+                      item.status === "completed" || (item.status === "completion_requested" && isProfessional)
+                        ? "bg-neutral-100 text-neutral-600"
                         : "bg-neutral-900 text-white"
                     }`}>
-                      {statusLabel(item.status)}
+                      {item.status === "completion_requested"
+                        ? isProfessional
+                          ? "Marked done"
+                          : "Confirm now"
+                        : statusLabel(item.status)}
                     </span>
                     <span className="text-[11px] text-neutral-400">
                       {item.source === "request" || item.originRequestId ? "Accepted request" : "Direct booking"}
@@ -1723,6 +1728,58 @@ function BookedList({
               </div>
             </div>
 
+            {/* Completion: the step that pays the pro, so it gets a real
+                strip on the card rather than a small button in the row. */}
+            {isProfessional &&
+            (item.status === "accepted" || item.status === "confirmed") &&
+            isServiceOver(item.date, item.endTime) ? (
+              <div className="lu-dialog-in mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-ink p-4 text-white">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">The appointment&apos;s over.</p>
+                  <p className="mt-0.5 text-xs leading-5 text-white/70">
+                    Mark it complete so {otherPerson.name?.split(" ")[0] || "your client"} can confirm and you get paid.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => updateBookedItemStatus(item, "completion_requested")}
+                  disabled={isLoadingAction}
+                  className="shrink-0 rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-ink transition hover:bg-neutral-200 disabled:opacity-60"
+                >
+                  {isLoadingAction ? "Working…" : "Mark complete"}
+                </button>
+              </div>
+            ) : null}
+
+            {isProfessional && item.status === "completion_requested" ? (
+              <div className="mt-4 flex items-center gap-3 rounded-2xl bg-neutral-50 p-4 ring-1 ring-ink/[0.05]">
+                <DrawnCheck size={28} />
+                <p className="text-xs leading-5 text-neutral-600">
+                  <span className="font-semibold text-ink">Marked done.</span> Waiting for{" "}
+                  {otherPerson.name?.split(" ")[0] || "your client"} to confirm. We&apos;ve sent them a reminder.
+                </p>
+              </div>
+            ) : null}
+
+            {isCustomer && item.status === "completion_requested" ? (
+              <div className="lu-dialog-in mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-ink p-4 text-white">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Was your {item.title} done?</p>
+                  <p className="mt-0.5 text-xs leading-5 text-white/70">
+                    Confirm it&apos;s complete so {otherPerson.name?.split(" ")[0] || "your professional"} gets paid.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => updateBookedItemStatus(item, "completed")}
+                  disabled={isLoadingAction}
+                  className="shrink-0 rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-ink transition hover:bg-neutral-200 disabled:opacity-60"
+                >
+                  {isLoadingAction ? "Working…" : "Confirm complete"}
+                </button>
+              </div>
+            ) : null}
+
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3">
               <Link
                 href={item.href}
@@ -1751,41 +1808,15 @@ function BookedList({
                 </Link>
               ) : null}
 
-              {(item.status === "accepted" || item.status === "confirmed") && isProfessional ? (
-                isServiceOver(item.date, item.endTime) ? (
-                  <button
-                    type="button"
-                    onClick={() => updateBookedItemStatus(item, "completion_requested")}
-                    disabled={isLoadingAction}
-                    className="rounded-full border border-neutral-300 px-4 py-2 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-60"
-                  >
-                    {isLoadingAction ? "Working…" : "Request completion"}
-                  </button>
-                ) : (
-                  <span className="rounded-full bg-neutral-50 px-3 py-2 text-xs text-neutral-400">
-                    Available after service ends
-                  </span>
-                )
+              {(item.status === "accepted" || item.status === "confirmed") &&
+              isProfessional &&
+              !isServiceOver(item.date, item.endTime) &&
+              item.endTime ? (
+                <span className="text-xs text-neutral-400">Mark complete after {formatTime(item.endTime)}</span>
               ) : null}
 
-              {item.status === "completion_requested" && isCustomer ? (
-                <button
-                  type="button"
-                  onClick={() => updateBookedItemStatus(item, "completed")}
-                  disabled={isLoadingAction}
-                  className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
-                >
-                  {isLoadingAction ? "Working…" : "Confirm service completed"}
-                </button>
-              ) : null}
-
-              {item.status === "completion_requested" && isProfessional ? (
-                <span className="rounded-full bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
-                  Waiting on customer
-                </span>
-              ) : null}
-
-              {item.status !== "completed" && item.status !== "cancelled" ? (
+              {(item.status === "accepted" || item.status === "confirmed") &&
+              canCancelForRefund(item.date, item.startTime) ? (
                 cancelConfirmId === actionKey ? (
                   <div className="ml-auto flex items-center gap-2">
                     <span className="text-xs text-neutral-500">Cancel this?</span>
