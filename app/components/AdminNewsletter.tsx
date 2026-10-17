@@ -110,11 +110,11 @@ export default function AdminNewsletter() {
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl bg-neutral-50 p-3">
               <p className="text-2xl font-semibold">{counts.recipients}</p>
-              <p className="text-xs text-neutral-500">will get it (opted in)</p>
+              <p className="text-xs text-neutral-500">will get it</p>
             </div>
             <div className="rounded-xl bg-neutral-50 p-3">
               <p className="text-2xl font-semibold">{counts.noConsent}</p>
-              <p className="text-xs text-neutral-500">never opted in — skipped</p>
+              <p className="text-xs text-neutral-500">said no to emails — skipped</p>
             </div>
             <div className="rounded-xl bg-neutral-50 p-3">
               <p className="text-2xl font-semibold">{counts.unsubscribed}</p>
