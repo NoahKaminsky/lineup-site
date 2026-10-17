@@ -20,7 +20,7 @@ import { containsProfanity } from "@/app/lib/profanityFilter";
 
 import { MapPin } from "lucide-react";
 import { getSignedInUser } from "@/lib/getSignedInUser";
-import { BookedSheet, MomentOverlay, formatMomentPrice } from "@/app/components/moments/Moments";
+import { BookedSheet, CancelMoment, MomentOverlay, formatMomentPrice } from "@/app/components/moments/Moments";
 import {
   CANCELLATION_CUTOFF_HOURS as CUTOFF_HOURS,
   canCancelForRefund,
@@ -255,6 +255,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
   // UI only: shows the "Confirming your booking" moment while the existing
   // webhook poll below runs. Never read by any booking logic.
   const [confirmingBooking, setConfirmingBooking] = useState(false);
+  const [showCancelMoment, setShowCancelMoment] = useState(false);
   const [newChatMessage, setNewChatMessage] = useState("");
   const [sendingChatMessage, setSendingChatMessage] = useState(false);
   const [chatBookingId, setChatBookingId] = useState<string | null>(() => initialData?.chatBookingId ?? null);
@@ -1303,8 +1304,11 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
           : offer
       )
     );
-    setMessage("Request cancelled.");
     setCancelingRequest(false);
+    // Nothing was booked, so there's nothing left to manage: play the cancel
+    // moment and head back to the dashboard, where it's no longer listed.
+    setShowCancelMoment(true);
+    window.setTimeout(() => router.push("/requests"), 1700);
   }
 
   async function handleRequestCompletion() {
@@ -2861,6 +2865,13 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             </Elements>
           </div>
         </div>
+      ) : null}
+
+      {showCancelMoment && request ? (
+        <CancelMoment
+          title={request.title || "Your request"}
+          meta={[request.budget ? formatMomentPrice(request.budget) : null, offers.length ? `${offers.length} offer${offers.length === 1 ? "" : "s"} declined` : null].filter(Boolean).join(" · ") || undefined}
+        />
       ) : null}
 
       {confirmingBooking ? (

@@ -1263,6 +1263,8 @@ if (profileError || !profile) {
     () =>
       requests.filter((request) => {
         if (request.status !== "cancelled" || !request.cancelled_at) return false;
+        // Never booked (no pro accepted): cancelling simply removes it.
+        if (!request.accepted_professional_id) return false;
         return Date.now() - new Date(request.cancelled_at).getTime() <= 24 * 60 * 60 * 1000;
       }),
     [requests]

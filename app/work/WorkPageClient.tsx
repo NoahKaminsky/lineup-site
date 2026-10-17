@@ -543,7 +543,10 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       )
       .map((request) => requestToBookedItem(request, profileMap));
 
-    const postedItems: RequestAndOfferItem[] = requests.map((request) => ({
+    // A request cancelled before anyone was booked just disappears.
+    const postedItems: RequestAndOfferItem[] = requests
+      .filter((request) => !(request.status === "cancelled" && !request.accepted_professional_id))
+      .map((request) => ({
       id: `posted-${request.id}`,
       kind: "posted_request",
       title: request.title || cleanServiceLabel(request.service_detail) || formatCategory(request.category),

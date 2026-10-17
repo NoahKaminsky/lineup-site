@@ -180,6 +180,37 @@ export function MomentOverlay({
   );
 }
 
+/* "Request cancelled." The card is struck through, tips away, and the page
+   moves on; the caller navigates after `holdMs`. */
+export function CancelMoment({ title, meta, holdMs = 1700 }: { title: string; meta?: string; holdMs?: number }) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-6" role="status" aria-live="polite">
+      <div className="lu-fade-in absolute inset-0 bg-paper/85 backdrop-blur-md" />
+      <div className="relative w-full max-w-sm text-center">
+        <div style={{ animation: "lu-fall-away 520ms var(--ease-premium) 700ms both" }}>
+          <div className="lu-lift-in relative overflow-hidden">
+            <MomentCard eyebrow="Your request" title={title} meta={meta ? [meta] : undefined} />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute left-4 right-4 top-1/2 h-[2px] origin-left rounded-full bg-ink"
+              style={{ animation: "lu-strike 420ms var(--ease-arrive) 260ms both" }}
+            />
+          </div>
+        </div>
+        <h2 className="mt-9 text-[1.6rem] font-semibold leading-[1.08] tracking-[-0.035em] text-ink">
+          <MaskLine delay={420}>Request cancelled.</MaskLine>
+          <MaskLine delay={510} className="text-neutral-500">
+            It&apos;s off the board.
+          </MaskLine>
+        </h2>
+        <div className="mx-auto mt-8 h-px w-40 overflow-hidden bg-ink/10">
+          <div className="h-px origin-left bg-ink" style={{ animation: `lu-progress ${holdMs}ms linear both` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* "You're booked." A sheet on phones, a dialog on desktop. Detail rows step
    into line one after another, like everything else in LineUp. */
 export function BookedSheet({
