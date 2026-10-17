@@ -15,6 +15,7 @@ import VerificationBanner from "../components/VerificationBanner";
 import NotificationNudge from "../components/NotificationNudge";
 import { canCancelForRefund, formatCancellationDeadline } from "@/app/lib/bookingTime";
 import { useDismissedRequests } from "@/app/lib/requestDismissals";
+import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 
 // "Recently completed" lists show the last 24 hours only (older work lives in
 // Archived services).
@@ -1466,7 +1467,7 @@ if (profileError || !profile) {
         id: booking.id,
         source: "booking",
         status: booking.status,
-        title: booking.service_name || "Booked service",
+        title: cleanServiceLabel(booking.service_name) || "Booked service",
         subtitle: `${formatBookingDate(booking.booking_date)} • ${formatTime(
           booking.start_time
         )} - ${formatTime(booking.end_time)}`,
@@ -1532,7 +1533,7 @@ if (profileError || !profile) {
         id: booking.id,
         source: "booking",
         status: "completed",
-        title: booking.service_name || "Booked service",
+        title: cleanServiceLabel(booking.service_name) || "Booked service",
         subtitle: `${formatBookingDate(booking.booking_date)} • ${formatTime(
           booking.start_time
         )} - ${formatTime(booking.end_time)}`,
@@ -1609,6 +1610,7 @@ if (profileError || !profile) {
   const monthlyCompletedJobsCount = useMemo(() => {
     const completedRequestsThisMonth = professionalCompletedRequests.filter(
       (request) => {
+        if (professionalBookedRequestIds.has(request.id)) return false;
         const completedDate = new Date(request.completed_at || request.created_at);
         return isDateInRange(completedDate, currentMonthStart, nextMonthStart);
       }
@@ -1625,13 +1627,16 @@ if (profileError || !profile) {
   }, [
     professionalCompletedRequests,
     professionalCompletedBookings,
+    professionalBookedRequestIds,
     currentMonthStart,
     nextMonthStart,
   ]);
 
   const monthlyUpcomingCount = useMemo(() => {
+    // A request that became a booking is counted once, as the booking.
     const upcomingRequestsThisMonth = professionalUpcomingRequests.filter(
       (request) => {
+        if (professionalBookedRequestIds.has(request.id)) return false;
         const requestDate = getRequestScheduledDateTime(
           request.scheduled_date,
           request.scheduled_start_time,
@@ -1655,6 +1660,7 @@ if (profileError || !profile) {
   }, [
     professionalUpcomingRequests,
     professionalUpcomingBookings,
+    professionalBookedRequestIds,
     currentMonthStart,
     nextMonthStart,
   ]);
@@ -1787,7 +1793,7 @@ return (
                   <p className="text-xs font-medium text-white/60">Action needed</p>
                   <p className="mt-1 text-lg font-semibold tracking-tight">
                     {pendingCompletionBookings.length === 1
-                      ? `Confirm your ${pendingCompletionBookings[0].service_name || "service"} is done`
+                      ? `Confirm your ${cleanServiceLabel(pendingCompletionBookings[0].service_name) || "service"} is done`
                       : `Confirm ${pendingCompletionBookings.length} completed services`}
                   </p>
                   <p className="mt-1 max-w-md text-sm text-white/70">
@@ -1814,7 +1820,7 @@ return (
               <div>
                 <p className="font-semibold text-neutral-900">
                   {unreviewedCompletedBookings.length === 1
-                    ? `How was your ${unreviewedCompletedBookings[0].service_name || "service"}?`
+                    ? `How was your ${cleanServiceLabel(unreviewedCompletedBookings[0].service_name) || "service"}?`
                     : `You have ${unreviewedCompletedBookings.length} completed services to review`}
                 </p>
                 <p className="mt-1 text-sm text-neutral-500">
@@ -1955,7 +1961,7 @@ return (
                                 </div>
 
                                 <h2 className="mt-3 text-lg font-semibold tracking-[-0.015em]">
-                                  {booking.service_name || "Booked service"}
+                                  {cleanServiceLabel(booking.service_name) || "Booked service"}
                                 </h2>
 
                                 <p className="mt-3 text-neutral-600">
@@ -2098,8 +2104,9 @@ return (
                               <div className="flex flex-wrap items-center gap-3">
                                 <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                                   {formatCategory(request.category)}
-                                  {request.service_detail
-                                    ? ` • ${request.service_detail}`
+                                  {request.service_detail &&
+ cleanServiceLabel(request.service_detail).toLowerCase() !== formatCategory(request.category).toLowerCase()
+                                    ? ` • ${cleanServiceLabel(request.service_detail)}`
                                     : ""}
                                 </span>
 
@@ -2224,7 +2231,7 @@ return (
                               </div>
 
                               <h2 className="mt-3 text-lg font-semibold tracking-[-0.015em]">
-                                {booking.service_name || "Booked service"}
+                                {cleanServiceLabel(booking.service_name) || "Booked service"}
                               </h2>
 
                               <p className="mt-3 text-neutral-600">
@@ -2294,7 +2301,7 @@ return (
                           ) : null}
                         </div>
                         <h3 className="mt-3 text-lg font-semibold tracking-tight">
-                          {booking.service_name || "Booked service"}
+                          {cleanServiceLabel(booking.service_name) || "Booked service"}
                         </h3>
                         <p className="mt-1 text-sm text-neutral-500">
                           {formatBookingDate(booking.booking_date)} • With{" "}
@@ -2339,8 +2346,9 @@ return (
                                 <div className="flex flex-wrap items-center gap-3">
                                   <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
                                     {formatCategory(request.category)}
-                                    {request.service_detail
-                                      ? ` • ${request.service_detail}`
+                                    {request.service_detail &&
+ cleanServiceLabel(request.service_detail).toLowerCase() !== formatCategory(request.category).toLowerCase()
+                                      ? ` • ${cleanServiceLabel(request.service_detail)}`
                                       : ""}
                                   </span>
 
@@ -2498,7 +2506,8 @@ return (
                             <div className="flex items-center gap-2">
                               <span className="truncate font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
                                 {formatCategory(request.category)}
-                                {request.service_detail ? ` · ${request.service_detail}` : ""}
+                                {request.service_detail &&
+ cleanServiceLabel(request.service_detail).toLowerCase() !== formatCategory(request.category).toLowerCase() ? ` · ${cleanServiceLabel(request.service_detail)}` : ""}
                               </span>
                               {request.is_direct_rebook ? (
                                 <span className="shrink-0 rounded-md bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink">
@@ -2652,7 +2661,7 @@ return (
                         {cancelledProfessionalBookings.map((booking) => (
                           <li key={booking.id}>
                             <Link href={`/bookings/${booking.id}`} className="block px-4 py-3.5 transition-colors hover:bg-neutral-50">
-                              <p className="truncate text-sm font-semibold text-ink">{booking.service_name || "Booked service"}</p>
+                              <p className="truncate text-sm font-semibold text-ink">{cleanServiceLabel(booking.service_name) || "Booked service"}</p>
                               <p className="mt-0.5 text-xs text-neutral-500">
                                 {formatBookingDate(booking.booking_date)}
                                 {booking.refund_status === "refunded" ? " · Client refunded" : ""}
