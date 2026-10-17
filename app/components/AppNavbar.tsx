@@ -402,6 +402,39 @@ function NavbarComponent() {
     fetchUnreadCount();
   }, [pathname, fetchUnreadCount]);
 
+  // The plan badge (and everything gated on it) used to be read once when
+  // the app first loaded, so a plan changed in Supabase or /admin didn't
+  // show until a hard reload. Re-read just the plan fields on navigation and
+  // whenever the tab comes back into focus.
+  const profileId = profile?.id;
+  const refreshPlan = useCallback(async () => {
+    if (!profileId) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("subscription_plan, subscription_status")
+      .eq("id", profileId)
+      .maybeSingle();
+    if (!data) return;
+    setProfile((prev) =>
+      prev &&
+      (prev.subscription_plan !== data.subscription_plan || prev.subscription_status !== data.subscription_status)
+        ? { ...prev, subscription_plan: data.subscription_plan, subscription_status: data.subscription_status }
+        : prev
+    );
+  }, [profileId]);
+
+  useEffect(() => {
+    refreshPlan();
+  }, [pathname, refreshPlan]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshPlan();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refreshPlan]);
+
   // Fetch items when panel opens
   useEffect(() => {
     if (notifPanelOpen) {
