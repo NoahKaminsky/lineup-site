@@ -89,11 +89,82 @@ function Chevron() {
   );
 }
 
+// Shown once when the last checklist item is done.
+export function ProfileCompleteSheet({ userId, onClose }: { userId: string; onClose: () => void }) {
+  return (
+    <div className="lu-fade-in fixed inset-0 z-[100] flex items-end justify-center bg-ink/40 p-3 backdrop-blur-sm sm:items-center sm:p-6">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profile-complete-title"
+        className="lu-sheet-in w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]"
+      >
+        {/* The studio again, with every station in place: the profile is set. */}
+        <div aria-hidden="true" className="relative h-40 overflow-hidden bg-[#ecebe6] sm:h-44">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/landing/studio-wide.webp" alt="" className="h-full w-full object-cover object-[50%_80%]" />
+          {(["barber", "styling", "nail", "lash"] as const).map((kind, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={kind}
+              src={`/images/landing/station-${kind}-a.webp`}
+              alt=""
+              className="lu-lift-in absolute bottom-[10%] h-[58%] w-auto max-w-none -translate-x-1/2"
+              style={{ left: `${14 + i * 24}%`, animationDelay: `${200 + i * 110}ms` }}
+            />
+          ))}
+          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-white to-transparent" />
+        </div>
+
+        <div className="relative z-10 px-7 pb-7 sm:px-8 sm:pb-8">
+          <div className="-mt-7 inline-flex rounded-full ring-4 ring-white">
+            <DrawnCheck size={52} delay={500} />
+          </div>
+          <h2
+            id="profile-complete-title"
+            className="mt-5 text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink"
+          >
+            <MaskLine delay={600}>Your profile&apos;s ready.</MaskLine>
+            <MaskLine delay={690} className="text-neutral-500">
+              Clients can find and book you.
+            </MaskLine>
+          </h2>
+          <p
+            className="mt-4 text-sm leading-6 text-neutral-600"
+            style={{ animation: "lu-success-rise 520ms var(--ease-arrive) 760ms backwards" }}
+          >
+            Verified, photo, bio, services, portfolio, payouts and the extras are all in place. You&apos;re in the
+            lineup.
+          </p>
+          <div className="mt-7 flex flex-col gap-3">
+            <Link
+              href={`/profile/${userId}`}
+              className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+            >
+              See my profile
+            </Link>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OnboardingChecklist({ userId }: { userId: string }) {
   const [dismissed, setDismissed] = useState(true); // start hidden to avoid flash
   const [steps, setSteps] = useState<StepState | null>(null);
   const [verificationPending, setVerificationPending] = useState(false);
   const [showDone, setShowDone] = useState(false);
+  // Shown once, the moment the last item is found done; the checklist is
+  // retired underneath it exactly as before.
+  const [celebrate, setCelebrate] = useState(false);
 
   async function loadSteps() {
     const [profileRes, servicesRes, portfolioRes] = await Promise.all([
@@ -131,8 +202,9 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
     setVerificationPending(profile?.verification_status === "pending");
     setSteps(resolved);
 
-    // Auto-dismiss once everything is done
+    // Everything done: celebrate, then retire the checklist for good.
     if (Object.values(resolved).every(Boolean)) {
+      setCelebrate(true);
       dismiss(userId);
     }
   }
@@ -182,6 +254,8 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
+
+  if (celebrate) return <ProfileCompleteSheet userId={userId} onClose={() => setCelebrate(false)} />;
 
   if (dismissed || !steps) return null;
 

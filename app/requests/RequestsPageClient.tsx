@@ -1201,6 +1201,35 @@ if (profileError || !profile) {
   const isCustomer = normalizedRole.includes("customer");
   const isProfessional = !isCustomer && !!normalizedRole;
 
+  // Whether the "Ready for your first job" prompt still has anything to ask
+  // for. Services are always needed; weekly availability only for paid plans
+  // (it's a subscriber feature, so Basic pros could never clear it).
+  const [setupComplete, setSetupComplete] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!isProfessional || !userId) return;
+    let cancelled = false;
+    (async () => {
+      const [servicesRes, hoursRes, profileRes] = await Promise.all([
+        supabase.from("professional_services").select("id", { count: "exact", head: true }).eq("professional_id", userId),
+        supabase
+          .from("professional_availability")
+          .select("id", { count: "exact", head: true })
+          .eq("professional_id", userId)
+          .eq("is_active", true),
+        supabase.from("profiles").select("subscription_status").eq("id", userId).maybeSingle(),
+      ]);
+      if (cancelled) return;
+      const subscribed =
+        profileRes.data?.subscription_status === "active" || profileRes.data?.subscription_status === "trialing";
+      const hasServices = (servicesRes.count ?? 0) > 0;
+      const hasHours = (hoursRes.count ?? 0) > 0;
+      setSetupComplete(hasServices && (hasHours || !subscribed));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isProfessional, userId]);
+
   // Once a request is accepted, it gets a matching row in `bookings` — without this,
   // the same job shows up twice here (once as the request, once as the booking).
   const bookedRequestIds = useMemo(
@@ -1816,6 +1845,7 @@ return (
 
           {!message &&
           isProfessional &&
+          setupComplete === false &&
           professionalOpenRequests.length === 0 &&
           unifiedProfessionalUpcomingWork.length === 0 &&
           unifiedProfessionalCompletedWork.length === 0 ? (
