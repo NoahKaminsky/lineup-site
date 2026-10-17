@@ -492,14 +492,15 @@ function NavbarComponent() {
     (!!role && role !== "customer" && role !== "I am a customer");
 
   // Header badge: a pro's current tier (Apprentice / Pro / Master) while the
-  // subscription is live, otherwise "Free". Customers get no badge.
+  // subscription is live, otherwise "Basic" (so the header reads
+  // "LineUp Basic"). Customers get no badge.
   const planBadge = useMemo(() => {
     if (!isProfessional || !profile) return null;
     const live = profile.subscription_status === "active" || profile.subscription_status === "trialing";
     if (live && profile.subscription_plan === "master") return "Master";
     if (live && profile.subscription_plan === "pro") return "Pro";
     if (live && profile.subscription_plan === "apprentice") return "Apprentice";
-    return "Free";
+    return "Basic";
   }, [isProfessional, profile]);
 
   // Tag the page with the signed-in side (theme.css reads data-role for motion
@@ -597,7 +598,7 @@ function NavbarComponent() {
             {hasUser && !loading && planBadge ? (
               <span
                 className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold tracking-[0.02em] ${
-                  planBadge === "Free" ? "text-neutral-500 ring-1 ring-inset ring-ink/10" : "bg-ink text-white"
+                  planBadge === "Basic" ? "text-neutral-500 ring-1 ring-inset ring-ink/10" : "bg-ink text-white"
                 }`}
               >
                 {planBadge}

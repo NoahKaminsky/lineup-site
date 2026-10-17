@@ -48,6 +48,94 @@ type ProfileState = {
 };
 
 const labelClass = "mb-2 block text-sm font-semibold text-neutral-900";
+
+// One upload slot: an empty "+" tile that becomes a preview once a file is
+// chosen. Two of these sit side by side so it's obvious that two things are
+// needed: the credential and a photo ID.
+function UploadSlot({
+  title,
+  hint,
+  optional,
+  file,
+  onChange,
+}: {
+  title: string;
+  hint: string;
+  optional?: boolean;
+  file: File | null;
+  onChange: (next: File | null) => void;
+}) {
+  const previewUrl = useMemo(
+    () => (file && file.type.startsWith("image/") ? URL.createObjectURL(file) : null),
+    [file]
+  );
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  return (
+    <div className="flex flex-col">
+      <label
+        className={`group relative flex aspect-[4/3] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl text-center transition focus-within:ring-2 focus-within:ring-ink focus-within:ring-offset-2 ${
+          file
+            ? "bg-neutral-100 ring-1 ring-ink/10"
+            : "border-2 border-dashed border-neutral-300 bg-white hover:border-neutral-500 hover:bg-neutral-50"
+        }`}
+      >
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,application/pdf"
+          onChange={(e) => {
+            onChange(e.target.files?.[0] || null);
+            e.target.value = "";
+          }}
+          className="sr-only"
+        />
+        {file ? (
+          previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={previewUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          ) : (
+            <span className="flex flex-col items-center gap-2 px-3 text-neutral-700">
+              <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" aria-hidden="true">
+                <path d="M7 3h7l5 5v13H7z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                <path d="M14 3v5h5" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+              </svg>
+              <span className="line-clamp-2 text-xs font-medium">{file.name}</span>
+            </span>
+          )
+        ) : (
+          <span className="flex flex-col items-center px-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-ink text-white transition group-hover:scale-105">
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="mt-3 text-sm font-semibold text-neutral-900">{title}</span>
+            <span className="mt-0.5 text-xs text-neutral-500">{optional ? "Optional" : "Required"}</span>
+          </span>
+        )}
+        {file ? (
+          <span className="absolute inset-x-2 bottom-2 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-neutral-900 shadow-sm">
+            {title} · Replace
+          </span>
+        ) : null}
+      </label>
+      <p className="mt-2 text-xs leading-5 text-neutral-500">{hint}</p>
+      {file ? (
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className="mt-1 self-start text-xs font-medium text-neutral-500 underline-offset-2 hover:text-ink hover:underline"
+        >
+          Remove
+        </button>
+      ) : null}
+    </div>
+  );
+}
 const inputClass =
   "w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900 focus:bg-white";
 
@@ -106,6 +194,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
   const [schoolName, setSchoolName] = useState("");
   const [enrollmentEndDate, setEnrollmentEndDate] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [idFile, setIdFile] = useState<File | null>(null);
   const [attested, setAttested] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -175,10 +264,10 @@ export default function VerificationPageClient({ initialData }: VerificationPage
   const documentHelp = track === "student" ? STUDENT_DOCUMENT_HELP : rule.documentHelp;
   const documentRequired = track === "student" || rule.document === "required";
 
-  function handleFileChange(next: File | null) {
+  function handleFileChange(next: File | null, set: (file: File | null) => void = setFile) {
     setError("");
     if (!next) {
-      setFile(null);
+      set(null);
       return;
     }
     if (!VERIFICATION_DOCUMENT_TYPES.includes(next.type)) {
@@ -189,7 +278,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
       setError("That file is too large — the limit is 8 MB.");
       return;
     }
-    setFile(next);
+    set(next);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -233,6 +322,11 @@ export default function VerificationPageClient({ initialData }: VerificationPage
       return;
     }
 
+    if (!idFile) {
+      setError("Add a photo of your government-issued ID.");
+      return;
+    }
+
     if (!attested) {
       setError("Please confirm the information is accurate.");
       return;
@@ -241,31 +335,41 @@ export default function VerificationPageClient({ initialData }: VerificationPage
     setSubmitting(true);
 
     try {
-      let documentPath: string | null = null;
-
-      if (file) {
+      // Same private-bucket upload for each file; null means it failed and
+      // the error is already showing.
+      const uploadOne = async (upload: File): Promise<string | null> => {
         const uploadRes = await authedFetch("/api/verification/upload-url", {
-          contentType: file.type,
-          size: file.size,
+          contentType: upload.type,
+          size: upload.size,
         });
         const uploadJson = await uploadRes.json();
 
         if (!uploadRes.ok) {
           setError(uploadJson.error || "Could not upload your document.");
-          return;
+          return null;
         }
 
         const { error: uploadError } = await supabase.storage
           .from(VERIFICATION_BUCKET)
-          .uploadToSignedUrl(uploadJson.path, uploadJson.token, file, { contentType: file.type });
+          .uploadToSignedUrl(uploadJson.path, uploadJson.token, upload, { contentType: upload.type });
 
         if (uploadError) {
           setError(uploadError.message || "Could not upload your document.");
-          return;
+          return null;
         }
 
-        documentPath = uploadJson.path;
+        return uploadJson.path as string;
+      };
+
+      let documentPath: string | null = null;
+
+      if (file) {
+        documentPath = await uploadOne(file);
+        if (!documentPath) return;
       }
+
+      const idDocumentPath = await uploadOne(idFile);
+      if (!idDocumentPath) return;
 
       const res = await authedFetch("/api/verification/submit", {
         track,
@@ -277,6 +381,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
         schoolName,
         enrollmentEndDate,
         documentPath,
+        idDocumentPath,
       });
       const json = await res.json();
 
@@ -288,6 +393,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
       setNotice("Submitted. We'll email you as soon as it's been reviewed.");
       setShowForm(false);
       setFile(null);
+      setIdFile(null);
       setLicenseNumber("");
       setIssuingBody("");
       setLicenseExpiry("");
@@ -591,23 +697,27 @@ export default function VerificationPageClient({ initialData }: VerificationPage
             )}
 
             <div>
-              <label className={labelClass}>
-                {track === "student" ? "Proof of enrollment" : "Proof of credential"}
-                {documentRequired ? "" : " (optional)"}
-              </label>
-              <p className="mb-2 -mt-1 text-xs leading-5 text-neutral-500">{documentHelp}</p>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-                className="block w-full text-sm text-neutral-600 file:mr-4 file:rounded-full file:border-0 file:bg-neutral-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:opacity-90"
-              />
-              {file ? (
-                <p className="mt-2 text-xs text-neutral-500">
-                  {file.name} · {(file.size / 1024 / 1024).toFixed(1)} MB
-                </p>
-              ) : null}
-              <p className="mt-2 text-xs leading-5 text-neutral-500">
+              <p className={labelClass}>Two photos</p>
+              <p className="mb-4 -mt-1 text-xs leading-5 text-neutral-500">
+                Your {track === "student" ? "proof of enrollment" : "credential"} and a photo ID, so we can match the
+                document to you. JPG, PNG, WebP or PDF, up to 8 MB each.
+              </p>
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <UploadSlot
+                  title={track === "student" ? "Enrollment proof" : "Credential"}
+                  hint={documentHelp}
+                  optional={!documentRequired}
+                  file={file}
+                  onChange={(next) => handleFileChange(next, setFile)}
+                />
+                <UploadSlot
+                  title="Photo ID"
+                  hint="Driver's licence, passport or provincial ID. The name must match your profile."
+                  file={idFile}
+                  onChange={(next) => handleFileChange(next, setIdFile)}
+                />
+              </div>
+              <p className="mt-4 text-xs leading-5 text-neutral-500">
                 Stored privately and only seen by LineUp&apos;s review team — never shown on your profile.
               </p>
             </div>

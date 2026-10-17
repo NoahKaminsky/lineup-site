@@ -321,6 +321,25 @@ main {
   transform-origin: bottom right;
 }
 
+/* Tour steps arrive from the side the visitor is moving toward. */
+@keyframes lu-step-in-next {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes lu-step-in-back {
+  from { opacity: 0; transform: translateX(-28px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.lu-step-in-next {
+  animation: lu-step-in-next 560ms var(--ease-arrive) backwards;
+}
+
+.lu-step-in-back {
+  animation: lu-step-in-back 560ms var(--ease-arrive) backwards;
+}
+
 /* The bell swings once when something new arrives. */
 @keyframes lu-bell {
   0%, 100% { transform: rotate(0deg); }

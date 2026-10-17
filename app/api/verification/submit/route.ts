@@ -133,30 +133,47 @@ export async function POST(req: Request) {
     documentRequired = true;
   }
 
+  // Both files must sit in the caller's own folder and actually exist.
+  const ownsUploadedFile = async (path: string) => {
+    const [folder, filename] = path.split("/");
+    if (folder !== user.id || !filename || path.split("/").length !== 2) return false;
+    const { data: files } = await service.storage.from(VERIFICATION_BUCKET).list(user.id, { search: filename });
+    return !!files?.some((f) => f.name === filename);
+  };
+
   const documentPath = clean(body.documentPath, 200);
+  const idDocumentPath = clean(body.idDocumentPath, 200);
 
   if (documentRequired && !documentPath) {
     return NextResponse.json({ error: "Upload your proof document." }, { status: 400 });
   }
 
+  if (!idDocumentPath) {
+    return NextResponse.json({ error: "Add a photo of your government-issued ID." }, { status: 400 });
+  }
+
   if (documentPath) {
-    const [folder, filename] = documentPath.split("/");
-    if (folder !== user.id || !filename || documentPath.split("/").length !== 2) {
-      return NextResponse.json({ error: "Invalid document." }, { status: 400 });
-    }
-
-    const { data: files } = await service.storage
-      .from(VERIFICATION_BUCKET)
-      .list(user.id, { search: filename });
-
-    if (!files?.some((f) => f.name === filename)) {
+    if (!(await ownsUploadedFile(documentPath))) {
       return NextResponse.json({ error: "We couldn't find your uploaded document. Please try again." }, { status: 400 });
     }
-
     row.document_path = documentPath;
   }
 
-  const { error: insertError } = await service.from("professional_verifications").insert(row);
+  if (!(await ownsUploadedFile(idDocumentPath))) {
+    return NextResponse.json({ error: "We couldn't find your uploaded ID. Please try again." }, { status: 400 });
+  }
+  row.id_document_path = idDocumentPath;
+
+  let { error: insertError } = await service.from("professional_verifications").insert(row);
+
+  // Until migration 20261017_verification_id_document.sql has been run the
+  // column doesn't exist. Rather than block every submission, save without
+  // it and leave the ID's storage path in admin_note so it isn't lost.
+  if (insertError && /id_document_path/.test(insertError.message || "")) {
+    delete row.id_document_path;
+    row.admin_note = `Photo ID file: ${idDocumentPath}`;
+    ({ error: insertError } = await service.from("professional_verifications").insert(row));
+  }
 
   if (insertError) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });

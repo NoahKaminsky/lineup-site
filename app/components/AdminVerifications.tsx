@@ -34,6 +34,7 @@ type Submission = {
   reviewed_at: string | null;
   created_at: string;
   document_url: string | null;
+  id_document_url?: string | null;
   professional: Person | null;
 };
 
@@ -204,6 +205,18 @@ export default function AdminVerifications() {
                     </a>
                   ) : (
                     <span className="text-sm text-neutral-500">No document attached</span>
+                  )}
+                  {s.id_document_url ? (
+                    <a
+                      href={s.id_document_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-4 text-sm font-medium underline"
+                    >
+                      View ID ↗
+                    </a>
+                  ) : (
+                    <span className="ml-4 text-sm text-neutral-500">No ID attached</span>
                   )}
                   <span className="ml-2 text-xs text-neutral-400">(link expires in 10 minutes — reload for a new one)</span>
                 </div>

@@ -56,7 +56,26 @@ export async function GET(req: Request) {
           .createSignedUrl(row.document_path, DOCUMENT_LINK_SECONDS);
         documentUrl = data?.signedUrl || null;
       }
-      return { ...row, document_url: documentUrl, professional: personMap.get(row.professional_id) || null };
+      // Submissions made before the id_document_path migration ran keep the
+      // ID's path in admin_note ("Photo ID file: <path>").
+      const idPath: string | null =
+        row.id_document_path ||
+        (typeof row.admin_note === "string" && row.admin_note.startsWith("Photo ID file: ")
+          ? row.admin_note.slice("Photo ID file: ".length).trim()
+          : null);
+      let idDocumentUrl: string | null = null;
+      if (idPath) {
+        const { data } = await service.storage
+          .from(VERIFICATION_BUCKET)
+          .createSignedUrl(idPath, DOCUMENT_LINK_SECONDS);
+        idDocumentUrl = data?.signedUrl || null;
+      }
+      return {
+        ...row,
+        document_url: documentUrl,
+        id_document_url: idDocumentUrl,
+        professional: personMap.get(row.professional_id) || null,
+      };
     })
   );
 

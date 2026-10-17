@@ -3,65 +3,141 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { isVerifiedNow } from "@/app/lib/verificationRules";
+import { DrawnCheck, MaskLine } from "@/app/components/moments/Moments";
 
-type Steps = {
-  photo: boolean;
-  service: boolean;
-  stripe: boolean;
+type StepKey =
+  | "verified"
+  | "photo"
+  | "bio"
+  | "where"
+  | "service"
+  | "hours"
+  | "portfolio"
+  | "payouts"
+  | "cover"
+  | "instagram";
+
+type StepState = Record<StepKey, boolean>;
+
+type Step = {
+  key: StepKey;
+  label: string;
+  why: string;
+  href: string;
+  cta: string;
 };
 
-const STEPS = [
-  {
-    key: "photo" as keyof Steps,
-    label: "Add a profile photo",
-    description: "Help clients recognise you",
-    href: "/account",
-  },
-  {
-    key: "service" as keyof Steps,
-    label: "Add your first service",
-    description: "Let clients know what you offer",
-    href: "/services",
-  },
-  {
-    key: "stripe" as keyof Steps,
-    label: "Connect Stripe for payouts",
-    description: "Get paid when jobs are completed",
-    href: "/account",
-  },
+// Everything a client looks at before choosing someone, in the order it
+// matters. "Essentials" decide whether you can be found and booked at all;
+// "Stand out" is what tips a client toward you over the next profile.
+const ESSENTIALS: Step[] = [
+  { key: "verified", label: "Get verified", why: "Only verified pros appear in Browse and can be booked.", href: "/verification", cta: "Verify" },
+  { key: "photo", label: "Add a profile photo", why: "A clear photo of you is the first thing clients look for.", href: "/account", cta: "Add photo" },
+  { key: "bio", label: "Write a short bio", why: "A few lines on your experience and style.", href: "/account", cta: "Write bio" },
+  { key: "where", label: "Set where you work", why: "Your area, and whether you travel, host or work from a shop.", href: "/services", cta: "Set location" },
+  { key: "service", label: "Add your services", why: "What you offer, with prices and how long each takes.", href: "/services", cta: "Add service" },
+  { key: "hours", label: "Set your weekly hours", why: "So requests and bookings land when you're actually free.", href: "/services", cta: "Set hours" },
+  { key: "portfolio", label: "Post 3 photos of your work", why: "Your work sells you better than anything you write.", href: "/account", cta: "Add photos" },
+  { key: "payouts", label: "Connect payouts", why: "Set up Stripe so you get paid for completed jobs.", href: "/account", cta: "Connect" },
 ];
+
+const STAND_OUT: Step[] = [
+  { key: "cover", label: "Add a cover photo", why: "The banner across the top of your profile.", href: "/account", cta: "Add cover" },
+  { key: "instagram", label: "Link your Instagram", why: "Let clients see more of your work.", href: "/account", cta: "Link" },
+];
+
+const ALL_STEPS = [...ESSENTIALS, ...STAND_OUT];
 
 function storageKey(userId: string) {
   return `lineup_onboarding_dismissed_${userId}`;
 }
 
+// Circular progress: the ring fills as steps are completed.
+function ProgressRing({ value }: { value: number }) {
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative h-16 w-16 shrink-0">
+      <svg viewBox="0 0 64 64" className="h-16 w-16 -rotate-90" aria-hidden="true">
+        <circle cx="32" cy="32" r={r} fill="none" stroke="currentColor" strokeWidth="5" className="text-ink/[0.07]" />
+        <circle
+          cx="32"
+          cy="32"
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="5"
+          strokeLinecap="round"
+          className="text-ink transition-[stroke-dashoffset] duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)]"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - value)}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold tabular-nums text-ink">
+        {Math.round(value * 100)}%
+      </span>
+    </div>
+  );
+}
+
+function Chevron() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0 text-neutral-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-ink" fill="none" aria-hidden="true">
+      <path d="M6 3.5L10.5 8 6 12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function OnboardingChecklist({ userId }: { userId: string }) {
   const [dismissed, setDismissed] = useState(true); // start hidden to avoid flash
-  const [steps, setSteps] = useState<Steps | null>(null);
+  const [steps, setSteps] = useState<StepState | null>(null);
+  const [verificationPending, setVerificationPending] = useState(false);
+  const [showDone, setShowDone] = useState(false);
 
   async function loadSteps() {
-    const [profileRes, servicesRes] = await Promise.all([
+    const [profileRes, servicesRes, hoursRes, portfolioRes] = await Promise.all([
       supabase
         .from("profiles")
-        .select("avatar_url, stripe_account_id")
+        .select(
+          "avatar_url, banner_url, bio, instagram_handle, formatted_address, location, service_modes, stripe_account_id, verification_status, verified_until"
+        )
         .eq("id", userId)
         .single(),
       supabase
         .from("professional_services")
         .select("id", { count: "exact", head: true })
         .eq("professional_id", userId),
+      supabase
+        .from("professional_availability")
+        .select("id", { count: "exact", head: true })
+        .eq("professional_id", userId)
+        .eq("is_active", true),
+      supabase
+        .from("professional_portfolio")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId),
     ]);
 
     const profile = profileRes.data;
-    const resolved: Steps = {
+    const modes = Array.isArray(profile?.service_modes) ? profile.service_modes : [];
+    const resolved: StepState = {
+      verified: isVerifiedNow(profile),
       photo: !!profile?.avatar_url,
+      bio: (profile?.bio || "").trim().length >= 40,
+      where: !!(profile?.formatted_address || profile?.location) && modes.length > 0,
       service: (servicesRes.count ?? 0) > 0,
-      stripe: !!profile?.stripe_account_id,
+      hours: (hoursRes.count ?? 0) > 0,
+      portfolio: (portfolioRes.count ?? 0) >= 3,
+      payouts: !!profile?.stripe_account_id,
+      cover: !!profile?.banner_url,
+      instagram: !!(profile?.instagram_handle || "").trim(),
     };
 
+    setVerificationPending(profile?.verification_status === "pending");
     setSteps(resolved);
 
-    // Auto-dismiss if everything is done
+    // Auto-dismiss once everything is done
     if (Object.values(resolved).every(Boolean)) {
       dismiss(userId);
     }
@@ -110,32 +186,65 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   if (dismissed || !steps) return null;
 
-  const completed = Object.values(steps).filter(Boolean).length;
-  const total = STEPS.length;
-  const allDone = completed === total;
+  const completed = ALL_STEPS.filter((s) => steps[s.key]).length;
+  const progress = completed / ALL_STEPS.length;
+  const nextStep = ALL_STEPS.find((s) => !steps[s.key]) || null;
+  const essentialsLeft = ESSENTIALS.filter((s) => !steps[s.key]).length;
+
+  const row = (step: Step) => {
+    const done = steps[step.key];
+    const pending = step.key === "verified" && !done && verificationPending;
+    if (done && !showDone) return null;
+    return (
+      <li key={step.key}>
+        <Link
+          href={step.href}
+          className="group flex items-center gap-4 rounded-2xl px-3 py-3 transition-colors hover:bg-paper sm:px-4"
+        >
+          {done ? (
+            <DrawnCheck size={26} />
+          ) : (
+            <span
+              aria-hidden="true"
+              className={`h-[26px] w-[26px] shrink-0 rounded-full border-2 ${pending ? "border-dashed border-ink/40" : "border-neutral-200"}`}
+            />
+          )}
+          <span className="min-w-0 flex-1">
+            <span className={`block text-sm font-medium ${done ? "text-neutral-400 line-through decoration-neutral-300" : "text-neutral-900"}`}>
+              {step.label}
+            </span>
+            {!done ? (
+              <span className="mt-0.5 block text-xs leading-5 text-neutral-500">
+                {pending ? "Submitted. We're reviewing it now." : step.why}
+              </span>
+            ) : null}
+          </span>
+          {!done ? <Chevron /> : null}
+        </Link>
+      </li>
+    );
+  };
 
   return (
-    <div className="mt-8 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm">
+    <section className="lu-dialog-in mt-8 overflow-hidden rounded-[28px] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-32px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.07]">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 px-6 pt-6 sm:px-8 sm:pt-8">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-neutral-400">
-            Getting started
-          </p>
-          <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-neutral-900">
-            {allDone ? "You're all set up!" : "Finish setting up your profile"}
+      <div className="flex items-start gap-5 px-6 pt-6 sm:px-8 sm:pt-8">
+        <ProgressRing value={progress} />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[1.35rem] font-semibold leading-[1.1] tracking-[-0.03em] text-neutral-900">
+            <MaskLine>{essentialsLeft === 0 ? "You're bookable." : "Build a profile clients pick."}</MaskLine>
+            <MaskLine delay={90} className="text-neutral-500">
+              {essentialsLeft === 0
+                ? "A couple of extras left to stand out."
+                : `${essentialsLeft} essential${essentialsLeft === 1 ? "" : "s"} left.`}
+            </MaskLine>
           </h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            {allDone
-              ? "Your profile is complete. You're ready to take bookings."
-              : `${completed} of ${total} steps complete — finish your setup to start receiving bookings.`}
-          </p>
         </div>
-
         <button
           type="button"
           onClick={() => dismiss(userId)}
@@ -143,66 +252,52 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
           className="shrink-0 rounded-full p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700"
         >
           <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" aria-hidden="true">
-            <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         </button>
       </div>
 
-      {/* Progress bar */}
-      <div className="mt-5 px-6 sm:px-8">
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-100">
-          <div
-            className="h-full rounded-full bg-ink transition-all duration-500"
-            style={{ width: `${(completed / total) * 100}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Steps */}
-      <div className="mt-4 divide-y divide-neutral-100 px-2 pb-3 sm:px-4">
-        {STEPS.map((step) => {
-          const done = steps[step.key];
-          return (
-            <div
-              key={step.key}
-              className="flex items-center gap-4 rounded-2xl px-4 py-3.5"
-            >
-              {/* Check circle */}
-              <div
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition ${
-                  done ? "bg-ink" : "border-2 border-neutral-200 bg-white"
-                }`}
-              >
-                {done ? (
-                  <svg viewBox="0 0 12 12" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
-                    <path d="M2 6l2.5 2.5L10 3.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                ) : null}
-              </div>
-
-              {/* Label */}
-              <div className="min-w-0 flex-1">
-                <p className={`text-sm font-medium ${done ? "text-neutral-400 line-through" : "text-neutral-900"}`}>
-                  {step.label}
-                </p>
-                {!done ? (
-                  <p className="mt-0.5 text-xs text-neutral-400">{step.description}</p>
-                ) : null}
-              </div>
-
-              {/* Action */}
-              {!done ? (
-                <Link
-                  href={step.href}
-                  className="shrink-0 rounded-full border border-neutral-300 px-3.5 py-1.5 text-xs font-medium text-neutral-900 transition hover:bg-neutral-50"
-                >
-                  Go →
-                </Link>
-              ) : null}
+      {/* Up next */}
+      {nextStep ? (
+        <div className="mx-4 mt-6 rounded-2xl bg-ink p-5 text-white sm:mx-6">
+          <p className="text-xs font-medium text-white/60">Up next</p>
+          <div className="mt-1.5 flex flex-wrap items-end justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-lg font-semibold tracking-[-0.02em]">{nextStep.label}</p>
+              <p className="mt-1 max-w-sm text-sm leading-6 text-white/70">
+                {nextStep.key === "verified" && verificationPending
+                  ? "Submitted. We're reviewing it now."
+                  : nextStep.why}
+              </p>
             </div>
-          );
-        })}
+            <Link
+              href={nextStep.href}
+              className="shrink-0 rounded-full bg-white px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-neutral-200"
+            >
+              {nextStep.cta}
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {/* All steps */}
+      <div className="px-3 pb-4 pt-5 sm:px-4">
+        <p className="px-3 text-xs font-medium text-neutral-500 sm:px-4">Essentials</p>
+        <ul className="lu-lineup mt-1">{ESSENTIALS.map(row)}</ul>
+
+        <p className="mt-4 px-3 text-xs font-medium text-neutral-500 sm:px-4">Stand out</p>
+        <ul className="lu-lineup mt-1">{STAND_OUT.map(row)}</ul>
+
+        {completed > 0 ? (
+          <button
+            type="button"
+            onClick={() => setShowDone((v) => !v)}
+            className="mt-2 px-3 text-xs font-medium text-neutral-500 underline-offset-2 hover:text-ink hover:underline sm:px-4"
+          >
+            {showDone ? "Hide completed" : `Show completed (${completed})`}
+          </button>
+        ) : null}
       </div>
-    </div>
+    </section>
   );
 }
