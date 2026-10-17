@@ -852,8 +852,9 @@ function NewRequestPageContent() {
       .map((c) => {
         const details = serviceDetailsByCategory[c] || [];
         if (details.length === 0) return null;
-        const label = categoryOptions.find((opt) => opt.value === c)?.label || c;
-        return `${label}: ${details.join(", ")}`;
+        // Just the services ("Haircut"), not "Hair: Haircut": the category is
+        // stored separately and the prefix read as noise everywhere it showed.
+        return details.join(", ");
       })
       .filter(Boolean);
 

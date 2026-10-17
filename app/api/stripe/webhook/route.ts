@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
+import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 
 function timeToMinutes(timeString: string) {
   const [hours, minutes] = String(timeString).slice(0, 5).split(":").map(Number);
@@ -268,7 +269,7 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
         start_time: proposedStart,
         end_time: proposedEnd,
         status: "confirmed",
-        service_name: requestRow.service_detail || requestRow.title,
+        service_name: cleanServiceLabel(requestRow.service_detail) || requestRow.title,
         service_mode: resolvedServiceMode,
         source: "request",
         formatted_address: bookingLocation.formatted_address,
