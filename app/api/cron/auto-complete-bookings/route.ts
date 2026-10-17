@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
-import { completeBooking } from "@/app/lib/bookingCompletion";
+import { completeBooking, retryPendingPayouts } from "@/app/lib/bookingCompletion";
 import { appointmentInstant } from "@/app/lib/bookingTime";
 
 const AUTO_COMPLETE_HOURS_PAST_END = 24;
@@ -72,7 +72,14 @@ export async function GET(req: Request) {
       }
     }
 
-    return NextResponse.json({ ok: true, checked: stale.length, completed, failed });
+    // Retry payouts that failed earlier (e.g. before transfers were tied to
+    // their charge, or before the pro connected Stripe).
+    const payoutsRetried = await retryPendingPayouts().catch((err) => {
+      console.error("Payout retry failed:", err);
+      return 0;
+    });
+
+    return NextResponse.json({ ok: true, checked: stale.length, completed, failed, payoutsRetried });
   } catch (err: any) {
     console.error("Auto-complete cron error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

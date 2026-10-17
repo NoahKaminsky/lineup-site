@@ -223,11 +223,10 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
 
   let chargeId: string | null = null;
 
-  if (
-    paymentIntent.latest_charge &&
-    typeof paymentIntent.latest_charge !== "string"
-  ) {
-    chargeId = paymentIntent.latest_charge.id;
+  if (paymentIntent.latest_charge) {
+    // Expanded object or bare id: either way it is the charge to tie transfers to.
+    chargeId =
+      typeof paymentIntent.latest_charge === "string" ? paymentIntent.latest_charge : paymentIntent.latest_charge.id;
   }
 
   let depositTransferId: string | null = null;
@@ -239,6 +238,10 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
         amount: depositAmountCents,
         currency: "cad",
         destination: professionalProfile.stripe_account_id,
+        // Tied to the charge so it succeeds while the payment is still pending
+        // (new Stripe accounts hold funds ~7 days); it becomes available to the
+        // pro when the charge settles.
+        ...(chargeId ? { source_transaction: chargeId } : {}),
         transfer_group: `request_${requestRow.id}`,
         metadata: {
           flow_type: "request_offer_deposit",
@@ -531,8 +534,10 @@ async function handleDirectBookingPaymentSucceeded(
 
   let chargeId: string | null = null;
 
-  if (paymentIntent.latest_charge && typeof paymentIntent.latest_charge !== "string") {
-    chargeId = paymentIntent.latest_charge.id;
+  if (paymentIntent.latest_charge) {
+    // Expanded object or bare id: either way it is the charge to tie transfers to.
+    chargeId =
+      typeof paymentIntent.latest_charge === "string" ? paymentIntent.latest_charge : paymentIntent.latest_charge.id;
   }
 
   let depositTransferId: string | null = null;
@@ -544,6 +549,10 @@ async function handleDirectBookingPaymentSucceeded(
         amount: depositAmountCents,
         currency: "cad",
         destination: professionalProfile.stripe_account_id,
+        // Tied to the charge so it succeeds while the payment is still pending
+        // (new Stripe accounts hold funds ~7 days); it becomes available to the
+        // pro when the charge settles.
+        ...(chargeId ? { source_transaction: chargeId } : {}),
         transfer_group: `direct_booking_${paymentIntent.id}`,
         metadata: {
           flow_type: "direct_booking_deposit",

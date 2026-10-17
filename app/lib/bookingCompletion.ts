@@ -21,7 +21,7 @@ export async function completeBooking(
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
     .select(
-      "id, request_id, professional_id, customer_id, service_name, status, payout_status, remaining_payout_cents, stripe_final_transfer_id"
+      "id, request_id, professional_id, customer_id, service_name, status, payout_status, remaining_payout_cents, deposit_amount_cents, stripe_deposit_transfer_id, stripe_final_transfer_id, stripe_charge_id"
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -64,7 +64,12 @@ export async function completeBooking(
     }
   }
 
-  if (booking.remaining_payout_cents && booking.remaining_payout_cents > 0) {
+  // Release whatever the pro is still owed (the remainder, plus the deposit
+  // if that transfer never went out); it no-ops when nothing is owed.
+  if (
+    (booking.remaining_payout_cents && booking.remaining_payout_cents > 0) ||
+    (!booking.stripe_deposit_transfer_id && Number(booking.deposit_amount_cents || 0) > 0)
+  ) {
     await releaseRemainingPayout(supabase, booking, trigger);
   }
 
@@ -140,7 +145,10 @@ async function releaseRemainingPayout(
     id: string;
     professional_id: string;
     remaining_payout_cents: number | null;
+    deposit_amount_cents?: number | null;
+    stripe_deposit_transfer_id?: string | null;
     stripe_final_transfer_id: string | null;
+    stripe_charge_id?: string | null;
   },
   trigger: "manual" | "auto"
 ) {
@@ -163,11 +171,22 @@ async function releaseRemainingPayout(
 
   if (!professionalProfile?.stripe_account_id) return;
 
+  // If the deposit never reached the pro (e.g. it failed at booking time),
+  // send it now together with the remainder.
+  const depositOwed = !booking.stripe_deposit_transfer_id ? Number(booking.deposit_amount_cents || 0) : 0;
+  const amount = Number(booking.remaining_payout_cents || 0) + depositOwed;
+  if (amount <= 0) return;
+
   try {
     const transfer = await stripe.transfers.create({
-      amount: booking.remaining_payout_cents!,
+      amount,
       currency: "cad",
       destination: professionalProfile.stripe_account_id,
+      // Tied to the original charge so it goes through while the payment is
+      // still pending (new Stripe accounts hold funds ~7 days); the pro sees
+      // it as pending until the charge settles. Without this, transfers came
+      // out of the platform's available balance and failed.
+      ...(booking.stripe_charge_id ? { source_transaction: booking.stripe_charge_id } : {}),
       transfer_group: `booking_${booking.id}`,
       metadata: {
         flow_type: "final_payout",
@@ -180,6 +199,7 @@ async function releaseRemainingPayout(
       .from("bookings")
       .update({
         stripe_final_transfer_id: transfer.id,
+        ...(depositOwed > 0 ? { stripe_deposit_transfer_id: transfer.id } : {}),
         payout_status: "final_released",
       })
       .eq("id", booking.id);
@@ -229,4 +249,28 @@ export async function requestBookingCompletion(bookingId: string): Promise<Compl
   }
 
   return { ok: true, alreadyCompleted: false };
+}
+
+
+// Completed bookings whose payout never went out (a transfer failed, or the
+// pro hadn't connected Stripe yet). Called by the daily auto-complete cron so
+// a failed payout is retried instead of silently stuck.
+export async function retryPendingPayouts() {
+  const supabase = getServiceSupabase();
+  const { data: stuck } = await supabase
+    .from("bookings")
+    .select(
+      "id, professional_id, remaining_payout_cents, deposit_amount_cents, stripe_deposit_transfer_id, stripe_final_transfer_id, stripe_charge_id"
+    )
+    .eq("status", "completed")
+    .is("stripe_final_transfer_id", null);
+
+  let retried = 0;
+  for (const booking of stuck || []) {
+    const owed = Number(booking.remaining_payout_cents || 0) + (!booking.stripe_deposit_transfer_id ? Number(booking.deposit_amount_cents || 0) : 0);
+    if (owed <= 0) continue;
+    await releaseRemainingPayout(supabase, booking, "auto");
+    retried += 1;
+  }
+  return retried;
 }
