@@ -13,6 +13,7 @@ import VerificationBanner from "@/app/components/VerificationBanner";
 import { MapPin } from "lucide-react";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { useDismissedRequests } from "@/app/lib/requestDismissals";
+import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 type Profile = {
   id: string;
   email: string | null;
@@ -545,7 +546,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
     const postedItems: RequestAndOfferItem[] = requests.map((request) => ({
       id: `posted-${request.id}`,
       kind: "posted_request",
-      title: request.title || request.service_detail || formatCategory(request.category),
+      title: request.title || cleanServiceLabel(request.service_detail) || formatCategory(request.category),
       subtitle: request.description || request.formatted_address || request.location || "Your request",
       status: statusLabel(request.status),
       createdAt: request.created_at,
@@ -566,7 +567,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       return {
         id: `offer-received-${offer.id}`,
         kind: "offer_received",
-        title: request?.title || request?.service_detail || "Offer received",
+        title: request?.title || cleanServiceLabel(request?.service_detail) || "Offer received",
         subtitle: offer.message || "A professional sent you an offer.",
         status: statusLabel(offer.status),
         createdAt: offer.created_at,
@@ -722,7 +723,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       return {
         id: `open-${request.id}`,
         kind: "open_request",
-        title: request.title || request.service_detail || formatCategory(request.category),
+        title: request.title || cleanServiceLabel(request.service_detail) || formatCategory(request.category),
         subtitle: request.description || request.formatted_address || request.location || "New client request",
         status: statusLabel(request.status),
         createdAt: request.created_at,
@@ -744,7 +745,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       return {
         id: `offer-sent-${offer.id}`,
         kind: "offer_sent",
-        title: request?.title || request?.service_detail || "Offer sent",
+        title: request?.title || cleanServiceLabel(request?.service_detail) || "Offer sent",
         subtitle: offer.message || "You sent an offer for this request.",
         status: statusLabel(offer.status),
         createdAt: offer.created_at,
@@ -815,7 +816,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       source: "booking",
       originRequestId: booking.request_id || null,
       status: booking.status,
-      title: booking.service_name || "Booked service",
+      title: cleanServiceLabel(booking.service_name) || "Booked service",
       description: null,
       date: booking.booking_date,
       startTime: booking.start_time,
@@ -853,7 +854,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       source: "request",
       originRequestId: null,
       status: request.status === "confirmed" ? "confirmed" : (request.status as "accepted" | BookingStatus),
-      title: request.title || request.service_detail || formatCategory(request.category),
+      title: request.title || cleanServiceLabel(request.service_detail) || formatCategory(request.category),
       description: request.description || null,
       date,
       startTime,
@@ -1195,6 +1196,9 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       (item.kind === "open_request" || item.kind === "posted_request") &&
       item.status !== "Cancelled" &&
       item.status !== "Completed" &&
+      // Once booked it's a booking: it lives under Upcoming, not Requests.
+      item.status !== "Booked" &&
+      item.status !== "Completion requested" &&
       // Requests this pro cleared from their dashboard stay cleared here too.
       !(item.kind === "open_request" && item.requestId && dismissedRequestIds.has(item.requestId))
   );

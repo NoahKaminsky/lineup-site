@@ -9,14 +9,14 @@ import BookingChat from "@/app/components/BookingChat";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { containsProfanity } from "@/app/lib/profanityFilter";
 
-import { MapPin } from "lucide-react";
 import {
   CANCELLATION_CUTOFF_HOURS as CUTOFF_HOURS,
   canCancelForRefund,
   formatCancellationDeadline,
   hasAppointmentEnded,
 } from "@/app/lib/bookingTime";
-import { DrawnCheck, MaskLine } from "@/app/components/moments/Moments";
+import { DrawnCheck, MaskLine, formatMomentPrice } from "@/app/components/moments/Moments";
+import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -38,6 +38,7 @@ type BookingRow = {
   service_mode?: string | null;
   source?: string | null;
   duration_minutes: number | null;
+  service_price?: string | number | null;
   cancelled_by: string | null;
   cancelled_at: string | null;
   completion_requested_at: string | null;
@@ -341,7 +342,7 @@ export default function BookingDetailPage() {
       const { data: bookingData, error: bookingError } = await supabase
         .from("bookings")
         .select(
-          "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
+          "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, service_price, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
         )
         .eq("id", bookingId)
         .single();
@@ -717,397 +718,288 @@ export default function BookingDetailPage() {
     booking.formatted_address
   );
 
+  const isLive = booking.status === "confirmed" || booking.status === "completion_requested";
+  const otherPerson = isViewerCustomer ? professional : customer;
+  const otherRole = isViewerCustomer ? "Your professional" : "Your client";
+  // Where it happens, worded for whoever is looking.
+  const whereLabel = (() => {
+    const mode = booking.service_mode;
+    if (mode === "in_shop") return isViewerProfessional ? "At your shop" : "At their shop";
+    if (mode === "home_studio") return isViewerProfessional ? "At your home studio" : "At their home studio";
+    if (mode === "at_home") return isViewerProfessional ? "At the client's place" : "At your place";
+    return formatServiceMode(mode);
+  })();
+  const statusLine =
+    booking.status === "confirmed"
+      ? "Booked"
+      : booking.status === "completion_requested"
+      ? "Waiting for confirmation"
+      : formatStatus(booking.status);
+
   return (
     <>
-    <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper pb-28 pt-10 text-neutral-900">
-      <div className="mx-auto max-w-5xl">
+    <main className="min-h-screen bg-paper px-4 pb-36 pt-8 text-neutral-900 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-2xl">
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            href={viewerIsCustomerRole ? "/work" : "/calendar"}
+            className="inline-flex items-center gap-1.5 rounded-full px-1 py-2 text-sm font-medium text-neutral-500 transition hover:text-ink"
+          >
+            <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" aria-hidden="true">
+              <path d="M10 3.5L5.5 8l4.5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {viewerIsCustomerRole ? "Bookings" : "Calendar"}
+          </Link>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-medium ${
+              isLive ? "bg-ink text-white" : booking.status === "cancelled" ? "bg-red-50 text-red-700" : "bg-neutral-100 text-neutral-600"
+            }`}
+          >
+            {statusLine}
+          </span>
+        </div>
 
+        {message ? (
+          <div className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4 text-sm text-neutral-700">{message}</div>
+        ) : null}
 
-        <div className="py-16">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                Booking
-              </p>
-              <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-                {booking.service_name || "Booked service"}
-              </h1>
-              <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
-                {formatBookingDate(booking.booking_date)} • {formatTime(booking.start_time)} -{" "}
-                {formatTime(booking.end_time)}
+        {/* The booking at a glance: what, when, with whom, where. */}
+        <section className="lu-dialog-in mt-4 rounded-[28px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-36px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.07] sm:p-8">
+          <h1 className="text-[1.9rem] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-4xl">
+            {cleanServiceLabel(booking.service_name) || "Booked service"}
+          </h1>
+          <p className="mt-2 text-lg text-neutral-600">
+            {formatBookingDate(booking.booking_date)} · {formatTime(booking.start_time)} – {formatTime(booking.end_time)}
+          </p>
+
+          <div className="mt-6 flex items-center gap-3">
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-neutral-100 ring-1 ring-ink/[0.06]">
+              {otherPerson?.avatar_url ? (
+                <img loading="lazy" src={otherPerson.avatar_url} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">
+                  {otherPerson?.full_name?.charAt(0).toUpperCase() || "?"}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold text-ink">{otherPerson?.full_name || (isViewerCustomer ? "Professional" : "Client")}</p>
+              <p className="truncate text-sm text-neutral-500">
+                {otherRole}
+                {isViewerCustomer && formatProfessionalTypes(professional) ? ` · ${formatProfessionalTypes(professional)}` : ""}
               </p>
             </div>
-
-            <Link
-              href={viewerIsCustomerRole ? "/requests" : "/calendar"}
-              className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-            >
-              Back
-            </Link>
+            {otherPerson?.id ? (
+              <Link
+                href={`/profile/${otherPerson.id}`}
+                className="shrink-0 text-sm font-medium text-neutral-500 underline-offset-2 hover:text-ink hover:underline"
+              >
+                View profile
+              </Link>
+            ) : null}
           </div>
 
-          {message ? (
-            <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-              {message}
-            </div>
-          ) : null}
-
-          <div className="mt-10 rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
-                Booking
-              </span>
-
-              <span className="rounded-md border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
-                {formatStatus(booking.status)}
-              </span>
-            </div>
-
-            <div className="mt-8 grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                  Service
-                </p>
-                <p className="mt-3 text-lg font-semibold text-neutral-900">
-                  {booking.service_name || "Booked service"}
-                </p>
-                {booking.duration_minutes ? (
-                  <p className="mt-1 text-sm text-neutral-500">{booking.duration_minutes} min</p>
-                ) : null}
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                  Appointment type
-                </p>
-                <p className="mt-3 text-lg font-semibold text-neutral-900">
-                  {formatServiceMode(booking.service_mode)}
-                </p>
-                <p className="mt-1 text-sm text-neutral-500">
-                  {booking.source === "direct_booking" ? "Direct booking" : booking.source || "Booking"}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                  Professional
-                </p>
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
-                    {professional?.avatar_url ? (
-                      <img loading="lazy"
-                        src={professional.avatar_url}
-                        alt={professional.full_name || "Professional"}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
-                        {professional?.full_name?.charAt(0).toUpperCase() || "P"}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-neutral-900">
-                      {professional?.full_name || "Professional"}
-                    </p>
-                    <p className="truncate text-sm text-neutral-500">
-                      {formatProfessionalTypes(professional)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                  Client
-                </p>
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="h-14 w-14 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
-                    {customer?.avatar_url ? (
-                      <img loading="lazy"
-                        src={customer.avatar_url}
-                        alt={customer.full_name || "Client"}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
-                        {customer?.full_name?.charAt(0).toUpperCase() || "C"}
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="font-medium text-neutral-900">
-                      {customer?.full_name || "Client"}
-                    </p>
-                    <p className="text-sm text-neutral-500">
-                      {isViewerCustomer ? "You" : "Customer"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 p-5 md:col-span-2">
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                  Location
-                </p>
-                <p className="mt-3 text-lg font-medium text-neutral-900">
-                  <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{bookingAddress}
-                </p>
-
-                {mapEmbedUrl ? (
-                  <div className="mt-4 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
-                    <iframe
-                      title="Booking location map"
-                      src={mapEmbedUrl}
-                      width="100%"
-                      height="220"
-                      loading="lazy"
-                      allowFullScreen
-                      referrerPolicy="no-referrer-when-downgrade"
-                      className="block w-full border-0"
-                    />
-                  </div>
-                ) : null}
-
-                {mapsUrl ? (
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-4 inline-flex rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                  >
-                    Open in Google Maps
-                  </a>
-                ) : null}
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                  Time
-                </p>
-                <p className="mt-3 text-lg font-medium text-neutral-900">
-                  {formatBookingDate(booking.booking_date)}
-                </p>
-                <p className="mt-1 text-sm text-neutral-500">
-                  {formatTime(booking.start_time)} - {formatTime(booking.end_time)}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-neutral-200 p-5">
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                  Created
-                </p>
-                <p className="mt-3 text-lg font-medium text-neutral-900">
-                  {formatDateTime(booking.created_at)}
-                </p>
-              </div>
-
-              {booking.completion_requested_at ? (
-                <div className="rounded-2xl border border-neutral-200 p-5">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                    Completion requested
-                  </p>
-                  <p className="mt-3 text-lg font-medium text-neutral-900">
-                    {formatDateTime(booking.completion_requested_at)}
-                  </p>
-                </div>
-              ) : null}
-
-              {booking.completed_at ? (
-                <div className="rounded-2xl border border-neutral-200 p-5">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                    Completed
-                  </p>
-                  <p className="mt-3 text-lg font-medium text-neutral-900">
-                    {formatDateTime(booking.completed_at)}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-
-            {isViewerCustomer && booking.status === "completion_requested" ? (
-              // The one step that releases the professional's payout, so it
-              // gets the strongest treatment on the page.
-              <div className="lu-dialog-in mt-8 rounded-[24px] bg-ink p-6 text-white sm:p-7">
-                <p className="text-xs font-medium text-white/60">Action needed</p>
-                <p className="mt-2 text-xl font-semibold tracking-[-0.02em]">
-                  {professional?.full_name?.split(" ")[0] ?? "Your professional"} marked this done.
-                </p>
-                <p className="mt-2 max-w-md text-sm leading-6 text-white/70">
-                  If your service is finished, confirm it below. That&apos;s what pays them out, and then you can leave a
-                  review.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleConfirmCompletion}
-                  disabled={actionLoading === "confirm"}
-                  className="mt-5 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink transition hover:bg-neutral-200 disabled:opacity-60"
-                >
-                  {actionLoading === "confirm" ? "Confirming…" : "Confirm service completed"}
-                </button>
-              </div>
-            ) : null}
-
-            {booking.status === "confirmed" ? (
-              <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                <p className="text-sm font-semibold text-neutral-900">
-                  {isViewerProfessional
-                    ? "Once you've finished the service, come back here."
-                    : "Once the service is done, you'll confirm it here."}
-                </p>
-                <p className="mt-1.5 text-sm leading-6 text-neutral-600">
-                  {isViewerProfessional
-                    ? "Tap “Request completion” below and your client will be asked to confirm — that's what releases your payout."
-                    : "Your professional will tap “Request completion” after the appointment, then you'll confirm it right here so they get paid."}
-                </p>
-              </div>
-            ) : null}
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              {isViewerProfessional && booking.status === "confirmed" ? (
-                isServiceOver(booking.booking_date, booking.end_time) ? (
-                  <button
-                    type="button"
-                    onClick={handleRequestCompletion}
-                    disabled={actionLoading === "request-completion"}
-                    className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
-                  >
-                    {actionLoading === "request-completion"
-                      ? "Requesting…"
-                      : "Request completion"}
-                  </button>
-                ) : (
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-500">
-                    Available after {formatTime(booking.end_time)} when the service ends
-                  </div>
-                )
-              ) : null}
-
-
-              {(booking.status === "confirmed" || booking.status === "completion_requested") &&
-              (isViewerCustomer || isViewerProfessional) ? (
-                !canCancelBooking(booking.booking_date, booking.start_time) ? (
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-500">
-                    This booking is within {CANCELLATION_CUTOFF_HOURS} hours of the appointment and
-                    can no longer be cancelled. Message the {isViewerCustomer ? "professional" : "client"}{" "}
-                    directly if something&apos;s come up.
-                  </div>
-                ) : confirmingCancel ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-neutral-600">Cancel and refund in full?</span>
-                    <button
-                      type="button"
-                      onClick={handleCancelBooking}
-                      disabled={actionLoading === "cancel"}
-                      className="inline-flex rounded-full border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
-                    >
-                      {actionLoading === "cancel" ? "Working…" : "Yes, cancel"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmingCancel(false)}
-                      className="inline-flex rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-900 transition hover:bg-neutral-50"
-                    >
-                      Keep
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-1.5">
-                    <button
-                      type="button"
-                      onClick={handleCancelBooking}
-                      disabled={actionLoading === "cancel"}
-                      className="inline-flex w-fit rounded-full border border-red-300 px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
-                    >
-                      Cancel booking
-                    </button>
-                    <p className="text-xs text-neutral-400">
-                      Full refund if cancelled before{" "}
-                      {formatCancellationCutoff(booking.booking_date, booking.start_time)}.
-                    </p>
-                  </div>
-                )
-              ) : null}
-
-              {isViewerCustomer && professional?.id ? (
-                <Link
-                  href={`/profile/${professional.id}`}
-                  className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                >
-                  View professional
-                </Link>
-              ) : null}
-
-              {isViewerProfessional && customer?.id ? (
-                <Link
-                  href={`/profile/${customer.id}`}
-                  className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                >
-                  View client
-                </Link>
-              ) : null}
-
-              {booking.status === "confirmed" || booking.status === "completion_requested" ? (
+          {isLive || mapsUrl ? (
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              {isLive ? (
                 <button
                   type="button"
                   onClick={scrollToBookingChat}
-                  className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+                  className={`inline-flex items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 ${mapsUrl ? "" : "col-span-2"}`}
                 >
-                  {isViewerCustomer ? "Message professional" : "Message client"}
+                  Message
                 </button>
               ) : null}
+              {mapsUrl ? (
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-ink transition hover:bg-neutral-50 ${isLive ? "" : "col-span-2"}`}
+                >
+                  Directions
+                </a>
+              ) : null}
             </div>
-          </div>
+          ) : null}
 
-          <div
-            id="booking-chat"
-            className="mt-10 scroll-mt-28 rounded-panel border border-neutral-200 bg-white p-6 shadow-sm"
-          >
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                  Messaging
-                </p>
-                <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
-                  {isViewerCustomer ? "Message professional" : "Message client"}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-neutral-500">
-                  Keep arrival details, prep notes, timing changes, and questions attached to this booking.
-                </p>
+          <dl className="mt-6 divide-y divide-ink/[0.06] border-t border-ink/[0.06]">
+            <div className="flex items-start justify-between gap-6 py-4">
+              <dt className="shrink-0 text-sm text-neutral-500">Where</dt>
+              <dd className="min-w-0 text-right text-sm">
+                <span className="block font-medium text-ink">{whereLabel}</span>
+                {bookingAddress ? <span className="mt-0.5 block text-neutral-500">{bookingAddress}</span> : null}
+                {mapEmbedUrl ? (
+                  <details className="group mt-2 text-left">
+                    <summary className="cursor-pointer list-none text-right text-xs font-medium text-neutral-500 hover:text-ink">
+                      <span className="group-open:hidden">Show map</span>
+                      <span className="hidden group-open:inline">Hide map</span>
+                    </summary>
+                    <div className="mt-3 overflow-hidden rounded-2xl ring-1 ring-ink/[0.06]">
+                      <iframe
+                        title="Booking location map"
+                        src={mapEmbedUrl}
+                        width="100%"
+                        height="200"
+                        loading="lazy"
+                        allowFullScreen
+                        referrerPolicy="no-referrer-when-downgrade"
+                        className="block w-full border-0"
+                      />
+                    </div>
+                  </details>
+                ) : null}
+              </dd>
+            </div>
+            {booking.service_price !== null && booking.service_price !== undefined && booking.service_price !== "" ? (
+              <div className="flex items-baseline justify-between gap-6 py-4">
+                <dt className="text-sm text-neutral-500">Price</dt>
+                <dd className="text-sm font-medium tabular-nums text-ink">{formatMomentPrice(booking.service_price)}</dd>
               </div>
+            ) : null}
+            {booking.duration_minutes ? (
+              <div className="flex items-baseline justify-between gap-6 py-4">
+                <dt className="text-sm text-neutral-500">Length</dt>
+                <dd className="text-sm font-medium text-ink">{booking.duration_minutes} min</dd>
+              </div>
+            ) : null}
+          </dl>
+        </section>
 
-              {booking.status === "confirmed" || booking.status === "completion_requested" ? (
-                <span className="w-fit rounded-full bg-ink px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white">
-                  Active chat
-                </span>
-              ) : booking.status === "cancelled" ? (
-                <span className="w-fit rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-red-700">
-                  Cancelled
-                </span>
+        {/* What needs doing, only when something does. */}
+        {isViewerCustomer && booking.status === "completion_requested" ? (
+          // The one step that releases the professional's payout.
+          <section className="lu-dialog-in mt-4 rounded-[28px] bg-ink p-6 text-white sm:p-7">
+            <p className="text-xs font-medium text-white/60">Action needed</p>
+            <p className="mt-2 text-xl font-semibold tracking-[-0.02em]">
+              {professional?.full_name?.split(" ")[0] ?? "Your professional"} marked this done.
+            </p>
+            <p className="mt-2 max-w-md text-sm leading-6 text-white/70">
+              If your service is finished, confirm it below. That&apos;s what pays them out, and then you can leave a
+              review.
+            </p>
+            <button
+              type="button"
+              onClick={handleConfirmCompletion}
+              disabled={actionLoading === "confirm"}
+              className="mt-5 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink transition hover:bg-neutral-200 disabled:opacity-60"
+            >
+              {actionLoading === "confirm" ? "Confirming…" : "Confirm service completed"}
+            </button>
+          </section>
+        ) : null}
+
+        {isViewerProfessional && booking.status === "confirmed" ? (
+          <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+            <div className="min-w-0">
+              <p className="font-semibold text-ink">Finished the service?</p>
+              <p className="mt-1 text-sm leading-6 text-neutral-500">
+                Mark it complete and your client confirms. That releases your payout.
+              </p>
+            </div>
+            {isServiceOver(booking.booking_date, booking.end_time) ? (
+              <button
+                type="button"
+                onClick={handleRequestCompletion}
+                disabled={actionLoading === "request-completion"}
+                className="inline-flex shrink-0 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+              >
+                {actionLoading === "request-completion" ? "Requesting…" : "Mark service complete"}
+              </button>
+            ) : (
+              <span className="shrink-0 rounded-full bg-neutral-100 px-4 py-2 text-xs font-medium text-neutral-500">
+                Available after {formatTime(booking.end_time)}
+              </span>
+            )}
+          </section>
+        ) : null}
+
+        {isViewerCustomer && booking.status === "confirmed" ? (
+          <p className="mt-4 px-2 text-sm leading-6 text-neutral-500">
+            After the appointment your professional marks it done, then you confirm it here so they get paid.
+          </p>
+        ) : null}
+
+        {/* Messages: right under the booking, not at the bottom of the page. */}
+        <section
+          id="booking-chat"
+          className="mt-4 scroll-mt-24 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8"
+        >
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Messages</h2>
+            <p className="text-xs text-neutral-400">
+              {isLive ? `With ${otherPerson?.full_name?.split(" ")[0] || (isViewerCustomer ? "your professional" : "your client")}` : formatStatus(booking.status)}
+            </p>
+          </div>
+          <BookingChat bookingId={booking.id} viewerId={viewerId} />
+        </section>
+
+        {/* Manage: cancellation and the record. */}
+        <section className="mt-4 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
+          <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Manage</h2>
+          {isLive && (isViewerCustomer || isViewerProfessional) ? (
+            <div className="mt-4">
+              {!canCancelBooking(booking.booking_date, booking.start_time) ? (
+                <p className="text-sm leading-6 text-neutral-500">
+                  This booking is within {CANCELLATION_CUTOFF_HOURS} hours of the appointment and can no longer be
+                  cancelled. Message the {isViewerCustomer ? "professional" : "client"} directly if something&apos;s come
+                  up.
+                </p>
+              ) : confirmingCancel ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-neutral-600">Cancel and refund in full?</span>
+                  <button
+                    type="button"
+                    onClick={handleCancelBooking}
+                    disabled={actionLoading === "cancel"}
+                    className="inline-flex rounded-full border border-red-300 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                  >
+                    {actionLoading === "cancel" ? "Working…" : "Yes, cancel"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingCancel(false)}
+                    className="inline-flex rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                  >
+                    Keep it
+                  </button>
+                </div>
               ) : (
-                <span className="w-fit rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-neutral-600">
-                  {formatStatus(booking.status)}
-                </span>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-neutral-500">
+                    Free cancellation until {formatCancellationCutoff(booking.booking_date, booking.start_time)}.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleCancelBooking}
+                    disabled={actionLoading === "cancel"}
+                    className="inline-flex rounded-full border border-red-300 px-5 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                  >
+                    Cancel booking
+                  </button>
+                </div>
               )}
             </div>
-
-            <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600">
-              {booking.status === "confirmed" || booking.status === "completion_requested"
-                ? isViewerCustomer
-                  ? "Message the professional about arrival details, prep notes, or timing changes."
-                  : "Message the client about arrival details, prep notes, or timing changes."
-                : isViewerCustomer
-                ? "Use this chat to message the professional after your booking is confirmed."
-                : "Use this chat to message the client after the booking is confirmed."}
+          ) : null}
+          <dl className="mt-4 space-y-1 text-xs text-neutral-400">
+            <div>
+              <dt className="inline">Booked </dt>
+              <dd className="inline">{formatDateTime(booking.created_at)}</dd>
             </div>
-
-            <div className="mt-6">
-              <BookingChat bookingId={booking.id} viewerId={viewerId} />
-            </div>
-          </div>
-        </div>
+            {booking.completion_requested_at ? (
+              <div>
+                <dt className="inline">Marked done </dt>
+                <dd className="inline">{formatDateTime(booking.completion_requested_at)}</dd>
+              </div>
+            ) : null}
+            {booking.completed_at ? (
+              <div>
+                <dt className="inline">Completed </dt>
+                <dd className="inline">{formatDateTime(booking.completed_at)}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </section>
       </div>
     </main>
 

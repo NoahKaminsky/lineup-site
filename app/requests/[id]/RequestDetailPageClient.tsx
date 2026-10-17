@@ -283,6 +283,20 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
     return currentUserId === request.accepted_professional_id;
   }, [request, currentUserId]);
 
+  // Once a request is booked, the booking page is the place for it (details,
+  // chat, completion, cancel). Only redirect when it was ALREADY booked on
+  // arrival: right after paying, this page shows the booked sheet first.
+  const bookedOnArrival = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!request || bookedOnArrival.current !== null) return;
+    bookedOnArrival.current = ["accepted", "completion_requested", "completed"].includes(request.status);
+  }, [request]);
+  useEffect(() => {
+    if (!bookedOnArrival.current || !chatBookingId || !request || !currentUserId) return;
+    if (currentUserId !== request.client_id && currentUserId !== request.accepted_professional_id) return;
+    router.replace(`/bookings/${chatBookingId}`);
+  }, [chatBookingId, request, currentUserId, router]);
+
   const canAccessChat = useMemo(() => {
     if (!request || !currentUserId || !request.accepted_professional_id) {
       return false;
@@ -2878,6 +2892,12 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             type="button"
             onClick={() => {
               setShowBookingSuccessModal(false);
+
+              // The booking page holds the chat once something is booked.
+              if (chatBookingId) {
+                router.push(`/bookings/${chatBookingId}#booking-chat`);
+                return;
+              }
 
               requestAnimationFrame(() => {
                 const chatSection = document.getElementById("request-chat");
