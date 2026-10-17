@@ -1753,7 +1753,7 @@ function BookedList({
                   disabled={isLoadingAction}
                   className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
                 >
-                  {isLoadingAction ? "Working…" : "Confirm completion"}
+                  {isLoadingAction ? "Working…" : "Confirm service completed"}
                 </button>
               ) : null}
 

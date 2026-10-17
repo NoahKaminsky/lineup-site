@@ -1773,30 +1773,29 @@ return (
           ) : null}
 
           {isCustomer && pendingCompletionBookings.length > 0 ? (
-            <div role="status" className="mt-8 rounded-2xl border border-ink bg-surface p-5">
+            <div role="status" className="lu-dialog-in mt-8 rounded-[24px] bg-ink p-6 text-white">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                    Action needed
-                  </p>
+                  <p className="text-xs font-medium text-white/60">Action needed</p>
                   <p className="mt-1 text-lg font-semibold tracking-tight">
                     {pendingCompletionBookings.length === 1
                       ? `Confirm your ${pendingCompletionBookings[0].service_name || "service"} is done`
                       : `Confirm ${pendingCompletionBookings.length} completed services`}
                   </p>
-                  <p className="mt-1 text-sm text-neutral-600">
-                    Your professional marked this done — confirming it wraps up the booking and releases their payout.
+                  <p className="mt-1 max-w-md text-sm text-white/70">
+                    Your professional marked this done. Confirming it wraps up the booking and pays them out, then
+                    you can leave a review.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleConfirmBookingCompletion(pendingCompletionBookings[0].id)}
                   disabled={bookingActionLoadingId === pendingCompletionBookings[0].id}
-                  className="inline-flex shrink-0 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
+                  className="inline-flex shrink-0 rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink transition-colors hover:bg-neutral-200 disabled:opacity-60"
                 >
                   {bookingActionLoadingId === pendingCompletionBookings[0].id
                     ? "Confirming…"
-                    : "Confirm completion"}
+                    : "Confirm service completed"}
                 </button>
               </div>
             </div>
@@ -1814,12 +1813,24 @@ return (
                   Leave a quick review so other clients know what to expect.
                 </p>
               </div>
-              <Link
-                href={`/bookings/${unreviewedCompletedBookings[0].id}?review=1`}
-                className="inline-flex shrink-0 rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-white"
-              >
-                Leave a review
-              </Link>
+              {/* Tap a star to jump straight into the review with it picked. */}
+              <div className="flex items-center gap-0.5" aria-label="Leave a review">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Link
+                    key={star}
+                    href={`/bookings/${unreviewedCompletedBookings[0].id}?review=1&rating=${star}`}
+                    aria-label={`Rate ${star} star${star === 1 ? "" : "s"}`}
+                    className="group/star rounded-full p-1 text-neutral-300 transition hover:scale-110 hover:text-ink"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-7 w-7" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.3L12 17.1l-5.7 3.1 1.2-6.3L2.8 9.5l6.4-.8z"
+                      />
+                    </svg>
+                  </Link>
+                ))}
+              </div>
             </div>
           ) : null}
 
@@ -1992,7 +2003,7 @@ return (
                               >
                                 {isLoadingAction
                                   ? "Confirming…"
-                                  : "Confirm completion"}
+                                  : "Confirm service completed"}
                               </button>
                             ) : null}
 

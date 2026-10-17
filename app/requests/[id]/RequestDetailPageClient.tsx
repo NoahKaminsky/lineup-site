@@ -1393,6 +1393,12 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
         : prev
     );
 
+    if (data.needsReview && chatBookingId) {
+      // Same review prompt as every other entry point (the booking page owns it).
+      router.push(`/bookings/${chatBookingId}?review=1`);
+      return;
+    }
+
     if (data.needsReview) {
       setMessage("Service confirmed as completed. Leave a review below to let others know how it went.");
     } else {
@@ -2426,7 +2432,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   </p>
 
                   <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
-                    Confirm completion
+                    Confirm service completed
                   </h2>
 
                   <p className="mt-4 leading-7 text-neutral-600">
@@ -2439,7 +2445,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       onClick={handleConfirmCompletion}
                       className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
                     >
-                      Confirm completion
+                      Confirm service completed
                     </button>
                   </div>
                 </section>

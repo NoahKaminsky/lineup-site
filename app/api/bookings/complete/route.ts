@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { completeBooking, requestBookingCompletion } from "@/app/lib/bookingCompletion";
+import { hasAppointmentEnded } from "@/app/lib/bookingTime";
 
 export async function POST(req: Request) {
   try {
@@ -34,6 +35,16 @@ export async function POST(req: Request) {
 
     const isCustomer = user.id === booking.customer_id;
     const isProfessional = user.id === booking.professional_id;
+
+    // Completion releases the professional's payout, so it can't happen
+    // before the appointment is actually over (checked in the booking's own
+    // time zone; the server runs in UTC).
+    if (!hasAppointmentEnded(booking.booking_date, booking.end_time)) {
+      return NextResponse.json(
+        { error: "This appointment hasn't finished yet. You can mark it complete once it's over." },
+        { status: 409 }
+      );
+    }
 
     if (action === "request") {
       if (!isProfessional) {

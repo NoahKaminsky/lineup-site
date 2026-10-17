@@ -16,6 +16,7 @@ import {
   formatCancellationDeadline,
   hasAppointmentEnded,
 } from "@/app/lib/bookingTime";
+import { DrawnCheck, MaskLine } from "@/app/components/moments/Moments";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -451,6 +452,9 @@ export default function BookingDetailPage() {
         .maybeSingle();
 
       if (!cancelled && !existingReview) {
+        // A star tapped on the dashboard arrives as ?rating=N.
+        const preset = Number(params.get("rating"));
+        if (preset >= 1 && preset <= 5) setReviewRating(preset);
         setShowReviewModal(true);
       }
     })();
@@ -923,6 +927,29 @@ export default function BookingDetailPage() {
               ) : null}
             </div>
 
+            {isViewerCustomer && booking.status === "completion_requested" ? (
+              // The one step that releases the professional's payout, so it
+              // gets the strongest treatment on the page.
+              <div className="lu-dialog-in mt-8 rounded-[24px] bg-ink p-6 text-white sm:p-7">
+                <p className="text-xs font-medium text-white/60">Action needed</p>
+                <p className="mt-2 text-xl font-semibold tracking-[-0.02em]">
+                  {professional?.full_name?.split(" ")[0] ?? "Your professional"} marked this done.
+                </p>
+                <p className="mt-2 max-w-md text-sm leading-6 text-white/70">
+                  If your service is finished, confirm it below. That&apos;s what pays them out, and then you can leave a
+                  review.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleConfirmCompletion}
+                  disabled={actionLoading === "confirm"}
+                  className="mt-5 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink transition hover:bg-neutral-200 disabled:opacity-60"
+                >
+                  {actionLoading === "confirm" ? "Confirming…" : "Confirm service completed"}
+                </button>
+              </div>
+            ) : null}
+
             {booking.status === "confirmed" ? (
               <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
                 <p className="text-sm font-semibold text-neutral-900">
@@ -958,16 +985,6 @@ export default function BookingDetailPage() {
                 )
               ) : null}
 
-              {isViewerCustomer && booking.status === "completion_requested" ? (
-                <button
-                  type="button"
-                  onClick={handleConfirmCompletion}
-                  disabled={actionLoading === "confirm"}
-                  className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
-                >
-                  {actionLoading === "confirm" ? "Confirming…" : "Confirm completion"}
-                </button>
-              ) : null}
 
               {(booking.status === "confirmed" || booking.status === "completion_requested") &&
               (isViewerCustomer || isViewerProfessional) ? (
@@ -1096,29 +1113,46 @@ export default function BookingDetailPage() {
 
     {showReviewModal ? (
       <div className="lu-fade-in fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-0 sm:items-center sm:p-4">
-        <div className="lu-dialog-in w-full max-w-md rounded-t-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-panel">
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-            Service complete
-          </p>
-          <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em]">
-            How was {professional?.full_name?.split(" ")[0] ?? "your professional"}?
+        <div className="lu-sheet-in w-full max-w-md rounded-t-[28px] bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-[28px] sm:p-8">
+          <DrawnCheck size={44} />
+          <h2 className="mt-6 text-[1.6rem] font-semibold leading-[1.08] tracking-[-0.035em]">
+            <MaskLine delay={120}>Service complete.</MaskLine>
+            <MaskLine delay={200} className="text-neutral-500">
+              How was {professional?.full_name?.split(" ")[0] ?? "your professional"}?
+            </MaskLine>
           </h2>
-          <p className="mt-2 text-sm text-neutral-500">
-            Your review helps other customers and supports the professional.
+          <p className="mt-3 text-sm text-neutral-500">
+            Your review helps other clients choose, and builds their track record.
           </p>
 
-          <div className="mt-6 flex items-center gap-2">
+          <div className="mt-6 flex items-center gap-1.5" role="radiogroup" aria-label="Rating">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
                 type="button"
+                role="radio"
+                aria-checked={reviewRating === star}
                 onClick={() => setReviewRating(star)}
-                className="text-3xl transition hover:scale-110"
-                aria-label={`Rate ${star} stars`}
+                className="rounded-full p-1 transition hover:scale-110"
+                aria-label={`Rate ${star} star${star === 1 ? "" : "s"}`}
               >
-                <span className={star <= reviewRating ? "text-black" : "text-neutral-200"}>
-                  ★
-                </span>
+                <svg
+                  // Re-keyed when selection changes so filled stars pop in turn.
+                  key={star <= reviewRating ? `on-${reviewRating}` : "off"}
+                  viewBox="0 0 24 24"
+                  className={`h-9 w-9 ${star <= reviewRating ? "text-ink" : "text-neutral-200"}`}
+                  style={
+                    star <= reviewRating
+                      ? { animation: `lu-check-pop 380ms var(--ease-arrive) ${(star - 1) * 45}ms backwards` }
+                      : undefined
+                  }
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.3L12 17.1l-5.7 3.1 1.2-6.3L2.8 9.5l6.4-.8z"
+                  />
+                </svg>
               </button>
             ))}
           </div>
