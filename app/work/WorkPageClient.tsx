@@ -1728,6 +1728,17 @@ function BookedList({
                 View details
               </Link>
 
+              {/* Chat is one tap from the list once something is booked. */}
+              {item.href.startsWith("/bookings/") &&
+              ["accepted", "confirmed", "completion_requested"].includes(item.status) ? (
+                <Link
+                  href={`${item.href}#booking-chat`}
+                  className="rounded-full border border-neutral-300 px-4 py-2 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50"
+                >
+                  Message
+                </Link>
+              ) : null}
+
               {otherPerson.profileId ? (
                 <Link
                   href={`/profile/${otherPerson.profileId}`}

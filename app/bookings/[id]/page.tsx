@@ -17,6 +17,7 @@ import {
 } from "@/app/lib/bookingTime";
 import { DrawnCheck, MaskLine, formatMomentPrice } from "@/app/components/moments/Moments";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
+import { useHashTarget } from "@/app/lib/useHashTarget";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -299,6 +300,8 @@ export default function BookingDetailPage() {
   const [viewerRole, setViewerRole] = useState<string | null>(() => cached?.viewerRole ?? null);
 
   const [booking, setBooking] = useState<BookingRow | null>(() => cached?.booking ?? null);
+  // "Message" links from lists land here as #booking-chat.
+  useHashTarget(!loading && !!booking);
   const [professional, setProfessional] = useState<ProfileRow | null>(() => cached?.professional ?? null);
   const [customer, setCustomer] = useState<ProfileRow | null>(() => cached?.customer ?? null);
 
