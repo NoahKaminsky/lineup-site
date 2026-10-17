@@ -4,10 +4,7 @@ import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { sendPushToUser } from "@/app/lib/push";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
-
-function normalize(value: string | null | undefined) {
-  return String(value || "").toLowerCase().replaceAll(" ", "_");
-}
+import { requestMatchesProfessional } from "@/app/lib/professions";
 
 function formatCategory(value: string | null | undefined) {
   if (!value) return "Service";
@@ -44,17 +41,13 @@ export async function POST(req: Request) {
 
     const { data: request, error } = await supabase
       .from("service_requests")
-      .select("id, title, service_detail, category, service_mode, service_modes, target_professions, preferred_professional_id")
+      .select("id, title, service_detail, category, categories, service_mode, service_modes, target_professions, preferred_professional_id, is_direct_rebook")
       .eq("id", requestId)
       .single();
 
     if (error || !request) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
-
-    const targetProfessions = Array.isArray(request.target_professions)
-      ? request.target_professions
-      : [];
 
     let professionalsQuery = supabase
       .from("profiles")
@@ -74,36 +67,14 @@ export async function POST(req: Request) {
 
     const { data: professionals } = await professionalsQuery;
 
-    const targetSet = new Set(targetProfessions.map(normalize));
-
     const matches = (professionals || []).filter((profile: any) => {
       // Unverified professionals can't send offers, so don't alert them to requests.
       if (!isVerifiedNow(profile)) return false;
-      if (request.preferred_professional_id) return true;
-      if (!profile.email) return false;
-      if (!profile.email_request_notifications) return false;
-      if (targetSet.size === 0) return false;
-
-      const types = Array.isArray(profile.professional_types)
-        ? profile.professional_types
-        : profile.professional_type
-        ? [profile.professional_type]
-        : [];
-
-      if (!types.some((type: string) => targetSet.has(normalize(type)))) return false;
-
-      // If the pro has service modes configured and the request specifies mode(s), at least one must match
-      const proModes = Array.isArray(profile.service_modes) ? profile.service_modes : [];
-      const requestModes = request.service_modes?.length
-        ? request.service_modes
-        : request.service_mode
-        ? [request.service_mode]
-        : [];
-      if (proModes.length > 0 && requestModes.length > 0) {
-        if (!requestModes.some((mode: string) => proModes.includes(mode))) return false;
-      }
-
-      return true;
+      if (request.preferred_professional_id) return profile.id === request.preferred_professional_id;
+      if (!profile.email || !profile.email_request_notifications) return false;
+      // Same rule the Requests and Work tabs use: a pro with several
+      // professions hears about a request matching ANY of them.
+      return requestMatchesProfessional(request, profile);
     });
 
     if (matches.length === 0) {
