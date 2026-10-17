@@ -12,6 +12,7 @@ import { containsProfanity } from "@/app/lib/profanityFilter";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 import PushNotificationToggle from "@/app/components/PushNotificationToggle";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
 
 // SMS alerts are superseded by push notifications (free, no Twilio account
 // needed) -- hidden from the UI for now rather than removed, since the
@@ -423,12 +424,13 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
         return;
       }
 
-      const fileExt = file.name.split(".").pop();
+      const upload = await normalizeImageFile(file);
+      const fileExt = upload.name.split(".").pop();
       const filePath = `${user.id}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, file, {
+        .upload(filePath, upload, {
           cacheControl: "3600",
           upsert: false,
         });
@@ -480,12 +482,13 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
         return;
       }
 
-      const fileExt = file.name.split(".").pop();
+      const upload = await normalizeImageFile(file);
+      const fileExt = upload.name.split(".").pop();
       const filePath = `${user.id}/banner-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from("profile-banners")
-        .upload(filePath, file, {
+        .upload(filePath, upload, {
           cacheControl: "3600",
           upsert: false,
         });
@@ -539,18 +542,21 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       }
 
       const isVideo = uploadFile.type.startsWith("video/");
+      const upload = isVideo ? uploadFile : await normalizeImageFile(uploadFile);
       const maxSizeMb = isVideo ? 100 : 15;
 
-      if (uploadFile.size > maxSizeMb * 1024 * 1024) {
+      if (upload.size > maxSizeMb * 1024 * 1024) {
         setMessage(`That file is too large — ${isVideo ? "videos" : "photos"} must be under ${maxSizeMb}MB.`);
         return;
       }
 
-      const filePath = `${user.id}/${crypto.randomUUID()}-${uploadFile.name}`;
+      // Keep only safe characters from the original name in the storage key.
+      const safeName = upload.name.replace(/[^\w.-]+/g, "-").slice(-80);
+      const filePath = `${user.id}/${crypto.randomUUID()}-${safeName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("portfolio-images")
-        .upload(filePath, uploadFile, {
+        .upload(filePath, upload, {
           cacheControl: "3600",
           upsert: false,
         });

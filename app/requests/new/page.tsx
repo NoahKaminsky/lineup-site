@@ -8,6 +8,7 @@ import TimeSelect from "../../components/TimeSelect";
 import { containsProfanity } from "../../lib/profanityFilter";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { MomentCard, MomentOverlay, formatMomentDate, formatMomentPrice } from "@/app/components/moments/Moments";
+import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
@@ -742,16 +743,17 @@ function NewRequestPageContent() {
       const uploadedUrls: string[] = [];
 
       for (const photo of referencePhotos) {
-        const fileExt = photo.file.name.split(".").pop() || "jpg";
+        const upload = await normalizeImageFile(photo.file);
+        const fileExt = upload.name.split(".").pop() || "jpg";
         const filePath = `${currentUserId}/${Date.now()}-${Math.random()
           .toString(36)
           .slice(2)}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from("request-reference-photos")
-          .upload(filePath, photo.file, {
+          .upload(filePath, upload, {
             upsert: false,
-            contentType: photo.file.type,
+            contentType: upload.type,
           });
 
         if (uploadError) {
