@@ -12,7 +12,6 @@ type StepKey =
   | "bio"
   | "where"
   | "service"
-  | "hours"
   | "portfolio"
   | "payouts"
   | "cover"
@@ -31,13 +30,14 @@ type Step = {
 // Everything a client looks at before choosing someone, in the order it
 // matters. "Essentials" decide whether you can be found and booked at all;
 // "Stand out" is what tips a client toward you over the next profile.
+// Weekly hours are deliberately absent: they're a paid-plan feature, so they
+// can't be something every pro is asked to finish.
 const ESSENTIALS: Step[] = [
   { key: "verified", label: "Get verified", why: "Only verified pros appear in Browse and can be booked.", href: "/verification", cta: "Verify" },
   { key: "photo", label: "Add a profile photo", why: "A clear photo of you is the first thing clients look for.", href: "/account", cta: "Add photo" },
   { key: "bio", label: "Write a short bio", why: "A few lines on your experience and style.", href: "/account", cta: "Write bio" },
   { key: "where", label: "Set where you work", why: "Your area, and whether you travel, host or work from a shop.", href: "/services", cta: "Set location" },
   { key: "service", label: "Add your services", why: "What you offer, with prices and how long each takes.", href: "/services", cta: "Add service" },
-  { key: "hours", label: "Set your weekly hours", why: "So requests and bookings land when you're actually free.", href: "/services", cta: "Set hours" },
   { key: "portfolio", label: "Post 3 photos of your work", why: "Your work sells you better than anything you write.", href: "/account", cta: "Add photos" },
   { key: "payouts", label: "Connect payouts", why: "Set up Stripe so you get paid for completed jobs.", href: "/account", cta: "Connect" },
 ];
@@ -96,7 +96,7 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
   const [showDone, setShowDone] = useState(false);
 
   async function loadSteps() {
-    const [profileRes, servicesRes, hoursRes, portfolioRes] = await Promise.all([
+    const [profileRes, servicesRes, portfolioRes] = await Promise.all([
       supabase
         .from("profiles")
         .select(
@@ -108,11 +108,6 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
         .from("professional_services")
         .select("id", { count: "exact", head: true })
         .eq("professional_id", userId),
-      supabase
-        .from("professional_availability")
-        .select("id", { count: "exact", head: true })
-        .eq("professional_id", userId)
-        .eq("is_active", true),
       supabase
         .from("professional_portfolio")
         .select("id", { count: "exact", head: true })
@@ -127,7 +122,6 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
       bio: (profile?.bio || "").trim().length >= 40,
       where: !!(profile?.formatted_address || profile?.location) && modes.length > 0,
       service: (servicesRes.count ?? 0) > 0,
-      hours: (hoursRes.count ?? 0) > 0,
       portfolio: (portfolioRes.count ?? 0) >= 3,
       payouts: !!profile?.stripe_account_id,
       cover: !!profile?.banner_url,
