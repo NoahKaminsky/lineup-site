@@ -44,7 +44,8 @@ begin
     if coalesce((new_json ->> 'is_admin')::boolean, false)
        or coalesce((new_json ->> 'is_featured')::boolean, false)
        or coalesce((new_json ->> 'is_founding_artist')::boolean, false)
-       or new_json ->> 'subscription_plan' is not null
+       -- Only paid plans are blocked: a column default like 'basic' is fine.
+       or coalesce(new_json ->> 'subscription_plan', '') in ('apprentice', 'pro', 'master')
        or new_json ->> 'stripe_customer_id' is not null
        or new_json ->> 'stripe_subscription_id' is not null
        or new_json ->> 'stripe_account_id' is not null then
