@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getNewsletterMarch27Html } from "@/lib/email/newsletterMarch27";
+import { requireAdmin } from "@/app/lib/serverSupabase";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+export async function POST(req: Request) {
+  // Sends real email on our Resend account — admins only.
+  const admin = await requireAdmin(req);
+  if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
-export async function POST() {
+  const resend = new Resend(process.env.RESEND_API_KEY!);
+
   try {
     const testEmail = "lineupmb@gmail.com";
 

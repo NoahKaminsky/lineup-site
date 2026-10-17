@@ -3,7 +3,7 @@ import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { sendPushToUser } from "@/app/lib/push";
-import { getServiceSupabase } from "@/app/lib/serverSupabase";
+import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { requestMatchesProfessional } from "@/app/lib/professions";
 
 function formatCategory(value: string | null | undefined) {
@@ -31,9 +31,14 @@ function detailRow(label: string, value: string | null | undefined) {
 
 export async function POST(req: Request) {
   try {
+    // Sends emails, texts and pushes to professionals — only the customer who
+    // just posted this request may trigger it, and only once.
+    const user = await getAuthenticatedUser(req);
+    if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
     const { requestId } = await req.json();
 
-    if (!requestId) {
+    if (!requestId || typeof requestId !== "string") {
       return NextResponse.json({ error: "Missing requestId" }, { status: 400 });
     }
 
@@ -41,12 +46,28 @@ export async function POST(req: Request) {
 
     const { data: request, error } = await supabase
       .from("service_requests")
-      .select("id, title, service_detail, category, categories, service_mode, service_modes, target_professions, preferred_professional_id, is_direct_rebook")
+      .select("id, client_id, title, service_detail, category, categories, service_mode, service_modes, target_professions, preferred_professional_id, is_direct_rebook")
       .eq("id", requestId)
       .single();
 
     if (error || !request) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
+
+    if (request.client_id !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Already announced? Then don't blast everyone again (stops anyone
+    // replaying this call to spam professionals or run up the SMS bill).
+    const { count: alreadySent } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("request_id", request.id)
+      .eq("type", "request");
+
+    if ((alreadySent || 0) > 0) {
+      return NextResponse.json({ ok: true, sent: 0, alreadySent: true });
     }
 
     let professionalsQuery = supabase

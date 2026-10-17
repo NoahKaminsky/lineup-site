@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getServiceSupabase, requireAdmin } from "@/app/lib/serverSupabase";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Returns every subscriber's email address — admins only. (This used to be
+// readable by anyone who knew the URL.)
+export async function GET(req: Request) {
+  const admin = await requireAdmin(req);
+  if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
-export async function GET() {
+  const supabase = getServiceSupabase();
+
   const { data: profileRows, error: profileError } = await supabase
     .from("profiles")
     .select("email")

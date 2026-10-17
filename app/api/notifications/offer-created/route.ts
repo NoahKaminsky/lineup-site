@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { sendPushToUser } from "@/app/lib/push";
-import { getServiceSupabase } from "@/app/lib/serverSupabase";
+import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 
 type EmailProfile = {
   id: string;
@@ -94,9 +94,14 @@ async function getEmailProfile(
 
 export async function POST(req: Request) {
   try {
+    // Emails/texts the customer — only the professional who sent this offer
+    // may trigger it.
+    const user = await getAuthenticatedUser(req);
+    if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
     const { offerId } = await req.json();
 
-    if (!offerId) {
+    if (!offerId || typeof offerId !== "string") {
       return NextResponse.json({ error: "Missing offerId" }, { status: 400 });
     }
 
@@ -110,6 +115,10 @@ export async function POST(req: Request) {
 
     if (offerError || !offer) {
       return NextResponse.json({ error: "Offer not found" }, { status: 404 });
+    }
+
+    if (offer.professional_id !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { data: requestData, error: requestError } = await supabase

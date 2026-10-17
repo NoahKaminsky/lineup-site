@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServiceSupabase } from "@/app/lib/serverSupabase";
+import { getServiceSupabase, isCronAuthorized } from "@/app/lib/serverSupabase";
 import { completeBooking, retryPendingPayouts } from "@/app/lib/bookingCompletion";
 import { appointmentInstant } from "@/app/lib/bookingTime";
 
@@ -10,14 +10,8 @@ const AUTO_COMPLETE_HOURS_PAST_END = 24;
 // Runs once a day (see vercel.json) — actual latency past the 24h mark
 // depends on how often this cron fires, not a hard real-time guarantee.
 export async function GET(req: Request) {
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret) {
-    const authHeader = req.headers.get("authorization");
-
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!isCronAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {

@@ -11,9 +11,10 @@ function getMonthlyBookingCap(profile: { subscription_status?: string | null; su
   const subscribed =
     profile.subscription_status === "active" || profile.subscription_status === "trialing";
 
-  if (!subscribed || !profile.subscription_plan) return 15; // Basic
+  if (!subscribed) return 15; // Basic
   if (profile.subscription_plan === "apprentice") return 25;
-  return null; // Pro / Master — unlimited
+  if (profile.subscription_plan === "pro" || profile.subscription_plan === "master") return null; // unlimited
+  return 15; // anything unrecognised gets the Basic limit, never unlimited
 }
 
 async function checkMonthlyBookingCap(
@@ -76,7 +77,7 @@ function timeToMinutes(timeString: string) {
 function isSubscribedToScheduleFeature(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {
   const subscribed =
     profile.subscription_status === "active" || profile.subscription_status === "trialing";
-  return subscribed && !!profile.subscription_plan && profile.subscription_plan !== "basic";
+  return subscribed && ["apprentice", "pro", "master"].includes(profile.subscription_plan || "");
 }
 
 // Never take a customer's money for a professional who isn't currently

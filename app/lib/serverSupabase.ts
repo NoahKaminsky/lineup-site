@@ -1,6 +1,52 @@
 import { cookies } from "next/headers";
+import { timingSafeEqual } from "node:crypto";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
+
+// Constant-time string compare, so a secret can't be guessed one character at
+// a time by measuring how long a rejected request takes.
+export function safeEqual(a: string | null | undefined, b: string | null | undefined) {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
+
+// For scheduled jobs and server-to-server calls. Fails CLOSED: if CRON_SECRET
+// isn't configured, nobody gets in (these routes used to be wide open when the
+// variable was missing).
+export function isCronAuthorized(req: Request) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    console.error("CRON_SECRET is not set — refusing scheduled/internal request.");
+    return false;
+  }
+  return safeEqual(req.headers.get("authorization"), `Bearer ${secret}`);
+}
+
+// Rejects POSTs sent from other websites. Browsers always send Origin on a
+// cross-site fetch, so this blocks someone embedding calls to our API (and
+// spending our Google/Twilio quota) from their own page. It is not a
+// substitute for real auth checks.
+export function isSameOriginRequest(req: Request) {
+  const origin = req.headers.get("origin");
+  if (!origin) return true; // same-origin GETs and non-browser callers
+  try {
+    const originHost = new URL(origin).host;
+    const requestHost = new URL(req.url).host;
+    const siteHost = process.env.NEXT_PUBLIC_SITE_URL
+      ? new URL(process.env.NEXT_PUBLIC_SITE_URL).host
+      : null;
+    const bare = (h: string) => h.replace(/^www\./, "");
+    return (
+      bare(originHost) === bare(requestHost) ||
+      (!!siteHost && bare(originHost) === bare(siteHost))
+    );
+  } catch {
+    return false;
+  }
+}
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
