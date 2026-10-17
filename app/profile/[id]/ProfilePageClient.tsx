@@ -20,6 +20,7 @@ import PaymentModal from "@/app/components/payments/PaymentModal";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import DayZoomArea from "@/app/components/DayZoom";
 import type { ProfileDetailInitialData } from "./getInitialData";
+import { BookedSheet, MomentOverlay } from "@/app/components/moments/Moments";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -2449,76 +2450,60 @@ if (loading) {
       ) : null}
 
       {confirmingPayment ? (
-        <div className="lu-fade-in fixed inset-0 z-[80] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
-          <div className="lu-dialog-in w-full max-w-sm rounded-panel bg-white p-6 text-center shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-              Confirming
-            </p>
-            <h2 className="mt-3 text-xl font-semibold tracking-tight text-neutral-900">
-              Confirming your booking...
-            </h2>
-            <p className="mt-2 text-sm text-neutral-500">This usually takes a few seconds.</p>
-          </div>
-        </div>
+        <MomentOverlay status="working" workingTitle="Confirming your booking" title="Booked." />
       ) : null}
 
       {confirmedBooking ? (
-        <div className="lu-fade-in fixed inset-0 z-[70] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
-          <div className="lu-dialog-in w-full max-w-md rounded-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 text-2xl">
-              ✓
-            </div>
-
-            <h2 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
-              Booking confirmed
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-neutral-600">
-              Your appointment is booked. You can view the full details, location, and directions from the booking page.
-            </p>
-
-            <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
-              <p className="font-semibold text-neutral-900">
-                {confirmedBooking.service_name || "Appointment"}
-              </p>
-              <p className="mt-1">
-                {formatDate(confirmedBooking.booking_date)} · {formatTime(confirmedBooking.start_time)} - {formatTime(confirmedBooking.end_time)}
-              </p>
-              {confirmedBooking.formatted_address ? (
-                <div className="mt-2 text-neutral-600">
-                  <p><MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{formatDisplayAddress(confirmedBooking.formatted_address)}</p>
-                  {userLocation && confirmedBooking.location_lat && confirmedBooking.location_lng ? (
-                    <p className="mt-1 text-xs text-neutral-500">
-                      {formatDistance(
-                        getDistanceKm(
-                          userLocation.lat,
-                          userLocation.lng,
-                          confirmedBooking.location_lat,
-                          confirmedBooking.location_lng
-                        )
-                      )}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href={`/bookings/${confirmedBooking.id}`}
-                className="inline-flex flex-1 items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
-              >
-                View booking
-              </Link>
-              <button
-                type="button"
-                onClick={() => setConfirmedBooking(null)}
-                className="inline-flex flex-1 items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-              >
-                Stay here
-              </button>
-            </div>
-          </div>
-        </div>
+        <BookedSheet
+          subtitle={profile.full_name ? `With ${profile.full_name}.` : undefined}
+          body="Full details, location and directions are on the booking page."
+          rows={[
+            { label: "Service", value: confirmedBooking.service_name || "Appointment" },
+            {
+              label: "When",
+              value: `${formatDate(confirmedBooking.booking_date)} · ${formatTime(confirmedBooking.start_time)} - ${formatTime(confirmedBooking.end_time)}`,
+            },
+            ...(confirmedBooking.formatted_address
+              ? [
+                  {
+                    label: "Where",
+                    value: (
+                      <>
+                        <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />
+                        {formatDisplayAddress(confirmedBooking.formatted_address)}
+                        {userLocation && confirmedBooking.location_lat && confirmedBooking.location_lng ? (
+                          <span className="mt-0.5 block text-xs font-normal text-neutral-500">
+                            {formatDistance(
+                              getDistanceKm(
+                                userLocation.lat,
+                                userLocation.lng,
+                                confirmedBooking.location_lat,
+                                confirmedBooking.location_lng
+                              )
+                            )}
+                          </span>
+                        ) : null}
+                      </>
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        >
+          <Link
+            href={`/bookings/${confirmedBooking.id}`}
+            className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+          >
+            View booking
+          </Link>
+          <button
+            type="button"
+            onClick={() => setConfirmedBooking(null)}
+            className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+          >
+            Stay here
+          </button>
+        </BookedSheet>
       ) : null}
 
       {showBannerPreview && profile.banner_url ? (

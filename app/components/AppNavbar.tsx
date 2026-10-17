@@ -234,6 +234,13 @@ function NavbarComponent() {
   const [loading, setLoading] = useState(true);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  // Bumps each time a fetch finds MORE unread than before (not on first load),
+  // which re-keys the bell and badge so they ring / pop once per arrival.
+  const [bellPulse, setBellPulse] = useState(0);
+  const unreadRef = useRef<number | null>(null);
+  useEffect(() => {
+    unreadRef.current = unreadCount;
+  }, [unreadCount]);
   const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   const [notifItems, setNotifItems] = useState<NotifItem[]>([]);
   const [notifLoading, setNotifLoading] = useState(false);
@@ -312,7 +319,10 @@ function NavbarComponent() {
       .eq("is_read", false)
       .gte("created_at", cutoff);
 
-    setUnreadCount(count || 0);
+    const next = count || 0;
+    if (unreadRef.current !== null && next > unreadRef.current) setBellPulse((n) => n + 1);
+    unreadRef.current = next;
+    setUnreadCount(next);
   }, [profile]);
 
   const fetchNotifItems = useCallback(async () => {
@@ -611,11 +621,17 @@ function NavbarComponent() {
                     notifPanelOpen ? "bg-ink/[0.06] text-ink" : "text-neutral-500 hover:bg-ink/[0.04] hover:text-ink"
                   }`}
                 >
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+                  <svg
+                    key={`bell-${bellPulse}`}
+                    viewBox="0 0 24 24"
+                    className={`h-5 w-5 ${bellPulse > 0 ? "lu-bell-ring" : ""}`}
+                    fill="none"
+                    aria-hidden="true"
+                  >
                     <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 14.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341A6.002 6.002 0 0 0 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                   {unreadCount > 0 ? (
-                    <span className="animate-notification-pop absolute right-1 top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-ink px-1 text-[10px] font-semibold tabular-nums leading-none text-white ring-2 ring-paper">
+                    <span key={`badge-${bellPulse}`} className="animate-notification-pop absolute right-1 top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-ink px-1 text-[10px] font-semibold tabular-nums leading-none text-white ring-2 ring-paper">
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
                   ) : null}
@@ -669,7 +685,7 @@ function NavbarComponent() {
                           </button>
                         </div>
                       ) : (
-                        <ul className="p-1.5">
+                        <ul className="lu-lineup p-1.5">
                           {notifItems.map((item) => (
                             <li key={item.id}>
                               <button

@@ -226,6 +226,115 @@ main {
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 
+/* ── Moments ───────────────────────────────────────────────────────────────
+   Confirmations speak the landing page's language: the thing you made lands
+   with one ping, the headline rises out of a mask in two tones, and a
+   hairline fills while the app moves you on. Arrival decelerates
+   (--ease-arrive); nothing loops except the "working" hairline. All of it is
+   cut to the final frame by the reduced-motion block below. */
+:root {
+  --ease-arrive: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes lu-mask-up {
+  from { transform: translateY(108%); }
+  to { transform: translateY(0); }
+}
+
+.lu-mask-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.06em;
+}
+
+.lu-mask-line > span {
+  display: block;
+  animation: lu-mask-up 720ms var(--ease-arrive) backwards;
+  animation-delay: var(--lu-delay, 0ms);
+}
+
+/* A card arriving from the hand that sent it: rises, settles, no bounce. */
+@keyframes lu-lift-in {
+  from { opacity: 0; transform: translateY(28px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.lu-lift-in {
+  animation: lu-lift-in 640ms var(--ease-arrive) backwards;
+}
+
+/* One expanding ring when something lands. Same move as the landing page's
+   request card touching down on the pro's phone. */
+@keyframes lu-ring {
+  from { opacity: 0.55; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.08); }
+}
+
+.lu-ring {
+  animation: lu-ring 900ms var(--ease-arrive) both;
+}
+
+@keyframes lu-ring-wide {
+  from { opacity: 0.4; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.9); }
+}
+
+/* Check marks draw themselves (paths use pathLength="1"). */
+@keyframes lu-stroke-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes lu-dot-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Indeterminate hairline while the app is working. */
+@keyframes lu-scan {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(260%); }
+}
+
+/* Sheets rise from the bottom edge on phones, settle centred on desktop. */
+@keyframes lu-sheet-in {
+  from { opacity: 0; transform: translateY(32px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.lu-sheet-in {
+  animation: lu-sheet-in 520ms var(--ease-arrive) backwards;
+}
+
+/* Live chat: a new bubble grows out of its own side of the thread. */
+@keyframes lu-bubble-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.lu-bubble-in {
+  animation: lu-bubble-in 360ms var(--ease-arrive) backwards;
+  transform-origin: bottom left;
+}
+
+.lu-bubble-in.is-mine {
+  transform-origin: bottom right;
+}
+
+/* The bell swings once when something new arrives. */
+@keyframes lu-bell {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(14deg); }
+  35% { transform: rotate(-11deg); }
+  55% { transform: rotate(6deg); }
+  75% { transform: rotate(-3deg); }
+}
+
+.lu-bell-ring {
+  animation: lu-bell 820ms ease-out;
+  transform-origin: 50% 12%;
+}
+
 /* View Transitions API — fires when browser supports it and Next.js triggers startViewTransition */
 ::view-transition-old(root) {
   animation: 150ms ease-out both vt-fade-out;

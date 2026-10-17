@@ -20,6 +20,7 @@ import { containsProfanity } from "@/app/lib/profanityFilter";
 
 import { MapPin } from "lucide-react";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { BookedSheet, MomentOverlay, formatMomentPrice } from "@/app/components/moments/Moments";
 type ServiceRequest = {
   id: string;
   client_id: string;
@@ -95,6 +96,9 @@ type ChatMessage = {
   sender_id: string;
   message: string;
   created_at: string;
+  // Set only on messages that arrive over realtime, so they animate in;
+  // the history loaded with the page renders still.
+  live?: boolean;
 };
 
 type ChatParticipantProfile = {
@@ -241,6 +245,9 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => initialData?.chatMessages ?? []);
+  // UI only: shows the "Confirming your booking" moment while the existing
+  // webhook poll below runs. Never read by any booking logic.
+  const [confirmingBooking, setConfirmingBooking] = useState(false);
   const [newChatMessage, setNewChatMessage] = useState("");
   const [sendingChatMessage, setSendingChatMessage] = useState(false);
   const [chatBookingId, setChatBookingId] = useState<string | null>(() => initialData?.chatBookingId ?? null);
@@ -960,7 +967,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
           setChatMessages((prev) => {
             if (prev.some((msg) => msg.id === incoming.id)) return prev;
-            return [...prev, incoming];
+            return [...prev, { ...incoming, live: true }];
           });
 
           if (!chatProfiles[incoming.sender_id]) {
@@ -1939,7 +1946,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     <p className="text-sm text-neutral-600">No offers yet.</p>
                   </div>
                 ) : (
-                  <div className="mt-6 space-y-4">
+                  <div className="lu-lineup mt-6 space-y-4">
                     {sortedOffers.map((offer) => {
                       const isAccepted = offer.status === "accepted";
                       const offerTiming = getOfferTimingSummary(offer);
@@ -2325,7 +2332,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                           if (isSystemMessage) {
                             return (
-                              <div key={chat.id} className="flex justify-center">
+                              <div key={chat.id} className={`flex justify-center ${chat.live ? "lu-fade-in" : ""}`}>
                                 <div className="max-w-[90%] rounded-full border border-neutral-200 bg-white px-4 py-2 text-center text-xs font-medium text-neutral-600">
                                   {chat.message}
                                 </div>
@@ -2336,7 +2343,9 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                           return (
                             <div
                               key={chat.id}
-                              className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                              className={`flex ${isMine ? "justify-end" : "justify-start"} ${
+                                chat.live ? `lu-bubble-in ${isMine ? "is-mine" : ""}` : ""
+                              }`}
                             >
                               <div
                                 className={`flex max-w-[85%] items-end gap-3 ${
@@ -2757,6 +2766,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   setPaymentClientSecret(null);
                   setSelectedOfferForPayment(null);
                   setMessage("Payment successful — confirming your booking...");
+                  setConfirmingBooking(true);
 
                   // Poll until the webhook updates the request to "accepted"
                   let confirmed = false;
@@ -2775,6 +2785,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                   await loadRequestLive({ silent: true });
                   if (confirmed) setMessage("");
+                  setConfirmingBooking(false);
                   setShowBookingSuccessModal(true);
                 }}
               />
@@ -2783,84 +2794,62 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
         </div>
       ) : null}
 
+      {confirmingBooking ? (
+        <MomentOverlay
+          status="working"
+          workingTitle="Confirming your booking"
+          title="Booked."
+        />
+      ) : null}
+
       {showBookingSuccessModal ? (
-        <div className="lu-fade-in fixed inset-0 z-[100] flex items-center justify-center bg-ink/50 px-6">
-          <div className="lu-dialog-in w-full max-w-md rounded-panel bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-ink text-white">
-              <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none">
-                <path
-                  d="M5 13l4 4L19 7"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
+        <BookedSheet
+          subtitle={acceptedOffer?.professional_name ? `With ${acceptedOffer.professional_name}.` : undefined}
+          body="Message your professional to sort out arrival, prep, timing or anything else."
+          rows={
+            acceptedOffer
+              ? [
+                  { label: "Professional", value: acceptedOffer.professional_name || "Professional" },
+                  { label: "Price", value: formatMomentPrice(acceptedOffer.proposed_price) || "Price not provided" },
+                  ...(getOfferTimingSummary(acceptedOffer)
+                    ? [{ label: "When", value: getOfferTimingSummary(acceptedOffer) }]
+                    : []),
+                ]
+              : []
+          }
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setShowBookingSuccessModal(false);
 
-            <h2 className="mt-5 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
-              Booking confirmed
-            </h2>
+              requestAnimationFrame(() => {
+                const chatSection = document.getElementById("request-chat");
 
-            <p className="mt-3 text-sm leading-7 text-neutral-600">
-              Your booking has been confirmed successfully.
-              You can now message the professional directly to coordinate
-              arrival details, preparation, timing, or questions.
-            </p>
-
-            {acceptedOffer ? (
-              <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                <p className="text-sm font-semibold text-neutral-900">
-                  {acceptedOffer.professional_name || "Professional"}
-                </p>
-
-                <p className="mt-1 text-sm text-neutral-500">
-                  {acceptedOffer.proposed_price || "Price not provided"}
-                </p>
-
-                {getOfferTimingSummary(acceptedOffer) ? (
-                  <p className="mt-2 text-sm text-neutral-600">
-                    {getOfferTimingSummary(acceptedOffer)}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-
-            <div className="mt-7 flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowBookingSuccessModal(false);
-
-                  requestAnimationFrame(() => {
-                    const chatSection = document.getElementById("request-chat");
-
-                    if (chatSection) {
-                      chatSection.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                      });
-                    }
+                if (chatSection) {
+                  chatSection.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
                   });
-                }}
-                className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
-              >
-                Message professional
-              </button>
+                }
+              });
+            }}
+            className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+          >
+            Message professional
+          </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setShowBookingSuccessModal(false);
-                  router.push("/work");
-                }}
-                className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-              >
-                View bookings
-              </button>
-            </div>
-          </div>
-        </div>
+          <button
+            type="button"
+            onClick={() => {
+              setShowBookingSuccessModal(false);
+              router.push("/work");
+            }}
+            className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+          >
+            View bookings
+          </button>
+        </BookedSheet>
       ) : null}
 
     </>

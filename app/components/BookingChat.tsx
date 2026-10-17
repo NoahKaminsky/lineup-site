@@ -10,6 +10,9 @@ type BookingMessage = {
   sender_id: string;
   message: string;
   created_at: string;
+  // Set only on messages that arrive over realtime, so new ones animate in
+  // while the history loaded with the page renders still.
+  live?: boolean;
 };
 
 export default function BookingChat({ bookingId, viewerId }: { bookingId: string; viewerId: string | null }) {
@@ -46,7 +49,7 @@ export default function BookingChat({ bookingId, viewerId }: { bookingId: string
         setMessages((prev) => {
           const incoming = payload.new as BookingMessage;
           if (prev.some((msg) => msg.id === incoming.id)) return prev;
-          return [...prev, incoming];
+          return [...prev, { ...incoming, live: true }];
         });
       })
       .subscribe();
@@ -97,7 +100,10 @@ export default function BookingChat({ bookingId, viewerId }: { bookingId: string
           messages.map((msg) => {
             const mine = msg.sender_id === viewerId;
             return (
-              <div key={msg.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+              <div
+                key={msg.id}
+                className={`flex ${mine ? "justify-end" : "justify-start"} ${msg.live ? `lu-bubble-in ${mine ? "is-mine" : ""}` : ""}`}
+              >
                 <div className={`max-w-[78%] rounded-2xl px-4 py-2 text-sm leading-6 ${mine ? "bg-ink text-white" : "border border-neutral-200 bg-white text-neutral-900"}`}>
                   <p>{msg.message}</p>
                   <p className={`mt-1 text-[10px] ${mine ? "text-white/60" : "text-neutral-400"}`}>
