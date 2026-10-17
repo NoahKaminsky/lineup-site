@@ -130,11 +130,13 @@ function videoScrubber(video: HTMLVideoElement, src: string) {
   const tick = () => {
     current += (target - current) * 0.2;
     if (Math.abs(target - current) < 0.001) current = target;
-    if (video.duration) {
+    // Only issue a seek once the previous one has landed: phones decode
+    // slower than the screen refreshes, and queued seeks are what stutter.
+    if (video.duration && !video.seeking) {
       const t = current * (video.duration - 0.05);
       if (Math.abs(video.currentTime - t) > 0.008) video.currentTime = t;
     }
-    raf = current === target ? 0 : requestAnimationFrame(tick);
+    raf = current === target && !video.seeking ? 0 : requestAnimationFrame(tick);
   };
   // iOS Safari won't paint a seeked frame until the element has played once.
   const onReady = () => {
@@ -200,6 +202,7 @@ export default function LandingPage() {
 
   const [activeStep, setActiveStep] = useState(0);
   const [side, setSide] = useState<"clients" | "pros">("clients");
+  const sideRef = useRef<"clients" | "pros">("clients");
   const [headerHidden, setHeaderHidden] = useState(false);
 
   // Header steps aside while reading down and returns on scroll up. The same
@@ -213,7 +216,13 @@ export default function LandingPage() {
         raf = 0;
         const y = window.scrollY;
         const pros = document.getElementById("pros");
-        if (pros) setSide(pros.getBoundingClientRect().top < window.innerHeight * 0.5 ? "pros" : "clients");
+        if (pros) {
+          const next = pros.getBoundingClientRect().top < window.innerHeight * 0.5 ? "pros" : "clients";
+          if (next !== sideRef.current) {
+            sideRef.current = next;
+            setSide(next);
+          }
+        }
         if (Math.abs(y - lastY) < 6) return;
         setHeaderHidden(y > 160 && y > lastY);
         lastY = y;
@@ -259,6 +268,9 @@ export default function LandingPage() {
   useGSAP(
     () => {
       gsap.registerPlugin(ScrollTrigger);
+      // Phones show/hide the address bar mid-scroll; recalculating every
+      // trigger on that resize is what makes pinned sections jump.
+      ScrollTrigger.config({ ignoreMobileResize: true });
       const mm = gsap.matchMedia();
 
       mm.add(
@@ -307,7 +319,10 @@ export default function LandingPage() {
               start: "top top",
               end: () => `+=${window.innerHeight * (desktop ? 2.2 : 1.4)}`,
               pin: true,
-              scrub: 1,
+              anticipatePin: 1,
+              // Touch scrolling already carries momentum; a long catch-up on
+              // top of it reads as lag, so phones follow the finger closer.
+              scrub: desktop ? 1 : 0.35,
               invalidateOnRefresh: true,
               onUpdate: (self) => heroScrub?.set(self.progress),
             },
@@ -315,12 +330,10 @@ export default function LandingPage() {
 
           tl.to(".js-hero-tease", { autoAlpha: 0, duration: 0.8, ease: "none" }, 0.1)
             .fromTo(".js-title-wrap", { y: centreOffset, scale: desktop ? 1.55 : 1.3 }, { y: 0, scale: 1, duration: 4 }, 0.3)
-            .fromTo(
-              ".js-scene",
-              { clipPath: "inset(50% 50% 50% 50% round 28px)" },
-              { clipPath: "inset(0% 0% 0% 0% round 0px)", duration: 4 },
-              0.3
-            )
+            .fromTo(".js-shutter-t", { yPercent: 0 }, { yPercent: -100, duration: 4 }, 0.3)
+            .fromTo(".js-shutter-b", { yPercent: 0 }, { yPercent: 100, duration: 4 }, 0.3)
+            .fromTo(".js-shutter-l", { xPercent: 0 }, { xPercent: -100, duration: 4 }, 0.3)
+            .fromTo(".js-shutter-r", { xPercent: 0 }, { xPercent: 100, duration: 4 }, 0.3)
             .fromTo(".js-back", { scale: 1.35 }, { scale: 1, duration: 4.4, ease: "power2.out" }, 0.3)
             .fromTo(".js-stations", { scale: 1.75, yPercent: 8 }, { scale: 1, yPercent: 0, duration: 4.4, ease: "power2.out" }, 0.3)
             .from(".js-station-inner", { x: (i) => stations[i].spread * spreadPx(), duration: 2.6, stagger: 0.12 }, 2.4)
@@ -352,7 +365,7 @@ export default function LandingPage() {
             autoAlpha: 0,
             stagger: 0.3,
             ease: "none",
-            scrollTrigger: { trigger: ".js-offers", start: "top 88%", end: "top 50%", scrub: 1 },
+            scrollTrigger: { trigger: ".js-offers", start: "top 88%", end: "top 50%", scrub: desktop ? 1 : 0.35 },
           });
 
           // ── The relay: the request crosses into the pro side ────────
@@ -360,7 +373,7 @@ export default function LandingPage() {
           // the pro's phone. On desktop the stage pins so the landing holds.
           const relay = document.querySelector<HTMLElement>(".js-relay")!;
           if (desktop) {
-            ScrollTrigger.create({ trigger: relay, start: "top top", end: "+=90%", pin: true });
+            ScrollTrigger.create({ trigger: relay, start: "top top", end: "+=90%", pin: true, anticipatePin: 1 });
           }
           // It surfaces just as the offers leave the screen, so it never
           // sits on top of the composer the visitor is still using.
@@ -370,7 +383,7 @@ export default function LandingPage() {
                 trigger: relay,
                 start: desktop ? "top 55%" : "top 85%",
                 end: desktop ? "top -45%" : "top 25%",
-                scrub: 1,
+                scrub: desktop ? 1 : 0.35,
                 invalidateOnRefresh: true,
               },
             })
@@ -393,7 +406,7 @@ export default function LandingPage() {
           gsap.fromTo(
             ".js-close-plate",
             { scale: 1.1 },
-            { scale: 1, ease: "none", scrollTrigger: { trigger: ".js-close", start: "top bottom", end: "top top", scrub: 1 } }
+            { scale: 1, ease: "none", scrollTrigger: { trigger: ".js-close", start: "top bottom", end: "top top", scrub: desktop ? 1 : 0.35 } }
           );
           const closeVideo = document.querySelector<HTMLVideoElement>(".js-close-video");
           const closeScrub = closeVideo
@@ -425,7 +438,7 @@ export default function LandingPage() {
     <main ref={rootRef} className="min-h-screen animate-none! overflow-x-clip bg-paper text-ink">
       {/* ───────────────────────── Header ───────────────────────── */}
       <header
-        className={`fixed inset-x-0 top-0 z-50 border-b border-ink/[0.06] bg-paper/80 backdrop-blur-md transition-transform duration-500 ease-premium focus-within:translate-y-0 ${
+        className={`fixed inset-x-0 top-0 z-50 border-b border-ink/[0.06] bg-paper/95 lg:bg-paper/80 lg:backdrop-blur-md transition-transform duration-500 ease-premium focus-within:translate-y-0 ${
           headerHidden ? "-translate-y-full" : "translate-y-0"
         }`}
       >
@@ -487,7 +500,7 @@ export default function LandingPage() {
             />
           </div>
 
-          <div className="js-stations absolute inset-x-0 mix-blend-multiply bottom-[9%] h-[34%] origin-[50%_100%] lg:bottom-[10%] lg:h-[36%]">
+          <div className="js-stations absolute inset-x-0 bottom-[9%] will-change-transform h-[34%] origin-[50%_100%] lg:bottom-[10%] lg:h-[36%]">
             {stations.map((station) => (
               <div
                 key={station.kind}
@@ -514,6 +527,17 @@ export default function LandingPage() {
             aria-hidden="true"
             className="js-front pointer-events-none absolute inset-x-0 bottom-0 z-30 h-[9%] bg-gradient-to-t from-paper via-paper/60 to-transparent"
           />
+
+          {/* The window into the studio: four paper shutters that slide
+              outward, so the opening is pure transform (no per-frame
+              repaint, unlike an animated clip-path). Hidden outright when
+              motion is reduced, leaving the finished scene. */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[35] overflow-hidden motion-reduce:hidden">
+            <div className="js-shutter-t absolute inset-x-0 top-0 h-1/2 bg-paper will-change-transform" />
+            <div className="js-shutter-b absolute inset-x-0 bottom-0 h-1/2 bg-paper will-change-transform" />
+            <div className="js-shutter-l absolute inset-y-0 left-0 w-1/2 bg-paper will-change-transform" />
+            <div className="js-shutter-r absolute inset-y-0 right-0 w-1/2 bg-paper will-change-transform" />
+          </div>
         </div>
 
         <div className="relative z-40 px-6 pt-[15vh] text-center lg:pt-[14vh]">
@@ -537,7 +561,7 @@ export default function LandingPage() {
             <JoinButton />
             <a
               href="#tour"
-              className={`inline-flex items-center justify-center rounded-full bg-white/60 px-7 py-3.5 font-medium text-ink ring-1 ring-ink/15 backdrop-blur transition hover:ring-ink ${focusRing}`}
+              className={`inline-flex items-center justify-center rounded-full bg-white/85 px-7 py-3.5 font-medium text-ink ring-1 ring-ink/15 lg:bg-white/60 lg:backdrop-blur transition hover:ring-ink ${focusRing}`}
             >
               See the app
             </a>
@@ -750,7 +774,7 @@ export default function LandingPage() {
               {/* The visitor's own request, as the pro receives it. Lives
                   outside the phone's clip so it can arrive from above. */}
               <div className="js-request absolute inset-x-[5%] top-[8%] z-20">
-                <div className="relative rounded-2xl bg-white/95 p-3.5 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.35)] ring-1 ring-ink/[0.08] backdrop-blur">
+                <div className="relative rounded-2xl bg-white p-3.5 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.35)] ring-1 ring-ink/[0.08]">
                   <span
                     aria-hidden="true"
                     className="absolute -inset-px rounded-2xl opacity-0 ring-2 ring-ink [.is-landed_&]:animate-[lu-ping_1s_ease-out]"
@@ -871,7 +895,7 @@ export default function LandingPage() {
               <JoinButton className="px-8 py-4" />
               <Link
                 href="/login"
-                className={`inline-flex items-center justify-center rounded-full bg-white/60 px-8 py-4 font-medium text-ink ring-1 ring-ink/15 backdrop-blur transition hover:ring-ink ${focusRing}`}
+                className={`inline-flex items-center justify-center rounded-full bg-white/85 px-8 py-4 font-medium text-ink ring-1 ring-ink/15 lg:bg-white/60 lg:backdrop-blur transition hover:ring-ink ${focusRing}`}
               >
                 Sign in
               </Link>

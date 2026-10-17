@@ -99,10 +99,10 @@ export function StudioPlate({ className = "", priority = false }: { className?: 
 
 export type StationKind = "barber" | "styling" | "nail" | "lash";
 
-// Each station was shot on pure white and normalised so its ground reads as
-// exactly white. The PARENT carries mix-blend-multiply (a transformed parent
-// would otherwise isolate the blend), so the white drops out and the real
-// contact shadow lands on the studio floor.
+// Each station was shot on pure white, then "un-multiplied" from white into
+// a true alpha cutout (soft contact shadow included). Plain alpha keeps the
+// hero a stack of composited layers; a blend mode here re-blended every
+// frame of the reveal and was the main cost on phones.
 export function Station({
   kind,
   className = "",
@@ -114,6 +114,6 @@ export function Station({
 }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/images/landing/station-${kind}.webp`} alt="" aria-hidden="true" draggable={false} className={className} style={style} />
+    <img src={`/images/landing/station-${kind}-a.webp`} alt="" aria-hidden="true" draggable={false} className={className} style={style} />
   );
 }
