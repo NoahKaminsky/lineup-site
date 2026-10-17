@@ -1,10 +1,24 @@
 import { NextResponse } from "next/server";
+import { isSameOriginRequest } from "@/app/lib/serverSupabase";
 
 export async function POST(req: Request) {
   try {
+    // Browse is public, so this can't require a login — but it can refuse
+    // calls from other websites trying to use our Google quota.
+    if (!isSameOriginRequest(req)) {
+      return NextResponse.json({ label: null }, { status: 403 });
+    }
+
     const { lat, lng } = await req.json();
 
-    if (typeof lat !== "number" || typeof lng !== "number") {
+    if (
+      typeof lat !== "number" ||
+      typeof lng !== "number" ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      Math.abs(lat) > 90 ||
+      Math.abs(lng) > 180
+    ) {
       return NextResponse.json({ error: "Missing lat/lng" }, { status: 400 });
     }
 

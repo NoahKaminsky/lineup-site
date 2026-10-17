@@ -1,25 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { getNewsletterMarch27Html } from "@/lib/email/newsletterMarch27";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const resendApiKey = process.env.RESEND_API_KEY!;
-
-const supabase = createClient(supabaseUrl, serviceRoleKey);
-const resend = new Resend(resendApiKey);
+import { getServiceSupabase, safeEqual } from "@/app/lib/serverSupabase";
 
 export async function POST(req: NextRequest) {
   try {
     const adminKey = req.headers.get("x-admin-key");
+    const expectedKey = process.env.ADMIN_NEWSLETTER_KEY;
 
-    if (adminKey !== process.env.ADMIN_NEWSLETTER_KEY) {
+    // Fails closed if the key isn't configured, and compares in constant time.
+    if (!expectedKey || !safeEqual(adminKey, expectedKey)) {
       return NextResponse.json(
         { ok: false, error: "Unauthorized" },
         { status: 401 }
       );
     }
+
+    const supabase = getServiceSupabase();
+    const resend = new Resend(process.env.RESEND_API_KEY!);
 
     const { data: profileRows, error: profileError } = await supabase
       .from("profiles")

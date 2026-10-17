@@ -10,7 +10,9 @@ export async function POST(req: Request) {
 
     const { placeId, sessionToken } = await req.json();
 
-    if (!placeId || typeof placeId !== "string") {
+    // Google place ids are URL-safe tokens; reject anything else before it
+    // goes into the request path.
+    if (!placeId || typeof placeId !== "string" || !/^[A-Za-z0-9_-]{10,300}$/.test(placeId)) {
       return NextResponse.json({ error: "Missing placeId" }, { status: 400 });
     }
 

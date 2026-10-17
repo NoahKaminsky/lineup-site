@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { sendPushToUser } from "@/app/lib/push";
-import { getServiceSupabase } from "@/app/lib/serverSupabase";
+import { getServiceSupabase, isCronAuthorized } from "@/app/lib/serverSupabase";
 
 type EmailProfile = {
   id: string;
@@ -123,6 +123,11 @@ async function getEmailProfile(
 }
 
 export async function POST(req: Request) {
+  // Only called by our own Stripe webhook, server to server.
+  if (!isCronAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { bookingId } = await req.json();
 

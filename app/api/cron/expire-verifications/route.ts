@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServiceSupabase } from "@/app/lib/serverSupabase";
+import { getServiceSupabase, isCronAuthorized } from "@/app/lib/serverSupabase";
 import { todayDateString } from "@/app/lib/verificationRules";
 import {
   notifyVerificationOutcome,
@@ -11,14 +11,8 @@ import {
 // date passes; this daily sweep just makes the stored status match and lets
 // them know to renew.
 export async function GET(req: Request) {
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret) {
-    const authHeader = req.headers.get("authorization");
-
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!isCronAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {

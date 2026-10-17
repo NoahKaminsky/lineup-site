@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
-import { stripe } from "@/app/lib/stripe";
+import { isAllowedSubscriptionPrice, stripe } from "@/app/lib/stripe";
 
 export async function POST(req: Request) {
-  const { priceId } = await req.json();
+  const { priceId } = await req.json().catch(() => ({}) as { priceId?: string });
 
   const user = await getAuthenticatedUser(req);
 
@@ -11,8 +11,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!priceId) {
-    return NextResponse.json({ error: "Missing priceId" }, { status: 400 });
+  if (!isAllowedSubscriptionPrice(priceId)) {
+    return NextResponse.json({ error: "Unknown plan" }, { status: 400 });
   }
 
   const service = getServiceSupabase();
