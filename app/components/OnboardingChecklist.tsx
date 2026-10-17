@@ -199,7 +199,6 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
   const row = (step: Step) => {
     const done = steps[step.key];
     const pending = step.key === "verified" && !done && verificationPending;
-    if (done && !showDone) return null;
     return (
       <li key={step.key}>
         <Link
@@ -280,22 +279,36 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
         </div>
       ) : null}
 
-      {/* All steps */}
+      {/* What's left, by group; finished items move to their own "Done"
+          list so it's clear exactly which ones count toward the ring. */}
       <div className="px-3 pb-4 pt-5 sm:px-4">
-        <p className="px-3 text-xs font-medium text-neutral-500 sm:px-4">Essentials</p>
-        <ul className="lu-lineup mt-1">{ESSENTIALS.map(row)}</ul>
-
-        <p className="mt-4 px-3 text-xs font-medium text-neutral-500 sm:px-4">Stand out</p>
-        <ul className="lu-lineup mt-1">{STAND_OUT.map(row)}</ul>
+        {[
+          { label: "Essentials", items: ESSENTIALS.filter((s) => !steps[s.key]) },
+          { label: "Stand out", items: STAND_OUT.filter((s) => !steps[s.key]) },
+        ].map((group, gi) =>
+          group.items.length > 0 ? (
+            <div key={group.label} className={gi > 0 ? "mt-4" : ""}>
+              <p className="px-3 text-xs font-medium text-neutral-500 sm:px-4">{group.label}</p>
+              <ul className="lu-lineup mt-1">{group.items.map(row)}</ul>
+            </div>
+          ) : null
+        )}
 
         {completed > 0 ? (
-          <button
-            type="button"
-            onClick={() => setShowDone((v) => !v)}
-            className="mt-2 px-3 text-xs font-medium text-neutral-500 underline-offset-2 hover:text-ink hover:underline sm:px-4"
-          >
-            {showDone ? "Hide completed" : `Show completed (${completed})`}
-          </button>
+          <div className="mt-4 border-t border-ink/[0.06] pt-3">
+            <button
+              type="button"
+              onClick={() => setShowDone((v) => !v)}
+              aria-expanded={showDone}
+              className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-medium text-neutral-500 transition-colors hover:bg-paper hover:text-ink sm:px-4"
+            >
+              <span>Done ({completed})</span>
+              <span>{showDone ? "Hide" : "Show"}</span>
+            </button>
+            {showDone ? (
+              <ul className="lu-lineup mt-1">{ALL_STEPS.filter((s) => steps[s.key]).map(row)}</ul>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </section>
