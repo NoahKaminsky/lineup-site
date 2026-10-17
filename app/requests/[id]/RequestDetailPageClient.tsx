@@ -1817,6 +1817,44 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             ) : null}
           </section>
 
+          {/* For a pro who hasn't offered yet, responding is the whole point of
+              this page, so it leads, on every screen size. */}
+          {isProfessional && request.status === "open" && !hasSubmittedOffer ? (
+            <>
+              <section className="lu-dialog-in mt-8 rounded-[28px] bg-ink p-6 text-white sm:p-8">
+                <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-white/60">Open request</p>
+                    <h2 className="mt-2 text-[1.6rem] font-semibold leading-[1.1] tracking-[-0.035em] sm:text-3xl">
+                      Send your offer.
+                      <span className="block text-white/55">Name your price and time.</span>
+                    </h2>
+                    <p className="mt-3 max-w-md text-sm leading-6 text-white/70">
+                      The client compares offers and picks the one that fits. A clear price, a time that works and a
+                      line on why you&apos;re the right fit go a long way.
+                    </p>
+                  </div>
+                  <Link
+                    href={`/requests/${request.id}/respond`}
+                    className="inline-flex shrink-0 items-center justify-center rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-ink transition hover:bg-neutral-200"
+                  >
+                    Respond to request
+                  </Link>
+                </div>
+              </section>
+
+              {/* Phones: keep it in reach above the tab bar while reading. */}
+              <div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 sm:hidden">
+                <Link
+                  href={`/requests/${request.id}/respond`}
+                  className="flex w-full items-center justify-center rounded-full bg-ink px-6 py-4 text-sm font-semibold text-white shadow-[0_12px_32px_-12px_rgba(0,0,0,0.55)]"
+                >
+                  Respond to request
+                </Link>
+              </div>
+            </>
+          ) : null}
+
           <div className="mt-8 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="space-y-8">
               {acceptedOffer ? (
@@ -2451,7 +2489,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 </section>
               ) : null}
 
-              {isProfessional && request.status === "open" ? (
+              {isProfessional && request.status === "open" && hasSubmittedOffer ? (
                 <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                   <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                     Professional actions
