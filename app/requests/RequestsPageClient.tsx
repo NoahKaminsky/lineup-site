@@ -1315,7 +1315,13 @@ if (profileError || !profile) {
   );
 
   const pendingCompletionBookings = useMemo(
-    () => bookings.filter((booking) => booking.status === "completion_requested"),
+    // Waiting on the customer: marked done by the pro, or simply over.
+    () =>
+      bookings.filter(
+        (booking) =>
+          booking.status === "completion_requested" ||
+          (booking.status === "confirmed" && hasAppointmentEnded(booking.booking_date, booking.end_time))
+      ),
     [bookings]
   );
 
@@ -1871,7 +1877,7 @@ return (
                   eyebrow="Action needed"
                   title={`Was your ${service} done?`}
                   subtitle="Confirm it to wrap it up."
-                  body="Your professional marked it complete. Confirming is what pays them out, then you can leave a quick review."
+                  body="Your appointment is over. Confirming is what pays your professional, then you can leave a quick review."
                   actionLabel="Confirm service completed"
                   busy={bookingActionLoadingId === customerTarget.id}
                   onAction={() => {
@@ -1942,7 +1948,7 @@ return (
                       : `Confirm ${pendingCompletionBookings.length} completed services`}
                   </p>
                   <p className="mt-1 max-w-md text-sm text-white/70">
-                    Your professional marked this done. Confirming it wraps up the booking and pays them out, then
+                    Your appointment is over. Confirming it wraps up the booking and pays your professional, then
                     you can leave a review.
                   </p>
                 </div>

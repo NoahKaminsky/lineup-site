@@ -486,7 +486,14 @@ export default function BookingDetailPage() {
   }
 
   async function handleConfirmCompletion() {
-    if (!booking || !isViewerCustomer || booking.status !== "completion_requested") {
+    if (
+      !booking ||
+      !isViewerCustomer ||
+      !(
+        booking.status === "completion_requested" ||
+        (booking.status === "confirmed" && isServiceOver(booking.booking_date, booking.end_time))
+      )
+    ) {
       return;
     }
 
@@ -870,12 +877,16 @@ export default function BookingDetailPage() {
         </section>
 
         {/* What needs doing, only when something does. */}
-        {isViewerCustomer && booking.status === "completion_requested" ? (
+        {isViewerCustomer &&
+        (booking.status === "completion_requested" ||
+          (booking.status === "confirmed" && isServiceOver(booking.booking_date, booking.end_time))) ? (
           // The one step that releases the professional's payout.
           <section className="lu-dialog-in mt-4 rounded-[28px] bg-ink p-6 text-white sm:p-7">
             <p className="text-xs font-medium text-white/60">Action needed</p>
             <p className="mt-2 text-xl font-semibold tracking-[-0.02em]">
-              {professional?.full_name?.split(" ")[0] ?? "Your professional"} marked this done.
+              {booking.status === "completion_requested"
+                ? `${professional?.full_name?.split(" ")[0] ?? "Your professional"} marked this done.`
+                : "Your appointment is over."}
             </p>
             <p className="mt-2 max-w-md text-sm leading-6 text-white/70">
               If your service is finished, confirm it below. That&apos;s what pays them out, and then you can leave a
@@ -917,9 +928,9 @@ export default function BookingDetailPage() {
           </section>
         ) : null}
 
-        {isViewerCustomer && booking.status === "confirmed" ? (
+        {isViewerCustomer && booking.status === "confirmed" && !isServiceOver(booking.booking_date, booking.end_time) ? (
           <p className="mt-4 px-2 text-sm leading-6 text-neutral-500">
-            After the appointment your professional marks it done, then you confirm it here so they get paid.
+            Once the appointment is over, you&apos;ll confirm it here so your professional gets paid.
           </p>
         ) : null}
 

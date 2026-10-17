@@ -1761,7 +1761,9 @@ function BookedList({
               </div>
             ) : null}
 
-            {isCustomer && item.status === "completion_requested" ? (
+            {isCustomer &&
+            (item.status === "completion_requested" ||
+              ((item.status === "accepted" || item.status === "confirmed") && isServiceOver(item.date, item.endTime))) ? (
               <div className="lu-dialog-in mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-ink p-4 text-white">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">Was your {item.title} done?</p>

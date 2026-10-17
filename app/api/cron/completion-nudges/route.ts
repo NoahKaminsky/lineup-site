@@ -4,10 +4,9 @@ import { sendPushToUser } from "@/app/lib/push";
 import { appointmentInstant } from "@/app/lib/bookingTime";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 
-// Once an appointment's end time passes, nudge the professional to mark it
-// complete. Marking it sends the customer a "confirm your appointment is
-// complete" push (app/api/bookings/complete), and confirming releases the
-// payout. Each booking is nudged once (bookings.completion_nudge_sent_at).
+// Once an appointment's end time passes, nudge both sides once
+// (bookings.completion_nudge_sent_at): the customer to confirm it's complete
+// (which releases the payout) and the professional to mark it done.
 //
 // Meant to run every ~15 minutes (.github/workflows/completion-nudges.yml);
 // vercel.json also runs it daily as a fallback.
@@ -65,6 +64,22 @@ export async function GET(req: Request) {
       body: `${service} has ended. Mark it complete so your client can confirm and you get paid.`,
       url: `${siteUrl}/bookings/${booking.id}`,
     }).catch((err) => console.error(`Completion nudge push failed for ${booking.id}:`, err));
+
+    // The customer can confirm right away too; confirming releases the payout.
+    await supabase.from("notifications").insert([
+      {
+        user_id: booking.customer_id,
+        request_id: booking.request_id || null,
+        is_read: false,
+        type: "completion_nudge",
+        title: `How was your ${service}? Confirm it's complete`,
+      },
+    ]);
+    await sendPushToUser(booking.customer_id, {
+      title: "Confirm your appointment is complete",
+      body: `How was your ${service}? Tap to confirm it's done so your professional gets paid.`,
+      url: `${siteUrl}/bookings/${booking.id}`,
+    }).catch((err) => console.error(`Customer completion push failed for ${booking.id}:`, err));
 
     nudged += 1;
   }

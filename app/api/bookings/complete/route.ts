@@ -89,7 +89,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Only the customer can confirm completion" }, { status: 403 });
     }
 
-    if (booking.status !== "completion_requested") {
+    // The customer can confirm as soon as the appointment is over (checked
+    // above), whether or not the pro has marked it done yet.
+    if (booking.status !== "completion_requested" && booking.status !== "confirmed") {
       return NextResponse.json({ error: "This booking isn't awaiting confirmation" }, { status: 409 });
     }
 
