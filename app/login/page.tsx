@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
+import { LuMarkPaths } from "@/app/components/LuMark";
 
 type AuthMode = "signin" | "signup" | "forgot";
 
@@ -362,8 +363,16 @@ export default function LoginPage() {
             aria-labelledby="confirm-email-title"
             className="lu-dialog-in w-full max-w-md rounded-2xl bg-surface p-8 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.35)]"
           >
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-ink text-base font-semibold text-white">
-              LU
+            {/* LineUp lockup: the brush mark (public/images/logo.svg) beside the
+                wordmark, painted in left to right as the dialog opens. */}
+            <div
+              className="flex items-center justify-center gap-1.5"
+              style={{ animation: "lu-logo-reveal 900ms var(--ease-arrive) 120ms both" }}
+            >
+              <svg viewBox="0 0 1024 1024" aria-hidden="true" className="-my-2 h-14 w-14 text-ink">
+                <LuMarkPaths />
+              </svg>
+              <span className="text-2xl font-semibold tracking-[-0.04em] text-ink">LineUp</span>
             </div>
 
             <h2 id="confirm-email-title" className="mt-6 text-center text-2xl font-semibold tracking-[-0.03em]">

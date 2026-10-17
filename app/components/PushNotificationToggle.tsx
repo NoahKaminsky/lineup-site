@@ -32,20 +32,28 @@ export default function PushNotificationToggle() {
             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-xs font-semibold text-white">
               1
             </span>
-            Tap the <strong>Share</strong> button in Safari (the square with an arrow, in the bottom toolbar).
+            {/* One text node per step: as bare children of the flex row, the
+                plain text and <strong> became separate columns with a gap. */}
+            <span>
+              Tap the <strong>Share</strong> button in Safari (the square with an arrow, in the bottom toolbar).
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-xs font-semibold text-white">
               2
             </span>
-            Scroll down and tap <strong>Add to Home Screen</strong>.
+            <span>
+              Scroll down and tap <strong>Add to Home Screen</strong>.
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-xs font-semibold text-white">
               3
             </span>
-            Open LineUp from the icon on your Home Screen, then come back to this page to turn
-            notifications on.
+            <span>
+              Open LineUp from the icon on your Home Screen, then come back to this page to turn
+              notifications on.
+            </span>
           </li>
         </ol>
       </div>
