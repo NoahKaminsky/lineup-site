@@ -59,12 +59,17 @@ export async function POST(req: Request) {
     let professionalsQuery = supabase
       .from("profiles")
       .select("id, email, full_name, professional_type, professional_types, service_modes, email_request_notifications, verification_status, verified_until, phone_number, sms_notifications_enabled")
-      .eq("role", "professional")
-      .eq("email_request_notifications", true)
-      .not("email", "is", null);
+      .eq("role", "professional");
 
     if (request.preferred_professional_id) {
+      // A direct request is meant for this one pro: they always get the
+      // in-app notification and push; only the email follows their email
+      // preference (checked in the loop below). This route is the single
+      // source of that notification — the request form no longer adds its
+      // own, which is what produced the duplicate.
       professionalsQuery = professionalsQuery.eq("id", request.preferred_professional_id);
+    } else {
+      professionalsQuery = professionalsQuery.eq("email_request_notifications", true).not("email", "is", null);
     }
 
     const { data: professionals } = await professionalsQuery;
@@ -72,11 +77,11 @@ export async function POST(req: Request) {
     const targetSet = new Set(targetProfessions.map(normalize));
 
     const matches = (professionals || []).filter((profile: any) => {
-      if (!profile.email) return false;
-      if (!profile.email_request_notifications) return false;
       // Unverified professionals can't send offers, so don't alert them to requests.
       if (!isVerifiedNow(profile)) return false;
       if (request.preferred_professional_id) return true;
+      if (!profile.email) return false;
+      if (!profile.email_request_notifications) return false;
       if (targetSet.size === 0) return false;
 
       const types = Array.isArray(profile.professional_types)
@@ -150,7 +155,7 @@ export async function POST(req: Request) {
         `,
       });
 
-      await sendEmail({
+      if (profile.email && profile.email_request_notifications) await sendEmail({
         to: profile.email,
         subject: isDirectRequest
           ? "You received a direct request on LineUp"

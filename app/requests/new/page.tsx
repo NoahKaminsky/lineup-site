@@ -913,24 +913,8 @@ function NewRequestPageContent() {
         throw insertRequestError;
       }
 
-      if (directRebook && insertedRequest?.preferred_professional_id) {
-        // Best-effort — a notification side-effect must never block the request
-        // that was already successfully created above.
-        const { error: notificationError } = await supabase.from("notifications").insert([
-          {
-            user_id: insertedRequest.preferred_professional_id,
-            request_id: insertedRequest.id,
-            is_read: false,
-            type: "request",
-            title: "New booking request",
-          },
-        ]);
-
-        if (notificationError) {
-          console.error("Rebook notification insert failed:", notificationError);
-        }
-      }
-
+      // The pro's notification (in-app, push, email) comes from this route
+      // alone — inserting one here as well showed up as a duplicate.
       await fetch("/api/notifications/request-created", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
