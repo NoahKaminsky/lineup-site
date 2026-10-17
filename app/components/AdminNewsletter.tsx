@@ -114,7 +114,7 @@ export default function AdminNewsletter() {
             </div>
             <div className="rounded-xl bg-neutral-50 p-3">
               <p className="text-2xl font-semibold">{counts.noConsent}</p>
-              <p className="text-xs text-neutral-500">said no to emails — skipped</p>
+              <p className="text-xs text-neutral-500">accounts that didn’t opt in — skipped</p>
             </div>
             <div className="rounded-xl bg-neutral-50 p-3">
               <p className="text-2xl font-semibold">{counts.unsubscribed}</p>

@@ -4,9 +4,8 @@ type Service = ReturnType<typeof getServiceSupabase>;
 
 // Who gets the launch email, deduplicated (someone on both lists gets one copy):
 // - Waitlist sign-ups (lineup_signups): everyone. They joined specifically
-//   for "early access before launch" — the old form never had a separate
-//   marketing checkbox, so marketing_consent is empty for all of them. Only
-//   someone who explicitly said no (false) is left out.
+//   for "early access before launch"; the old form never had a separate
+//   marketing checkbox, so their marketing_consent isn't a real answer.
 // - Account holders (profiles): only those who ticked "yes" to marketing at
 //   signup, since they were asked and some said no.
 // Anyone who unsubscribed from either list is always left out.
@@ -32,15 +31,16 @@ export async function getNewsletterAudience(service: Service) {
     [...profiles, ...signups].filter((row) => row.unsubscribed_from_marketing).map((row) => row.email)
   );
 
-  // An explicit "no" on either list always wins.
-  const saidNo = new Set([...profiles, ...signups].filter((row) => row.marketing_consent === false).map((row) => row.email));
-
+  // The waitlist form never asked about marketing, so a waitlist row's
+  // marketing_consent is just the column default (often false) — not a real
+  // answer. Every waitlist email is in unless it unsubscribed. Account holders
+  // were actually asked, so they need a real "yes".
   const candidates = new Set([
     ...signups.map((row) => row.email),
     ...profiles.filter((row) => row.marketing_consent === true).map((row) => row.email),
   ]);
 
-  const recipients = Array.from(candidates).filter((email) => !unsubscribed.has(email) && !saidNo.has(email));
+  const recipients = Array.from(candidates).filter((email) => !unsubscribed.has(email));
 
   const everyone = new Set([...profiles, ...signups].map((row) => row.email));
 
