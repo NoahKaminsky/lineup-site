@@ -2249,7 +2249,8 @@ if (loading) {
                     >
                       {item.media_type === "video" ? (
                         <video
-                          src={item.image_url}
+                          src={`${item.image_url}#t=0.1`}
+                          preload="metadata"
                           className="h-full w-full object-cover"
                           muted
                           loop
