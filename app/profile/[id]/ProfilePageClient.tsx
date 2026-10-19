@@ -1649,7 +1649,7 @@ if (loading) {
           </div>
 
           {isProfessional ? (
-            <dl className="mt-8 grid grid-cols-4 divide-x divide-ink/[0.08] rounded-2xl bg-white py-4 ring-1 ring-ink/[0.07] md:py-5">
+            <dl className={`mt-8 grid ${portfolioItems.length > 0 ? "grid-cols-4" : "grid-cols-3"} divide-x divide-ink/[0.08] rounded-2xl bg-white py-4 ring-1 ring-ink/[0.07] md:py-5`}>
               {[
                 {
                   label: "Rating",
@@ -1669,8 +1669,10 @@ if (loading) {
                 },
                 portfolioItems.length > 0
                   ? { label: "Portfolio", value: String(portfolioItems.length), href: "#work" }
-                  : { label: "Booking", value: canDirectBook ? "Instant" : "Request", href: canDirectBook ? "#availability" : null },
-              ].map((stat) => {
+                  : null,
+              ]
+                .filter((stat): stat is NonNullable<typeof stat> => !!stat)
+                .map((stat) => {
                 const body = (
                   <>
                     <dt className="mt-1.5 truncate text-[11px] text-neutral-500 md:text-xs">{stat.label}</dt>
