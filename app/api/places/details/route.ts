@@ -1,6 +1,21 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/app/lib/serverSupabase";
 
+type AddressComponent = { longText?: string; shortText?: string; types?: string[] };
+
+// "Osborne Village, Winnipeg": neighbourhood (if any) and city, never the
+// street address. This is what a professional sees about where a request is.
+function buildAreaLabel(components: AddressComponent[] | undefined): string | null {
+  if (!Array.isArray(components)) return null;
+  const find = (...types: string[]) =>
+    components.find((c) => types.some((t) => c.types?.includes(t)))?.longText || null;
+  const neighbourhood = find("neighborhood", "sublocality_level_1", "sublocality");
+  const city = find("locality", "postal_town", "administrative_area_level_3");
+  const region = find("administrative_area_level_1");
+  const parts = [neighbourhood, city || region].filter(Boolean) as string[];
+  return parts.length ? Array.from(new Set(parts)).join(", ") : null;
+}
+
 export async function POST(req: Request) {
   try {
     const user = await getAuthenticatedUser(req);
@@ -72,6 +87,7 @@ export async function POST(req: Request) {
       lat,
       lng,
       name: data.displayName?.text || null,
+      areaLabel: buildAreaLabel(data.addressComponents),
     });
   } catch (error) {
     console.error("Places details failed:", error);

@@ -1610,23 +1610,32 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
     ? acceptedOffer?.professional_formatted_address ?? null
     : null;
 
+  // A customer's own address is only shown to them and to the pro they've
+  // booked. Other pros see the area ("Osborne Village, Winnipeg") until then.
+  const hidesCustomerAddress = !usesProLocation && isProfessional && !isAcceptedProfessional;
+  const requestAreaLabel = (request as { area_label?: string | null }).area_label || null;
+
   const effectiveAddress = usesProLocation
     ? proLocationAddress
+    : hidesCustomerAddress
+    ? null
     : (request.formatted_address || request.location || null);
 
   const displayAddress = usesProLocation
     ? (proLocationAddress ?? null)
+    : hidesCustomerAddress
+    ? `${requestAreaLabel || "Client's area"} · exact address shared after booking`
     : formatDisplayAddress(request);
 
   const distanceLabel = getDistanceLabel(request);
   const mapsUrl = getGoogleMapsUrl(
-    usesProLocation ? null : request.location_lat,
-    usesProLocation ? null : request.location_lng,
+    usesProLocation || hidesCustomerAddress ? null : request.location_lat,
+    usesProLocation || hidesCustomerAddress ? null : request.location_lng,
     effectiveAddress
   );
   const mapEmbedUrl = getGoogleMapsEmbedUrl(
-    usesProLocation ? null : request.location_lat,
-    usesProLocation ? null : request.location_lng,
+    usesProLocation || hidesCustomerAddress ? null : request.location_lat,
+    usesProLocation || hidesCustomerAddress ? null : request.location_lng,
     effectiveAddress
   );
 

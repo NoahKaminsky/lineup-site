@@ -9,6 +9,7 @@ import { containsProfanity } from "../../lib/profanityFilter";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { MomentCard, MomentOverlay, formatMomentDate, formatMomentPrice } from "@/app/components/moments/Moments";
 import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
+import { roundForArea } from "@/app/lib/serviceArea";
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
@@ -179,6 +180,8 @@ type SelectedLocation = {
   lat: number;
   lng: number;
   name?: string | null;
+  // City-level label ("Osborne Village, Winnipeg"); never the street.
+  areaLabel?: string | null;
 };
 
 function LocationAutocomplete({
@@ -324,6 +327,7 @@ function LocationAutocomplete({
         lat,
         lng,
         name: data.name ?? data.displayName?.text ?? null,
+        areaLabel: data.areaLabel ?? null,
       });
     } catch {
       setInput(suggestion.text);
@@ -436,6 +440,12 @@ function NewRequestPageContent() {
   const [locationPlaceId, setLocationPlaceId] = useState("");
   const [locationSelectedFromGoogle, setLocationSelectedFromGoogle] = useState(false);
   const [locationLat, setLocationLat] = useState<number | null>(null);
+  // Approximate area for every request (service-area matching). For at-home
+  // requests it comes from the address; otherwise the customer picks it.
+  const [areaInput, setAreaInput] = useState("");
+  const [areaLat, setAreaLat] = useState<number | null>(null);
+  const [areaLng, setAreaLng] = useState<number | null>(null);
+  const [areaLabel, setAreaLabel] = useState<string | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
   const [serviceModes, setServiceModes] = useState<string[]>([]);
   const [budget, setBudget] = useState(() => {
@@ -826,6 +836,9 @@ function NewRequestPageContent() {
         setMessage("Please enter the address or area where you need the service.");
         return;
       }
+    } else if (areaLat === null || areaLng === null) {
+      setMessage("Choose your general area from the suggestions so nearby pros can see your request.");
+      return;
     }
 
     if (timingFlexibility !== "anytime") {
@@ -868,50 +881,61 @@ function NewRequestPageContent() {
       const directRebook = isRebook && !!preferredProfessionalId;
       const shouldUseCustomerLocation = serviceModes.includes("at_home");
 
-      const { data: insertedRequest, error: insertRequestError } = await supabase
-        .from("service_requests")
-        .insert([
-          {
-            client_id: userId,
-            category: categories[0],
-            categories,
-            service_detail: finalServiceDetail || null,
-            title: title.trim(),
-            description: description.trim() || null,
-            location: shouldUseCustomerLocation ? location.trim() || null : null,
-            formatted_address: shouldUseCustomerLocation ? location.trim() || null : null,
-            location_place_id: shouldUseCustomerLocation ? locationPlaceId || null : null,
-            location_lat:
-              shouldUseCustomerLocation && Number.isFinite(locationLat)
-                ? locationLat
-                : null,
-            location_lng:
-              shouldUseCustomerLocation && Number.isFinite(locationLng)
-                ? locationLng
-                : null,
-            service_mode: serviceModes[0] || null,
-            service_modes: serviceModes.length > 0 ? serviceModes : null,
-            budget: budget.trim() || null,
-            status: "open",
-            target_professions: directRebook ? null : targetProfessions,
-            reference_photos: referencePhotoUrls,
-            preferred_professional_id: directRebook ? preferredProfessionalId : null,
-            is_direct_rebook: directRebook,
-            original_request_id: directRebook ? originalRequestId : null,
-            preferred_date: timingFlexibility === "anytime" ? null : preferredDate || null,
-            preferred_start_time:
-              timingFlexibility === "anytime" ? null : preferredStartTime || null,
-            preferred_end_time: null,
-            timing_flexibility: timingFlexibility,
-          },
-        ])
-        .select(
-          "id, client_id, preferred_professional_id, is_direct_rebook, original_request_id"
-        )
-        .single();
+      const requestRow: Record<string, unknown> = {
+        client_id: userId,
+        category: categories[0],
+        categories,
+        service_detail: finalServiceDetail || null,
+        title: title.trim(),
+        description: description.trim() || null,
+        location: shouldUseCustomerLocation ? location.trim() || null : null,
+        formatted_address: shouldUseCustomerLocation ? location.trim() || null : null,
+        location_place_id: shouldUseCustomerLocation ? locationPlaceId || null : null,
+        location_lat:
+          shouldUseCustomerLocation && Number.isFinite(locationLat)
+            ? locationLat
+            : null,
+        location_lng:
+          shouldUseCustomerLocation && Number.isFinite(locationLng)
+            ? locationLng
+            : null,
+        service_mode: serviceModes[0] || null,
+        service_modes: serviceModes.length > 0 ? serviceModes : null,
+        budget: budget.trim() || null,
+        status: "open",
+        target_professions: directRebook ? null : targetProfessions,
+        reference_photos: referencePhotoUrls,
+        preferred_professional_id: directRebook ? preferredProfessionalId : null,
+        is_direct_rebook: directRebook,
+        original_request_id: directRebook ? originalRequestId : null,
+        preferred_date: timingFlexibility === "anytime" ? null : preferredDate || null,
+        preferred_start_time:
+          timingFlexibility === "anytime" ? null : preferredStartTime || null,
+        preferred_end_time: null,
+        timing_flexibility: timingFlexibility,
+      };
+      const areaFields = {
+        area_lat: areaLat,
+        area_lng: areaLng,
+        area_label: areaLabel,
+      };
 
-      if (insertRequestError) {
-        throw insertRequestError;
+      const insertRequest = (row: Record<string, unknown>) =>
+        supabase
+          .from("service_requests")
+          .insert([row])
+          .select("id, client_id, preferred_professional_id, is_direct_rebook, original_request_id")
+          .single();
+
+      let { data: insertedRequest, error: insertRequestError } = await insertRequest({ ...requestRow, ...areaFields });
+      // Before migration 20261018_service_areas.sql the area columns don't
+      // exist; save the request without them rather than failing.
+      if (insertRequestError && /area_(lat|lng|label)/.test(insertRequestError.message || "")) {
+        ({ data: insertedRequest, error: insertRequestError } = await insertRequest(requestRow));
+      }
+
+      if (insertRequestError || !insertedRequest) {
+        throw insertRequestError || new Error("Could not create your request.");
       }
 
       // The pro's notification (in-app, push, email) comes from this route
@@ -1173,6 +1197,34 @@ function NewRequestPageContent() {
                 </div>
               </div>
 
+              {/* General area: for requests at the pro's place, so only pros
+                  who cover this area see it. Only the neighbourhood/city is
+                  ever shown to them. */}
+              {serviceModes.length > 0 && !serviceModes.includes("at_home") ? (
+                <div className="space-y-2">
+                  <LocationAutocomplete
+                    label="Your general area"
+                    placeholder="Neighbourhood or city, e.g. Osborne Village"
+                    value={areaInput}
+                    onInputChange={(value) => {
+                      setAreaInput(value);
+                      setAreaLat(null);
+                      setAreaLng(null);
+                      setAreaLabel(null);
+                    }}
+                    onSelect={(selected) => {
+                      setAreaInput(selected.areaLabel || selected.formattedAddress || areaInput);
+                      setAreaLat(roundForArea(selected.lat));
+                      setAreaLng(roundForArea(selected.lng));
+                      setAreaLabel(selected.areaLabel || null);
+                    }}
+                  />
+                  <p className="text-xs leading-5 text-neutral-500">
+                    Only pros who work in your area see this request. They see the area, never your address.
+                  </p>
+                </div>
+              ) : null}
+
               {/* Location */}
               {serviceModes.includes("at_home") ? (
                 <div className="space-y-3">
@@ -1200,6 +1252,9 @@ function NewRequestPageContent() {
                       setLocationSelectedFromGoogle(!!safePlaceId);
                       setLocationLat(safeLat);
                       setLocationLng(safeLng);
+                      setAreaLat(roundForArea(safeLat));
+                      setAreaLng(roundForArea(safeLng));
+                      setAreaLabel(selected.areaLabel || null);
 
                       if (!safePlaceId) {
                         setMessage("Try selecting a more specific address from the suggestions.");

@@ -17,6 +17,8 @@ import { canCancelForRefund, formatCancellationDeadline, hasAppointmentEnded } f
 import { useDismissedRequests } from "@/app/lib/requestDismissals";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { CompletionReminderSheet } from "@/app/components/moments/Moments";
+import { useMyServiceArea } from "@/app/lib/useMyServiceArea";
+import { approxDistanceLabel, withinServiceArea } from "@/app/lib/serviceArea";
 
 // "Recently completed" lists show the last 24 hours only (older work lives in
 // Archived services).
@@ -1359,6 +1361,7 @@ if (profileError || !profile) {
 
   // Requests this pro chose to clear ("not for me").
   const { dismissed: dismissedRequestIds, dismiss: dismissRequest } = useDismissedRequests(userId, isProfessional);
+  const myServiceArea = useMyServiceArea(userId, isProfessional);
 
   const professionalOpenRequests = useMemo(
     () =>
@@ -1368,9 +1371,11 @@ if (profileError || !profile) {
         if (request.is_direct_rebook) {
           return request.preferred_professional_id === userId;
         }
+        // Only requests inside this pro's service area.
+        if (myServiceArea && !withinServiceArea(myServiceArea, request)) return false;
         return true;
       }),
-    [requests, userId, dismissedRequestIds]
+    [requests, userId, dismissedRequestIds, myServiceArea]
   );
 
   const [openRequestOwnerRatings, setOpenRequestOwnerRatings] = useState<
@@ -2630,6 +2635,8 @@ return (
                           formatPreferredTiming(request),
                           request.timing_flexibility ? formatTimingFlexibility(request.timing_flexibility) : null,
                           formatModeList(request) || null,
+                          // Distance only: pros never see a customer's address before booking.
+                          myServiceArea ? approxDistanceLabel(myServiceArea, request) : null,
                           openRequestOwnerRatings[request.client_id]
                             ? `★ ${openRequestOwnerRatings[request.client_id].average.toFixed(1)} client`
                             : null,

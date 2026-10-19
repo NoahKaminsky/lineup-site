@@ -10,6 +10,7 @@ import TimeSelect from "@/app/components/TimeSelect";
 
 import { MapPin } from "lucide-react";
 import { useHashTarget } from "@/app/lib/useHashTarget";
+import { DEFAULT_SERVICE_RADIUS_KM, SERVICE_RADIUS_OPTIONS } from "@/app/lib/serviceArea";
 type Profile = {
   id: string;
   role: string | null;
@@ -557,6 +558,9 @@ export default function ServicesPage() {
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
   const [locationPlaceId, setLocationPlaceId] = useState("");
+  // How far from their base this pro takes requests (null = anywhere).
+  const [serviceRadius, setServiceRadius] = useState<number | null>(DEFAULT_SERVICE_RADIUS_KM);
+  const [radiusSaving, setRadiusSaving] = useState(false);
   // Checklist deep links (/services#modes, #add-service).
   useHashTarget(!loading);
 
@@ -666,7 +670,9 @@ export default function ServicesPage() {
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select(
-          "id, role, professional_type, service_modes, direct_booking_enabled, public_availability_enabled, default_appointment_duration, formatted_address, location_lat, location_lng, location_place_id, subscription_status, subscription_plan"
+          // "*" so service_radius_km is included once the service-area
+          // migration has run, without breaking before it has.
+          "*"
         )
         .eq("id", user.id)
         .single();
@@ -694,6 +700,9 @@ export default function ServicesPage() {
       setProfile(profileData as Profile);
       setServiceModes(resolvedServiceModes);
       setDirectBookingEnabled(Boolean(profileData.direct_booking_enabled));
+      if ("service_radius_km" in profileData) {
+        setServiceRadius((profileData as { service_radius_km: number | null }).service_radius_km ?? null);
+      }
       setPublicAvailabilityEnabled(Boolean(profileData.public_availability_enabled));
       setDefaultAppointmentDuration(Number(profileData.default_appointment_duration || 60));
       setLocation(profileData.formatted_address || "");
@@ -1935,6 +1944,67 @@ export default function ServicesPage() {
               Optional unless you offer in-shop or home studio services.
             </p>
           )}
+        </AccordionSection>
+        <AccordionSection
+          id="service-area"
+          title="Service area"
+          subtitle="Who sees you"
+          summary={serviceRadius === null ? "Requests from anywhere" : `Requests within ${serviceRadius} km`}
+        >
+          <p className="max-w-2xl text-sm leading-6 text-neutral-500">
+            You&apos;ll only get requests from clients within this distance of the address above. Only travel to
+            clients? Put your general base area there; it&apos;s never shown to anyone.
+          </p>
+
+          <div className="mt-5 flex flex-wrap gap-2" role="radiogroup" aria-label="Service area">
+            {[...SERVICE_RADIUS_OPTIONS, null].map((km) => {
+              const selected = serviceRadius === km;
+              return (
+                <button
+                  key={km ?? "anywhere"}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={radiusSaving}
+                  onClick={async () => {
+                    if (!profile?.id || selected) return;
+                    const previous = serviceRadius;
+                    setServiceRadius(km);
+                    setRadiusSaving(true);
+                    const { error } = await supabase
+                      .from("profiles")
+                      .update({ service_radius_km: km })
+                      .eq("id", profile.id);
+                    setRadiusSaving(false);
+                    if (error) {
+                      setServiceRadius(previous);
+                      setMessage(
+                        /service_radius_km/.test(error.message)
+                          ? "Service areas need a quick database update first (migration 20261018_service_areas.sql)."
+                          : error.message
+                      );
+                      return;
+                    }
+                    setMessage(km === null ? "You'll see requests from anywhere." : `You'll see requests within ${km} km.`);
+                  }}
+                  className={`rounded-full border px-4 py-2 text-sm font-medium transition disabled:opacity-60 ${
+                    selected
+                      ? "border-neutral-900 bg-neutral-900 text-white"
+                      : "border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50"
+                  }`}
+                >
+                  {km === null ? "Anywhere" : `${km} km`}
+                </button>
+              );
+            })}
+          </div>
+
+          {locationLat === null || locationLng === null ? (
+            <p className="mt-4 text-sm leading-6 text-neutral-500">
+              <span className="font-medium text-neutral-700">Set an address above</span> (pick it from the suggestions)
+              so distances can be measured. Until then you&apos;ll see requests from anywhere.
+            </p>
+          ) : null}
         </AccordionSection>
           </div>
         </div>

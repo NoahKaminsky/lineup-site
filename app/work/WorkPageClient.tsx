@@ -16,6 +16,8 @@ import { useDismissedRequests } from "@/app/lib/requestDismissals";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { DrawnCheck } from "@/app/components/moments/Moments";
 import { canCancelForRefund, hasAppointmentEnded } from "@/app/lib/bookingTime";
+import { useMyServiceArea } from "@/app/lib/useMyServiceArea";
+import { withinServiceArea } from "@/app/lib/serviceArea";
 type Profile = {
   id: string;
   email: string | null;
@@ -135,6 +137,9 @@ type BookedItem = {
 type RequestAndOfferItem = {
   id: string;
   kind: "open_request" | "posted_request" | "offer_sent" | "offer_received";
+  // Open requests only: approximate location, for service-area filtering.
+  areaPoint?: { area_lat: number | null; area_lng: number | null; location_lat: number | null; location_lng: number | null };
+  isDirect?: boolean;
   title: string;
   subtitle: string;
   status: string;
@@ -382,6 +387,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
   const isCustomer = isCustomerRole(profile?.role);
   const isProfessional = isProfessionalRole(profile?.role);
   const { dismissed: dismissedRequestIds } = useDismissedRequests(profile?.id, isProfessional);
+  const myServiceArea = useMyServiceArea(profile?.id, isProfessional);
 
   useEffect(() => {
     loadWork(!!seed);
@@ -729,7 +735,11 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
         id: `open-${request.id}`,
         kind: "open_request",
         title: request.title || cleanServiceLabel(request.service_detail) || formatCategory(request.category),
-        subtitle: request.description || request.formatted_address || request.location || "New client request",
+        // Never the customer's address before booking: the area label at most.
+        subtitle:
+          request.description ||
+          (request as { area_label?: string | null }).area_label ||
+          "New client request",
         status: statusLabel(request.status),
         createdAt: request.created_at,
         price: request.budget,
@@ -737,6 +747,13 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
         startTime: request.preferred_start_time || null,
         endTime: null,
         requestId: request.id,
+        areaPoint: {
+          area_lat: (request as { area_lat?: number | null }).area_lat ?? null,
+          area_lng: (request as { area_lng?: number | null }).area_lng ?? null,
+          location_lat: (request as { location_lat?: number | null }).location_lat ?? null,
+          location_lng: (request as { location_lng?: number | null }).location_lng ?? null,
+        },
+        isDirect: !!request.is_direct_rebook,
         personName: customer?.full_name || customer?.email || "Client",
         personAvatarUrl: customer?.avatar_url || null,
         personRating: openRequestOwnerRatings[request.client_id] ?? null,
@@ -1206,7 +1223,15 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       item.status !== "Booked" &&
       item.status !== "Completion requested" &&
       // Requests this pro cleared from their dashboard stay cleared here too.
-      !(item.kind === "open_request" && item.requestId && dismissedRequestIds.has(item.requestId))
+      !(item.kind === "open_request" && item.requestId && dismissedRequestIds.has(item.requestId)) &&
+      // Outside this pro's service area (direct requests always show).
+      !(
+        item.kind === "open_request" &&
+        myServiceArea &&
+        item.areaPoint &&
+        !item.isDirect &&
+        !withinServiceArea(myServiceArea, item.areaPoint)
+      )
   );
   const isUnresolvedOffer = (item: RequestAndOfferItem) =>
     item.rawOfferStatus === "pending" || item.rawOfferStatus === "payment_pending";

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { withinServiceArea } from "@/app/lib/serviceArea";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
@@ -44,7 +45,9 @@ export async function POST(req: Request) {
 
     const { data: request, error } = await supabase
       .from("service_requests")
-      .select("id, title, service_detail, category, service_mode, service_modes, target_professions, preferred_professional_id")
+      // "*" so the area columns are included once the service-area migration
+      // has run, without breaking before it has.
+      .select("*")
       .eq("id", requestId)
       .single();
 
@@ -58,7 +61,7 @@ export async function POST(req: Request) {
 
     let professionalsQuery = supabase
       .from("profiles")
-      .select("id, email, full_name, professional_type, professional_types, service_modes, email_request_notifications, verification_status, verified_until, phone_number, sms_notifications_enabled")
+      .select("*")
       .eq("role", "professional");
 
     if (request.preferred_professional_id) {
@@ -91,6 +94,10 @@ export async function POST(req: Request) {
         : [];
 
       if (!types.some((type: string) => targetSet.has(normalize(type)))) return false;
+
+      // Outside the pro's service area (e.g. a Regina request for a
+      // Winnipeg pro): don't alert them.
+      if (!withinServiceArea(profile, request)) return false;
 
       // If the pro has service modes configured and the request specifies mode(s), at least one must match
       const proModes = Array.isArray(profile.service_modes) ? profile.service_modes : [];
