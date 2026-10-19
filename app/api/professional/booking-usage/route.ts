@@ -5,9 +5,10 @@ function getMonthlyBookingCap(profile: { subscription_status?: string | null; su
   const subscribed =
     profile.subscription_status === "active" || profile.subscription_status === "trialing";
 
-  if (!subscribed || !profile.subscription_plan) return 15; // Basic
+  if (!subscribed) return 15; // Basic
   if (profile.subscription_plan === "apprentice") return 25;
-  return null; // Pro / Master — unlimited
+  if (profile.subscription_plan === "pro" || profile.subscription_plan === "master") return null; // unlimited
+  return 15; // anything unrecognised gets the Basic limit, never unlimited
 }
 
 export async function GET(req: Request) {

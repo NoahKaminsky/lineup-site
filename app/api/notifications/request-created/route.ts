@@ -4,11 +4,8 @@ import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { sendPushToUser } from "@/app/lib/push";
-import { getServiceSupabase } from "@/app/lib/serverSupabase";
-
-function normalize(value: string | null | undefined) {
-  return String(value || "").toLowerCase().replaceAll(" ", "_");
-}
+import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
+import { requestMatchesProfessional } from "@/app/lib/professions";
 
 function formatCategory(value: string | null | undefined) {
   if (!value) return "Service";
@@ -35,9 +32,14 @@ function detailRow(label: string, value: string | null | undefined) {
 
 export async function POST(req: Request) {
   try {
+    // Sends emails, texts and pushes to professionals — only the customer who
+    // just posted this request may trigger it, and only once.
+    const user = await getAuthenticatedUser(req);
+    if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
     const { requestId } = await req.json();
 
-    if (!requestId) {
+    if (!requestId || typeof requestId !== "string") {
       return NextResponse.json({ error: "Missing requestId" }, { status: 400 });
     }
 
@@ -55,9 +57,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    const targetProfessions = Array.isArray(request.target_professions)
-      ? request.target_professions
-      : [];
+    if (request.client_id !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Already announced? Then don't blast everyone again (stops anyone
+    // replaying this call to spam professionals or run up the SMS bill).
+    const { count: alreadySent } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("request_id", request.id)
+      .eq("type", "request");
+
+    if ((alreadySent || 0) > 0) {
+      return NextResponse.json({ ok: true, sent: 0, alreadySent: true });
+    }
 
     let professionalsQuery = supabase
       .from("profiles")
@@ -77,40 +91,17 @@ export async function POST(req: Request) {
 
     const { data: professionals } = await professionalsQuery;
 
-    const targetSet = new Set(targetProfessions.map(normalize));
-
     const matches = (professionals || []).filter((profile: any) => {
       // Unverified professionals can't send offers, so don't alert them to requests.
       if (!isVerifiedNow(profile)) return false;
-      if (request.preferred_professional_id) return true;
-      if (!profile.email) return false;
-      if (!profile.email_request_notifications) return false;
-      if (targetSet.size === 0) return false;
-
-      const types = Array.isArray(profile.professional_types)
-        ? profile.professional_types
-        : profile.professional_type
-        ? [profile.professional_type]
-        : [];
-
-      if (!types.some((type: string) => targetSet.has(normalize(type)))) return false;
-
+      if (request.preferred_professional_id) return profile.id === request.preferred_professional_id;
+      if (!profile.email || !profile.email_request_notifications) return false;
+      // Same rule the Requests and Work tabs use: a pro with several
+      // professions hears about a request matching ANY of them.
+      if (!requestMatchesProfessional(request, profile)) return false;
       // Outside the pro's service area (e.g. a Regina request for a
       // Winnipeg pro): don't alert them.
-      if (!withinServiceArea(profile, request)) return false;
-
-      // If the pro has service modes configured and the request specifies mode(s), at least one must match
-      const proModes = Array.isArray(profile.service_modes) ? profile.service_modes : [];
-      const requestModes = request.service_modes?.length
-        ? request.service_modes
-        : request.service_mode
-        ? [request.service_mode]
-        : [];
-      if (proModes.length > 0 && requestModes.length > 0) {
-        if (!requestModes.some((mode: string) => proModes.includes(mode))) return false;
-      }
-
-      return true;
+      return withinServiceArea(profile, request);
     });
 
     if (matches.length === 0) {

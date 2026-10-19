@@ -6,7 +6,9 @@ export async function GET(req: Request) {
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const q = searchParams.get("q")?.trim() || "";
+  // Strip characters that mean something in a PostgREST filter (commas,
+  // parentheses, quotes, wildcards) so a search can't rewrite the query.
+  const q = (searchParams.get("q") || "").replace(/[,()*%\\"]/g, " ").trim().slice(0, 100);
 
   const service = getServiceSupabase();
 

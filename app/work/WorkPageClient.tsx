@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
+import { requestMatchesProfessional } from "@/app/lib/professions";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import type { WorkInitialData } from "./getInitialData";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
@@ -657,40 +658,13 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
     const bookings = (bookingsData || []) as BookingRow[];
     const offersSent = (offersSentData || []) as OfferRow[];
 
-    const professionalTypes = Array.isArray(currentProfile.professional_types)
-      ? currentProfile.professional_types
-      : [];
-    const professionalType = currentProfile.professional_type ? [currentProfile.professional_type] : [];
-    const allTypes = Array.from(new Set([...professionalTypes, ...professionalType]));
-
-    const proServiceModes = Array.isArray(currentProfile.service_modes)
-      ? currentProfile.service_modes
-      : [];
-
-    const openRequests = allRequests.filter((request) => {
-      if (request.status !== "open") return false;
-      if (request.is_direct_rebook) return request.preferred_professional_id === userId;
-      if (allTypes.length === 0) return true;
-      // A request can span more than one category (e.g. lashes + brows) —
-      // a pro matching any one of them should still see it, not just the
-      // legacy single `category` column.
-      const requestCategories = request.categories?.length
-        ? request.categories
-        : request.category
-        ? [request.category]
-        : [];
-      if (!requestCategories.some((c) => allTypes.includes(c))) return false;
-      // If the pro has service modes set and the request specifies mode(s), at least one must match
-      const requestModes = request.service_modes?.length
-        ? request.service_modes
-        : request.service_mode
-        ? [request.service_mode]
-        : [];
-      if (proServiceModes.length > 0 && requestModes.length > 0) {
-        if (!requestModes.some((mode) => proServiceModes.includes(mode))) return false;
-      }
-      return true;
-    });
+    // Shared rule (app/lib/professions.ts): a pro with several professions
+    // sees requests for any of them; direct requests only reach their pro.
+    const openRequests = allRequests.filter(
+      (request) =>
+        request.status === "open" &&
+        requestMatchesProfessional(request, { ...currentProfile, id: userId })
+    );
 
     const offerRequestIds = Array.from(new Set(offersSent.map((offer) => offer.request_id)));
     const offerRequestMap = new Map<string, ServiceRequest>();

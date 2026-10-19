@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServiceSupabase } from "@/app/lib/serverSupabase";
+import { getServiceSupabase, isCronAuthorized } from "@/app/lib/serverSupabase";
 import { sendPushToUser } from "@/app/lib/push";
 import { appointmentInstant } from "@/app/lib/bookingTime";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
@@ -13,8 +13,7 @@ import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 const NUDGE_WINDOW_HOURS = 24; // older than this, auto-complete takes over
 
 export async function GET(req: Request) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && req.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

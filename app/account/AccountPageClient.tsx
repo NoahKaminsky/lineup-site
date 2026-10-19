@@ -1832,7 +1832,8 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   >
                     {item.media_type === "video" ? (
                       <video
-                        src={item.image_url}
+                        src={`${item.image_url}#t=0.1`}
+                        preload="metadata"
                         className="aspect-square h-full w-full object-cover"
                         muted
                         loop
@@ -1856,7 +1857,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     <button
                       type="button"
                       onClick={() => handleDeletePortfolioItem(item.id)}
-                      className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-red-600 opacity-0 shadow transition group-hover:opacity-100"
+                      className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-red-600 shadow transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100"
                     >
                       Delete
                     </button>

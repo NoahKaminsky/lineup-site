@@ -15,6 +15,7 @@
 // of ~5.
 
 import { createSupabaseServerClient } from "@/app/lib/serverSupabase";
+import { requestMatchesProfessional, formatProfessions } from "@/app/lib/professions";
 
 type ServiceRequestRow = Record<string, unknown> & {
   id: string;
@@ -101,7 +102,7 @@ export async function getInitialRequestsData(): Promise<RequestsInitialResult> {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role, professional_type, full_name, location_lat, location_lng")
+    .select("role, professional_type, professional_types, service_modes, full_name, location_lat, location_lng")
     .eq("id", user.id)
     .single();
 
@@ -121,7 +122,7 @@ export async function getInitialRequestsData(): Promise<RequestsInitialResult> {
     }
 
     if (isProfessionalRole(role)) {
-      const data = await fetchProfessionalData(supabase, user.id, role, profile.full_name ?? null);
+      const data = await fetchProfessionalData(supabase, user.id, role, profile.full_name ?? null, profile);
       return { kind: "ok", data, userLocation };
     }
 
@@ -170,7 +171,7 @@ async function fetchCustomerData(
       ? supabase.from("request_offers").select("id, request_id, viewed_by_customer").in("request_id", requestIds)
       : Promise.resolve({ data: [], error: null }),
     professionalIds.length > 0
-      ? supabase.from("profiles").select("id, full_name, avatar_url, professional_type").in("id", professionalIds)
+      ? supabase.from("profiles").select("id, full_name, avatar_url, professional_type, professional_types").in("id", professionalIds)
       : Promise.resolve({ data: [], error: null }),
     completedBookingIds.length > 0
       ? supabase
@@ -206,7 +207,7 @@ async function fetchCustomerData(
   const professionalMap = new Map(
     (
       (professionalProfilesResult.data as
-        | { id: string; full_name: string | null; avatar_url: string | null; professional_type: string | null }[]
+        | { id: string; full_name: string | null; avatar_url: string | null; professional_type: string | null; professional_types?: string[] | null }[]
         | null) || []
     ).map((pro) => [pro.id, pro])
   );
@@ -219,7 +220,7 @@ async function fetchCustomerData(
       end_time: String(booking.end_time).slice(0, 5),
       professional_name: professional?.full_name ?? null,
       professional_avatar_url: professional?.avatar_url ?? null,
-      professional_type: professional?.professional_type ?? null,
+      professional_type: professional ? formatProfessions(professional, "") || null : null,
     };
   });
 
@@ -242,7 +243,8 @@ async function fetchProfessionalData(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   userId: string,
   role: string | null,
-  userName: string | null
+  userName: string | null,
+  proProfile: { professional_type?: string | null; professional_types?: string[] | null; service_modes?: string[] | null }
 ): Promise<RequestsInitialData> {
   const [
     { data: allRequestsData, error: allRequestsError },
@@ -282,11 +284,15 @@ async function fetchProfessionalData(
   ((trackedRequestsData as ServiceRequestRow[]) ?? []).forEach((item) => mergedRequestsMap.set(item.id, item));
 
   const requests = Array.from(mergedRequestsMap.values())
-    .filter((request) =>
-      request.is_direct_rebook
-        ? request.preferred_professional_id === userId
-        : request.status === "open" || request.accepted_professional_id === userId
-    )
+    .filter((request) => {
+      // Jobs this pro already won always stay; open requests only if they're
+      // for one of this pro's professions (see app/lib/professions.ts).
+      if (request.accepted_professional_id === userId) return true;
+      return (
+        request.status === "open" &&
+        requestMatchesProfessional(request as Parameters<typeof requestMatchesProfessional>[0], { ...proProfile, id: userId })
+      );
+    })
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const respondedRequestIds = Array.from(

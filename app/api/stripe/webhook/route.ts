@@ -62,7 +62,10 @@ async function sendBookingConfirmedEmail(bookingId: string) {
   try {
     await fetch(`${siteUrl}/api/notifications/booking-confirmed`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.CRON_SECRET || ""}`,
+      },
       body: JSON.stringify({ bookingId }),
     });
   } catch (error) {
@@ -404,9 +407,10 @@ function getMonthlyBookingCap(profile: { subscription_status?: string | null; su
   const subscribed =
     profile.subscription_status === "active" || profile.subscription_status === "trialing";
 
-  if (!subscribed || !profile.subscription_plan) return 15; // Basic
+  if (!subscribed) return 15; // Basic
   if (profile.subscription_plan === "apprentice") return 25;
-  return null; // Pro / Master — unlimited
+  if (profile.subscription_plan === "pro" || profile.subscription_plan === "master") return null; // unlimited
+  return 15; // anything unrecognised gets the Basic limit, never unlimited
 }
 
 // Request-sourced bookings count toward a subscribed professional's monthly
@@ -696,11 +700,13 @@ export async function POST(req: Request) {
   }
 }
 
-function getPlanFromPriceId(priceId: string): string {
+function getPlanFromPriceId(priceId: string): string | null {
   if (priceId === process.env.NEXT_PUBLIC_STRIPE_APPRENTICE_PRICE_ID) return "apprentice";
   if (priceId === process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID) return "pro";
   if (priceId === process.env.NEXT_PUBLIC_STRIPE_MASTER_PRICE_ID) return "master";
-  return "unknown";
+  // Unrecognised price: no plan. ("unknown" used to be stored here, and the
+  // booking-cap check read any non-empty plan as unlimited.)
+  return null;
 }
 
 async function handleSubscriptionCheckoutCompleted(session: any) {

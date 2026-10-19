@@ -164,6 +164,30 @@ export function getLicensedRule(region: string, profession: string): CredentialR
   return { ...DEFAULT_LICENSED_RULE, ...matrixRule, ...override };
 }
 
+// A professional with several professions verifies ONCE, like everyone else.
+// So nobody can pick their least-regulated profession to skip a licence,
+// the form uses whichever of their professions has the strictest rule in
+// their province (a licence number beats none, a required document beats an
+// optional one). Ties go to the earlier profession (their primary).
+export function getStrictestLicensedRule(
+  region: string,
+  professions: string[]
+): { profession: string; rule: CredentialRule } {
+  const weight = (r: CredentialRule) =>
+    (r.licenseNumber === "required" ? 8 : 0) +
+    (r.document === "required" ? 4 : 0) +
+    (r.expiry === "required" ? 2 : 0) +
+    (r.issuingBody === "required" ? 1 : 0);
+
+  const candidates = professions.length > 0 ? professions : ["other_beauty_professional"];
+  let best = { profession: candidates[0], rule: getLicensedRule(region, candidates[0]) };
+  for (const profession of candidates.slice(1)) {
+    const rule = getLicensedRule(region, profession);
+    if (weight(rule) > weight(best.rule)) best = { profession, rule };
+  }
+  return best;
+}
+
 export const STUDENT_DOCUMENT_HELP =
   "Proof you're currently enrolled: an enrollment letter, a student ID showing the current term, or a current class schedule from your school.";
 

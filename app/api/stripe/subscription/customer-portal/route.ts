@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
-import { stripe } from "@/app/lib/stripe";
+import { isAllowedSubscriptionPrice, stripe } from "@/app/lib/stripe";
 
 export async function POST(req: Request) {
   const user = await getAuthenticatedUser(req);
@@ -10,6 +10,10 @@ export async function POST(req: Request) {
   }
 
   const { priceId, cancel } = await req.json().catch(() => ({}) as { priceId?: string; cancel?: boolean });
+
+  if (priceId !== undefined && priceId !== null && !isAllowedSubscriptionPrice(priceId)) {
+    return NextResponse.json({ error: "Unknown plan" }, { status: 400 });
+  }
 
   const service = getServiceSupabase();
 

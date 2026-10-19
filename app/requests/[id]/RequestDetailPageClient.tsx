@@ -28,6 +28,8 @@ import {
   hasAppointmentEnded,
 } from "@/app/lib/bookingTime";
 import { dismissRequestOnce } from "@/app/lib/requestDismissals";
+import { formatProfessions } from "@/app/lib/professions";
+
 type ServiceRequest = {
   id: string;
   client_id: string;
@@ -743,7 +745,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
       if (professionalIds.length > 0) {
         const { data: profileData } = await supabase
           .from("profiles")
-          .select("id, full_name, avatar_url, professional_type, formatted_address")
+          .select("id, full_name, avatar_url, professional_type, professional_types, formatted_address")
           .in("id", professionalIds);
 
         if (profileData) {
@@ -753,7 +755,8 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               {
                 full_name: profileRow.full_name ?? null,
                 avatar_url: profileRow.avatar_url ?? null,
-                professional_type: profileRow.professional_type ?? null,
+                // Every profession, not just the first ("Hairstylist • Brow Artist").
+                professional_type: formatProfessions(profileRow, "") || null,
                 formatted_address: (profileRow as any).formatted_address ?? null,
               },
             ])

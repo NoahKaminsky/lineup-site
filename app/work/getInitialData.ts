@@ -6,6 +6,7 @@
 // Supabase client, so it can't be called directly from here).
 
 import { createSupabaseServerClient } from "@/app/lib/serverSupabase";
+import { requestMatchesProfessional } from "@/app/lib/professions";
 
 type Profile = {
   id: string;
@@ -390,23 +391,10 @@ async function fetchProfessionalWork(
   const bookings = (bookingsData || []) as BookingRow[];
   const offersSent = (offersSentData || []) as OfferRow[];
 
-  const professionalTypes = Array.isArray(profile.professional_types) ? profile.professional_types : [];
-  const professionalType = profile.professional_type ? [profile.professional_type] : [];
-  const allTypes = Array.from(new Set([...professionalTypes, ...professionalType]));
-  const proServiceModes = Array.isArray(profile.service_modes) ? profile.service_modes : [];
-
-  const openRequests = allRequests.filter((request) => {
-    if (request.status !== "open") return false;
-    if (request.is_direct_rebook) return request.preferred_professional_id === userId;
-    if (allTypes.length === 0) return true;
-    const requestCategories = request.categories?.length ? request.categories : request.category ? [request.category] : [];
-    if (!requestCategories.some((c) => allTypes.includes(c))) return false;
-    const requestModes = request.service_modes?.length ? request.service_modes : request.service_mode ? [request.service_mode] : [];
-    if (proServiceModes.length > 0 && requestModes.length > 0) {
-      if (!requestModes.some((mode) => proServiceModes.includes(mode))) return false;
-    }
-    return true;
-  });
+  // Shared rule (app/lib/professions.ts) — see WorkPageClient.tsx.
+  const openRequests = allRequests.filter(
+    (request) => request.status === "open" && requestMatchesProfessional(request, { ...profile, id: userId })
+  );
 
   const offerRequestIds = Array.from(new Set(offersSent.map((o) => o.request_id)));
   const offerRequestMap = new Map<string, ServiceRequest>();

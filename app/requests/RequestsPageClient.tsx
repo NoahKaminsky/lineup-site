@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Inbox, Briefcase, Wand2, UserCircle, Images, Star, ClipboardList, Handshake, MapPin } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { requestMatchesProfessional, formatProfessions } from "@/app/lib/professions";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import type { RequestsInitialData } from "./getInitialData";
@@ -236,6 +237,8 @@ type ProfileRow = {
   id: string;
   role: string | null;
   professional_type?: string | null;
+  professional_types?: string[] | null;
+  service_modes?: string[] | null;
   full_name?: string | null;
   avatar_url?: string | null;
   location_lat?: number | null;
@@ -705,7 +708,7 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
         error: professionalProfilesError,
       } = await supabase
         .from("profiles")
-        .select("id, full_name, avatar_url, professional_type")
+        .select("id, full_name, avatar_url, professional_type, professional_types")
         .in("id", professionalIds);
 
       if (professionalProfilesError) {
@@ -718,7 +721,8 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
           {
             full_name: pro.full_name ?? null,
             avatar_url: pro.avatar_url ?? null,
-            professional_type: pro.professional_type ?? null,
+            // Every profession, not just the first.
+            professional_type: formatProfessions(pro, "") || null,
           },
         ])
       );
@@ -759,7 +763,7 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
     }
   }, []);
 
-  const hydrateProfessionalData = useCallback(async (userId: string) => {
+  const hydrateProfessionalData = useCallback(async (userId: string, proProfile: ProfileRow) => {
     const { data: allRequests, error: allRequestsError } = await supabase
       .from("service_requests")
       .select("*")
@@ -789,14 +793,11 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
 
     const mergedRequests = Array.from(mergedRequestsMap.values())
       .filter((request) => {
-        if (request.is_direct_rebook) {
-          return request.preferred_professional_id === userId;
-        }
-
-        return (
-          request.status === "open" ||
-          request.accepted_professional_id === userId
-        );
+        // Jobs this pro already won always stay.
+        if (request.accepted_professional_id === userId) return true;
+        // Open requests: only ones for this pro's professions (any of them,
+        // if they have several) — same rule as the Work tab and alert emails.
+        return request.status === "open" && requestMatchesProfessional(request, { ...proProfile, id: userId });
       })
       .sort(
         (a, b) =>
@@ -928,7 +929,7 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, professional_type, full_name, location_lat, location_lng")
+        .select("role, professional_type, professional_types, service_modes, full_name, location_lat, location_lng")
         .eq("id", user.id)
         .single();
 
@@ -957,7 +958,7 @@ if (profileError || !profile) {
         if (isCustomerRole(userRole)) {
           await hydrateCustomerData(user.id);
         } else if (isProfessionalRole(userRole)) {
-          await hydrateProfessionalData(user.id);
+          await hydrateProfessionalData(user.id, typedProfile);
         } else {
           setMessage("Invalid account role.");
         }

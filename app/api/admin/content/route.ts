@@ -30,7 +30,9 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const type = searchParams.get("type") || "";
-  const q = searchParams.get("q")?.trim() || "";
+  // Strip characters that mean something in a PostgREST filter (commas,
+  // parentheses, quotes, wildcards) so a search can't rewrite the query.
+  const q = (searchParams.get("q") || "").replace(/[,()*%\\"]/g, " ").trim().slice(0, 100);
 
   const config = TABLES[type];
   if (!config) return NextResponse.json({ error: "Invalid type" }, { status: 400 });

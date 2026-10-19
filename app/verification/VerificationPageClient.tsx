@@ -14,7 +14,7 @@ import {
   VERIFICATION_DOCUMENT_MAX_BYTES,
   VERIFICATION_DOCUMENT_TYPES,
   DEFAULT_LICENSED_RULE,
-  getLicensedRule,
+  getStrictestLicensedRule,
   jurisdictionLabel,
   isVerifiedNow,
   todayDateString,
@@ -189,7 +189,6 @@ export default function VerificationPageClient({ initialData }: VerificationPage
   const [confirmSkip, setConfirmSkip] = useState(false);
 
   const [track, setTrack] = useState<VerificationTrack>("licensed");
-  const [professionType, setProfessionType] = useState("");
   const [jurisdiction, setJurisdiction] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
   const [issuingBody, setIssuingBody] = useState("");
@@ -254,16 +253,19 @@ export default function VerificationPageClient({ initialData }: VerificationPage
     [profile]
   );
 
-  useEffect(() => {
-    if (!professionType && ownTypes.length > 0) setProfessionType(ownTypes[0]);
-  }, [ownTypes, professionType]);
 
   const status = (profile?.verification_status || "unverified") as VerificationStatus;
   const verifiedNow = isVerifiedNow(profile);
   const pendingCount = submissions.filter((s) => s.status === "pending").length;
   const latestRejection = submissions.find((s) => s.status === "rejected" && s.rejection_reason);
 
-  const rule = jurisdiction && professionType ? getLicensedRule(jurisdiction, professionType) : DEFAULT_LICENSED_RULE;
+  // One verification covers all of a pro's professions. The form follows the
+  // strictest of their professions in the chosen province, so multi-profession
+  // pros go through exactly the same steps as everyone else.
+  const strictest =
+    jurisdiction && ownTypes.length > 0 ? getStrictestLicensedRule(jurisdiction, ownTypes) : null;
+  const professionType = strictest?.profession || ownTypes[0] || "";
+  const rule = strictest?.rule ?? DEFAULT_LICENSED_RULE;
   const documentHelp = track === "student" ? STUDENT_DOCUMENT_HELP : rule.documentHelp;
   const documentRequired = track === "student" || rule.document === "required";
 
@@ -291,8 +293,8 @@ export default function VerificationPageClient({ initialData }: VerificationPage
     setError("");
     setNotice("");
 
-    if (!professionType) {
-      setError("Choose which profession this is for.");
+    if (ownTypes.length === 0) {
+      setError("Add your profession in your account settings first.");
       return;
     }
 
@@ -592,19 +594,24 @@ export default function VerificationPageClient({ initialData }: VerificationPage
 
             <div>
               <label className={labelClass}>
-                {track === "student" ? "Which program are you studying?" : "Which profession is this credential for?"}
+                {ownTypes.length > 1 ? "Your professions" : "Your profession"}
               </label>
-              <select
-                value={professionType}
-                onChange={(e) => setProfessionType(e.target.value)}
-                className={inputClass}
-              >
+              <div className="flex flex-wrap gap-2">
                 {ownTypes.map((type) => (
-                  <option key={type} value={type}>
+                  <span
+                    key={type}
+                    className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-sm font-medium text-neutral-800"
+                  >
                     {PROFESSION_LABELS[type] || type}
-                  </option>
+                  </span>
                 ))}
-              </select>
+              </div>
+              {ownTypes.length > 1 ? (
+                <p className="mt-2 text-xs leading-5 text-neutral-500">
+                  One verification covers all of these. If they have different rules where you
+                  work, we ask for the strictest one.
+                </p>
+              ) : null}
             </div>
 
             {track === "licensed" ? (
