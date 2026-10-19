@@ -440,7 +440,10 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<
     "idle" | "allowed" | "denied" | "unsupported"
   >("idle");
-  const [nearbyRadiusKm, setNearbyRadiusKm] = useState(5);
+  // Distance: the panel edits a draft radius; "Show N pros" applies it to
+  // the grid as maxDistanceKm (null = any distance).
+  const [nearbyRadiusKm, setNearbyRadiusKm] = useState(10);
+  const [maxDistanceKm, setMaxDistanceKm] = useState<number | null>(null);
   const [nearbyPanelOpen, setNearbyPanelOpen] = useState(false);
   const [nearbyAreaLabel, setNearbyAreaLabel] = useState<string | null>(null);
 
@@ -686,26 +689,29 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
       .slice(0, 6);
   }, [cards, userLocation, nearbyRadiusKm]);
 
-  // Decorative only — abstracted positions, not real coordinates. Just gives a sense
-  // of "activity in the area" at a glance before scrolling the real list below.
-  const nearbyDots = useMemo(() => {
-    const count = Math.min(nearbyCount ?? 0, 10);
-    const dots: { x: number; y: number; size: number }[] = [];
-
-    for (let i = 0; i < count; i++) {
-      const seed = i * 137.51; // golden-angle spread so dots don't cluster
-      const angle = (seed % 360) * (Math.PI / 180);
-      const radiusFraction = 0.35 + ((i * 0.61) % 1) * 0.55;
-      const r = radiusFraction * 70;
-      dots.push({
-        x: 80 + r * Math.cos(angle),
-        y: 80 + r * Math.sin(angle),
-        size: 3 + (i % 3),
-      });
-    }
-
-    return dots;
-  }, [nearbyCount]);
+  // Each pro plotted at their real bearing and distance from you, scaled so
+  // the edge of the map is the chosen radius.
+  const nearbyPoints = useMemo(() => {
+    if (!userLocation) return [];
+    const kmPerDegLat = 110.57;
+    const kmPerDegLng = 111.32 * Math.cos((userLocation.lat * Math.PI) / 180);
+    return cards
+      .map((card) => {
+        const { location_lat: lat, location_lng: lng } = card.profile;
+        if (typeof lat !== "number" || typeof lng !== "number") return null;
+        const dxKm = (lng - userLocation.lng) * kmPerDegLng;
+        const dyKm = (lat - userLocation.lat) * kmPerDegLat;
+        const distance = Math.hypot(dxKm, dyKm);
+        if (distance > nearbyRadiusKm) return null;
+        return {
+          card,
+          distance,
+          x: 100 + (dxKm / nearbyRadiusKm) * 88,
+          y: 100 - (dyKm / nearbyRadiusKm) * 88,
+        };
+      })
+      .filter(Boolean) as { card: DiscoverCard; distance: number; x: number; y: number }[];
+  }, [cards, userLocation, nearbyRadiusKm]);
 
   const filteredCards = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -737,7 +743,11 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
       const matchesSearch = !query || searchableText.includes(query);
       const matchesOpen = !openThisWeekOnly || hasOpenThisWeek(profile, card.availability, card.bookings);
 
-      return matchesCategory && matchesModes && matchesSearch && matchesOpen;
+      // With a distance set, only pros we can place within it.
+      const cardDistance = maxDistanceKm === null ? null : getCardDistanceKm(card, userLocation);
+      const matchesDistance = maxDistanceKm === null || (cardDistance !== null && cardDistance <= maxDistanceKm);
+
+      return matchesCategory && matchesModes && matchesSearch && matchesOpen && matchesDistance;
     });
 
     if (!userLocation) return filtered;
@@ -752,7 +762,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
 
       return distanceA - distanceB;
     });
-  }, [cards, search, selectedCategory, selectedModes, openThisWeekOnly, userLocation]);
+  }, [cards, search, selectedCategory, selectedModes, openThisWeekOnly, userLocation, maxDistanceKm]);
 
   // Subscription tier is the primary ranking signal everywhere on this page —
   // paying for Master/Pro should reliably outrank free accounts, not just get
@@ -826,13 +836,18 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   }, [filteredCards, sortBy, userLocation]);
 
   const hasActiveFilters =
-    search.trim() !== "" || selectedCategory !== "all" || selectedModes.length > 0 || openThisWeekOnly;
+    search.trim() !== "" ||
+    selectedCategory !== "all" ||
+    selectedModes.length > 0 ||
+    openThisWeekOnly ||
+    maxDistanceKm !== null;
 
   function clearFilters() {
     setSearch("");
     setSelectedCategory("all");
     setSelectedModes([]);
     setOpenThisWeekOnly(false);
+    setMaxDistanceKm(null);
   }
 
   function toggleMode(mode: string) {
@@ -923,7 +938,8 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   }
 
   const isSearching = search.trim() !== "";
-  const showFeatured = spotlightCards.length > 0 && !isSearching && selectedCategory === "all" && !openThisWeekOnly;
+  const showFeatured =
+    spotlightCards.length > 0 && !isSearching && selectedCategory === "all" && !openThisWeekOnly && maxDistanceKm === null;
   const categoryLabel = categoryOptions.find((c) => c.value === selectedCategory)?.label;
 
   return (
@@ -1046,6 +1062,21 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
             >
               <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${openThisWeekOnly ? "bg-white" : "bg-ink"}`} />
               Open this week
+            </button>
+
+            <button
+              type="button"
+              aria-pressed={maxDistanceKm !== null}
+              onClick={() => {
+                setNearbyRadiusKm(maxDistanceKm ?? nearbyRadiusKm);
+                setNearbyPanelOpen(true);
+              }}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                maxDistanceKm !== null ? "bg-ink text-white" : "bg-surface text-neutral-700 ring-1 ring-inset ring-ink/10 hover:ring-ink/30"
+              }`}
+            >
+              <MapPin aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
+              {maxDistanceKm !== null ? `Within ${maxDistanceKm} km` : "Distance"}
             </button>
 
             {hasActiveFilters ? (
@@ -1214,151 +1245,190 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
 
     {nearbyPanelOpen ? (
       <div
-        className="lu-fade-in fixed inset-0 z-[100] flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
+        className="lu-fade-in fixed inset-0 z-[100] flex items-end justify-center bg-ink/40 p-3 backdrop-blur-sm sm:items-center sm:p-4"
         onClick={() => setNearbyPanelOpen(false)}
       >
         <div
-          className="lu-dialog-in w-full max-w-sm rounded-panel border border-neutral-200 bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="distance-title"
+          className="lu-sheet-in max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-7"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-3">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-              Professionals near you
-            </p>
+            <div>
+              <h2 id="distance-title" className="text-xl font-semibold tracking-[-0.03em] text-ink">
+                Distance
+              </h2>
+              <p className="mt-0.5 text-sm text-neutral-500">{nearbyAreaLabel ? `From ${nearbyAreaLabel}` : "From your location"}</p>
+            </div>
             <button
               type="button"
+              aria-label="Close"
               onClick={() => setNearbyPanelOpen(false)}
-              className="rounded-full border border-neutral-200 px-2.5 py-1 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50"
+              className="rounded-full p-2 text-neutral-400 transition hover:bg-neutral-100 hover:text-ink"
             >
-              Close
+              <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" aria-hidden="true">
+                <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
             </button>
           </div>
 
-          {nearbyAreaLabel ? (
-            <p className="text-center text-xs font-medium text-neutral-500">{nearbyAreaLabel}</p>
-          ) : null}
+          {!userLocation ? (
+            <div className="mt-6 rounded-2xl bg-paper p-5 text-sm leading-6 text-neutral-600 ring-1 ring-ink/[0.05]">
+              {locationPermissionStatus === "unsupported"
+                ? "Location isn't available in this browser, so distances can't be measured."
+                : "Allow location access for this site in your browser settings, then reopen Browse to filter by distance."}
+            </div>
+          ) : (
+            <>
+              {/* Live map: every pro at their real bearing and distance. */}
+              <div className="relative mx-auto mt-5 aspect-square w-full max-w-[19rem]">
+                <svg viewBox="0 0 200 200" className="h-full w-full" aria-hidden="true">
+                  <defs>
+                    <radialGradient id="lu-radar-bg" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="#ffffff" />
+                      <stop offset="100%" stopColor="#f1f1ef" />
+                    </radialGradient>
+                  </defs>
+                  <circle cx="100" cy="100" r="88" fill="url(#lu-radar-bg)" stroke="#0a0a0a" strokeOpacity="0.12" />
+                  {[0.25, 0.5, 0.75].map((f) => (
+                    <circle key={f} cx="100" cy="100" r={88 * f} fill="none" stroke="#0a0a0a" strokeOpacity="0.08" strokeDasharray="2 3" />
+                  ))}
+                  <line x1="12" y1="100" x2="188" y2="100" stroke="#0a0a0a" strokeOpacity="0.05" />
+                  <line x1="100" y1="12" x2="100" y2="188" stroke="#0a0a0a" strokeOpacity="0.05" />
+                  {[0.5, 1].map((f) => (
+                    <text key={f} x={100 + 88 * f * 0.707 + 3} y={100 - 88 * f * 0.707 - 2} className="fill-neutral-400" style={{ fontSize: 7, fontWeight: 600 }}>
+                      {Math.round(nearbyRadiusKm * f * 10) / 10} km
+                    </text>
+                  ))}
+                  <circle cx="100" cy="100" r="12" fill="none" stroke="#0a0a0a" strokeOpacity="0.25">
+                    <animate attributeName="r" values="8;16;8" dur="2.4s" repeatCount="indefinite" />
+                    <animate attributeName="stroke-opacity" values="0.35;0;0.35" dur="2.4s" repeatCount="indefinite" />
+                  </circle>
+                  <circle cx="100" cy="100" r="5" fill="#0a0a0a" />
+                  <circle cx="100" cy="100" r="2" fill="#ffffff" />
+                </svg>
 
-          <div className="mx-auto mt-2 flex items-center justify-center">
-            <svg viewBox="0 0 160 160" className="h-48 w-48">
-              <defs>
-                <radialGradient id="lu-map-bg" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#fafafa" />
-                  <stop offset="100%" stopColor="#eeeeee" />
-                </radialGradient>
-              </defs>
-
-              <circle cx="80" cy="80" r="70" fill="url(#lu-map-bg)" />
-
-              {[5, 10, 25, 50].map((km, i) => {
-                const tierRadius = [20, 36, 52, 70][i];
-                const isActive = nearbyRadiusKm === km;
-                return (
-                  <circle
-                    key={km}
-                    cx="80"
-                    cy="80"
-                    r={tierRadius}
-                    fill={isActive ? "#000000" : "none"}
-                    fillOpacity={isActive ? 0.05 : 0}
-                    stroke={isActive ? "#000000" : "#d4d4d4"}
-                    strokeWidth={isActive ? 1.4 : 1}
-                    strokeDasharray={isActive ? undefined : "2 3"}
-                    style={{ transition: "r 0.35s cubic-bezier(0.4,0,0.2,1), fill-opacity 0.35s ease, stroke 0.35s ease" }}
-                  />
-                );
-              })}
-
-              <text x="80" y="13" textAnchor="middle" className="fill-neutral-500" style={{ fontSize: 8, fontWeight: 700, letterSpacing: 0.5 }}>
-                {nearbyRadiusKm} KM
-              </text>
-
-              {nearbyDots.map((dot, i) => (
-                <circle
-                  key={i}
-                  cx={dot.x}
-                  cy={dot.y}
-                  r={dot.size}
-                  fill="#111111"
-                  opacity={0.55}
-                />
-              ))}
-
-              <circle cx="80" cy="80" r="11" fill="none" stroke="#000000" strokeWidth="1" opacity="0.25">
-                <animate attributeName="r" values="9;15;9" dur="2.4s" repeatCount="indefinite" />
-                <animate attributeName="opacity" values="0.35;0;0.35" dur="2.4s" repeatCount="indefinite" />
-              </circle>
-              <circle cx="80" cy="80" r="6" fill="#000000" />
-              <circle cx="80" cy="80" r="2.5" fill="#ffffff" />
-              <text x="80" y="98" textAnchor="middle" className="fill-neutral-900" style={{ fontSize: 7.5, fontWeight: 700, letterSpacing: 0.3 }}>
-                YOU
-              </text>
-            </svg>
-          </div>
-
-          <p className="mt-1 text-center text-3xl font-semibold tracking-tight text-neutral-900">
-            {nearbyCount ?? "—"}
-          </p>
-          <p className="text-center text-xs text-neutral-500">
-            professional{nearbyCount === 1 ? "" : "s"} within {nearbyRadiusKm} km
-          </p>
-
-          <div className="mt-5 flex flex-wrap justify-center gap-2">
-            {[5, 10, 25, 50].map((km) => (
-              <button
-                key={km}
-                type="button"
-                onClick={() => setNearbyRadiusKm(km)}
-                className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
-                  nearbyRadiusKm === km
-                    ? "border-neutral-900 bg-neutral-900 text-white"
-                    : "border-neutral-200 bg-neutral-50 text-neutral-600 hover:border-neutral-400"
-                }`}
-              >
-                {km} km
-              </button>
-            ))}
-          </div>
-
-          {nearbyProfessionals.length > 0 ? (
-            <div className="mt-5 max-h-56 space-y-1.5 overflow-y-auto border-t border-neutral-100 pt-4">
-              {nearbyProfessionals.map(({ card, distance }) => {
-                const roles = getProfessionalTypes(card.profile);
-                const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
-
-                return (
+                {nearbyPoints.map(({ card, distance, x, y }) => (
                   <Link
                     key={card.profile.id}
                     href={getProfileHref(card.profile)}
                     onClick={() => setNearbyPanelOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-neutral-50"
+                    title={`${card.profile.full_name || "Professional"} · ${formatDistanceLabel(distance)}`}
+                    className="lu-lift-in absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full bg-neutral-100 ring-2 ring-white shadow-[0_4px_10px_-4px_rgba(0,0,0,0.45)] transition-transform hover:z-10 hover:scale-125"
+                    style={{ left: `${x / 2}%`, top: `${y / 2}%` }}
                   >
-                    <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
-                      {card.profile.avatar_url ? (
-                        <img loading="lazy" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
-                          {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-neutral-900">
-                        {card.profile.full_name || "Professional"}
-                      </p>
-                      <p className="truncate text-xs text-neutral-500">{primaryRole}</p>
-                    </div>
-                    <span className="shrink-0 text-xs text-neutral-400">
-                      {formatDistanceLabel(distance)}
-                    </span>
+                    {card.profile.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-neutral-600">
+                        {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                      </span>
+                    )}
                   </Link>
-                );
-              })}
-            </div>
-          ) : null}
+                ))}
+              </div>
 
-          <p className="mt-4 text-center text-[11px] leading-4 text-neutral-400">
-            This is a quick snapshot of who&apos;s nearby — full details show once you open a profile.
-          </p>
+              <div className="mt-5 text-center">
+                <p className="text-4xl font-semibold tabular-nums tracking-[-0.04em] text-ink">{nearbyCount ?? 0}</p>
+                <p className="text-sm text-neutral-500">
+                  professional{nearbyCount === 1 ? "" : "s"} within{" "}
+                  <span className="font-semibold tabular-nums text-ink">{nearbyRadiusKm} km</span>
+                </p>
+              </div>
+
+              {/* Exact distance, with quick presets. */}
+              <div className="mt-5">
+                <input
+                  type="range"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={nearbyRadiusKm}
+                  onChange={(e) => setNearbyRadiusKm(Number(e.target.value))}
+                  aria-label="Maximum distance in kilometres"
+                  className="h-2 w-full cursor-pointer appearance-none rounded-full bg-neutral-200 accent-ink"
+                  style={{
+                    background: `linear-gradient(to right, #0a0a0a ${nearbyRadiusKm}%, #e5e5e5 ${nearbyRadiusKm}%)`,
+                  }}
+                />
+                <div className="mt-3 flex justify-between gap-2">
+                  {[5, 10, 25, 50].map((km) => (
+                    <button
+                      key={km}
+                      type="button"
+                      onClick={() => setNearbyRadiusKm(km)}
+                      className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                        nearbyRadiusKm === km ? "bg-ink text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                      }`}
+                    >
+                      {km} km
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {nearbyProfessionals.length > 0 ? (
+                <ul className="lu-lineup mt-5 space-y-1 border-t border-ink/[0.06] pt-4">
+                  {nearbyProfessionals.map(({ card, distance }) => {
+                    const roles = getProfessionalTypes(card.profile);
+                    const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
+                    return (
+                      <li key={card.profile.id}>
+                        <Link
+                          href={getProfileHref(card.profile)}
+                          onClick={() => setNearbyPanelOpen(false)}
+                          className="flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-neutral-50"
+                        >
+                          <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-neutral-100">
+                            {card.profile.avatar_url ? (
+                              <img loading="lazy" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
+                                {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-ink">{card.profile.full_name || "Professional"}</p>
+                            <p className="truncate text-xs text-neutral-500">{primaryRole}</p>
+                          </div>
+                          <span className="shrink-0 text-xs tabular-nums text-neutral-500">{formatDistanceLabel(distance)}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+
+              <div className="mt-6 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMaxDistanceKm(nearbyRadiusKm);
+                    setNearbyPanelOpen(false);
+                  }}
+                  className="rounded-full bg-ink px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+                >
+                  Show {nearbyCount ?? 0} pro{nearbyCount === 1 ? "" : "s"} within {nearbyRadiusKm} km
+                </button>
+                {maxDistanceKm !== null ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaxDistanceKm(null);
+                      setNearbyPanelOpen(false);
+                    }}
+                    className="rounded-full px-5 py-2.5 text-sm font-medium text-neutral-500 transition hover:text-ink"
+                  >
+                    Any distance
+                  </button>
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
       </div>
     ) : null}
