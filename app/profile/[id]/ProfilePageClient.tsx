@@ -22,6 +22,7 @@ import type { ProfileDetailInitialData } from "./getInitialData";
 import { BookedSheet, MaskLine, MomentOverlay } from "@/app/components/moments/Moments";
 import { formatCancellationDeadline } from "@/app/lib/bookingTime";
 import { useHashTarget } from "@/app/lib/useHashTarget";
+import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -31,6 +32,7 @@ type Profile = {
   verification_status?: string | null;
   verification_track?: string | null;
   verified_until?: string | null;
+  created_at?: string | null;
   full_name: string | null;
   username?: string | null;
   avatar_url: string | null;
@@ -436,6 +438,20 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   // app header (whose height changes by breakpoint), tracks the section in
   // view, and the mobile book bar shows once the hero buttons scroll away.
   const heroEndRef = useRef<HTMLDivElement | null>(null);
+
+  // A client's profile shows the rating pros have given them.
+  const [clientRating, setClientRating] = useState<CustomerRatingSummary | null>(null);
+  const profileIdForRating = profile && profile.role !== "professional" && profile.role !== "I am a professional" ? profile.id : null;
+  useEffect(() => {
+    if (!profileIdForRating) return;
+    let cancelled = false;
+    getCustomerRatingsMap([profileIdForRating]).then((map) => {
+      if (!cancelled) setClientRating(map[profileIdForRating] ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileIdForRating]);
   const [headerHeight, setHeaderHeight] = useState(64);
   const [activeSection, setActiveSection] = useState("");
   const [pastHero, setPastHero] = useState(false);
@@ -516,7 +532,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
         const isUuid = UUID_REGEX.test(profileId);
         const profileSelect =
-          "id, full_name, username, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, verification_status, verification_track, verified_until";
+          "id, full_name, username, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, verification_status, verification_track, verified_until, created_at";
 
         const { data: profileData, error: profileError } = isUuid
           ? await supabase.from("profiles").select(profileSelect).eq("id", profileId).single()
@@ -1554,6 +1570,7 @@ if (loading) {
             );
           })()}
 
+          {isProfessional || profile.bio?.trim() || profile.instagram_handle || viewerUserId === profile.id ? (
           <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-neutral-500">
@@ -1658,6 +1675,29 @@ if (loading) {
               ) : null}
             </div>
           </div>
+          ) : null}
+
+          {!isProfessional ? (
+            <dl className="mt-8 grid grid-cols-3 divide-x divide-ink/[0.08] rounded-2xl bg-white py-4 ring-1 ring-ink/[0.07] md:py-5">
+              {[
+                { label: "Rating", value: clientRating ? clientRating.average.toFixed(1) : "New", star: !!clientRating },
+                { label: clientRating?.count === 1 ? "Rating from pros" : "Ratings from pros", value: String(clientRating?.count ?? 0), star: false },
+                {
+                  label: "Member since",
+                  value: profile.created_at ? String(new Date(profile.created_at).getFullYear()) : "—",
+                  star: false,
+                },
+              ].map((stat) => (
+                <div key={stat.label} className="flex min-w-0 flex-col-reverse items-center px-2 text-center">
+                  <dt className="mt-1.5 truncate text-[11px] text-neutral-500 md:text-xs">{stat.label}</dt>
+                  <dd className="flex items-center justify-center gap-1 text-[1.15rem] font-semibold leading-none tracking-[-0.02em] text-ink md:text-[1.5rem]">
+                    {stat.star ? <span aria-hidden="true" className="text-[0.7em] leading-none">★</span> : null}
+                    {stat.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
 
           {isProfessional ? (
             <dl className={`mt-8 grid ${portfolioItems.length > 0 ? "grid-cols-4" : "grid-cols-3"} divide-x divide-ink/[0.08] rounded-2xl bg-white py-4 ring-1 ring-ink/[0.07] md:py-5`}>

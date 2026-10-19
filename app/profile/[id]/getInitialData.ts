@@ -13,6 +13,7 @@ type Profile = {
   verification_status?: string | null;
   verification_track?: string | null;
   verified_until?: string | null;
+  created_at?: string | null;
   full_name: string | null;
   username?: string | null;
   avatar_url: string | null;
@@ -68,7 +69,7 @@ export async function getInitialProfileDetailData(profileIdOrUsername: string): 
   try {
     const isUuid = UUID_REGEX.test(profileIdOrUsername);
     const profileSelect =
-      "id, full_name, username, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, verification_status, verification_track, verified_until";
+      "id, full_name, username, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, verification_status, verification_track, verified_until, created_at";
 
     const { data: profileData, error: profileError } = isUuid
       ? await supabase.from("profiles").select(profileSelect).eq("id", profileIdOrUsername).single()
