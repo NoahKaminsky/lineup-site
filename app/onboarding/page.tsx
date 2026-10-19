@@ -8,6 +8,7 @@ import { Scissors, Wand2, Hand, Eye, Pencil, Palette, Flame, Leaf, Star, Shoppin
 import { supabase } from "../../lib/supabaseClient";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { rememberReturnTo, takeReturnTo } from "@/app/lib/returnTo";
 
 // See the matching flag in app/account/AccountPageClient.tsx — same reasoning.
 const SMS_SIGNUP_UI_ENABLED = false;
@@ -40,6 +41,10 @@ export default function OnboardingPage() {
   const router = useRouter();
 
   useEffect(() => {
+    // Arrived from a sign-up that started on another page (e.g. a pro's
+    // booking link): remember it for when onboarding is done.
+    rememberReturnTo(new URLSearchParams(window.location.search).get("next"));
+
     async function checkExistingProfile() {
       const user = await getSignedInUser();
 
@@ -72,7 +77,7 @@ export default function OnboardingPage() {
           (profile.role !== "professional" || savedProfessionalTypes.length > 0);
 
         if (hasCompletedProfile) {
-          router.push("/requests");
+          router.push(takeReturnTo() || "/requests");
           return;
         }
 
@@ -192,7 +197,8 @@ export default function OnboardingPage() {
 
     // Professionals verify their credentials as part of signing up — until
     // approved they're hidden from Browse and can't send offers.
-    router.push(role === "professional" ? "/verification" : "/requests");
+    // Customers who came from a booking link go straight back to it.
+    router.push(role === "professional" ? "/verification" : takeReturnTo() || "/requests");
   }
 
   if (loading) {

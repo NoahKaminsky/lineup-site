@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { safeReturnPath } from "@/app/lib/returnTo";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -76,12 +77,15 @@ export async function GET(request: Request) {
         !!profile?.professional_type ||
         professionalTypes.length > 0);
 
-    return NextResponse.redirect(
-      new URL(
-        hasCompletedProfile ? "/requests" : "/onboarding",
-        requestUrl.origin
-      )
-    );
+    // Signed up from a page they meant to come back to (e.g. a pro's booking
+    // link): go straight there, or through onboarding first.
+    const returnPath = safeReturnPath(requestUrl.searchParams.get("return"));
+    if (!hasCompletedProfile) {
+      const onboarding = new URL("/onboarding", requestUrl.origin);
+      if (returnPath) onboarding.searchParams.set("next", returnPath);
+      return NextResponse.redirect(onboarding);
+    }
+    return NextResponse.redirect(new URL(returnPath || "/requests", requestUrl.origin));
   }
 
   // No code: Supabase sent an error instead (link expired / already used —

@@ -1245,7 +1245,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       <p className="text-sm font-semibold text-ink">Your booking link</p>
                       <p className="truncate text-xs text-neutral-500">
                         {typeof window !== "undefined" ? window.location.host : "lineup-aesthetics.ca"}
-                        {getProfileHref(profile)}
+                        {getProfileHref(profile).replace(/^\/profile\//, "/book/")}
                       </p>
                     </div>
                   </div>
@@ -1253,7 +1253,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     <button
                       type="button"
                       onClick={() => {
-                        const url = `${window.location.origin}${getProfileHref(profile)}#availability`;
+                        const url = `${window.location.origin}${getProfileHref(profile).replace(/^\/profile\//, "/book/")}`;
                         navigator.clipboard.writeText(url).then(() => {
                           setLinkCopied(true);
                           setTimeout(() => setLinkCopied(false), 2000);
@@ -1266,7 +1266,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     <button
                       type="button"
                       onClick={() => {
-                        const url = `${window.location.origin}${getProfileHref(profile)}#availability`;
+                        const url = `${window.location.origin}${getProfileHref(profile).replace(/^\/profile\//, "/book/")}`;
                         if (navigator.share) {
                           navigator.share({ title: `Book ${profile.full_name || "me"} on LineUp`, url }).catch(() => {});
                         } else {

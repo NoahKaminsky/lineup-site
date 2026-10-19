@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import { LuMarkPaths } from "@/app/components/LuMark";
+import { rememberReturnTo, safeReturnPath, takeReturnTo } from "@/app/lib/returnTo";
 
 type AuthMode = "signin" | "signup" | "forgot";
 
@@ -14,9 +15,12 @@ function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 }
 
-function getAuthCallbackUrl(nextPath?: string) {
-  const nextQuery = nextPath ? `?next=${encodeURIComponent(nextPath)}` : "";
-  return `${getSiteUrl()}/auth/callback${nextQuery}`;
+function getAuthCallbackUrl(nextPath?: string, returnPath?: string | null) {
+  const params = new URLSearchParams();
+  if (nextPath) params.set("next", nextPath);
+  if (returnPath) params.set("return", returnPath);
+  const query = params.toString();
+  return `${getSiteUrl()}/auth/callback${query ? `?${query}` : ""}`;
 }
 
 export default function LoginPage() {
@@ -36,6 +40,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+
+    // Came from a page they want to get back to (e.g. a pro's booking link).
+    const next = safeReturnPath(params.get("next"));
+    if (next) rememberReturnTo(next);
 
     if (params.get("mode") === "signup") {
       setMode("signup");
@@ -90,7 +98,12 @@ export default function LoginPage() {
         !!profile?.professional_type ||
         professionalTypes.length > 0);
 
-    router.push(hasCompletedProfile ? "/requests" : "/onboarding");
+    if (!hasCompletedProfile) {
+      // Onboarding picks the remembered return path up when it finishes.
+      router.push("/onboarding");
+      return;
+    }
+    router.push(takeReturnTo() || "/requests");
   }
 
   async function handleResendConfirmation() {
@@ -108,7 +121,7 @@ export default function LoginPage() {
         type: "signup",
         email,
         options: {
-          emailRedirectTo: getAuthCallbackUrl("/login?confirmed=1"),
+          emailRedirectTo: getAuthCallbackUrl("/login?confirmed=1", safeReturnPath(new URLSearchParams(window.location.search).get("next"))),
         },
       });
 
@@ -166,7 +179,7 @@ export default function LoginPage() {
           email,
           password,
           options: {
-            emailRedirectTo: getAuthCallbackUrl("/login?confirmed=1"),
+            emailRedirectTo: getAuthCallbackUrl("/login?confirmed=1", safeReturnPath(new URLSearchParams(window.location.search).get("next"))),
           },
         });
 

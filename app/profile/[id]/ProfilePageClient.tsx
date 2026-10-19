@@ -20,9 +20,10 @@ import PaymentModal from "@/app/components/payments/PaymentModal";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import DayZoomArea from "@/app/components/DayZoom";
 import type { ProfileDetailInitialData } from "./getInitialData";
-import { BookedSheet, MomentOverlay } from "@/app/components/moments/Moments";
+import { BookedSheet, MaskLine, MomentOverlay } from "@/app/components/moments/Moments";
 import { formatCancellationDeadline } from "@/app/lib/bookingTime";
 import { useHashTarget } from "@/app/lib/useHashTarget";
+import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -477,6 +478,9 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [showBannerPreview, setShowBannerPreview] = useState(false);
   const [viewerUserId, setViewerUserId] = useState<string | null>(() => initialData?.viewerUserId ?? null);
   const [viewerIsCustomer, setViewerIsCustomer] = useState(() => initialData?.viewerIsCustomer ?? false);
+  // Signed-out visitor picked a time and service: ask them to sign in, then
+  // bring them straight back to this calendar.
+  const [authPromptService, setAuthPromptService] = useState<string | null>(null);
   const [hasBookedBefore, setHasBookedBefore] = useState(() => initialData?.hasBookedBefore ?? false);
 
   const [selectedSlot, setSelectedSlot] = useState<GeneratedSlot | null>(null);
@@ -1149,7 +1153,12 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   function handleStartBookingConfirmation(service: ProfessionalService) {
     setMessage("");
 
-    if (!viewerUserId || !viewerIsCustomer) {
+    if (!viewerUserId) {
+      setAuthPromptService(service.service_name || "this service");
+      return;
+    }
+
+    if (!viewerIsCustomer) {
       setMessage("You need to be signed in as a customer to book a time.");
       return;
     }
@@ -1814,7 +1823,8 @@ if (loading) {
                                     key={slot.key}
                                     type="button"
                                     disabled={
-                                      !viewerIsCustomer ||
+                                      // Signed-out visitors can pick; they sign in to confirm.
+                                      (!!viewerUserId && !viewerIsCustomer) ||
                                       viewerUserId === profile.id ||
                                       bookingSlotKey === slot.key
                                     }
@@ -2025,7 +2035,11 @@ if (loading) {
                       </>
                     )}
 
-                    {!viewerIsCustomer ? (
+                    {!viewerUserId ? (
+                      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                        Pick a time and a service. You&apos;ll sign in to confirm and come right back here.
+                      </div>
+                    ) : !viewerIsCustomer ? (
                       <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
                         Sign in as a customer to book a time.
                       </div>
@@ -2476,6 +2490,54 @@ if (loading) {
           onSuccess={handleDirectBookingPaymentComplete}
           redirectTo={null}
         />
+      ) : null}
+
+      {authPromptService ? (
+        <div
+          className="lu-fade-in fixed inset-0 z-[100] flex items-end justify-center bg-ink/40 p-3 backdrop-blur-sm sm:items-center sm:p-6"
+          onClick={() => setAuthPromptService(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="book-auth-title"
+            onClick={(e) => e.stopPropagation()}
+            className="lu-sheet-in w-full max-w-md rounded-[28px] bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8"
+          >
+            <h2 id="book-auth-title" className="text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink">
+              <MaskLine>Sign in to book.</MaskLine>
+              <MaskLine delay={90} className="text-neutral-500">
+                {authPromptService} with {profile.full_name?.split(" ")[0] || "this pro"}
+              </MaskLine>
+            </h2>
+            <p className="mt-4 text-sm leading-6 text-neutral-600">
+              It takes a minute, and you&apos;ll come right back to this calendar to confirm your time.
+            </p>
+            <div className="mt-7 flex flex-col gap-3">
+              {(() => {
+                const back = `${typeof window !== "undefined" ? window.location.pathname : ""}#availability`;
+                return (
+                  <>
+                    <Link
+                      href={loginHref(back, "signup")}
+                      onClick={() => rememberReturnTo(back)}
+                      className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+                    >
+                      Create an account
+                    </Link>
+                    <Link
+                      href={loginHref(back)}
+                      onClick={() => rememberReturnTo(back)}
+                      className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-5 py-3.5 text-sm font-semibold text-ink transition hover:bg-neutral-50"
+                    >
+                      I have an account
+                    </Link>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {confirmingPayment ? (
