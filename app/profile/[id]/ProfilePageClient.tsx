@@ -522,9 +522,11 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [showAllServices, setShowAllServices] = useState(false);
   const [serviceQuery, setServiceQuery] = useState("");
   const dateScrollerRef = useRef<HTMLDivElement | null>(null);
-  // The day at the left edge of the strip, so the month label follows the
-  // weeks being browsed.
-  const [stripStartDate, setStripStartDate] = useState<string | null>(null);
+  // The calendar pages one week at a time; the direction picks which way the
+  // new week slides in.
+  const [weekIndex, setWeekIndex] = useState(0);
+  const [weekDirection, setWeekDirection] = useState<"next" | "back">("next");
+  const weekSwipeStart = useRef<number | null>(null);
   const dateButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEffect(() => {
@@ -944,24 +946,15 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     );
   }, [bookingCalendarDays, selectedDay]);
 
+  // Keep the visible week on the selected day (e.g. when the first opening
+  // is a few weeks out).
+  const selectedDayIndex = selectedBookingDay
+    ? bookingCalendarDays.findIndex((day) => day.date === selectedBookingDay.date)
+    : -1;
   useEffect(() => {
-    const selectedDate = selectedBookingDay?.date;
-    if (!selectedDate) return;
-
-    // Center the chosen day inside its own sideways strip only. scrollIntoView
-    // would also scroll the page, dragging visitors down to the calendar the
-    // moment the profile opens.
-    const button = dateButtonRefs.current[selectedDate];
-    let strip = button?.parentElement ?? null;
-    while (strip && strip.scrollWidth <= strip.clientWidth) strip = strip.parentElement;
-    if (!button || !strip || strip === document.documentElement || strip === document.body) return;
-    const buttonBox = button.getBoundingClientRect();
-    const stripBox = strip.getBoundingClientRect();
-    strip.scrollTo({
-      left: strip.scrollLeft + (buttonBox.left - stripBox.left) - (strip.clientWidth - buttonBox.width) / 2,
-      behavior: "smooth",
-    });
-  }, [selectedBookingDay?.date]);
+    if (selectedDayIndex < 0) return;
+    setWeekIndex(Math.floor(selectedDayIndex / 7));
+  }, [selectedDayIndex]);
 
   const selectedDayTimeGroups = useMemo(() => {
     const slots = selectedBookingDay?.slots || [];
@@ -1107,6 +1100,30 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     setMessage("");
   }
 
+  const weekCount = Math.ceil(bookingCalendarDays.length / 7);
+
+  // Page to another week and land on its first open day.
+  function goToWeek(next: number) {
+    const target = Math.max(0, Math.min(weekCount - 1, next));
+    if (target === weekIndex) return;
+    setWeekDirection(target > weekIndex ? "next" : "back");
+    setWeekIndex(target);
+    const days = bookingCalendarDays.slice(target * 7, target * 7 + 7);
+    const firstOpen = days.find((day) => day.slots.length > 0) || days[0];
+    if (firstOpen) chooseBookingDay(firstOpen.date);
+  }
+
+  function getWeekRangeLabel() {
+    const days = bookingCalendarDays.slice(weekIndex * 7, weekIndex * 7 + 7);
+    if (days.length === 0) return "";
+    const first = new Date(`${days[0].date}T00:00:00`);
+    const last = new Date(`${days[days.length - 1].date}T00:00:00`);
+    const sameMonth = first.getMonth() === last.getMonth();
+    const start = first.toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+    const end = last.toLocaleDateString("en-CA", sameMonth ? { day: "numeric" } : { month: "short", day: "numeric" });
+    return weekIndex === 0 ? `This week · ${start} – ${end}` : weekIndex === 1 ? `Next week · ${start} – ${end}` : `${start} – ${end}`;
+  }
+
   // Hovering a day on the booking strip zooms into its open times.
   function renderBookingDayLens(date: string) {
     const day = bookingCalendarDays.find((item) => item.date === date);
@@ -1169,7 +1186,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   }
 
   function getSelectedMonthLabel() {
-    const date = stripStartDate || selectedBookingDay?.date || bookingCalendarDays[0]?.date;
+    const date = bookingCalendarDays[weekIndex * 7]?.date || bookingCalendarDays[0]?.date;
     if (!date) return "";
 
     return new Date(`${date}T00:00:00`).toLocaleDateString("en-CA", {
@@ -1853,7 +1870,7 @@ if (loading) {
                 </div>
               ) : generatedSlots.length === 0 ? (
                 <div className="mt-6 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-5 text-neutral-600">
-                  No open times in the next 4 weeks.
+                  No open times in the next 8 weeks.
                 </div>
               ) : (
                 <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -1863,7 +1880,7 @@ if (loading) {
                       <div className="mb-3 flex items-center justify-between gap-3 px-1">
                         <div>
                           <p className="text-xs font-medium text-neutral-500">
-                            Choose a day
+                            {getWeekRangeLabel() || "Choose a day"}
                           </p>
                           <p className="mt-1 text-lg font-semibold tracking-tight text-neutral-900">
                             {getSelectedMonthLabel()}
@@ -1875,13 +1892,9 @@ if (loading) {
                               key={direction}
                               type="button"
                               aria-label={direction === "back" ? "Previous week" : "Next week"}
-                              onClick={() => {
-                                const strip = dateScrollerRef.current;
-                                if (!strip) return;
-                                const week = strip.clientWidth * 0.9;
-                                strip.scrollBy({ left: direction === "back" ? -week : week, behavior: "smooth" });
-                              }}
-                              className="flex h-9 w-9 items-center justify-center rounded-full text-ink ring-1 ring-ink/10 transition hover:bg-neutral-50 hover:ring-ink/25 active:scale-95"
+                              disabled={direction === "back" ? weekIndex === 0 : weekIndex >= weekCount - 1}
+                              onClick={() => goToWeek(weekIndex + (direction === "back" ? -1 : 1))}
+                              className="flex h-9 w-9 items-center justify-center rounded-full text-ink ring-1 ring-ink/10 transition hover:bg-neutral-50 hover:ring-ink/25 active:scale-95 disabled:pointer-events-none disabled:opacity-30"
                             >
                               <ChevronRight className={`h-4 w-4 ${direction === "back" ? "rotate-180" : ""}`} />
                             </button>
@@ -1891,18 +1904,23 @@ if (loading) {
 
                       <div
                         ref={dateScrollerRef}
-                        onScroll={(event) => {
-                          const strip = event.currentTarget;
-                          const edge = strip.getBoundingClientRect().left + 24;
-                          const first = Array.from(strip.querySelectorAll<HTMLElement>("[data-zoom-key]")).find(
-                            (el) => el.getBoundingClientRect().right > edge
-                          );
-                          const key = first?.dataset.zoomKey || null;
-                          setStripStartDate((prev) => (prev === key ? prev : key));
+                        key={weekIndex}
+                        onTouchStart={(event) => {
+                          weekSwipeStart.current = event.touches[0]?.clientX ?? null;
                         }}
-                        className="flex w-full max-w-full snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible scroll-smooth px-2 pb-3 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                        onTouchEnd={(event) => {
+                          const start = weekSwipeStart.current;
+                          weekSwipeStart.current = null;
+                          const end = event.changedTouches[0]?.clientX;
+                          if (start === null || end === undefined) return;
+                          if (Math.abs(end - start) < 50) return;
+                          goToWeek(weekIndex + (end < start ? 1 : -1));
+                        }}
+                        className={`grid w-full grid-cols-7 gap-1 pb-3 pt-3 [touch-action:pan-y] sm:gap-3 sm:px-2 ${
+                          weekDirection === "next" ? "lu-step-in-next" : "lu-step-in-back"
+                        }`}
                       >
-                        {bookingCalendarDays.map((day) => {
+                        {bookingCalendarDays.slice(weekIndex * 7, weekIndex * 7 + 7).map((day) => {
                           const isSelected = selectedBookingDay?.date === day.date;
                           const hasSlots = day.slots.length > 0;
                           const symbols = getDaySymbols(day.slots);
@@ -1918,10 +1936,10 @@ if (loading) {
                               data-zoom-key={day.date}
                               aria-pressed={isSelected}
                               onClick={() => chooseBookingDay(day.date)}
-                              className="flex min-w-[58px] snap-center flex-col items-center gap-2 rounded-3xl px-1 py-1 text-center transition active:scale-[0.97] sm:min-w-[74px]"
+                              className="flex min-w-0 flex-col items-center gap-2 rounded-3xl py-1 text-center transition active:scale-[0.97]"
                             >
                               <span
-                                className={`relative flex h-12 w-12 items-center justify-center rounded-full border text-base font-semibold transition-all duration-200 sm:h-16 sm:w-16 sm:text-xl ${
+                                className={`relative flex h-10 w-10 items-center justify-center rounded-full border text-[15px] font-semibold transition-all duration-200 sm:h-16 sm:w-16 sm:text-xl ${
                                   isSelected
                                     ? "border-ink bg-ink text-white shadow-md ring-2 ring-black ring-offset-2"
                                     : hasSlots
@@ -1940,12 +1958,12 @@ if (loading) {
                                 {day.shortDayLabel}
                               </span>
 
-                              <span className="flex h-5 items-center justify-center gap-1">
+                              <span className="flex h-5 items-center justify-center gap-0.5 sm:gap-1">
                                 {symbols.length > 0 ? (
                                   symbols.map((symbol) => (
                                     <span
                                       key={symbol}
-                                      className={`inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ${
+                                      className={`inline-flex h-4 w-4 items-center sm:h-5 sm:w-5 justify-center rounded-full ring-1 ${
                                         isSelected
                                           ? "bg-ink text-white ring-black"
                                           : "bg-neutral-100 text-neutral-500 ring-neutral-200"
