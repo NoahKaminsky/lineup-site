@@ -2305,6 +2305,7 @@ if (loading) {
 
           {isProfessional ? (
             <AccordionSection
+              id="reviews"
               title="Client feedback"
               subtitle="Reviews"
               summary={

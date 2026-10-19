@@ -71,6 +71,8 @@ type Profile = {
   stripe_onboarding_complete?: boolean | null;
   stripe_charges_enabled?: boolean | null;
   stripe_payouts_enabled?: boolean | null;
+  verification_status?: string | null;
+  verified_until?: string | null;
   subscription_status?: string | null;
   subscription_plan?: string | null;
   phone_number?: string | null;
@@ -160,6 +162,8 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
   const [linkDraft, setLinkDraft] = useState("");
   const [linkStatus, setLinkStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
   const [linkSaving, setLinkSaving] = useState(false);
+  const [claimBurst, setClaimBurst] = useState<{ x: number; y: number; key: number } | null>(null);
+  const [justClaimed, setJustClaimed] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeRequirementsDue, setStripeRequirementsDue] = useState<string[]>([]);
@@ -249,7 +253,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, email, full_name, username, role, professional_type, professional_types, location, avatar_url, banner_url, bio, instagram_handle, business_name, specialties, stripe_account_id, stripe_onboarding_complete, stripe_charges_enabled, stripe_payouts_enabled, subscription_status, subscription_plan, email_request_notifications, email_offer_notifications, phone_number, sms_notifications_enabled")
+        .select("id, email, full_name, username, role, professional_type, professional_types, location, avatar_url, banner_url, bio, instagram_handle, business_name, specialties, stripe_account_id, stripe_onboarding_complete, stripe_charges_enabled, stripe_payouts_enabled, subscription_status, subscription_plan, email_request_notifications, email_offer_notifications, phone_number, sms_notifications_enabled, verification_status, verified_until")
         .eq("id", user.id)
         .single();
 
@@ -1034,11 +1038,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
   return (
     <>
-      <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper py-10 text-neutral-900">
-
-
-        <div className="mx-auto max-w-6xl py-10">
-          <div className="mb-6 rounded-panel border border-neutral-200 bg-white shadow-sm">
+      <main className="min-h-screen bg-paper px-4 pb-36 pt-6 text-neutral-900 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-6 overflow-hidden rounded-[28px] bg-white ring-1 ring-ink/[0.07]">
             <div className="relative">
               {/* Banner — click to change */}
               <button
@@ -1048,7 +1050,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 aria-label="Change cover photo"
                 id="cover"
               >
-                <div className="h-56 w-full overflow-hidden rounded-t-panel bg-neutral-100 md:h-72">
+                <div className="h-44 w-full overflow-hidden bg-neutral-100 md:h-60">
                   {profile.banner_url ? (
                     <img loading="lazy"
                       src={profile.banner_url}
@@ -1056,12 +1058,16 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       className="h-full w-full object-cover transition group-hover:brightness-90"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-sm text-neutral-400">
-                      No cover photo
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[linear-gradient(135deg,#f4f4f2,#e9e9e6)] text-sm font-medium text-neutral-500">
+                      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                        <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="1.6" />
+                      </svg>
+                      Add a cover photo
                     </div>
                   )}
                 </div>
-                <div className="absolute inset-0 flex items-center justify-center rounded-t-panel opacity-0 transition group-hover:opacity-100 group-active:opacity-100">
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100 group-active:opacity-100">
                   <span className="rounded-full bg-ink/60 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm">
                     {bannerUploading ? "Uploading…" : "Change cover photo"}
                   </span>
@@ -1076,13 +1082,13 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
               />
 
               {/* Avatar — click to change */}
-              <div className="absolute -bottom-16 left-6 md:left-8">
+              <div className="absolute -bottom-14 left-6 md:-bottom-16 md:left-8">
                 <button
                   type="button"
                   onClick={() => avatarInputRef.current?.click()}
                   aria-label="Change profile photo"
                   id="photo"
-                  className="group relative h-32 w-32 overflow-hidden rounded-full border-4 border-white bg-neutral-100 shadow md:h-40 md:w-40"
+                  className="group relative h-28 w-28 overflow-hidden rounded-full bg-neutral-100 shadow-[0_12px_32px_-14px_rgba(0,0,0,0.45)] ring-4 ring-white md:h-36 md:w-36"
                 >
                   {profile.avatar_url ? (
                     <img loading="lazy"
@@ -1116,26 +1122,21 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
               </div>
             </div>
 
-            <div className="px-6 pb-6 pt-20 md:px-8 md:pt-24">
+            <div className="px-6 pb-7 pt-[4.5rem] md:px-8 md:pt-20">
               <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
                 <div className="min-w-0">
-                  <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+                  <h1 className="text-[2rem] font-semibold leading-[1.05] tracking-[-0.035em] md:text-[2.5rem]">
                     {profile.full_name || "No name yet"}
                   </h1>
 
-                  {profile.username ? (
-                    <p className="mt-1 text-sm text-neutral-500">@{profile.username}</p>
-                  ) : null}
-
-                  <p className="mt-3 text-lg text-neutral-600">
-                    {isProfessional
-                      ? formatProfessionalTypes(getProfessionalTypes(profile))
-                      : "Customer"}
+                  <p className="mt-2 text-base text-neutral-600">
+                    {isProfessional ? formatProfessionalTypes(getProfessionalTypes(profile)) : "Customer"}
+                    {profile.username ? <span className="text-neutral-400"> · @{profile.username}</span> : null}
                   </p>
 
-                  <div className="mt-5 flex flex-wrap items-center gap-3">
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
                     {profile.location ? (
-                      <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
+                      <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-[13px] text-neutral-700">
                         {profile.location}
                       </span>
                     ) : null}
@@ -1144,7 +1145,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       ? specialties.map((specialty) => (
                           <span
                             key={specialty}
-                            className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700"
+                            className="rounded-full bg-neutral-100 px-3 py-1.5 text-[13px] text-neutral-700"
                           >
                             {specialty}
                           </span>
@@ -1152,7 +1153,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       : null}
 
                     {isProfessional ? (
-                      <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
+                      <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-[13px] text-neutral-700">
                         {averageRating
                           ? `${averageRating} / 5 · ${reviews.length} review${
                               reviews.length === 1 ? "" : "s"
@@ -1160,7 +1161,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                           : "No reviews yet"}
                       </span>
                     ) : (
-                      <span className="rounded-full bg-neutral-100 px-4 py-2 text-sm text-neutral-700">
+                      <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-[13px] text-neutral-700">
                         {customerRating
                           ? `${customerRating.average.toFixed(1)} / 5 · ${customerRating.count} rating${
                               customerRating.count === 1 ? "" : "s"
@@ -1171,129 +1172,66 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   </div>
                 </div>
 
-                {!isEditing ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMessage("");
-                      setIsEditing(true);
-                    }}
-                    className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
-                  >
-                    Edit profile
-                  </button>
-                ) : (
-                  <span className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-500">
-                    Editing profile
-                  </span>
-                )}
+                <div className="flex shrink-0 gap-2">
+                  {isProfessional ? (
+                    <Link
+                      href={getProfileHref(profile)}
+                      className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-ink transition hover:bg-neutral-50"
+                    >
+                      View profile
+                    </Link>
+                  ) : null}
+                  {!isEditing ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMessage("");
+                        setIsEditing(true);
+                      }}
+                      className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+                    >
+                      Edit profile
+                    </button>
+                  ) : (
+                    <span className="rounded-full bg-neutral-100 px-5 py-3 text-sm font-medium text-neutral-500">Editing…</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-{isProfessional ? (
-              <div id="payouts" className="scroll-mt-28 rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-col gap-4">
-                  <div>
-                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                      Stripe payouts
-                    </p>
-                    <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
-                      Get paid through LineUp
-                    </h2>
-                    <p className="mt-3 text-sm leading-6 text-neutral-600">
-                      Connect Stripe so customer payments can be paid out to your bank account after bookings.
-                    </p>
-                  </div>
 
-                  <div className="grid gap-3">
-                    <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                      <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                        Account status
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-neutral-900">
-                        {profile.stripe_payouts_enabled
-                          ? "Payouts enabled"
-                          : profile.stripe_account_id
-                          ? "Onboarding incomplete"
-                          : "Not connected"}
-                      </p>
-                      {!profile.stripe_payouts_enabled && stripeRequirementsDue.length > 0 ? (
-                        <p className="mt-2 text-xs leading-5 text-neutral-500">
-                          Stripe is still waiting on: {stripeRequirementsDue.map(formatStripeRequirement).join(", ")}.
-                        </p>
-                      ) : null}
-                      {!profile.stripe_payouts_enabled && stripeStatusError ? (
-                        <p className="mt-2 text-xs leading-5 text-red-600">
-                          Couldn&apos;t confirm your Stripe status: {stripeStatusError}
-                        </p>
-                      ) : null}
-                    </div>
 
-                    {profile.stripe_account_id ? (
-                      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                          Stripe account
-                        </p>
-                        <p className="mt-2 break-all text-sm font-medium text-neutral-700">
-                          {profile.stripe_account_id}
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleConnectStripePayouts}
-                    disabled={stripeLoading}
-                    className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
-                  >
-                    {stripeLoading
-                      ? "Opening Stripe..."
-                      : profile.stripe_payouts_enabled
-                      ? "Manage Stripe payouts"
-                      : profile.stripe_account_id
-                      ? "Finish Stripe onboarding"
-                      : "Connect Stripe payouts"}
-                  </button>
-
-                  <p className="text-xs leading-5 text-neutral-500">
-                    Stripe handles bank details, identity verification, and payout setup securely.
-                  </p>
-                </div>
-              </div>
-            ) : null}
-
-          {/* Booking link: the pro's key way to bring their own clients in.
-              It opens their profile at the booking calendar (#availability). */}
+          {/* Booking link: the pro's key way to bring their own clients in. Its
+              own card, right under the profile; it opens their calendar. */}
           {isProfessional ? (
-            <div id="booking-link" className="mb-8 scroll-mt-28 rounded-[24px] bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
+            <section id="booking-link" className="relative mb-8 scroll-mt-28 overflow-hidden rounded-[28px] bg-ink p-6 text-white sm:p-8">
               {!profile.username || linkEditing ? (
-                // Pick the name in the link itself, so it's obvious what it's for.
-                <div>
-                  <p className="text-sm font-semibold text-ink">
+                <div className="lu-fade-in">
+                  <p className="text-xs font-medium text-white/50">
                     {profile.username ? "Change your booking link" : "Choose your booking link"}
                   </p>
-                  <p className="mt-0.5 text-xs text-neutral-500">
-                    This is the link you share with clients. Keep it short and easy to say.
-                  </p>
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <label className="flex min-w-0 flex-1 items-center rounded-full bg-paper pl-4 ring-1 ring-ink/10 transition focus-within:ring-2 focus-within:ring-ink">
-                      <span className="shrink-0 text-sm text-neutral-400">lineup-aesthetics.ca/book/</span>
+                  <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
+                    A clean link to share with your clients.
+                  </h2>
+                  <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <label className="flex min-w-0 flex-1 items-center rounded-full bg-white/10 pl-4 ring-1 ring-white/15 transition focus-within:ring-2 focus-within:ring-white">
+                      <span className="shrink-0 text-sm text-white/45">lineup-aesthetics.ca/book/</span>
                       <input
                         value={linkValue}
                         onChange={(e) => setLinkDraft(normalizeUsername(e.target.value) || " ")}
                         maxLength={20}
                         aria-label="Booking link name"
                         placeholder="yourname"
-                        className="min-w-0 flex-1 bg-transparent py-3 pr-4 text-sm font-semibold text-ink outline-none"
+                        className="min-w-0 flex-1 bg-transparent py-3.5 pr-4 text-sm font-semibold text-white outline-none placeholder:text-white/30"
                       />
                     </label>
                     <div className="flex gap-2">
                       <button
                         type="button"
                         disabled={linkSaving || linkStatus !== "available"}
-                        onClick={async () => {
+                        onClick={async (e) => {
+                          const origin = { x: e.clientX, y: e.clientY };
                           const name = linkValue;
                           if (!name) return;
                           setLinkSaving(true);
@@ -1303,13 +1241,19 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                             setLinkStatus(error.code === "23505" ? "taken" : "invalid");
                             return;
                           }
+                          // Burst from exactly where they tapped, then the card flips
+                          // to the live link.
+                          setClaimBurst({ ...origin, key: Date.now() });
+                          window.setTimeout(() => setClaimBurst(null), 1100);
+                          setJustClaimed(true);
+                          window.setTimeout(() => setJustClaimed(false), 5000);
                           setProfile((prev) => (prev ? { ...prev, username: name } : prev));
                           setUsername(name);
                           setLinkEditing(false);
                           setLinkDraft("");
                           setLinkStatus("idle");
                         }}
-                        className="flex-1 rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-40 sm:flex-none"
+                        className="flex-1 rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-ink transition hover:bg-neutral-200 disabled:opacity-40 sm:flex-none"
                       >
                         {linkSaving ? "Saving…" : profile.username ? "Save" : "Claim link"}
                       </button>
@@ -1321,7 +1265,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                             setLinkDraft("");
                             setLinkStatus("idle");
                           }}
-                          className="rounded-full px-4 py-3 text-sm font-medium text-neutral-500 hover:text-ink"
+                          className="rounded-full px-4 py-3.5 text-sm font-medium text-white/60 hover:text-white"
                         >
                           Cancel
                         </button>
@@ -1329,8 +1273,12 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     </div>
                   </div>
                   <p
-                    className={`mt-2 text-xs ${
-                      linkStatus === "available" ? "text-ink" : linkStatus === "idle" || linkStatus === "checking" ? "text-neutral-400" : "text-red-600"
+                    className={`mt-3 text-xs ${
+                      linkStatus === "available"
+                        ? "text-white"
+                        : linkStatus === "taken" || linkStatus === "invalid"
+                        ? "text-red-300"
+                        : "text-white/45"
                     }`}
                     aria-live="polite"
                   >
@@ -1345,90 +1293,138 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       : "Lowercase letters, numbers and underscores."}
                   </p>
                 </div>
-              ) : profile.subscription_status === "active" || profile.subscription_status === "trialing" ? (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink text-white">
-                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                      </svg>
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-ink">Your booking link</p>
-                      <p className="truncate text-xs text-neutral-500">
-                        {typeof window !== "undefined" ? window.location.host : "lineup-aesthetics.ca"}
-                        {getProfileHref(profile).replace(/^\/profile\//, "/book/")}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setLinkDraft(profile.username || "");
-                            setLinkEditing(true);
-                          }}
-                          className="ml-2 font-medium text-ink underline decoration-ink/25 underline-offset-2 hover:decoration-ink"
-                        >
-                          Edit
-                        </button>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 gap-2">
+              ) : (
+                <div key={justClaimed ? "claimed" : "link"} className={justClaimed ? "lu-sheet-in" : ""}>
+                  <div className="flex items-start justify-between gap-4">
+                    <p className="text-xs font-medium text-white/50">Your booking link</p>
                     <button
                       type="button"
                       onClick={() => {
-                        const url = `${window.location.origin}${getProfileHref(profile).replace(/^\/profile\//, "/book/")}`;
-                        navigator.clipboard.writeText(url).then(() => {
-                          setLinkCopied(true);
-                          setTimeout(() => setLinkCopied(false), 2000);
-                        });
+                        setLinkDraft(profile.username || "");
+                        setLinkEditing(true);
                       }}
-                      className="flex-1 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800 sm:flex-none"
+                      className="text-xs font-medium text-white/50 underline-offset-2 hover:text-white hover:underline"
                     >
-                      {linkCopied ? "Copied" : "Copy link"}
+                      Edit
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const url = `${window.location.origin}${getProfileHref(profile).replace(/^\/profile\//, "/book/")}`;
-                        if (navigator.share) {
-                          navigator.share({ title: `Book ${profile.full_name || "me"} on LineUp`, url }).catch(() => {});
-                        } else {
+                  </div>
+
+                  {justClaimed ? (
+                    <div className="mt-3 flex items-center gap-2.5">
+                      <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" aria-hidden="true">
+                        <circle cx="12" cy="12" r="12" fill="white" style={{ animation: "lu-dot-in 420ms var(--ease-arrive) backwards" }} />
+                        <path
+                          d="M7 12.5l3.2 3.2L17 9"
+                          pathLength={1}
+                          fill="none"
+                          stroke="#0a0a0a"
+                          strokeWidth="2.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeDasharray="1"
+                          style={{ animation: "lu-stroke-draw 480ms var(--ease-arrive) 220ms backwards" }}
+                        />
+                      </svg>
+                      <span className="text-sm font-medium text-white">Your link is live.</span>
+                    </div>
+                  ) : null}
+
+                  <p className="mt-3 break-all text-[1.35rem] font-semibold leading-tight tracking-[-0.02em] sm:text-[1.75rem]">
+                    <span className="text-white/40">lineup-aesthetics.ca/book/</span>
+                    <span>{profile.username}</span>
+                  </p>
+                  <p className="mt-2 text-sm text-white/55">
+                    {profile.subscription_status === "active" || profile.subscription_status === "trialing"
+                      ? "Clients who open it land straight on your booking calendar."
+                      : "Clients who open it see your profile and can request you."}
+                  </p>
+
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="grid grid-cols-2 gap-3 sm:flex">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          const origin = { x: e.clientX, y: e.clientY };
+                          const url = `${window.location.origin}/book/${profile.username}`;
                           navigator.clipboard.writeText(url).then(() => {
                             setLinkCopied(true);
                             setTimeout(() => setLinkCopied(false), 2000);
+                            // A little celebration every time the link goes out.
+                            setClaimBurst({ ...origin, key: Date.now() });
+                            window.setTimeout(() => setClaimBurst(null), 1100);
                           });
-                        }
-                      }}
-                      className="flex-1 rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-semibold text-ink transition hover:bg-neutral-50 sm:flex-none"
-                    >
-                      Share
-                    </button>
+                        }}
+                        className="rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink transition hover:bg-neutral-200"
+                      >
+                        {linkCopied ? "Copied" : "Copy link"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = `${window.location.origin}/book/${profile.username}`;
+                          if (navigator.share) {
+                            navigator.share({ title: `Book ${profile.full_name || "me"} on LineUp`, url }).catch(() => {});
+                          } else {
+                            navigator.clipboard.writeText(url).then(() => {
+                              setLinkCopied(true);
+                              setTimeout(() => setLinkCopied(false), 2000);
+                            });
+                          }
+                        }}
+                        className="rounded-full px-6 py-3 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:ring-white/60"
+                      >
+                        Share
+                      </button>
+                    </div>
+                    {profile.subscription_status === "active" || profile.subscription_status === "trialing" ? null : (
+                      <Link
+                        href="/subscription"
+                        className="text-sm font-medium text-white/60 underline-offset-2 hover:text-white hover:underline sm:ml-auto"
+                      >
+                        Let clients book your calendar from it →
+                      </Link>
+                    )}
                   </div>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-ink">Your booking link</p>
-                    <p className="text-xs text-neutral-500">
-                      A link clients use to book you straight from your calendar. Included with any plan.
-                    </p>
-                  </div>
-                  <Link
-                    href="/subscription"
-                    className="shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
-                  >
-                    See plans
-                  </Link>
                 </div>
               )}
+            </section>
+          ) : null}
+
+          {claimBurst ? (
+            // The claim burst: a ring and particles out from the tap point.
+            <div
+              key={claimBurst.key}
+              aria-hidden="true"
+              className="pointer-events-none fixed z-[120]"
+              style={{ left: claimBurst.x, top: claimBurst.y }}
+            >
+              <span className="lu-burst-ring absolute -left-6 -top-6 h-12 w-12 rounded-full border-2 border-white mix-blend-difference" />
+              {Array.from({ length: 14 }).map((_, i) => {
+                const angle = (i / 14) * Math.PI * 2;
+                const dist = 46 + (i % 3) * 16;
+                return (
+                  <span
+                    key={i}
+                    className="lu-burst-dot absolute -left-1 -top-1 h-2 w-2 rounded-full bg-white mix-blend-difference"
+                    style={
+                      {
+                        "--dx": `${Math.cos(angle) * dist}px`,
+                        "--dy": `${Math.sin(angle) * dist}px`,
+                        animationDelay: `${(i % 4) * 25}ms`,
+                      } as React.CSSProperties
+                    }
+                  />
+                );
+              })}
             </div>
           ) : null}
 
           <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
+            <div className="rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
               {!isEditing ? (
                 <>
                   <div>
-                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                    <p className="text-xs font-medium text-neutral-500">
                       About
                     </p>
                     <p className="mt-4 max-w-3xl text-lg leading-8 text-neutral-600">
@@ -1438,7 +1434,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                   {isProfessional && profile.business_name?.trim() ? (
                     <div className="mt-8">
-                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                      <p className="text-xs font-medium text-neutral-500">
                         Shop / studio
                       </p>
                       <p className="mt-3 text-base font-semibold text-neutral-900">
@@ -1449,7 +1445,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                   {isProfessional ? (
                     <div className="mt-8">
-                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                      <p className="text-xs font-medium text-neutral-500">
                         Specialties
                       </p>
 
@@ -1472,7 +1468,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                   {profile.instagram_handle ? (
                     <div className="mt-8">
-                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                      <p className="text-xs font-medium text-neutral-500">
                         Instagram
                       </p>
                       <a
@@ -1490,14 +1486,14 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   ) : null}
 
                   <div className="mt-8">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                    <p className="text-xs font-medium text-neutral-500">
                       Email
                     </p>
                     <p className="mt-3 text-neutral-700">{profile.email}</p>
                   </div>
 
                   <div className="mt-8 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                    <p className="text-xs font-medium text-neutral-500">
                       Email notifications
                     </p>
                     <p className="mt-3 text-neutral-700">
@@ -1567,7 +1563,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   {isProfessional ? (
                     <>
                       <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                        <p className="text-xs font-medium text-neutral-500">
                           Professional categories
                         </p>
                         <p className="mt-2 text-sm text-neutral-500">
@@ -1641,7 +1637,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       </div>
 
                       <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                        <p className="text-xs font-medium text-neutral-500">
                           Specialties
                         </p>
 
@@ -1688,7 +1684,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                         {suggestedSpecialties.length > 0 ? (
                           <div className="mt-5">
-                            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                            <p className="text-xs font-medium text-neutral-500">
                               Suggested
                             </p>
                             <div className="mt-3 flex flex-wrap gap-3">
@@ -1722,7 +1718,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   ) : null}
 
                   <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                    <p className="text-xs font-medium text-neutral-500">
                       Email notifications
                     </p>
 
@@ -1765,7 +1761,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                   {SMS_SETTINGS_UI_ENABLED ? (
                     <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                      <p className="text-xs font-medium text-neutral-500">
                         Text alerts
                       </p>
                       <p className="mt-2 text-sm leading-6 text-neutral-500">
@@ -1843,93 +1839,179 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
               )}
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
               <div id="push-notifications" className="scroll-mt-28">
                 <PushNotificationToggle />
               </div>
 
-              <div className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                  Account snapshot
-                </p>
+              {/* Your account: the things that decide whether you get booked and
+                  paid, each with the one action it needs. */}
+              <div className="rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+                <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Your account</h2>
+                <ul className="mt-2 divide-y divide-ink/[0.06]">
+                  {(() => {
+                    const rows: {
+                      key: string;
+                      label: string;
+                      value: string;
+                      note?: string | null;
+                      noteTone?: "muted" | "alert";
+                      action?: { label: string; href?: string; onClick?: () => void; busy?: boolean };
+                      id?: string;
+                    }[] = [];
 
-                <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                      Account type
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                      {isProfessional ? "Professional" : "Customer"}
-                    </p>
-                  </div>
+                    if (isProfessional) {
+                      const live = profile.subscription_status === "active" || profile.subscription_status === "trialing";
+                      const planName = live && profile.subscription_plan
+                        ? profile.subscription_plan.charAt(0).toUpperCase() + profile.subscription_plan.slice(1)
+                        : "Basic";
+                      rows.push({
+                        key: "plan",
+                        label: "Plan",
+                        value: `LineUp ${planName}`,
+                        note: profile.subscription_status === "trialing" ? "Free trial" : null,
+                        action: { label: live ? "Manage" : "Upgrade", href: "/subscription" },
+                      });
 
-                  <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                      Category
-                    </p>
-                    <p className="mt-2 text-base font-semibold text-neutral-900">
-                      {isProfessional
-                        ? formatProfessionalTypes(getProfessionalTypes(profile))
-                        : "Customer"}
-                    </p>
-                  </div>
+                      const vStatus = profile.verification_status || "unverified";
+                      const verifiedUntil = profile.verified_until
+                        ? new Date(`${profile.verified_until}T00:00:00`).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })
+                        : null;
+                      rows.push({
+                        key: "verification",
+                        label: "Verification",
+                        value:
+                          vStatus === "verified"
+                            ? "Verified"
+                            : vStatus === "pending"
+                            ? "In review"
+                            : vStatus === "expired"
+                            ? "Expired"
+                            : vStatus === "rejected"
+                            ? "Needs changes"
+                            : "Not verified",
+                        note:
+                          vStatus === "verified" && verifiedUntil
+                            ? `Until ${verifiedUntil}`
+                            : vStatus === "verified" || vStatus === "pending"
+                            ? null
+                            : "Only verified pros appear in Browse.",
+                        noteTone: vStatus === "verified" || vStatus === "pending" ? "muted" : "alert",
+                        action:
+                          vStatus === "verified"
+                            ? { label: "View", href: "/verification" }
+                            : vStatus === "pending"
+                            ? undefined
+                            : { label: vStatus === "expired" ? "Renew" : "Verify", href: "/verification" },
+                      });
 
-                  {isProfessional ? (
-                    <>
-                      <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                          Average rating
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                          {averageRating || "—"}
-                        </p>
-                      </div>
+                      rows.push({
+                        key: "payouts",
+                        id: "payouts",
+                        label: "Payouts",
+                        value: profile.stripe_payouts_enabled
+                          ? "Enabled"
+                          : profile.stripe_account_id
+                          ? "Setup incomplete"
+                          : "Not connected",
+                        note: stripeStatusError
+                          ? `Couldn't confirm your Stripe status: ${stripeStatusError}`
+                          : !profile.stripe_payouts_enabled && stripeRequirementsDue.length > 0
+                          ? `Stripe needs: ${stripeRequirementsDue.map(formatStripeRequirement).join(", ")}`
+                          : profile.stripe_payouts_enabled
+                          ? "Paid to your bank through Stripe"
+                          : "Connect Stripe to get paid for bookings",
+                        noteTone: profile.stripe_payouts_enabled ? "muted" : "alert",
+                        action: {
+                          label: stripeLoading
+                            ? "Opening…"
+                            : profile.stripe_payouts_enabled
+                            ? "Manage"
+                            : profile.stripe_account_id
+                            ? "Finish"
+                            : "Connect",
+                          onClick: handleConnectStripePayouts,
+                          busy: stripeLoading,
+                        },
+                      });
 
-                      <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                          Total reviews
-                        </p>
-                        <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                          {reviews.length}
-                        </p>
-                      </div>
+                      rows.push({
+                        key: "rating",
+                        label: "Rating",
+                        value: averageRating ? `★ ${averageRating}` : "No reviews yet",
+                        note: reviews.length ? `${reviews.length} review${reviews.length === 1 ? "" : "s"}` : null,
+                        action: reviews.length ? { label: "View", href: `${getProfileHref(profile)}#reviews` } : undefined,
+                      });
 
-                      <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-                        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                          Services page
-                        </p>
-                        <p className="mt-2 text-base font-semibold text-neutral-900">
-                          Managed separately
-                        </p>
-                      </div>
+                      rows.push({
+                        key: "analytics",
+                        label: "Analytics",
+                        value: "Bookings, earnings and repeat clients",
+                        action: { label: "Open", href: "/analytics" },
+                      });
+                    } else {
+                      rows.push({
+                        key: "rating",
+                        label: "Your rating",
+                        value: customerRating ? `★ ${customerRating.average.toFixed(1)}` : "No ratings yet",
+                        note: customerRating
+                          ? `From ${customerRating.count} pro${customerRating.count === 1 ? "" : "s"}`
+                          : "Pros rate clients after each booking",
+                      });
+                      rows.push({ key: "bookings", label: "Bookings", value: "Upcoming and past", action: { label: "Open", href: "/work" } });
+                      rows.push({ key: "requests", label: "Requests", value: "Your requests and offers", action: { label: "Open", href: "/requests" } });
+                    }
 
-                      <Link
-                        href="/analytics"
-                        className="rounded-2xl border border-neutral-200 bg-white p-5 transition hover:border-neutral-300 hover:bg-neutral-50"
-                      >
-                        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                          Analytics
-                        </p>
-                        <p className="mt-2 text-base font-semibold text-neutral-900">
-                          View history →
-                        </p>
-                      </Link>
-                    </>
-                  ) : null}
-                </div>
+                    return rows.map((row) => (
+                      <li key={row.key} id={row.id} className="flex scroll-mt-28 items-center justify-between gap-4 py-4">
+                        <div className="min-w-0">
+                          <p className="text-xs text-neutral-500">{row.label}</p>
+                          <p className="mt-0.5 truncate text-[15px] font-semibold text-ink">{row.value}</p>
+                          {row.note ? (
+                            <p className={`mt-0.5 text-xs leading-5 ${row.noteTone === "alert" ? "text-neutral-700" : "text-neutral-500"}`}>
+                              {row.noteTone === "alert" ? (
+                                <span aria-hidden="true" className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-ink align-middle" />
+                              ) : null}
+                              {row.note}
+                            </p>
+                          ) : null}
+                        </div>
+                        {row.action ? (
+                          row.action.href ? (
+                            <Link
+                              href={row.action.href}
+                              className="shrink-0 rounded-full border border-neutral-300 px-4 py-2 text-xs font-semibold text-ink transition hover:bg-neutral-50"
+                            >
+                              {row.action.label}
+                            </Link>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={row.action.onClick}
+                              disabled={row.action.busy}
+                              className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                            >
+                              {row.action.label}
+                            </button>
+                          )
+                        ) : null}
+                      </li>
+                    ));
+                  })()}
+                </ul>
               </div>
             </div>
 
           </div>
 
           {isProfessional ? (
-            <div id="portfolio" className="mt-10 scroll-mt-28 rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
+            <div id="portfolio" className="mt-10 scroll-mt-28 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
               <div className="flex items-end justify-between gap-4">
                 <div>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                  <p className="text-xs font-medium text-neutral-500">
                     Portfolio
                   </p>
-                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">Past work</h2>
+                  <h2 className="mt-3 text-[1.6rem] font-semibold tracking-[-0.03em]">Past work</h2>
                 </div>
 
                 <button
@@ -1999,13 +2081,13 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
           ) : null}
 
           {isProfessional ? (
-            <div className="mt-10 rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
+            <div className="mt-10 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                  <p className="text-xs font-medium text-neutral-500">
                     Reviews
                   </p>
-                  <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+                  <h2 className="mt-3 text-[1.6rem] font-semibold tracking-[-0.03em]">
                     Client feedback
                   </h2>
                 </div>
@@ -2084,10 +2166,10 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       {showUpload ? (
         <div className="lu-fade-in fixed inset-0 z-[100] flex items-center justify-center bg-ink/45 px-6">
           <div className="lu-dialog-in w-full max-w-lg rounded-panel border border-neutral-200 bg-white p-8 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+            <p className="text-xs font-medium text-neutral-500">
               Portfolio
             </p>
-            <h3 className="mt-3 text-3xl font-semibold tracking-tight text-neutral-900">
+            <h3 className="mt-3 text-[1.6rem] font-semibold tracking-[-0.03em] text-neutral-900">
               Add work
             </h3>
             <p className="mt-1 text-sm text-neutral-500">
@@ -2140,7 +2222,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
 
       <div className="mx-auto mt-10 max-w-3xl">
-        <div className="rounded-panel border border-red-200 bg-white p-6 shadow-sm">
+        <div className="rounded-[28px] bg-white p-6 ring-1 ring-red-200">
           <h2 className="text-lg font-semibold text-red-600">Danger zone</h2>
           <p className="mt-2 text-sm leading-6 text-neutral-500">
             Permanently deletes your account, profile, bookings, and all uploaded content. This cannot be undone.
