@@ -1437,7 +1437,6 @@ if (loading) {
   const isProfessional =
     profile.role === "professional" || profile.role === "I am a professional";
 
-  const professionalTypeLabels = getProfessionalTypeLabels(profile);
 
   const professionalServiceModes = getPlainServiceModes(profile.service_modes);
   const hasFixedServiceLocation =
@@ -1462,9 +1461,6 @@ if (loading) {
     services.length > 0 ? { id: "services", label: "Services" } : null,
     portfolioItems.length > 0 ? { id: "work", label: "Work" } : null,
     { id: "reviews", label: "Reviews" },
-    professionalTypeLabels.length > 0 || (profile.specialties && profile.specialties.length > 0) || profile.instagram_handle
-      ? { id: "details", label: "About" }
-      : null,
   ].filter(Boolean) as { id: string; label: string }[];
 
   const professionalBookingAddress = profile.formatted_address || profile.location || null;
@@ -1576,6 +1572,21 @@ if (loading) {
                 ) : null}
                 {isProfessional && formatServiceModes(profile.service_modes) ? (
                   <span>{formatServiceModes(profile.service_modes)}</span>
+                ) : null}
+                {profile.instagram_handle ? (
+                  <a
+                    href={`https://instagram.com/${String(profile.instagram_handle).replace("@", "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 font-medium text-ink underline decoration-ink/20 underline-offset-4 transition hover:decoration-ink"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <rect x="3" y="3" width="18" height="18" rx="5" />
+                      <circle cx="12" cy="12" r="4" />
+                      <circle cx="17.5" cy="6.5" r="0.6" fill="currentColor" />
+                    </svg>
+                    @{String(profile.instagram_handle).replace("@", "")}
+                  </a>
                 ) : null}
               </div>
 
@@ -2402,56 +2413,6 @@ if (loading) {
             </ProfileSection>
           ) : null}
 
-          {isProfessional &&
-          (professionalTypeLabels.length > 0 ||
-            (profile.specialties && profile.specialties.length > 0) ||
-            profile.instagram_handle) ? (
-            <ProfileSection id="details" title="Details" subtitle="About">
-              <dl className="divide-y divide-ink/[0.06]">
-                {professionalTypeLabels.length > 0 ? (
-                  <div className="flex flex-col gap-2 pb-5 sm:flex-row sm:gap-8">
-                    <dt className="w-32 shrink-0 pt-1.5 text-xs font-medium text-neutral-500">Categories</dt>
-                    <dd className="flex flex-wrap gap-2">
-                      {professionalTypeLabels.map((label) => (
-                        <span key={label} className="rounded-full bg-neutral-50 px-3.5 py-1.5 text-sm text-neutral-700 ring-1 ring-ink/[0.06]">
-                          {label}
-                        </span>
-                      ))}
-                    </dd>
-                  </div>
-                ) : null}
-
-                {profile.specialties && profile.specialties.length > 0 ? (
-                  <div className="flex flex-col gap-2 py-5 first:pt-0 sm:flex-row sm:gap-8">
-                    <dt className="w-32 shrink-0 pt-1.5 text-xs font-medium text-neutral-500">Specialties</dt>
-                    <dd className="flex flex-wrap gap-2">
-                      {profile.specialties.map((specialty) => (
-                        <span key={specialty} className="rounded-full bg-neutral-50 px-3.5 py-1.5 text-sm text-neutral-700 ring-1 ring-ink/[0.06]">
-                          {specialty}
-                        </span>
-                      ))}
-                    </dd>
-                  </div>
-                ) : null}
-
-                {profile.instagram_handle ? (
-                  <div className="flex flex-col gap-2 pt-5 first:pt-0 sm:flex-row sm:items-center sm:gap-8">
-                    <dt className="w-32 shrink-0 text-xs font-medium text-neutral-500">Instagram</dt>
-                    <dd>
-                      <a
-                        href={`https://instagram.com/${String(profile.instagram_handle).replace("@", "")}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[15px] font-semibold text-ink underline decoration-ink/20 underline-offset-4 transition hover:decoration-ink"
-                      >
-                        @{String(profile.instagram_handle).replace("@", "")}
-                      </a>
-                    </dd>
-                  </div>
-                ) : null}
-              </dl>
-            </ProfileSection>
-          ) : null}
         </div>
       </main>
 
