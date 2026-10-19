@@ -34,7 +34,7 @@ export function useHashTarget(ready: boolean, prepare?: (id: string) => void) {
         // Respect the target's scroll-margin so it clears any sticky bars.
         const clearance = Math.max(80, parseFloat(getComputedStyle(el).scrollMarginTop) || 0);
         const top = window.scrollY + rect.top - Math.max(clearance, (window.innerHeight - rect.height) / 2);
-        window.scrollTo({ top: Math.max(0, top), behavior: smooth ? "smooth" : "auto" });
+        window.scrollTo({ top: Math.max(0, top), behavior: smooth ? "smooth" : "instant" });
         el.classList.remove("lu-target");
         void el.offsetWidth; // restart the outline animation
         el.classList.add("lu-target");

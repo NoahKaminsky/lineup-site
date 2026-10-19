@@ -945,10 +945,18 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     const selectedDate = selectedBookingDay?.date;
     if (!selectedDate) return;
 
-    dateButtonRefs.current[selectedDate]?.scrollIntoView({
+    // Center the chosen day inside its own sideways strip only. scrollIntoView
+    // would also scroll the page, dragging visitors down to the calendar the
+    // moment the profile opens.
+    const button = dateButtonRefs.current[selectedDate];
+    let strip = button?.parentElement ?? null;
+    while (strip && strip.scrollWidth <= strip.clientWidth) strip = strip.parentElement;
+    if (!button || !strip || strip === document.documentElement || strip === document.body) return;
+    const buttonBox = button.getBoundingClientRect();
+    const stripBox = strip.getBoundingClientRect();
+    strip.scrollTo({
+      left: strip.scrollLeft + (buttonBox.left - stripBox.left) - (strip.clientWidth - buttonBox.width) / 2,
       behavior: "smooth",
-      block: "nearest",
-      inline: "center",
     });
   }, [selectedBookingDay?.date]);
 
