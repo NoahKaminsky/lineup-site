@@ -1229,6 +1229,78 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
               </div>
             ) : null}
 
+          {/* Booking link: the pro's key way to bring their own clients in.
+              It opens their profile at the booking calendar (#availability). */}
+          {isProfessional ? (
+            <div id="booking-link" className="mb-8 scroll-mt-28 rounded-[24px] bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
+              {profile.subscription_status === "active" || profile.subscription_status === "trialing" ? (
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink text-white">
+                      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                      </svg>
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-ink">Your booking link</p>
+                      <p className="truncate text-xs text-neutral-500">
+                        {typeof window !== "undefined" ? window.location.host : "lineup-aesthetics.ca"}
+                        {getProfileHref(profile)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = `${window.location.origin}${getProfileHref(profile)}#availability`;
+                        navigator.clipboard.writeText(url).then(() => {
+                          setLinkCopied(true);
+                          setTimeout(() => setLinkCopied(false), 2000);
+                        });
+                      }}
+                      className="flex-1 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800 sm:flex-none"
+                    >
+                      {linkCopied ? "Copied" : "Copy link"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = `${window.location.origin}${getProfileHref(profile)}#availability`;
+                        if (navigator.share) {
+                          navigator.share({ title: `Book ${profile.full_name || "me"} on LineUp`, url }).catch(() => {});
+                        } else {
+                          navigator.clipboard.writeText(url).then(() => {
+                            setLinkCopied(true);
+                            setTimeout(() => setLinkCopied(false), 2000);
+                          });
+                        }
+                      }}
+                      className="flex-1 rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-semibold text-ink transition hover:bg-neutral-50 sm:flex-none"
+                    >
+                      Share
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink">Your booking link</p>
+                    <p className="text-xs text-neutral-500">
+                      A link clients use to book you straight from your calendar. Included with any plan.
+                    </p>
+                  </div>
+                  <Link
+                    href="/subscription"
+                    className="shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+                  >
+                    See plans
+                  </Link>
+                </div>
+              )}
+            </div>
+          ) : null}
+
           <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
             <div className="rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
               {!isEditing ? (
@@ -1939,74 +2011,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
         </div>
       ) : null}
 
-      {isProfessional ? (
-        <div className="mx-auto mt-10 max-w-3xl">
-          <div className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                  Pro feature
-                </p>
-                <h2 className="mt-2 text-xl font-semibold tracking-tight text-neutral-900">
-                  Your shareable profile link
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-neutral-600">
-                  Share your link with clients so they can view your services, portfolio, and book directly.
-                </p>
-              </div>
 
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-neutral-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                </svg>
-              </div>
-            </div>
-
-            {profile.subscription_status === "active" || profile.subscription_status === "trialing" ? (
-              <div className="mt-5">
-                <div className="flex items-center gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3">
-                  <span className="flex-1 truncate text-sm text-neutral-700">
-                    {typeof window !== "undefined" ? `${window.location.origin}${getProfileHref(profile)}` : getProfileHref(profile)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const url = `${window.location.origin}${getProfileHref(profile)}`;
-                      navigator.clipboard.writeText(url).then(() => {
-                        setLinkCopied(true);
-                        setTimeout(() => setLinkCopied(false), 2000);
-                      });
-                    }}
-                    className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800"
-                  >
-                    {linkCopied ? "Copied!" : "Copy link"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-5 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7a4.5 4.5 0 00-9 0v3.5M5.25 10.5h13.5A1.5 1.5 0 0120.25 12v7.5A1.5 1.5 0 0118.75 21H5.25A1.5 1.5 0 013.75 19.5V12a1.5 1.5 0 011.5-1.5z" />
-                    </svg>
-                  </div>
-                  <p className="text-sm font-medium text-neutral-700">Requires an active subscription</p>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-neutral-500">
-                  Subscribe to LineUp to unlock your public profile and get discovered by new clients.
-                </p>
-                <a
-                  href="/subscription"
-                  className="mt-4 inline-flex items-center justify-center rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
-                >
-                  View plans
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
 
       <div className="mx-auto mt-10 max-w-3xl">
         <div className="rounded-panel border border-red-200 bg-white p-6 shadow-sm">

@@ -22,6 +22,7 @@ import DayZoomArea from "@/app/components/DayZoom";
 import type { ProfileDetailInitialData } from "./getInitialData";
 import { BookedSheet, MomentOverlay } from "@/app/components/moments/Moments";
 import { formatCancellationDeadline } from "@/app/lib/bookingTime";
+import { useHashTarget } from "@/app/lib/useHashTarget";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -465,6 +466,9 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [loading, setLoading] = useState(() => !seed);
   const [message, setMessage] = useState("");
   const [profile, setProfile] = useState<Profile | null>(() => seed?.profile ?? null);
+  // Shared booking links end in #availability: land on the calendar once the
+  // profile has loaded.
+  useHashTarget(!loading && !!profile);
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>(() => seed?.portfolioItems ?? []);
   const [reviews, setReviews] = useState<EnrichedReview[]>(() => seed?.reviews ?? []);
   const [availability, setAvailability] = useState<AvailabilityRow[]>(() => seed?.availability ?? []);
