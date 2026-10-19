@@ -253,6 +253,30 @@ main {
   animation-delay: var(--lu-delay, 0ms);
 }
 
+/* A profile cover arriving: the photo settles from a slight zoom while it
+   fades up, so the name can rise over it. */
+@keyframes lu-cover-in {
+  from { opacity: 0; transform: scale(1.08); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.lu-cover-in {
+  animation: lu-cover-in 1100ms var(--ease-arrive) backwards;
+}
+
+/* Blocks that follow a profile's name in, one after another. */
+.lu-rise {
+  animation: lu-sheet-in 640ms var(--ease-arrive) backwards;
+  animation-delay: var(--lu-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lu-cover-in,
+  .lu-rise {
+    animation: none;
+  }
+}
+
 /* A card arriving from the hand that sent it: rises, settles, no bounce. */
 @keyframes lu-lift-in {
   from { opacity: 0; transform: translateY(28px) scale(0.97); }

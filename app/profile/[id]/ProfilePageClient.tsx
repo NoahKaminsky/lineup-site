@@ -1507,7 +1507,8 @@ if (loading) {
             const identity = (onPhoto: boolean) => (
               <div className="flex flex-col gap-5 md:flex-row md:items-end md:gap-6">
                 <div
-                  className={`h-20 w-20 shrink-0 overflow-hidden rounded-full md:h-24 md:w-24 ${
+                  style={{ "--lu-delay": onPhoto ? "260ms" : "0ms" } as React.CSSProperties}
+                  className={`lu-rise h-20 w-20 shrink-0 overflow-hidden rounded-full md:h-24 md:w-24 ${
                     onPhoto ? "ring-2 ring-white/80" : "bg-white shadow-[0_12px_32px_-16px_rgba(0,0,0,0.35)] ring-1 ring-ink/[0.08]"
                   }`}
                 >
@@ -1525,7 +1526,7 @@ if (loading) {
                       onPhoto ? "text-white" : "text-ink"
                     }`}
                   >
-                    <MaskLine>
+                    <MaskLine delay={onPhoto ? 380 : 120}>
                       {/* The badge stays glued to the last word so it never wraps alone. */}
                       {nameLead ? <span className="break-words">{nameLead} </span> : null}
                       <span className="whitespace-nowrap">
@@ -1542,7 +1543,9 @@ if (loading) {
                       </span>
                     </MaskLine>
                   </h1>
-                  <p className={`lu-fade-in mt-3 text-[15px] md:text-base ${onPhoto ? "text-white/75" : "text-neutral-600"}`}>
+                  <p
+                    style={{ "--lu-delay": onPhoto ? "520ms" : "260ms" } as React.CSSProperties}
+                    className={`lu-rise mt-3 text-[15px] md:text-base ${onPhoto ? "text-white/75" : "text-neutral-600"}`}>
                     {subline}
                     {profile.username ? (
                       <span className={onPhoto ? "text-white/50" : "text-neutral-400"}> · @{profile.username}</span>
@@ -1553,16 +1556,16 @@ if (loading) {
             );
 
             return profile.banner_url ? (
-              <div className="lu-lift-in relative overflow-hidden rounded-[32px] bg-ink">
+              <div className="relative overflow-hidden rounded-[32px] bg-ink">
                 <button
                   type="button"
                   onClick={() => setShowBannerPreview(true)}
                   className="block h-[400px] w-full cursor-zoom-in md:h-[500px]"
                   aria-label="View cover photo"
                 >
-                  <img src={profile.banner_url} alt="Cover photo" className="h-full w-full object-cover" />
+                  <img src={profile.banner_url} alt="Cover photo" className="lu-cover-in h-full w-full object-cover" />
                 </button>
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/0" />
+                <div className="lu-fade-in pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/0" />
                 <div className="absolute inset-x-0 bottom-0 p-6 md:p-10">{identity(true)}</div>
               </div>
             ) : (
@@ -1571,7 +1574,10 @@ if (loading) {
           })()}
 
           {isProfessional || profile.bio?.trim() || profile.instagram_handle || viewerUserId === profile.id ? (
-          <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16">
+          <div
+            style={{ "--lu-delay": profile.banner_url ? "620ms" : "360ms" } as React.CSSProperties}
+            className="lu-rise mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16"
+          >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-neutral-500">
                 {hasFixedServiceLocation && (profile.formatted_address || profile.location) ? (
@@ -1678,7 +1684,9 @@ if (loading) {
           ) : null}
 
           {!isProfessional ? (
-            <dl className="mt-8 grid grid-cols-3 divide-x divide-ink/[0.08] rounded-2xl bg-white py-4 ring-1 ring-ink/[0.07] md:py-5">
+            <dl
+              style={{ "--lu-delay": profile.banner_url ? "720ms" : "460ms" } as React.CSSProperties}
+              className="lu-rise mt-8 grid grid-cols-3 divide-x divide-ink/[0.08] rounded-2xl bg-white py-4 ring-1 ring-ink/[0.07] md:py-5">
               {[
                 { label: "Rating", value: clientRating ? clientRating.average.toFixed(1) : "New", star: !!clientRating },
                 { label: clientRating?.count === 1 ? "Rating from pros" : "Ratings from pros", value: String(clientRating?.count ?? 0), star: false },
@@ -1700,7 +1708,9 @@ if (loading) {
           ) : null}
 
           {isProfessional ? (
-            <dl className={`mt-8 grid ${portfolioItems.length > 0 ? "grid-cols-4" : "grid-cols-3"} divide-x divide-ink/[0.08] rounded-2xl bg-white py-4 ring-1 ring-ink/[0.07] md:py-5`}>
+            <dl
+              style={{ "--lu-delay": profile.banner_url ? "720ms" : "460ms" } as React.CSSProperties}
+              className={`lu-rise mt-8 grid ${portfolioItems.length > 0 ? "grid-cols-4" : "grid-cols-3"} divide-x divide-ink/[0.08] rounded-2xl bg-white py-4 ring-1 ring-ink/[0.07] md:py-5`}>
               {[
                 {
                   label: "Rating",
@@ -1761,8 +1771,8 @@ if (loading) {
           {isProfessional && sectionLinks.length > 1 ? (
             <nav
               aria-label="On this page"
-              className="sticky z-30 -mx-4 mt-10 bg-paper/85 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-paper/75 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
-              style={{ top: headerHeight }}
+              className="lu-rise sticky z-30 -mx-4 mt-10 bg-paper/85 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-paper/75 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
+              style={{ top: headerHeight, "--lu-delay": profile.banner_url ? "820ms" : "560ms" } as React.CSSProperties}
             >
               <div className="flex items-center justify-between gap-4 border-b border-ink/[0.08]">
                 <ul className="-mb-px flex min-w-0 gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
