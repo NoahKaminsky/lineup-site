@@ -1649,20 +1649,53 @@ if (loading) {
           </div>
 
           {isProfessional ? (
-            <dl className="mt-10 grid grid-cols-2 gap-y-6 border-t border-ink/[0.08] pt-6 sm:grid-cols-4">
+            <dl className="mt-8 grid grid-cols-4 divide-x divide-ink/[0.08] rounded-2xl bg-white py-4 ring-1 ring-ink/[0.07] md:py-5">
               {[
-                { label: "Rating", value: averageRating ? `★ ${averageRating}` : "New" },
-                { label: reviews.length === 1 ? "Review" : "Reviews", value: String(reviews.length) },
-                { label: services.length === 1 ? "Service" : "Services", value: String(services.length) },
+                {
+                  label: "Rating",
+                  value: averageRating || "New",
+                  star: !!averageRating,
+                  href: reviews.length > 0 ? "#reviews" : null,
+                },
+                {
+                  label: reviews.length === 1 ? "Review" : "Reviews",
+                  value: String(reviews.length),
+                  href: reviews.length > 0 ? "#reviews" : null,
+                },
+                {
+                  label: services.length === 1 ? "Service" : "Services",
+                  value: String(services.length),
+                  href: services.length > 0 ? "#services" : null,
+                },
                 portfolioItems.length > 0
-                  ? { label: portfolioItems.length === 1 ? "Piece of work" : "Pieces of work", value: String(portfolioItems.length) }
-                  : { label: "Booking", value: canDirectBook ? "Instant" : "By request" },
-              ].map((stat) => (
-                <div key={stat.label}>
-                  <dd className="text-[1.75rem] font-semibold leading-none tracking-[-0.035em] text-ink">{stat.value}</dd>
-                  <dt className="mt-2 text-xs text-neutral-500">{stat.label}</dt>
-                </div>
-              ))}
+                  ? { label: "Portfolio", value: String(portfolioItems.length), href: "#work" }
+                  : { label: "Booking", value: canDirectBook ? "Instant" : "Request", href: canDirectBook ? "#availability" : null },
+              ].map((stat) => {
+                const body = (
+                  <>
+                    <dt className="mt-1.5 truncate text-[11px] text-neutral-500 md:text-xs">{stat.label}</dt>
+                    <dd className="flex items-center justify-center gap-1 text-[1.15rem] font-semibold leading-none tracking-[-0.02em] text-ink md:text-[1.5rem]">
+                      {"star" in stat && stat.star ? (
+                        <span aria-hidden="true" className="text-[0.7em] leading-none">★</span>
+                      ) : null}
+                      {stat.value}
+                    </dd>
+                  </>
+                );
+                return stat.href ? (
+                  <a
+                    key={stat.label}
+                    href={stat.href}
+                    className="flex min-w-0 flex-col-reverse items-center px-2 text-center transition hover:opacity-70"
+                  >
+                    {body}
+                  </a>
+                ) : (
+                  <div key={stat.label} className="flex min-w-0 flex-col-reverse items-center px-2 text-center">
+                    {body}
+                  </div>
+                );
+              })}
             </dl>
           ) : null}
 
