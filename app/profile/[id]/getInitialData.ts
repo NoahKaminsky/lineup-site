@@ -5,6 +5,7 @@
 // which is why it still reads the cookie session.
 
 import { createSupabaseServerClient } from "@/app/lib/serverSupabase";
+import { BOOKING_WINDOW_DAYS } from "@/app/lib/bookingTime";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -86,7 +87,7 @@ export async function getInitialProfileDetailData(profileIdOrUsername: string): 
 
     const today = new Date();
     const end = new Date();
-    end.setDate(today.getDate() + 7);
+    end.setDate(today.getDate() + BOOKING_WINDOW_DAYS);
     const todayString = formatDateKey(today);
     const endString = formatDateKey(end);
 

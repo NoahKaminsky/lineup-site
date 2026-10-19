@@ -20,7 +20,7 @@ import { getCached, setCached } from "@/app/lib/pageCache";
 import DayZoomArea from "@/app/components/DayZoom";
 import type { ProfileDetailInitialData } from "./getInitialData";
 import { BookedSheet, MaskLine, MomentOverlay } from "@/app/components/moments/Moments";
-import { formatCancellationDeadline } from "@/app/lib/bookingTime";
+import { BOOKING_WINDOW_DAYS, formatCancellationDeadline } from "@/app/lib/bookingTime";
 import { useHashTarget } from "@/app/lib/useHashTarget";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
@@ -522,6 +522,9 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [showAllServices, setShowAllServices] = useState(false);
   const [serviceQuery, setServiceQuery] = useState("");
   const dateScrollerRef = useRef<HTMLDivElement | null>(null);
+  // The day at the left edge of the strip, so the month label follows the
+  // weeks being browsed.
+  const [stripStartDate, setStripStartDate] = useState<string | null>(null);
   const dateButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEffect(() => {
@@ -629,7 +632,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
         const today = new Date();
         const end = new Date();
-        end.setDate(today.getDate() + 7);
+        end.setDate(today.getDate() + BOOKING_WINDOW_DAYS);
 
         const todayString = formatDateKey(today);
         const endString = formatDateKey(end);
@@ -803,7 +806,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     const activeAvailability = availability.filter((row) => row.is_active);
     const nextSevenDays: GeneratedSlot[] = [];
 
-    for (let offset = 0; offset < 7; offset += 1) {
+    for (let offset = 0; offset < BOOKING_WINDOW_DAYS; offset += 1) {
       const currentDate = new Date();
       currentDate.setHours(0, 0, 0, 0);
       currentDate.setDate(currentDate.getDate() + offset);
@@ -901,7 +904,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const bookingCalendarDays = useMemo(() => {
     const slotMap = new Map(groupedSlots.map((group) => [group.date, group.slots]));
 
-    return Array.from({ length: 7 }).map((_, offset) => {
+    return Array.from({ length: BOOKING_WINDOW_DAYS }).map((_, offset) => {
       const currentDate = new Date();
       currentDate.setHours(0, 0, 0, 0);
       currentDate.setDate(currentDate.getDate() + offset);
@@ -1166,7 +1169,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   }
 
   function getSelectedMonthLabel() {
-    const date = selectedBookingDay?.date || bookingCalendarDays[0]?.date;
+    const date = stripStartDate || selectedBookingDay?.date || bookingCalendarDays[0]?.date;
     if (!date) return "";
 
     return new Date(`${date}T00:00:00`).toLocaleDateString("en-CA", {
@@ -1850,7 +1853,7 @@ if (loading) {
                 </div>
               ) : generatedSlots.length === 0 ? (
                 <div className="mt-6 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-5 text-neutral-600">
-                  No open times available in the next 7 days.
+                  No open times in the next 4 weeks.
                 </div>
               ) : (
                 <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -1866,13 +1869,37 @@ if (loading) {
                             {getSelectedMonthLabel()}
                           </p>
                         </div>
-                        <span className="hidden text-xs text-neutral-500 sm:inline">
-                          Hover a day to preview times
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {(["back", "next"] as const).map((direction) => (
+                            <button
+                              key={direction}
+                              type="button"
+                              aria-label={direction === "back" ? "Previous week" : "Next week"}
+                              onClick={() => {
+                                const strip = dateScrollerRef.current;
+                                if (!strip) return;
+                                const week = strip.clientWidth * 0.9;
+                                strip.scrollBy({ left: direction === "back" ? -week : week, behavior: "smooth" });
+                              }}
+                              className="flex h-9 w-9 items-center justify-center rounded-full text-ink ring-1 ring-ink/10 transition hover:bg-neutral-50 hover:ring-ink/25 active:scale-95"
+                            >
+                              <ChevronRight className={`h-4 w-4 ${direction === "back" ? "rotate-180" : ""}`} />
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
                       <div
                         ref={dateScrollerRef}
+                        onScroll={(event) => {
+                          const strip = event.currentTarget;
+                          const edge = strip.getBoundingClientRect().left + 24;
+                          const first = Array.from(strip.querySelectorAll<HTMLElement>("[data-zoom-key]")).find(
+                            (el) => el.getBoundingClientRect().right > edge
+                          );
+                          const key = first?.dataset.zoomKey || null;
+                          setStripStartDate((prev) => (prev === key ? prev : key));
+                        }}
                         className="flex w-full max-w-full snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible scroll-smooth px-2 pb-3 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                       >
                         {bookingCalendarDays.map((day) => {

@@ -65,3 +65,6 @@ export function hasAppointmentEnded(date: string | null | undefined, endTime: st
   if (!date) return false;
   return appointmentInstant(date, endTime).getTime() <= Date.now();
 }
+
+// How far ahead clients can book from a profile's calendar.
+export const BOOKING_WINDOW_DAYS = 28;
