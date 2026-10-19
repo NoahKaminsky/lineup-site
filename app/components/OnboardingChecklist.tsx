@@ -9,6 +9,7 @@ import { DrawnCheck, MaskLine } from "@/app/components/moments/Moments";
 type StepKey =
   | "verified"
   | "photo"
+  | "link"
   | "bio"
   | "where"
   | "service"
@@ -35,6 +36,7 @@ type Step = {
 const ESSENTIALS: Step[] = [
   { key: "verified", label: "Get verified", why: "Only verified pros appear in Browse and can be booked.", href: "/verification#verification-form", cta: "Verify" },
   { key: "photo", label: "Add a profile photo", why: "A clear photo of you is the first thing clients look for.", href: "/account#photo", cta: "Add photo" },
+  { key: "link", label: "Choose your booking link", why: "lineup-aesthetics.ca/book/yourname: the clean link you share with clients.", href: "/account#booking-link", cta: "Choose link" },
   { key: "bio", label: "Write a short bio", why: "A few lines on your experience and style.", href: "/account#bio", cta: "Write bio" },
   { key: "where", label: "Set where you work", why: "Your area, and whether you travel, host or work from a shop.", href: "/services#modes", cta: "Set location" },
   { key: "service", label: "Add your services", why: "What you offer, with prices and how long each takes.", href: "/services#add-service", cta: "Add service" },
@@ -171,7 +173,7 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
       supabase
         .from("profiles")
         .select(
-          "avatar_url, banner_url, bio, instagram_handle, formatted_address, location, service_modes, stripe_account_id, verification_status, verified_until"
+          "username, avatar_url, banner_url, bio, instagram_handle, formatted_address, location, service_modes, stripe_account_id, verification_status, verified_until"
         )
         .eq("id", userId)
         .single(),
@@ -190,6 +192,7 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
     const resolved: StepState = {
       verified: isVerifiedNow(profile),
       photo: !!profile?.avatar_url,
+      link: !!(profile?.username || "").trim(),
       bio: (profile?.bio || "").trim().length >= 40,
       where: !!(profile?.formatted_address || profile?.location) && modes.length > 0,
       service: (servicesRes.count ?? 0) > 0,

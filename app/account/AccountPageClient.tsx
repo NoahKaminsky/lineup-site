@@ -39,6 +39,17 @@ function isValidUsername(value: string) {
   return /^[a-z0-9_]{3,20}$/.test(value);
 }
 
+// Link names that would read as LineUp itself or collide with app pages.
+const RESERVED_USERNAMES = new Set([
+  "admin", "api", "book", "booking", "lineup", "login", "signup", "profile", "account", "settings",
+  "support", "help", "requests", "work", "services", "calendar", "discover", "browse",
+]);
+
+function suggestUsername(fullName: string | null | undefined, businessName: string | null | undefined) {
+  const base = normalizeUsername((businessName || fullName || "").replace(/\s+/g, ""));
+  return base.slice(0, 20);
+}
+
 type Profile = {
   id: string;
   email: string | null;
@@ -144,6 +155,11 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
+  // Choosing the booking link name (= username): lineup-aesthetics.ca/book/<name>.
+  const [linkEditing, setLinkEditing] = useState(false);
+  const [linkDraft, setLinkDraft] = useState("");
+  const [linkStatus, setLinkStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
+  const [linkSaving, setLinkSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeRequirementsDue, setStripeRequirementsDue] = useState<string[]>([]);
@@ -175,6 +191,25 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
   const [instagramHandle, setInstagramHandle] = useState(() => seed?.profile?.instagram_handle ?? "");
   // Checklist deep links (/account#bio etc.). Bio and Instagram live in the
   // edit form, so open it first.
+  // What's in the link field: what they typed, or a suggestion from their
+  // name until they start typing.
+  const linkValue =
+    linkDraft !== "" ? normalizeUsername(linkDraft) : !profile?.username ? suggestUsername(profile?.full_name, profile?.business_name) : "";
+  useEffect(() => {
+    const draft = linkValue;
+    if (!linkEditing && profile?.username) return;
+    const timer = window.setTimeout(async () => {
+      if (!draft) return setLinkStatus("idle");
+      if (!isValidUsername(draft) || RESERVED_USERNAMES.has(draft) || containsProfanity(draft)) {
+        return setLinkStatus("invalid");
+      }
+      if (draft === profile?.username) return setLinkStatus("available");
+      setLinkStatus("checking");
+      const { data } = await supabase.from("profiles").select("id").ilike("username", draft).limit(1);
+      setLinkStatus(data && data.length > 0 ? "taken" : "available");
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [linkValue, linkEditing, profile?.username]);
   useHashTarget(!loading && !!profile, (id) => {
     if (id === "bio" || id === "instagram") setIsEditing(true);
   });
@@ -1233,7 +1268,84 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
               It opens their profile at the booking calendar (#availability). */}
           {isProfessional ? (
             <div id="booking-link" className="mb-8 scroll-mt-28 rounded-[24px] bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
-              {profile.subscription_status === "active" || profile.subscription_status === "trialing" ? (
+              {!profile.username || linkEditing ? (
+                // Pick the name in the link itself, so it's obvious what it's for.
+                <div>
+                  <p className="text-sm font-semibold text-ink">
+                    {profile.username ? "Change your booking link" : "Choose your booking link"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-neutral-500">
+                    This is the link you share with clients. Keep it short and easy to say.
+                  </p>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <label className="flex min-w-0 flex-1 items-center rounded-full bg-paper pl-4 ring-1 ring-ink/10 transition focus-within:ring-2 focus-within:ring-ink">
+                      <span className="shrink-0 text-sm text-neutral-400">lineup-aesthetics.ca/book/</span>
+                      <input
+                        value={linkValue}
+                        onChange={(e) => setLinkDraft(normalizeUsername(e.target.value) || " ")}
+                        maxLength={20}
+                        aria-label="Booking link name"
+                        placeholder="yourname"
+                        className="min-w-0 flex-1 bg-transparent py-3 pr-4 text-sm font-semibold text-ink outline-none"
+                      />
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={linkSaving || linkStatus !== "available"}
+                        onClick={async () => {
+                          const name = linkValue;
+                          if (!name) return;
+                          setLinkSaving(true);
+                          const { error } = await supabase.from("profiles").update({ username: name }).eq("id", profile.id);
+                          setLinkSaving(false);
+                          if (error) {
+                            setLinkStatus(error.code === "23505" ? "taken" : "invalid");
+                            return;
+                          }
+                          setProfile((prev) => (prev ? { ...prev, username: name } : prev));
+                          setUsername(name);
+                          setLinkEditing(false);
+                          setLinkDraft("");
+                          setLinkStatus("idle");
+                        }}
+                        className="flex-1 rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-40 sm:flex-none"
+                      >
+                        {linkSaving ? "Saving…" : profile.username ? "Save" : "Claim link"}
+                      </button>
+                      {linkEditing ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLinkEditing(false);
+                            setLinkDraft("");
+                            setLinkStatus("idle");
+                          }}
+                          className="rounded-full px-4 py-3 text-sm font-medium text-neutral-500 hover:text-ink"
+                        >
+                          Cancel
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <p
+                    className={`mt-2 text-xs ${
+                      linkStatus === "available" ? "text-ink" : linkStatus === "idle" || linkStatus === "checking" ? "text-neutral-400" : "text-red-600"
+                    }`}
+                    aria-live="polite"
+                  >
+                    {linkStatus === "checking"
+                      ? "Checking…"
+                      : linkStatus === "available"
+                      ? "✓ Available"
+                      : linkStatus === "taken"
+                      ? "That one's taken. Try another."
+                      : linkStatus === "invalid"
+                      ? "3–20 characters: lowercase letters, numbers and underscores."
+                      : "Lowercase letters, numbers and underscores."}
+                  </p>
+                </div>
+              ) : profile.subscription_status === "active" || profile.subscription_status === "trialing" ? (
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink text-white">
@@ -1246,6 +1358,16 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       <p className="truncate text-xs text-neutral-500">
                         {typeof window !== "undefined" ? window.location.host : "lineup-aesthetics.ca"}
                         {getProfileHref(profile).replace(/^\/profile\//, "/book/")}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLinkDraft(profile.username || "");
+                            setLinkEditing(true);
+                          }}
+                          className="ml-2 font-medium text-ink underline decoration-ink/25 underline-offset-2 hover:decoration-ink"
+                        >
+                          Edit
+                        </button>
                       </p>
                     </div>
                   </div>
@@ -1414,7 +1536,10 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                   <div>
                     <label className="mb-2 block text-sm font-medium text-neutral-700">
-                      Username <span className="text-neutral-400">(optional)</span>
+                      {profile.role === "professional" ? "Booking link name" : "Username"}{" "}
+                      <span className="text-neutral-400">
+                        {profile.role === "professional" ? `(lineup-aesthetics.ca/book/${normalizeUsername(username) || "yourname"})` : "(optional)"}
+                      </span>
                     </label>
                     <div className="flex items-center rounded-2xl border border-neutral-300 pl-4 transition focus-within:border-neutral-900">
                       <span className="text-neutral-400">@</span>
