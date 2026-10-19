@@ -355,69 +355,44 @@ function AccordionSection({
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
+  const heading = (
+    <div className="min-w-0">
+      {subtitle ? <p className="text-xs font-medium text-neutral-500">{subtitle}</p> : null}
+      <h2 className="mt-1.5 text-[1.45rem] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[1.6rem]">
+        {title}
+      </h2>
+      {summary ? <p className="mt-1 text-sm leading-6 text-neutral-500">{summary}</p> : null}
+    </div>
+  );
+
   if (!collapsible) {
     return (
-      <section
-        id={id}
-        className="mt-6 scroll-mt-24 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm"
-      >
-        <div className="px-5 pt-5 sm:px-6 sm:pt-6">
-          {subtitle ? (
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-              {subtitle}
-            </p>
-          ) : null}
-
-          <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
-            {title}
-          </h2>
-
-          {summary ? (
-            <p className="mt-1 text-sm leading-6 text-neutral-500">{summary}</p>
-          ) : null}
-        </div>
-
-        <div className="p-5 sm:p-6">{children}</div>
+      <section id={id} className="mt-6 scroll-mt-24 rounded-[28px] bg-white p-5 ring-1 ring-ink/[0.07] sm:p-8">
+        {heading}
+        <div className="mt-6">{children}</div>
       </section>
     );
   }
 
   return (
-    <section
-      id={id}
-      className="mt-6 scroll-mt-24 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm"
-    >
+    <section id={id} className="mt-6 scroll-mt-24 overflow-hidden rounded-[28px] bg-white ring-1 ring-ink/[0.07]">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center justify-between gap-4 px-5 py-5 text-left transition hover:bg-neutral-50 sm:px-6"
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-4 p-6 text-left transition hover:bg-neutral-50/60 sm:p-8"
       >
-        <div className="min-w-0">
-          {subtitle ? (
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-              {subtitle}
-            </p>
-          ) : null}
-
-          <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
-            {title}
-          </h2>
-
-          {summary ? (
-            <p className="mt-1 text-sm leading-6 text-neutral-500">{summary}</p>
-          ) : null}
-        </div>
-
+        {heading}
         <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-200 text-2xl font-light transition ${
-            open ? "rotate-45 bg-ink text-white" : "bg-white text-neutral-900"
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-2xl font-light ring-1 ring-ink/10 transition duration-300 ease-premium ${
+            open ? "rotate-45 bg-ink text-white" : "bg-white text-ink"
           }`}
         >
           +
         </span>
       </button>
 
-      {open ? <div className="border-t border-neutral-100 p-5 sm:p-6">{children}</div> : null}
+      {open ? <div className="lu-fade-in px-6 pb-6 sm:px-8 sm:pb-8">{children}</div> : null}
     </section>
   );
 }
@@ -1082,7 +1057,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       <div className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06),0_28px_64px_-20px_rgba(0,0,0,0.35)] ring-1 ring-black/5">
         <div className="flex items-end justify-between gap-3 border-b border-neutral-100 px-4 pb-3 pt-4">
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500">{day.dayLabel}</p>
+            <p className="text-[11px] font-medium text-neutral-500">{day.dayLabel}</p>
             <p className="mt-0.5 text-3xl font-semibold tabular-nums tracking-[-0.03em] text-neutral-900">
               {new Date(`${day.date}T00:00:00`).getDate()}
               <span className="ml-1.5 text-base font-medium text-neutral-400">{day.dateLabel.split(" ")[0]}</span>
@@ -1346,7 +1321,7 @@ if (loading) {
 
       <div className="mx-auto max-w-6xl animate-pulse">
         {/* Hero */}
-        <div className="mt-10 overflow-hidden rounded-panel border border-neutral-200 bg-white">
+        <div className="mt-10 overflow-hidden rounded-[28px] bg-white ring-1 ring-ink/[0.07]">
           <div className="h-56 w-full bg-neutral-200 md:h-72" />
 
           <div className="px-8 pb-8 pt-6">
@@ -1374,7 +1349,7 @@ if (loading) {
 
         {/* Main Content */}
         <div className="mt-8 grid gap-6">
-          <div className="rounded-panel border border-neutral-200 bg-white p-6">
+          <div className="rounded-[28px] bg-white ring-1 ring-ink/[0.07] p-6">
             <div className="h-7 w-52 rounded bg-neutral-200" />
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -1383,7 +1358,7 @@ if (loading) {
             </div>
           </div>
 
-          <div className="rounded-panel border border-neutral-200 bg-white p-6">
+          <div className="rounded-[28px] bg-white ring-1 ring-ink/[0.07] p-6">
             <div className="h-7 w-40 rounded bg-neutral-200" />
 
             <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3">
@@ -1393,7 +1368,7 @@ if (loading) {
             </div>
           </div>
 
-          <div className="rounded-panel border border-neutral-200 bg-white p-6">
+          <div className="rounded-[28px] bg-white ring-1 ring-ink/[0.07] p-6">
             <div className="h-7 w-44 rounded bg-neutral-200" />
 
             <div className="mt-6 space-y-4">
@@ -1454,180 +1429,210 @@ if (loading) {
 
   return (
     <>
-      <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper pb-10 pt-6 text-neutral-900">
+      <main className="min-h-screen bg-paper px-4 pb-16 pt-6 text-neutral-900 sm:px-6 lg:px-8">
 
 
-        <div className="mx-auto max-w-6xl py-8">
-          <section className="mb-8 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm">
-            <div className={`relative w-full ${profile.banner_url ? "h-48 bg-ink md:h-64" : "h-28 bg-[#ecebe7] md:h-36"}`}>
+        <div className="mx-auto max-w-6xl py-6 sm:py-8">
+          <section className="lu-lift-in relative mb-6 overflow-hidden rounded-[28px] bg-white ring-1 ring-ink/[0.07]">
+            <div
+              className={`relative w-full ${
+                profile.banner_url
+                  ? "h-44 bg-ink md:h-72"
+                  : "h-28 bg-[radial-gradient(120%_140%_at_0%_0%,#f7f7f5_0%,#ecebe8_55%,#e4e3df_100%)] md:h-40"
+              }`}
+            >
               {profile.banner_url ? (
                 <button
                   type="button"
                   onClick={() => setShowBannerPreview(true)}
                   className="h-full w-full cursor-zoom-in"
+                  aria-label="View cover photo"
                 >
-                  <img loading="lazy"
+                  <img
                     src={profile.banner_url}
                     alt="Cover photo"
                     className="h-full w-full object-cover"
                   />
                 </button>
-              ) : (
-                null
-              )}
+              ) : null}
 
               {profile.banner_url ? (
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/30 via-black/5 to-transparent" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
               ) : null}
             </div>
 
-            <div className="px-6 pb-6 pt-6 md:px-8">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                <div className="flex min-w-0 gap-4">
-                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-4 border-white bg-neutral-100 shadow md:h-28 md:w-28">
-                    {profile.avatar_url ? (
-                      <img loading="lazy"
-                        src={profile.avatar_url}
-                        alt={profile.full_name || "Profile"}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-neutral-500">
-                        {profile.full_name?.charAt(0).toUpperCase() || "P"}
-                      </div>
-                    )}
+            <div className="relative px-6 pb-6 sm:px-8 sm:pb-8">
+              <div className="-mt-12 h-24 w-24 overflow-hidden rounded-full bg-neutral-100 shadow-[0_12px_32px_-16px_rgba(0,0,0,0.45)] ring-4 ring-white md:-mt-16 md:h-32 md:w-32">
+                {profile.avatar_url ? (
+                  <img
+                    src={profile.avatar_url}
+                    alt={profile.full_name || "Profile"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-neutral-400">
+                    {profile.full_name?.charAt(0).toUpperCase() || "P"}
                   </div>
+                )}
+              </div>
 
-                  <div className="min-w-0 pt-1">
-                    <h1 className="flex items-center gap-2 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-                      <span className="min-w-0 break-words">{profile.full_name || "Profile"}</span>
-                      {profileTags.includes("Verified") ? (
-                        <BadgeCheck
-                          aria-label="Verified professional"
-                          className="h-6 w-6 shrink-0 fill-ink text-white md:h-7 md:w-7"
-                          strokeWidth={2}
-                        />
-                      ) : null}
-                    </h1>
+              <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div className="min-w-0">
+                  <h1 className="flex items-center gap-2.5 text-[2rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink md:text-[2.75rem]">
+                    <span className="min-w-0 break-words">{profile.full_name || "Profile"}</span>
+                    {profileTags.includes("Verified") || profileTags.includes("Verified student") ? (
+                      <BadgeCheck
+                        aria-label="Verified professional"
+                        className="h-6 w-6 shrink-0 fill-ink text-white md:h-8 md:w-8"
+                        strokeWidth={2}
+                      />
+                    ) : null}
+                  </h1>
 
-                    {profile.username ? (
-                      <p className="mt-1 text-sm text-neutral-500">@{profile.username}</p>
+                  <p className="mt-2 text-[15px] text-neutral-600 md:text-base">
+                    {[
+                      isProfessional ? formatProfessionalTypes(profile) : "Client",
+                      isProfessional ? profile.business_name?.trim() : null,
+                      profile.username ? `@${profile.username}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-neutral-500">
+                    {hasFixedServiceLocation && (profile.formatted_address || profile.location) ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <MapPin className="h-4 w-4" />
+                        {formatDisplayAddress(profile.formatted_address || profile.location)}
+                        {profileDistanceLabel ? <span className="text-neutral-400">· {profileDistanceLabel}</span> : null}
+                      </span>
+                    ) : !hasFixedServiceLocation && offersAtHomeService ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <MapPin className="h-4 w-4" />
+                        Travels to your area
+                        {profileDistanceLabel ? <span className="text-neutral-400">· {profileDistanceLabel}</span> : null}
+                      </span>
                     ) : null}
 
-                    <p className="mt-2 text-base text-neutral-600 md:text-lg">
-                      {isProfessional ? formatProfessionalTypes(profile) : "Customer"}
-                    </p>
-
-                    {isProfessional && profile.business_name?.trim() ? (
-                      <p className="mt-1 text-sm font-medium text-neutral-500">
-                        {profile.business_name}
-                      </p>
-                    ) : null}
-
-
-                    <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-neutral-600">
-                      {hasFixedServiceLocation && (profile.formatted_address || profile.location) ? (
-                        <span className="inline-flex flex-col items-start gap-0.5">
-                          <span className="inline-flex items-center gap-1.5">
-                            <MapPin className="h-4 w-4" />
-                            {formatDisplayAddress(profile.formatted_address || profile.location)}
-                          </span>
-                          {profileDistanceLabel ? (
-                            <span className="ml-5 text-xs text-neutral-500">
-                              {profileDistanceLabel}
-                            </span>
-                          ) : null}
-                        </span>
-                      ) : !hasFixedServiceLocation && offersAtHomeService ? (
-                        <span className="inline-flex flex-col items-start gap-0.5">
-                          <span className="inline-flex items-center gap-1.5">
-                            <MapPin className="h-4 w-4" />
-                            Travels to your area
-                          </span>
-                          {profileDistanceLabel ? (
-                            <span className="ml-5 text-xs text-neutral-500">
-                              {profileDistanceLabel}
-                            </span>
-                          ) : null}
-                        </span>
-                      ) : null}
-
-                      {isProfessional && averageRating ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <Star className="h-4 w-4 fill-current" />
-                          {averageRating} · {reviews.length} review{reviews.length === 1 ? "" : "s"}
-                        </span>
-                      ) : isProfessional ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <Star className="h-4 w-4" />
-                          No reviews yet
-                        </span>
-                      ) : null}
-                    </div>
-
-                    {profileTags.filter((tag) => tag !== "Verified").length > 0 ? (
-                      <div className="mt-4 flex flex-wrap gap-1.5">
-                        {profileTags.filter((tag) => tag !== "Verified").slice(0, 4).map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-md bg-neutral-100 px-2 py-1 text-[11px] font-medium text-neutral-700"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
+                    {isProfessional && formatServiceModes(profile.service_modes) ? (
+                      <span>{formatServiceModes(profile.service_modes)}</span>
                     ) : null}
                   </div>
                 </div>
 
                 {isProfessional && viewerIsCustomer && viewerUserId !== profile.id && !profileVerified ? (
-                  <div className="w-full rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600 sm:w-auto sm:min-w-[240px] sm:max-w-xs">
+                  <div className="w-full rounded-2xl bg-neutral-50 p-4 text-sm leading-6 text-neutral-600 ring-1 ring-ink/[0.05] sm:max-w-xs">
                     This professional hasn&apos;t completed verification yet, so they can&apos;t be requested
                     or booked right now.
                   </div>
                 ) : null}
 
-                {isProfessional && viewerIsCustomer && viewerUserId !== profile.id && profileVerified ? (
-                  <div className="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[240px]">
+                {isProfessional && (viewerIsCustomer || !viewerUserId) && viewerUserId !== profile.id && profileVerified ? (
+                  <div className="grid w-full shrink-0 gap-2.5 sm:flex sm:w-auto">
                     {canDirectBook ? (
                       <a
                         href="#availability"
-                        className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-7 py-3.5 text-sm font-semibold text-white transition duration-300 ease-premium hover:bg-neutral-800 active:scale-[0.98]"
                       >
                         <CalendarDays className="h-4 w-4" />
-                        Book directly
+                        Book a time
                       </a>
                     ) : null}
 
                     <Link
-                      href={`/requests/new?rebook=1&pro=${profile.id}`}
-                      className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-6 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                      href={
+                        viewerUserId
+                          ? `/requests/new?rebook=1&pro=${profile.id}`
+                          : loginHref(`/requests/new?rebook=1&pro=${profile.id}`)
+                      }
+                      className={`inline-flex items-center justify-center rounded-full px-7 py-3.5 text-sm font-semibold transition duration-300 ease-premium active:scale-[0.98] ${
+                        canDirectBook
+                          ? "text-ink ring-1 ring-ink/15 hover:bg-neutral-50 hover:ring-ink/30"
+                          : "bg-ink text-white hover:bg-neutral-800"
+                      }`}
                     >
                       {hasBookedBefore ? "Request again" : "Request service"}
                     </Link>
                   </div>
                 ) : null}
+
+                {viewerUserId === profile.id ? (
+                  <Link
+                    href="/account"
+                    className="inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-ink ring-1 ring-ink/15 transition hover:bg-neutral-50 sm:w-auto"
+                  >
+                    Edit profile
+                  </Link>
+                ) : null}
               </div>
 
-              {(profile.bio ||
-                (isProfessional && formatServiceModes(profile.service_modes))) && (
-                <div className="mt-6 border-t border-neutral-200 pt-6">
-                  {profile.bio ? (
-                    <p className="max-w-3xl text-sm leading-7 text-neutral-600 md:text-[15px]">
-                      {profile.bio}
-                    </p>
-                  ) : null}
+              {profile.bio?.trim() ? (
+                <p className="mt-6 max-w-2xl whitespace-pre-line text-[15px] leading-7 text-neutral-600">
+                  {profile.bio.trim()}
+                </p>
+              ) : null}
 
-                  {isProfessional && formatServiceModes(profile.service_modes) ? (
-                    <div className="mt-4 inline-flex rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700">
-                      {formatServiceModes(profile.service_modes)}
-                    </div>
-                  ) : null}
+              {profileTags.filter((tag) => !tag.startsWith("Verified")).length > 0 ? (
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {profileTags
+                    .filter((tag) => !tag.startsWith("Verified"))
+                    .slice(0, 4)
+                    .map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-600 ring-1 ring-ink/[0.06]"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                 </div>
-              )}
+              ) : null}
+
+              {isProfessional ? (
+                <dl className="mt-7 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-ink/[0.06] ring-1 ring-ink/[0.06] sm:grid-cols-4">
+                  {[
+                    {
+                      label: "Rating",
+                      value: averageRating ? `★ ${averageRating}` : "New",
+                      href: reviews.length > 0 ? "#reviews" : null,
+                    },
+                    {
+                      label: "Reviews",
+                      value: String(reviews.length),
+                      href: reviews.length > 0 ? "#reviews" : null,
+                    },
+                    {
+                      label: "Services",
+                      value: String(services.length),
+                      href: null,
+                    },
+                    {
+                      label: canDirectBook ? "Next opening" : "Booking",
+                      value: canDirectBook ? getNextOpeningText() || "Fully booked" : "By request",
+                      href: canDirectBook ? "#availability" : null,
+                    },
+                  ].map((stat) => {
+                    const body = (
+                      <>
+                        <dt className="text-xs text-neutral-500">{stat.label}</dt>
+                        <dd className="mt-1 truncate text-[15px] font-semibold text-ink">{stat.value}</dd>
+                      </>
+                    );
+                    return stat.href ? (
+                      <a key={stat.label} href={stat.href} className="block bg-white px-4 py-3.5 transition hover:bg-neutral-50">
+                        {body}
+                      </a>
+                    ) : (
+                      <div key={stat.label} className="bg-white px-4 py-3.5">
+                        {body}
+                      </div>
+                    );
+                  })}
+                </dl>
+              ) : null}
 
               {message ? (
-                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+                <div className="mt-6 rounded-2xl bg-neutral-50 p-4 text-sm text-neutral-700 ring-1 ring-ink/[0.05]">
                   {message}
                 </div>
               ) : null}
@@ -1658,21 +1663,21 @@ if (loading) {
               </div>
 
               {services.length === 0 ? (
-                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
+                <div className="mt-6 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-5 text-neutral-600">
                   This professional has not added any bookable services yet.
                 </div>
               ) : generatedSlots.length === 0 ? (
-                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
+                <div className="mt-6 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-5 text-neutral-600">
                   No open times available in the next 7 days.
                 </div>
               ) : (
                 <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
                   <div className="min-w-0 space-y-6">
                     <DayZoomArea renderLens={renderBookingDayLens} lensWidth={300}>
-                    <div className="w-full max-w-full overflow-visible rounded-panel border border-neutral-200 bg-white p-3 shadow-sm sm:p-4">
+                    <div className="w-full max-w-full overflow-visible rounded-3xl bg-white p-3 ring-1 ring-ink/[0.07] sm:p-4">
                       <div className="mb-3 flex items-center justify-between gap-3 px-1">
                         <div>
-                          <p className="text-xs font-medium uppercase tracking-[0.2em] text-neutral-400">
+                          <p className="text-xs font-medium text-neutral-500">
                             Choose a day
                           </p>
                           <p className="mt-1 text-lg font-semibold tracking-tight text-neutral-900">
@@ -1755,10 +1760,10 @@ if (loading) {
                     </div>
                     </DayZoomArea>
 
-                    <div className="min-w-0 rounded-panel border border-neutral-200 bg-gradient-to-b from-neutral-50 to-white p-4 shadow-sm sm:p-5">
+                    <div className="min-w-0 rounded-3xl bg-neutral-50/70 p-4 ring-1 ring-ink/[0.05] sm:p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                          <p className="text-xs font-medium text-neutral-500">
                             Selected day
                           </p>
                           <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
@@ -1777,7 +1782,7 @@ if (loading) {
                       </div>
 
                       {!selectedBookingDay || selectedBookingDay.slots.length === 0 ? (
-                        <div className="mt-5 rounded-2xl border border-neutral-200 bg-white p-4 text-sm text-neutral-600">
+                        <div className="mt-5 rounded-2xl bg-white p-4 ring-1 ring-ink/[0.06] text-sm text-neutral-600">
                           No times available for this day. Pick another day with an open time.
                         </div>
                       ) : (
@@ -1867,19 +1872,19 @@ if (loading) {
                     </div>
                   </div>
 
-                  <div className="h-fit rounded-panel border border-neutral-200 bg-white p-5 xl:sticky xl:top-6">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                  <div className="h-fit rounded-3xl bg-neutral-50/70 p-5 ring-1 ring-ink/[0.05] xl:sticky xl:top-24">
+                    <p className="text-xs font-medium text-neutral-500">
                       Booking summary
                     </p>
 
                     {!selectedSlot ? (
-                      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                      <div className="mt-4 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
                         Select a day and time to see which services fit and complete your booking.
                       </div>
                     ) : (
                       <>
                         <div className="mt-4 rounded-2xl border border-ink bg-surface p-5 text-ink">
-                          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                          <p className="text-xs font-medium text-neutral-500">
                             Selected time
                           </p>
                           <h3 className="mt-2 text-xl font-semibold">
@@ -1907,7 +1912,7 @@ if (loading) {
                         </div>
 
                         {servicesThatFitSelectedSlot.length === 0 ? (
-                          <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                          <div className="mt-4 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
                             No services fit inside this time block.
                           </div>
                         ) : (
@@ -1952,7 +1957,7 @@ if (loading) {
                             </div>
 
                             {selectedServiceMode === "in_shop" || selectedServiceMode === "home_studio" ? (
-                              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600">
+                              <div className="rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm leading-6 text-neutral-600">
                                 <p className="font-medium text-neutral-900">
                                   {formatModeLabel(selectedServiceMode)}
                                 </p>
@@ -1989,7 +1994,7 @@ if (loading) {
                                 )}
                               </div>
                             ) : directBookingModes.length > 0 ? (
-                              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-500">
+                              <div className="rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-500">
                                 Select where you want to book the appointment.
                               </div>
                             ) : null}
@@ -2012,7 +2017,7 @@ if (loading) {
                                       handleStartBookingConfirmation(service);
                                     }}
                                     disabled={bookingSlotKey === selectedSlot.key}
-                                    className="w-full rounded-2xl border border-neutral-200 bg-white p-4 text-left transition hover:border-ink hover:bg-neutral-50 disabled:opacity-60"
+                                    className="w-full rounded-2xl bg-white p-4 ring-1 ring-ink/[0.06] text-left transition hover:border-ink hover:bg-neutral-50 disabled:opacity-60"
                                   >
                                     <p className="font-semibold text-neutral-900">
                                       {service.service_name}
@@ -2036,11 +2041,11 @@ if (loading) {
                     )}
 
                     {!viewerUserId ? (
-                      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                      <div className="mt-4 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
                         Pick a time and a service. You&apos;ll sign in to confirm and come right back here.
                       </div>
                     ) : !viewerIsCustomer ? (
-                      <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
+                      <div className="mt-4 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
                         Sign in as a customer to book a time.
                       </div>
                     ) : null}
@@ -2052,219 +2057,90 @@ if (loading) {
 
           {isProfessional && services.length > 0 ? (
             <AccordionSection
-              title="What you can book"
-              subtitle="Services"
-              summary={`${services.length} service${services.length === 1 ? "" : "s"} available`}
-              defaultOpen
+              title="Services"
+              subtitle="What you can book"
+              summary={`${services.length} service${services.length === 1 ? "" : "s"}`}
+              collapsible={false}
             >
-              <div className="grid gap-3">
+              <ul className="-my-1 divide-y divide-ink/[0.06]">
                 {services.map((service) => (
-                  <div
+                  <li
                     key={service.id}
-                    className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                    className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
                   >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-lg font-semibold text-neutral-900">
-                            {service.service_name}
-                          </p>
-
-                          {formatPrice(service.price) ? (
-                            <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-neutral-900 ring-1 ring-neutral-200">
-                              {formatPrice(service.price)}
-                            </span>
-                          ) : null}
-                        </div>
-
-                        <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-neutral-500">
-                          <span className="inline-flex items-center gap-1.5">
-                            <Clock3 className="h-4 w-4" />
-                            {service.duration_minutes} min
+                    <div className="min-w-0">
+                      <div className="flex items-baseline justify-between gap-4 sm:justify-start">
+                        <p className="text-[17px] font-semibold tracking-[-0.01em] text-ink">
+                          {service.service_name}
+                        </p>
+                        {formatPrice(service.price) ? (
+                          <span className="shrink-0 text-[17px] font-semibold text-ink sm:hidden">
+                            {formatPrice(service.price)}
                           </span>
-                          <span className="inline-flex items-center gap-1.5">
-                            <ShieldCheck className="h-4 w-4" />
-                            {service.is_bookable ? "Bookable" : "Request only"}
-                          </span>
-                        </div>
-
-                        {service.description ? (
-                          <p className="mt-3 line-clamp-2 text-sm leading-6 text-neutral-600">
-                            {service.description}
-                          </p>
                         ) : null}
                       </div>
 
-                      {viewerIsCustomer && viewerUserId !== profile.id && canDirectBook ? (
+                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-neutral-500">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock3 className="h-3.5 w-3.5" />
+                          {service.duration_minutes} min
+                        </span>
+                        <span aria-hidden="true" className="h-1 w-1 rounded-full bg-neutral-300" />
+                        <span>{service.is_bookable ? "Book instantly" : "By request"}</span>
+                      </p>
+
+                      {service.description ? (
+                        <p className="mt-2 line-clamp-2 max-w-xl text-sm leading-6 text-neutral-600">
+                          {service.description}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-4">
+                      {formatPrice(service.price) ? (
+                        <span className="hidden text-[17px] font-semibold text-ink sm:inline">
+                          {formatPrice(service.price)}
+                        </span>
+                      ) : null}
+
+                      {(viewerIsCustomer || !viewerUserId) && viewerUserId !== profile.id && canDirectBook ? (
                         <a
                           href="#availability"
-                          className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
+                          className="inline-flex w-full items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold text-ink ring-1 ring-ink/15 transition hover:bg-neutral-50 hover:ring-ink/30 sm:w-auto"
                         >
                           View times
                         </a>
                       ) : viewerIsCustomer && viewerUserId !== profile.id && profileVerified ? (
                         <Link
                           href={`/requests/new?rebook=1&pro=${profile.id}&service=${encodeURIComponent(service.service_name)}${service.price ? `&price=${service.price}` : ""}`}
-                          className="inline-flex items-center justify-center rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
+                          className="inline-flex w-full items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold text-ink ring-1 ring-ink/15 transition hover:bg-neutral-50 hover:ring-ink/30 sm:w-auto"
                         >
-                          Request service
+                          Request
                         </Link>
                       ) : null}
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </AccordionSection>
           ) : null}
 
-          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-            <AccordionSection
-              title="About"
-              subtitle="Profile"
-              summary={profile.bio?.trim() ? "Bio, categories, specialties, and Instagram" : "No bio added yet"}
-            >
-              <div>
-                <p className="max-w-3xl text-base leading-8 text-neutral-600">
-                  {profile.bio?.trim() || "No bio added yet."}
-                </p>
-              </div>
-
-              {isProfessional && professionalTypeLabels.length > 0 ? (
-                <div className="mt-8">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                    Service categories
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    {professionalTypeLabels.map((label) => (
-                      <span
-                        key={label}
-                        className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {isProfessional && profile.specialties && profile.specialties.length > 0 ? (
-                <div className="mt-8">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                    Specialties
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    {profile.specialties.map((specialty) => (
-                      <span
-                        key={specialty}
-                        className="rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm text-neutral-700"
-                      >
-                        {specialty}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {profile.instagram_handle ? (
-                <div className="mt-8">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                    Instagram
-                  </p>
-                  <a
-                    href={`https://instagram.com/${String(profile.instagram_handle).replace("@", "")}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 inline-flex rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                  >
-                    @{String(profile.instagram_handle).replace("@", "")}
-                  </a>
-                </div>
-              ) : null}
-            </AccordionSection>
-
-            {isProfessional ? (
-              <AccordionSection
-                title="Trust snapshot"
-                subtitle="Trust"
-                summary={`${averageRating || "No"} rating · ${reviews.length} review${reviews.length === 1 ? "" : "s"}`}
-              >
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                      Average rating
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                      {averageRating || "—"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                      Reviews
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                      {reviews.length}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                      Bookable services
-                    </p>
-                    <p className="mt-2 text-2xl font-semibold text-neutral-900">
-                      {services.length}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-                      Next opening
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-neutral-900">
-                      {getNextOpeningText() || "No opening"}
-                    </p>
-                  </div>
-                </div>
-
-                {viewerIsCustomer && viewerUserId !== profile.id ? (
-                  <div className="mt-4">
-                    <Link
-                      href={`/requests/new?rebook=1&pro=${profile.id}`}
-                      className="inline-flex w-full items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                    >
-                      {hasBookedBefore ? "Request again" : "Start a request"}
-                    </Link>
-                  </div>
-                ) : null}
-              </AccordionSection>
-            ) : null}
-          </div>
-
-
-          {isProfessional ? (
+          {isProfessional && portfolioItems.length > 0 ? (
             <AccordionSection
               title="Past work"
               subtitle="Portfolio"
-              summary={
-                portfolioItems.length > 0
-                  ? `${portfolioItems.length} item${portfolioItems.length === 1 ? "" : "s"}`
-                  : "No portfolio items yet"
-              }
+              summary={`${portfolioItems.length} piece${portfolioItems.length === 1 ? "" : "s"}`}
+              collapsible={false}
             >
-
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
                 {portfolioItems.map((item, index) => (
-                  <div
+                  <figure
                     key={item.id}
-                    className={`overflow-hidden rounded-2xl border border-neutral-200 bg-white ${
-                      index === 0 ? "sm:col-span-2 sm:row-span-2 lg:col-span-2" : ""
+                    className={`group relative overflow-hidden rounded-2xl bg-neutral-100 ${
+                      index === 0 ? "col-span-2 row-span-2" : ""
                     }`}
                   >
-                    <div
-                      className={`bg-neutral-100 ${
-                        index === 0 ? "aspect-[4/3] lg:aspect-[5/4]" : "aspect-square"
-                      }`}
-                    >
+                    <div className={index === 0 ? "aspect-[4/3] h-full lg:aspect-auto" : "aspect-square"}>
                       {item.media_type === "video" ? (
                         <video
                           src={`${item.image_url}#t=0.1`}
@@ -2276,29 +2152,22 @@ if (loading) {
                           controls
                         />
                       ) : (
-                        <img loading="lazy"
+                        <img
+                          loading="lazy"
                           src={item.image_url}
                           alt={item.caption || "Portfolio image"}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-cover transition duration-700 ease-premium group-hover:scale-[1.03]"
                         />
                       )}
                     </div>
 
-                    <div className="p-4">
-                      {item.caption ? (
-                        <p className="text-sm text-neutral-700">{item.caption}</p>
-                      ) : (
-                        <p className="text-sm text-neutral-400">No caption</p>
-                      )}
-                    </div>
-                  </div>
+                    {item.caption && item.media_type !== "video" ? (
+                      <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-4 pb-3 pt-10 text-sm text-white">
+                        <span className="line-clamp-2">{item.caption}</span>
+                      </figcaption>
+                    ) : null}
+                  </figure>
                 ))}
-
-                {portfolioItems.length === 0 ? (
-                  <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600 sm:col-span-2 lg:col-span-3">
-                    No portfolio items yet.
-                  </div>
-                ) : null}
               </div>
             </AccordionSection>
           ) : null}
@@ -2308,74 +2177,128 @@ if (loading) {
               id="reviews"
               title="Client feedback"
               subtitle="Reviews"
-              summary={
-                reviews.length > 0
-                  ? `${reviews.length} review${reviews.length === 1 ? "" : "s"}`
-                  : "No reviews yet"
-              }
+              collapsible={false}
             >
-
               {reviews.length === 0 ? (
-                <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 text-neutral-600">
-                  No reviews yet.
-                </div>
+                <p className="rounded-2xl bg-neutral-50 p-5 text-sm text-neutral-600 ring-1 ring-ink/[0.05]">
+                  No reviews yet. Reviews appear here after completed bookings.
+                </p>
               ) : (
                 <>
-                  <div className="mt-6 space-y-4">
+                  <div className="flex items-end gap-4 border-b border-ink/[0.06] pb-6">
+                    <p className="text-[3rem] font-semibold leading-none tracking-[-0.04em] text-ink">
+                      {averageRating}
+                    </p>
+                    <div className="pb-1">
+                      <p className="text-sm tracking-[0.1em] text-ink">
+                        {renderStars(Math.round(Number(averageRating) || 0))}
+                      </p>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        {reviews.length} review{reviews.length === 1 ? "" : "s"} from booked clients
+                      </p>
+                    </div>
+                  </div>
+
+                  <ul className="divide-y divide-ink/[0.06]">
                     {visibleReviews.map((review) => (
-                      <div
-                        key={review.id}
-                        className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5"
-                      >
+                      <li key={review.id} className="py-6 last:pb-0">
                         <div className="flex items-center gap-3">
-                          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full border border-neutral-200 bg-white">
+                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-100">
                             {review.reviewer_avatar_url ? (
-                              <img loading="lazy"
+                              <img
+                                loading="lazy"
                                 src={review.reviewer_avatar_url}
                                 alt={review.reviewer_name || "Reviewer"}
                                 className="h-full w-full object-cover"
                               />
                             ) : (
-                              <div className="flex h-full w-full items-center justify-center text-xs font-medium text-neutral-500">
+                              <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
                                 {review.reviewer_name?.charAt(0).toUpperCase() || "C"}
                               </div>
                             )}
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <p className="truncate font-semibold text-neutral-900">
+                            <p className="truncate text-[15px] font-semibold text-ink">
                               {review.reviewer_name || "Verified client"}
                             </p>
-                            <p className="text-xs text-neutral-400">
+                            <p className="text-xs text-neutral-500">
+                              <span className="tracking-[0.08em] text-ink">{renderStars(review.rating)}</span>
+                              <span className="mx-1.5 text-neutral-300">·</span>
                               {formatDate(review.created_at)}
                             </p>
                           </div>
                         </div>
 
-                        <div className="mt-3 flex items-center text-sm font-medium text-neutral-900">
-                          {renderStars(review.rating)} <span className="ml-2">{review.rating}/5</span>
-                        </div>
-
                         {review.comment ? (
-                          <p className="mt-3 leading-7 text-neutral-600">{review.comment}</p>
+                          <p className="mt-3 max-w-2xl text-[15px] leading-7 text-neutral-700">{review.comment}</p>
                         ) : null}
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
 
                   {reviews.length > 4 ? (
-                    <div className="mt-6">
-                      <button
-                        type="button"
-                        onClick={() => setShowAllReviews((prev) => !prev)}
-                        className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
-                      >
-                        {showAllReviews ? "Show fewer reviews" : "Show all reviews"}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAllReviews((prev) => !prev)}
+                      className="mt-6 rounded-full px-5 py-2.5 text-sm font-semibold text-ink ring-1 ring-ink/15 transition hover:bg-neutral-50"
+                    >
+                      {showAllReviews ? "Show fewer" : `Show all ${reviews.length} reviews`}
+                    </button>
                   ) : null}
                 </>
               )}
+            </AccordionSection>
+          ) : null}
+
+          {isProfessional &&
+          (professionalTypeLabels.length > 0 ||
+            (profile.specialties && profile.specialties.length > 0) ||
+            profile.instagram_handle) ? (
+            <AccordionSection title="Details" subtitle="About" collapsible={false}>
+              <dl className="divide-y divide-ink/[0.06]">
+                {professionalTypeLabels.length > 0 ? (
+                  <div className="flex flex-col gap-2 pb-5 sm:flex-row sm:gap-8">
+                    <dt className="w-32 shrink-0 pt-1.5 text-xs font-medium text-neutral-500">Categories</dt>
+                    <dd className="flex flex-wrap gap-2">
+                      {professionalTypeLabels.map((label) => (
+                        <span key={label} className="rounded-full bg-neutral-50 px-3.5 py-1.5 text-sm text-neutral-700 ring-1 ring-ink/[0.06]">
+                          {label}
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                ) : null}
+
+                {profile.specialties && profile.specialties.length > 0 ? (
+                  <div className="flex flex-col gap-2 py-5 first:pt-0 sm:flex-row sm:gap-8">
+                    <dt className="w-32 shrink-0 pt-1.5 text-xs font-medium text-neutral-500">Specialties</dt>
+                    <dd className="flex flex-wrap gap-2">
+                      {profile.specialties.map((specialty) => (
+                        <span key={specialty} className="rounded-full bg-neutral-50 px-3.5 py-1.5 text-sm text-neutral-700 ring-1 ring-ink/[0.06]">
+                          {specialty}
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                ) : null}
+
+                {profile.instagram_handle ? (
+                  <div className="flex flex-col gap-2 pt-5 first:pt-0 sm:flex-row sm:items-center sm:gap-8">
+                    <dt className="w-32 shrink-0 text-xs font-medium text-neutral-500">Instagram</dt>
+                    <dd>
+                      <a
+                        href={`https://instagram.com/${String(profile.instagram_handle).replace("@", "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[15px] font-semibold text-ink underline decoration-ink/20 underline-offset-4 transition hover:decoration-ink"
+                      >
+                        @{String(profile.instagram_handle).replace("@", "")}
+                      </a>
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
             </AccordionSection>
           ) : null}
         </div>
@@ -2383,7 +2306,7 @@ if (loading) {
 
       {pendingBookingChoice ? (
         <div className="lu-fade-in fixed inset-0 z-[70] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
-          <div className="lu-dialog-in w-full max-w-md rounded-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
+          <div className="lu-dialog-in w-full max-w-md rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-neutral-100 text-ink">
               <CalendarDays aria-hidden="true" className="h-5 w-5" strokeWidth={1.8} />
             </div>
@@ -2395,9 +2318,9 @@ if (loading) {
               Make sure the service, time, and location are right before confirming.
             </p>
 
-            <div className="mt-4 space-y-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+            <div className="mt-4 space-y-3 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-700">
               <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                <p className="text-xs font-medium text-neutral-500">
                   Service
                 </p>
                 <p className="mt-1 font-semibold text-neutral-900">
@@ -2407,7 +2330,7 @@ if (loading) {
 
               {formatPrice(pendingBookingChoice.service.price) ? (
                 <div>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-xs font-medium text-neutral-500">
                     Price
                   </p>
                   <p className="mt-1 font-semibold text-neutral-900">
@@ -2417,7 +2340,7 @@ if (loading) {
               ) : null}
 
               <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                <p className="text-xs font-medium text-neutral-500">
                   Date & time
                 </p>
                 <p className="mt-1 font-semibold text-neutral-900">
@@ -2426,7 +2349,7 @@ if (loading) {
               </div>
 
               <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                <p className="text-xs font-medium text-neutral-500">
                   Where
                 </p>
                 <p className="mt-1 font-semibold text-neutral-900">
@@ -2436,7 +2359,7 @@ if (loading) {
 
               {pendingBookingChoice.address ? (
                 <div>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-xs font-medium text-neutral-500">
                     Location
                   </p>
                   <p className="mt-1 font-semibold text-neutral-900">
