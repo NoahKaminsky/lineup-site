@@ -1950,6 +1950,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         action: { label: "Open", href: "/analytics" },
                       });
                     } else {
+                      rows.push({ key: "plan", label: "Plan", value: "LineUp Client" });
                       rows.push({
                         key: "rating",
                         label: "Your rating",

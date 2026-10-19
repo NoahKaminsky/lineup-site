@@ -31,7 +31,9 @@ export function useHashTarget(ready: boolean, prepare?: (id: string) => void) {
           document.visibilityState === "visible" &&
           !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         const rect = el.getBoundingClientRect();
-        const top = window.scrollY + rect.top - Math.max(80, (window.innerHeight - rect.height) / 2);
+        // Respect the target's scroll-margin so it clears any sticky bars.
+        const clearance = Math.max(80, parseFloat(getComputedStyle(el).scrollMarginTop) || 0);
+        const top = window.scrollY + rect.top - Math.max(clearance, (window.innerHeight - rect.height) / 2);
         window.scrollTo({ top: Math.max(0, top), behavior: smooth ? "smooth" : "auto" });
         el.classList.remove("lu-target");
         void el.offsetWidth; // restart the outline animation

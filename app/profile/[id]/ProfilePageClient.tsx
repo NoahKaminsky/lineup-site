@@ -7,11 +7,10 @@ import { useParams } from "next/navigation";
 import {
   BadgeCheck,
   CalendarDays,
-  Clock3,
   MapPin,
-  Star,
   Sparkles,
-  ShieldCheck,
+  ChevronRight,
+  Search,
   Sun,
   Moon,
 } from "lucide-react";
@@ -336,63 +335,50 @@ function formatPrice(value: string | number | null | undefined) {
   }).format(numericValue);
 }
 
-function AccordionSection({
+// One editorial section: a hairline on top, the heading in a narrow left
+// column on desktop (or above the content when `wide`), content on the right.
+function ProfileSection({
   id,
   title,
   subtitle,
   summary,
-  defaultOpen = false,
-  collapsible = true,
+  wide = false,
   children,
 }: {
   id?: string;
   title: string;
   subtitle?: string;
   summary?: string;
-  defaultOpen?: boolean;
-  collapsible?: boolean;
+  wide?: boolean;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-
   const heading = (
     <div className="min-w-0">
       {subtitle ? <p className="text-xs font-medium text-neutral-500">{subtitle}</p> : null}
-      <h2 className="mt-1.5 text-[1.45rem] font-semibold leading-tight tracking-[-0.03em] text-ink sm:text-[1.6rem]">
+      <h2 className="mt-1.5 text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink md:text-[2rem]">
         {title}
       </h2>
-      {summary ? <p className="mt-1 text-sm leading-6 text-neutral-500">{summary}</p> : null}
+      {summary ? <p className="mt-2 text-sm leading-6 text-neutral-500">{summary}</p> : null}
     </div>
   );
 
-  if (!collapsible) {
-    return (
-      <section id={id} className="mt-6 scroll-mt-24 rounded-[28px] bg-white p-5 ring-1 ring-ink/[0.07] sm:p-8">
-        {heading}
-        <div className="mt-6">{children}</div>
-      </section>
-    );
-  }
-
   return (
-    <section id={id} className="mt-6 scroll-mt-24 overflow-hidden rounded-[28px] bg-white ring-1 ring-ink/[0.07]">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        aria-expanded={open}
-        className="flex w-full items-center justify-between gap-4 p-6 text-left transition hover:bg-neutral-50/60 sm:p-8"
-      >
-        {heading}
-        <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-2xl font-light ring-1 ring-ink/10 transition duration-300 ease-premium ${
-            open ? "rotate-45 bg-ink text-white" : "bg-white text-ink"
-          }`}
-        >
-          +
-        </span>
-      </button>
-
-      {open ? <div className="lu-fade-in px-6 pb-6 sm:px-8 sm:pb-8">{children}</div> : null}
+    <section
+      id={id}
+      data-profile-section=""
+      className="scroll-mt-[var(--profile-offset,8rem)] border-t border-ink/[0.08] py-10 md:py-14"
+    >
+      {wide ? (
+        <>
+          {heading}
+          <div className="mt-8">{children}</div>
+        </>
+      ) : (
+        <div className="grid gap-7 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] lg:gap-14">
+          {heading}
+          <div className="min-w-0">{children}</div>
+        </div>
+      )}
     </section>
   );
 }
@@ -445,6 +431,50 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   // Shared booking links end in #availability: land on the calendar once the
   // profile has loaded.
   useHashTarget(!loading && !!profile);
+
+  // Page chrome that follows the scroll: the sticky section bar sits under the
+  // app header (whose height changes by breakpoint), tracks the section in
+  // view, and the mobile book bar shows once the hero buttons scroll away.
+  const heroEndRef = useRef<HTMLDivElement | null>(null);
+  const [headerHeight, setHeaderHeight] = useState(64);
+  const [activeSection, setActiveSection] = useState("");
+  const [pastHero, setPastHero] = useState(false);
+  const [calendarInView, setCalendarInView] = useState(false);
+
+  useEffect(() => {
+    const header = document.querySelector("header");
+    if (!header) return;
+    const measure = () => setHeaderHeight(header.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    const onScroll = () => {
+      const line = headerHeight + 120;
+      const heroEnd = heroEndRef.current?.getBoundingClientRect().top ?? Infinity;
+      setPastHero(heroEnd < headerHeight);
+
+      let current = "";
+      document.querySelectorAll<HTMLElement>("[data-profile-section]").forEach((el) => {
+        if (el.getBoundingClientRect().top <= line) current = el.id;
+      });
+      setActiveSection(current);
+
+      const calendar = document.getElementById("availability")?.getBoundingClientRect();
+      setCalendarInView(!!calendar && calendar.top < window.innerHeight * 0.75 && calendar.bottom > window.innerHeight * 0.25);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [loading, headerHeight]);
   const [portfolioItems, setPortfolioItems] = useState<PortfolioItem[]>(() => seed?.portfolioItems ?? []);
   const [reviews, setReviews] = useState<EnrichedReview[]>(() => seed?.reviews ?? []);
   const [availability, setAvailability] = useState<AvailabilityRow[]>(() => seed?.availability ?? []);
@@ -473,6 +503,8 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
   const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const [showAllServices, setShowAllServices] = useState(false);
+  const [serviceQuery, setServiceQuery] = useState("");
   const dateScrollerRef = useRef<HTMLDivElement | null>(null);
   const dateButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -1420,6 +1452,21 @@ if (loading) {
     reviews.length >= 3 ? "Trusted by clients" : null,
   ].filter(Boolean) as string[];
 
+  const servicePrices = services
+    .map((service) => Number(service.price))
+    .filter((price) => Number.isFinite(price) && price > 0);
+  const servicePriceFrom = servicePrices.length ? formatPrice(Math.min(...servicePrices)) : null;
+
+  const sectionLinks = [
+    canDirectBook ? { id: "availability", label: "Book" } : null,
+    services.length > 0 ? { id: "services", label: "Services" } : null,
+    portfolioItems.length > 0 ? { id: "work", label: "Work" } : null,
+    { id: "reviews", label: "Reviews" },
+    professionalTypeLabels.length > 0 || (profile.specialties && profile.specialties.length > 0) || profile.instagram_handle
+      ? { id: "details", label: "About" }
+      : null,
+  ].filter(Boolean) as { id: string; label: string }[];
+
   const professionalBookingAddress = profile.formatted_address || profile.location || null;
   const professionalMapsUrl = getGoogleMapsUrl(
     profile.location_lat,
@@ -1429,145 +1476,111 @@ if (loading) {
 
   return (
     <>
-      <main className="min-h-screen bg-paper px-4 pb-16 pt-6 text-neutral-900 sm:px-6 lg:px-8">
+      <main
+        className="min-h-screen bg-paper px-4 pb-36 pt-4 text-neutral-900 sm:px-6 sm:pb-16 lg:px-8"
+        style={{ "--profile-offset": `${headerHeight + 64}px` } as React.CSSProperties}
+      >
+        <div className="mx-auto max-w-6xl py-4 sm:py-8">
+          {(() => {
+            const verified = profileTags.includes("Verified") || profileTags.includes("Verified student");
+            const nameWords = (profile.full_name || "Profile").trim().split(/\s+/);
+            const nameLast = nameWords.pop() || "";
+            const nameLead = nameWords.join(" ");
+            const subline = [
+              isProfessional ? formatProfessionalTypes(profile) : "LineUp Client",
+              isProfessional ? profile.business_name?.trim() : null,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            const identity = (onPhoto: boolean) => (
+              <div className="flex flex-col gap-5 md:flex-row md:items-end md:gap-6">
+                <div
+                  className={`h-20 w-20 shrink-0 overflow-hidden rounded-full md:h-24 md:w-24 ${
+                    onPhoto ? "ring-2 ring-white/80" : "bg-white shadow-[0_12px_32px_-16px_rgba(0,0,0,0.35)] ring-1 ring-ink/[0.08]"
+                  }`}
+                >
+                  {profile.avatar_url ? (
+                    <img src={profile.avatar_url} alt={profile.full_name || "Profile"} className="h-full w-full bg-white object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-3xl font-semibold text-neutral-400">
+                      {profile.full_name?.charAt(0).toUpperCase() || "P"}
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <h1
+                    className={`text-[2.6rem] font-semibold leading-[0.95] tracking-[-0.045em] md:text-[4.5rem] ${
+                      onPhoto ? "text-white" : "text-ink"
+                    }`}
+                  >
+                    <MaskLine>
+                      {/* The badge stays glued to the last word so it never wraps alone. */}
+                      {nameLead ? <span className="break-words">{nameLead} </span> : null}
+                      <span className="whitespace-nowrap">
+                      {nameLast}
+                      {verified ? (
+                        <BadgeCheck
+                          aria-label="Verified professional"
+                          className={`ml-2 inline h-7 w-7 -translate-y-1 align-middle md:ml-3 md:h-10 md:w-10 md:-translate-y-2 ${
+                            onPhoto ? "fill-white text-ink" : "fill-ink text-white"
+                          }`}
+                          strokeWidth={2}
+                        />
+                      ) : null}
+                      </span>
+                    </MaskLine>
+                  </h1>
+                  <p className={`lu-fade-in mt-3 text-[15px] md:text-base ${onPhoto ? "text-white/75" : "text-neutral-600"}`}>
+                    {subline}
+                    {profile.username ? (
+                      <span className={onPhoto ? "text-white/50" : "text-neutral-400"}> · @{profile.username}</span>
+                    ) : null}
+                  </p>
+                </div>
+              </div>
+            );
 
-
-        <div className="mx-auto max-w-6xl py-6 sm:py-8">
-          <section className="lu-lift-in relative mb-6 overflow-hidden rounded-[28px] bg-white ring-1 ring-ink/[0.07]">
-            <div
-              className={`relative w-full ${
-                profile.banner_url
-                  ? "h-44 bg-ink md:h-72"
-                  : "h-28 bg-[radial-gradient(120%_140%_at_0%_0%,#f7f7f5_0%,#ecebe8_55%,#e4e3df_100%)] md:h-40"
-              }`}
-            >
-              {profile.banner_url ? (
+            return profile.banner_url ? (
+              <div className="lu-lift-in relative overflow-hidden rounded-[32px] bg-ink">
                 <button
                   type="button"
                   onClick={() => setShowBannerPreview(true)}
-                  className="h-full w-full cursor-zoom-in"
+                  className="block h-[400px] w-full cursor-zoom-in md:h-[500px]"
                   aria-label="View cover photo"
                 >
-                  <img
-                    src={profile.banner_url}
-                    alt="Cover photo"
-                    className="h-full w-full object-cover"
-                  />
+                  <img src={profile.banner_url} alt="Cover photo" className="h-full w-full object-cover" />
                 </button>
-              ) : null}
-
-              {profile.banner_url ? (
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
-              ) : null}
-            </div>
-
-            <div className="relative px-6 pb-6 sm:px-8 sm:pb-8">
-              <div className="-mt-12 h-24 w-24 overflow-hidden rounded-full bg-neutral-100 shadow-[0_12px_32px_-16px_rgba(0,0,0,0.45)] ring-4 ring-white md:-mt-16 md:h-32 md:w-32">
-                {profile.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt={profile.full_name || "Profile"}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-neutral-400">
-                    {profile.full_name?.charAt(0).toUpperCase() || "P"}
-                  </div>
-                )}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/0" />
+                <div className="absolute inset-x-0 bottom-0 p-6 md:p-10">{identity(true)}</div>
               </div>
+            ) : (
+              <div className="pt-4 md:pt-10">{identity(false)}</div>
+            );
+          })()}
 
-              <div className="mt-5 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                <div className="min-w-0">
-                  <h1 className="flex items-center gap-2.5 text-[2rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink md:text-[2.75rem]">
-                    <span className="min-w-0 break-words">{profile.full_name || "Profile"}</span>
-                    {profileTags.includes("Verified") || profileTags.includes("Verified student") ? (
-                      <BadgeCheck
-                        aria-label="Verified professional"
-                        className="h-6 w-6 shrink-0 fill-ink text-white md:h-8 md:w-8"
-                        strokeWidth={2}
-                      />
-                    ) : null}
-                  </h1>
-
-                  <p className="mt-2 text-[15px] text-neutral-600 md:text-base">
-                    {[
-                      isProfessional ? formatProfessionalTypes(profile) : "Client",
-                      isProfessional ? profile.business_name?.trim() : null,
-                      profile.username ? `@${profile.username}` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-
-                  <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-neutral-500">
-                    {hasFixedServiceLocation && (profile.formatted_address || profile.location) ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <MapPin className="h-4 w-4" />
-                        {formatDisplayAddress(profile.formatted_address || profile.location)}
-                        {profileDistanceLabel ? <span className="text-neutral-400">· {profileDistanceLabel}</span> : null}
-                      </span>
-                    ) : !hasFixedServiceLocation && offersAtHomeService ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <MapPin className="h-4 w-4" />
-                        Travels to your area
-                        {profileDistanceLabel ? <span className="text-neutral-400">· {profileDistanceLabel}</span> : null}
-                      </span>
-                    ) : null}
-
-                    {isProfessional && formatServiceModes(profile.service_modes) ? (
-                      <span>{formatServiceModes(profile.service_modes)}</span>
-                    ) : null}
-                  </div>
-                </div>
-
-                {isProfessional && viewerIsCustomer && viewerUserId !== profile.id && !profileVerified ? (
-                  <div className="w-full rounded-2xl bg-neutral-50 p-4 text-sm leading-6 text-neutral-600 ring-1 ring-ink/[0.05] sm:max-w-xs">
-                    This professional hasn&apos;t completed verification yet, so they can&apos;t be requested
-                    or booked right now.
-                  </div>
+          <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-neutral-500">
+                {hasFixedServiceLocation && (profile.formatted_address || profile.location) ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4" />
+                    {formatDisplayAddress(profile.formatted_address || profile.location)}
+                    {profileDistanceLabel ? <span className="text-neutral-400">· {profileDistanceLabel}</span> : null}
+                  </span>
+                ) : !hasFixedServiceLocation && offersAtHomeService ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4" />
+                    Travels to your area
+                    {profileDistanceLabel ? <span className="text-neutral-400">· {profileDistanceLabel}</span> : null}
+                  </span>
                 ) : null}
-
-                {isProfessional && (viewerIsCustomer || !viewerUserId) && viewerUserId !== profile.id && profileVerified ? (
-                  <div className="grid w-full shrink-0 gap-2.5 sm:flex sm:w-auto">
-                    {canDirectBook ? (
-                      <a
-                        href="#availability"
-                        className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-7 py-3.5 text-sm font-semibold text-white transition duration-300 ease-premium hover:bg-neutral-800 active:scale-[0.98]"
-                      >
-                        <CalendarDays className="h-4 w-4" />
-                        Book a time
-                      </a>
-                    ) : null}
-
-                    <Link
-                      href={
-                        viewerUserId
-                          ? `/requests/new?rebook=1&pro=${profile.id}`
-                          : loginHref(`/requests/new?rebook=1&pro=${profile.id}`)
-                      }
-                      className={`inline-flex items-center justify-center rounded-full px-7 py-3.5 text-sm font-semibold transition duration-300 ease-premium active:scale-[0.98] ${
-                        canDirectBook
-                          ? "text-ink ring-1 ring-ink/15 hover:bg-neutral-50 hover:ring-ink/30"
-                          : "bg-ink text-white hover:bg-neutral-800"
-                      }`}
-                    >
-                      {hasBookedBefore ? "Request again" : "Request service"}
-                    </Link>
-                  </div>
-                ) : null}
-
-                {viewerUserId === profile.id ? (
-                  <Link
-                    href="/account"
-                    className="inline-flex w-full items-center justify-center rounded-full px-6 py-3 text-sm font-semibold text-ink ring-1 ring-ink/15 transition hover:bg-neutral-50 sm:w-auto"
-                  >
-                    Edit profile
-                  </Link>
+                {isProfessional && formatServiceModes(profile.service_modes) ? (
+                  <span>{formatServiceModes(profile.service_modes)}</span>
                 ) : null}
               </div>
 
               {profile.bio?.trim() ? (
-                <p className="mt-6 max-w-2xl whitespace-pre-line text-[15px] leading-7 text-neutral-600">
+                <p className="mt-5 max-w-2xl whitespace-pre-line text-[17px] leading-8 text-neutral-700">
                   {profile.bio.trim()}
                 </p>
               ) : null}
@@ -1578,75 +1591,140 @@ if (loading) {
                     .filter((tag) => !tag.startsWith("Verified"))
                     .slice(0, 4)
                     .map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-600 ring-1 ring-ink/[0.06]"
-                      >
+                      <span key={tag} className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 ring-1 ring-ink/[0.07]">
                         {tag}
                       </span>
                     ))}
                 </div>
               ) : null}
+            </div>
 
-              {isProfessional ? (
-                <dl className="mt-7 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-ink/[0.06] ring-1 ring-ink/[0.06] sm:grid-cols-4">
-                  {[
-                    {
-                      label: "Rating",
-                      value: averageRating ? `★ ${averageRating}` : "New",
-                      href: reviews.length > 0 ? "#reviews" : null,
-                    },
-                    {
-                      label: "Reviews",
-                      value: String(reviews.length),
-                      href: reviews.length > 0 ? "#reviews" : null,
-                    },
-                    {
-                      label: "Services",
-                      value: String(services.length),
-                      href: null,
-                    },
-                    {
-                      label: canDirectBook ? "Next opening" : "Booking",
-                      value: canDirectBook ? getNextOpeningText() || "Fully booked" : "By request",
-                      href: canDirectBook ? "#availability" : null,
-                    },
-                  ].map((stat) => {
-                    const body = (
-                      <>
-                        <dt className="text-xs text-neutral-500">{stat.label}</dt>
-                        <dd className="mt-1 truncate text-[15px] font-semibold text-ink">{stat.value}</dd>
-                      </>
-                    );
-                    return stat.href ? (
-                      <a key={stat.label} href={stat.href} className="block bg-white px-4 py-3.5 transition hover:bg-neutral-50">
-                        {body}
-                      </a>
-                    ) : (
-                      <div key={stat.label} className="bg-white px-4 py-3.5">
-                        {body}
-                      </div>
-                    );
-                  })}
-                </dl>
-              ) : null}
-
-              {message ? (
-                <div className="mt-6 rounded-2xl bg-neutral-50 p-4 text-sm text-neutral-700 ring-1 ring-ink/[0.05]">
-                  {message}
+            <div className="lg:w-[300px]">
+              {isProfessional && viewerIsCustomer && viewerUserId !== profile.id && !profileVerified ? (
+                <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-neutral-600 ring-1 ring-ink/[0.07]">
+                  This professional hasn&apos;t completed verification yet, so they can&apos;t be requested or booked right now.
                 </div>
               ) : null}
+
+              {isProfessional && (viewerIsCustomer || !viewerUserId) && viewerUserId !== profile.id && profileVerified ? (
+                <div className="grid gap-2.5">
+                  {canDirectBook ? (
+                    <a
+                      href="#availability"
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-7 py-4 text-[15px] font-semibold text-white transition duration-300 ease-premium hover:bg-neutral-800 active:scale-[0.98]"
+                    >
+                      <CalendarDays className="h-4 w-4" />
+                      Book a time
+                    </a>
+                  ) : null}
+                  <Link
+                    href={
+                      viewerUserId
+                        ? `/requests/new?rebook=1&pro=${profile.id}`
+                        : loginHref(`/requests/new?rebook=1&pro=${profile.id}`)
+                    }
+                    className={`inline-flex items-center justify-center rounded-full px-7 py-4 text-[15px] font-semibold transition duration-300 ease-premium active:scale-[0.98] ${
+                      canDirectBook
+                        ? "bg-white text-ink ring-1 ring-ink/15 hover:ring-ink/30"
+                        : "bg-ink text-white hover:bg-neutral-800"
+                    }`}
+                  >
+                    {hasBookedBefore ? "Request again" : "Request service"}
+                  </Link>
+                  {canDirectBook && getNextOpeningText() ? (
+                    <p className="mt-1 text-center text-xs text-neutral-500">Next opening {getNextOpeningText()}</p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {viewerUserId === profile.id ? (
+                <Link
+                  href="/account"
+                  className="inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-ink ring-1 ring-ink/15 transition hover:ring-ink/30"
+                >
+                  Edit profile
+                </Link>
+              ) : null}
             </div>
-          </section>
+          </div>
+
+          {isProfessional ? (
+            <dl className="mt-10 grid grid-cols-2 gap-y-6 border-t border-ink/[0.08] pt-6 sm:grid-cols-4">
+              {[
+                { label: "Rating", value: averageRating ? `★ ${averageRating}` : "New" },
+                { label: reviews.length === 1 ? "Review" : "Reviews", value: String(reviews.length) },
+                { label: services.length === 1 ? "Service" : "Services", value: String(services.length) },
+                portfolioItems.length > 0
+                  ? { label: portfolioItems.length === 1 ? "Piece of work" : "Pieces of work", value: String(portfolioItems.length) }
+                  : { label: "Booking", value: canDirectBook ? "Instant" : "By request" },
+              ].map((stat) => (
+                <div key={stat.label}>
+                  <dd className="text-[1.75rem] font-semibold leading-none tracking-[-0.035em] text-ink">{stat.value}</dd>
+                  <dt className="mt-2 text-xs text-neutral-500">{stat.label}</dt>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+
+          {message ? (
+            <div className="mt-6 rounded-2xl bg-white p-4 text-sm text-neutral-700 ring-1 ring-ink/[0.07]">{message}</div>
+          ) : null}
+
+          <div ref={heroEndRef} aria-hidden="true" />
+
+          {isProfessional && sectionLinks.length > 1 ? (
+            <nav
+              aria-label="On this page"
+              className="sticky z-30 -mx-4 mt-10 bg-paper/85 px-4 backdrop-blur-md supports-[backdrop-filter]:bg-paper/75 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
+              style={{ top: headerHeight }}
+            >
+              <div className="flex items-center justify-between gap-4 border-b border-ink/[0.08]">
+                <ul className="-mb-px flex min-w-0 gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {sectionLinks.map((link) => {
+                    const active = activeSection === link.id;
+                    return (
+                      <li key={link.id}>
+                        <a
+                          href={`#${link.id}`}
+                          className={`relative flex h-12 items-center whitespace-nowrap text-sm transition-colors ${
+                            active ? "font-medium text-ink" : "text-neutral-500 hover:text-ink"
+                          }`}
+                        >
+                          {link.label}
+                          <span
+                            aria-hidden="true"
+                            className={`absolute inset-x-0 bottom-0 h-[1.5px] origin-left bg-ink transition-transform duration-300 ease-premium ${
+                              active ? "scale-x-100" : "scale-x-0"
+                            }`}
+                          />
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                {canDirectBook && (viewerIsCustomer || !viewerUserId) && viewerUserId !== profile.id && profileVerified ? (
+                  <a
+                    href="#availability"
+                    className={`hidden shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition-all duration-300 ease-premium hover:bg-neutral-800 sm:inline-flex ${
+                      pastHero ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-1 opacity-0"
+                    }`}
+                  >
+                    Book {profile.full_name?.split(" ")[0] || "a time"}
+                  </a>
+                ) : null}
+              </div>
+            </nav>
+          ) : null}
           {isProfessional && canDirectBook ? (
-            <AccordionSection
+            <ProfileSection
               id="availability"
+              wide
               title="Book a time"
               subtitle="Availability"
               summary={getNextOpeningText() ? `Next opening: ${getNextOpeningText()}` : "View available times"}
-              collapsible={false}
             >
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-neutral-50 px-4 py-3 text-sm ring-1 ring-ink/[0.05]">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm ring-1 ring-ink/[0.07]">
                 <p className="text-neutral-600">
                   Pick an open time below and book instantly
                   {directBookingModes.length > 0
@@ -1760,7 +1838,7 @@ if (loading) {
                     </div>
                     </DayZoomArea>
 
-                    <div className="min-w-0 rounded-3xl bg-neutral-50/70 p-4 ring-1 ring-ink/[0.05] sm:p-5">
+                    <div className="min-w-0 rounded-3xl bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <p className="text-xs font-medium text-neutral-500">
@@ -1872,7 +1950,7 @@ if (loading) {
                     </div>
                   </div>
 
-                  <div className="h-fit rounded-3xl bg-neutral-50/70 p-5 ring-1 ring-ink/[0.05] xl:sticky xl:top-24">
+                  <div className="h-fit rounded-3xl bg-white p-5 ring-1 ring-ink/[0.07] xl:sticky xl:top-[calc(var(--profile-offset,8rem)+1rem)]">
                     <p className="text-xs font-medium text-neutral-500">
                       Booking summary
                     </p>
@@ -2052,85 +2130,124 @@ if (loading) {
                   </div>
                 </div>
               )}
-            </AccordionSection>
+            </ProfileSection>
           ) : null}
 
           {isProfessional && services.length > 0 ? (
-            <AccordionSection
+            <ProfileSection
+              id="services"
               title="Services"
               subtitle="What you can book"
-              summary={`${services.length} service${services.length === 1 ? "" : "s"}`}
-              collapsible={false}
+              summary={`${services.length} service${services.length === 1 ? "" : "s"}${
+                servicePriceFrom ? ` · from ${servicePriceFrom}` : ""
+              }`}
             >
-              <ul className="-my-1 divide-y divide-ink/[0.06]">
-                {services.map((service) => (
-                  <li
-                    key={service.id}
-                    className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-baseline justify-between gap-4 sm:justify-start">
-                        <p className="text-[17px] font-semibold tracking-[-0.01em] text-ink">
-                          {service.service_name}
-                        </p>
-                        {formatPrice(service.price) ? (
-                          <span className="shrink-0 text-[17px] font-semibold text-ink sm:hidden">
-                            {formatPrice(service.price)}
-                          </span>
-                        ) : null}
-                      </div>
+              {services.length > 8 ? (
+                <label className="mb-4 flex items-center gap-2.5 rounded-full bg-white px-4 ring-1 ring-ink/[0.08] transition focus-within:ring-2 focus-within:ring-ink">
+                  <Search className="h-4 w-4 shrink-0 text-neutral-400" />
+                  <input
+                    value={serviceQuery}
+                    onChange={(e) => setServiceQuery(e.target.value)}
+                    placeholder={`Search ${services.length} services`}
+                    aria-label="Search services"
+                    className="min-w-0 flex-1 bg-transparent py-3 text-sm text-ink outline-none placeholder:text-neutral-400"
+                  />
+                </label>
+              ) : null}
 
-                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-neutral-500">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Clock3 className="h-3.5 w-3.5" />
-                          {service.duration_minutes} min
-                        </span>
-                        <span aria-hidden="true" className="h-1 w-1 rounded-full bg-neutral-300" />
-                        <span>{service.is_bookable ? "Book instantly" : "By request"}</span>
-                      </p>
+              {(() => {
+                const query = serviceQuery.trim().toLowerCase();
+                const matching = query
+                  ? services.filter(
+                      (service) =>
+                        service.service_name.toLowerCase().includes(query) ||
+                        (service.description || "").toLowerCase().includes(query)
+                    )
+                  : services;
+                const shown = query || showAllServices ? matching : matching.slice(0, 6);
+                const canAct = (viewerIsCustomer || !viewerUserId) && viewerUserId !== profile.id;
 
-                      {service.description ? (
-                        <p className="mt-2 line-clamp-2 max-w-xl text-sm leading-6 text-neutral-600">
-                          {service.description}
-                        </p>
-                      ) : null}
-                    </div>
+                if (matching.length === 0) {
+                  return <p className="py-6 text-sm text-neutral-500">No services match “{serviceQuery.trim()}”.</p>;
+                }
 
-                    <div className="flex shrink-0 items-center gap-4">
-                      {formatPrice(service.price) ? (
-                        <span className="hidden text-[17px] font-semibold text-ink sm:inline">
-                          {formatPrice(service.price)}
-                        </span>
-                      ) : null}
+                return (
+                  <>
+                    <ul className="overflow-hidden rounded-3xl bg-white ring-1 ring-ink/[0.07]">
+                      {shown.map((service) => {
+                        const body = (
+                          <>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[15px] font-semibold text-ink">{service.service_name}</p>
+                              <p className="mt-0.5 truncate text-[13px] text-neutral-500">
+                                {service.duration_minutes} min
+                                {service.description ? ` · ${service.description}` : ""}
+                              </p>
+                            </div>
+                            {formatPrice(service.price) ? (
+                              <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink">
+                                {formatPrice(service.price)}
+                              </span>
+                            ) : null}
+                          </>
+                        );
+                        const rowClass =
+                          "flex items-center gap-4 border-t border-ink/[0.06] px-5 py-4 first:border-t-0";
 
-                      {(viewerIsCustomer || !viewerUserId) && viewerUserId !== profile.id && canDirectBook ? (
-                        <a
-                          href="#availability"
-                          className="inline-flex w-full items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold text-ink ring-1 ring-ink/15 transition hover:bg-neutral-50 hover:ring-ink/30 sm:w-auto"
-                        >
-                          View times
-                        </a>
-                      ) : viewerIsCustomer && viewerUserId !== profile.id && profileVerified ? (
-                        <Link
-                          href={`/requests/new?rebook=1&pro=${profile.id}&service=${encodeURIComponent(service.service_name)}${service.price ? `&price=${service.price}` : ""}`}
-                          className="inline-flex w-full items-center justify-center rounded-full px-5 py-2.5 text-sm font-semibold text-ink ring-1 ring-ink/15 transition hover:bg-neutral-50 hover:ring-ink/30 sm:w-auto"
-                        >
-                          Request
-                        </Link>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </AccordionSection>
+                        if (canAct && canDirectBook) {
+                          return (
+                            <li key={service.id}>
+                              <a href="#availability" className={`${rowClass} group transition hover:bg-neutral-50`}>
+                                {body}
+                                <ChevronRight className="h-4 w-4 shrink-0 text-neutral-300 transition group-hover:translate-x-0.5 group-hover:text-ink" />
+                              </a>
+                            </li>
+                          );
+                        }
+                        if (canAct && profileVerified) {
+                          const requestPath = `/requests/new?rebook=1&pro=${profile.id}&service=${encodeURIComponent(service.service_name)}${service.price ? `&price=${service.price}` : ""}`;
+                          return (
+                            <li key={service.id}>
+                              <Link
+                                href={viewerUserId ? requestPath : loginHref(requestPath)}
+                                className={`${rowClass} group transition hover:bg-neutral-50`}
+                              >
+                                {body}
+                                <ChevronRight className="h-4 w-4 shrink-0 text-neutral-300 transition group-hover:translate-x-0.5 group-hover:text-ink" />
+                              </Link>
+                            </li>
+                          );
+                        }
+                        return (
+                          <li key={service.id} className={rowClass}>
+                            {body}
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    {!query && matching.length > 6 ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllServices((prev) => !prev)}
+                        className="mt-4 rounded-full px-5 py-2.5 text-sm font-semibold text-ink ring-1 ring-ink/15 transition hover:bg-white"
+                      >
+                        {showAllServices ? "Show fewer" : `Show all ${matching.length} services`}
+                      </button>
+                    ) : null}
+                  </>
+                );
+              })()}
+            </ProfileSection>
           ) : null}
 
           {isProfessional && portfolioItems.length > 0 ? (
-            <AccordionSection
+            <ProfileSection
+              id="work"
+              wide
               title="Past work"
               subtitle="Portfolio"
               summary={`${portfolioItems.length} piece${portfolioItems.length === 1 ? "" : "s"}`}
-              collapsible={false}
             >
               <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
                 {portfolioItems.map((item, index) => (
@@ -2169,15 +2286,14 @@ if (loading) {
                   </figure>
                 ))}
               </div>
-            </AccordionSection>
+            </ProfileSection>
           ) : null}
 
           {isProfessional ? (
-            <AccordionSection
+            <ProfileSection
               id="reviews"
               title="Client feedback"
               subtitle="Reviews"
-              collapsible={false}
             >
               {reviews.length === 0 ? (
                 <p className="rounded-2xl bg-neutral-50 p-5 text-sm text-neutral-600 ring-1 ring-ink/[0.05]">
@@ -2248,14 +2364,14 @@ if (loading) {
                   ) : null}
                 </>
               )}
-            </AccordionSection>
+            </ProfileSection>
           ) : null}
 
           {isProfessional &&
           (professionalTypeLabels.length > 0 ||
             (profile.specialties && profile.specialties.length > 0) ||
             profile.instagram_handle) ? (
-            <AccordionSection title="Details" subtitle="About" collapsible={false}>
+            <ProfileSection id="details" title="Details" subtitle="About">
               <dl className="divide-y divide-ink/[0.06]">
                 {professionalTypeLabels.length > 0 ? (
                   <div className="flex flex-col gap-2 pb-5 sm:flex-row sm:gap-8">
@@ -2299,10 +2415,60 @@ if (loading) {
                   </div>
                 ) : null}
               </dl>
-            </AccordionSection>
+            </ProfileSection>
           ) : null}
         </div>
       </main>
+
+      {/* Phone: once the hero buttons scroll away, booking stays one tap away.
+          Sits above the app's tab bar when signed in, and steps aside while
+          the calendar itself is on screen. */}
+      {isProfessional &&
+      profileVerified &&
+      (viewerIsCustomer || !viewerUserId) &&
+      viewerUserId !== profile.id ? (
+        <div
+          className={`fixed inset-x-0 z-40 px-3 transition-all duration-500 ease-premium sm:hidden ${
+            pastHero && !calendarInView ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-6 opacity-0"
+          }`}
+          style={{
+            bottom: viewerUserId
+              ? "calc(env(safe-area-inset-bottom) + 84px)"
+              : "calc(env(safe-area-inset-bottom) + 12px)",
+          }}
+        >
+          <div className="mx-auto flex max-w-md items-center justify-between gap-3 rounded-[22px] bg-ink p-2 pl-5 text-white shadow-[0_16px_40px_-12px_rgba(0,0,0,0.55)]">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">
+                {servicePriceFrom ? `From ${servicePriceFrom}` : profile.full_name || "Book"}
+              </p>
+              <p className="truncate text-xs text-white/60">
+                {canDirectBook
+                  ? getNextOpeningText()
+                    ? `Next: ${getNextOpeningText()}`
+                    : "See open times"
+                  : "Send a request"}
+              </p>
+            </div>
+            {canDirectBook ? (
+              <a href="#availability" className="shrink-0 rounded-[16px] bg-white px-5 py-3 text-sm font-semibold text-ink active:scale-[0.97]">
+                Book a time
+              </a>
+            ) : (
+              <Link
+                href={
+                  viewerUserId
+                    ? `/requests/new?rebook=1&pro=${profile.id}`
+                    : loginHref(`/requests/new?rebook=1&pro=${profile.id}`)
+                }
+                className="shrink-0 rounded-[16px] bg-white px-5 py-3 text-sm font-semibold text-ink active:scale-[0.97]"
+              >
+                Request
+              </Link>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {pendingBookingChoice ? (
         <div className="lu-fade-in fixed inset-0 z-[70] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
