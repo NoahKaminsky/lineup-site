@@ -470,3 +470,53 @@ main {
   0%   { opacity: 0.9; transform: scale(1); }
   100% { opacity: 0;   transform: scale(1.12); }
 }
+
+/* ── Little moments ─────────────────────────────────────────────────────── */
+
+/* Every pill button gives a little under your thumb. In the base layer so
+   Tailwind utilities still win, and via `scale` so it never fights an
+   element's own transform animation. */
+@layer base {
+  :where(button, a).rounded-full:not(:disabled):active {
+    scale: 0.97;
+  }
+}
+
+/* A card leaving the list (withdrawn offer, dismissed request): it's struck
+   through, then tips away and its slot closes up. */
+.lu-leaving {
+  position: relative;
+  pointer-events: none;
+  animation: lu-fall-away 460ms var(--ease-premium) 300ms both;
+}
+.lu-leaving::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: 50%;
+  height: 2px;
+  border-radius: 9999px;
+  background: var(--color-ink, #111);
+  transform-origin: left;
+  animation: lu-strike 320ms var(--ease-arrive) both;
+}
+
+/* Something you just changed flashes once so you can see it took. */
+@keyframes lu-saved-flash {
+  0% { box-shadow: 0 0 0 0 rgba(17, 17, 17, 0.28); }
+  100% { box-shadow: 0 0 0 14px rgba(17, 17, 17, 0); }
+}
+.lu-saved-flash {
+  animation: lu-saved-flash 900ms var(--ease-arrive) both;
+}
+
+/* Star ratings: each star pops as it fills, one after the other. */
+@keyframes lu-star-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35) rotate(-8deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.lu-star-pop {
+  animation: lu-star-pop 380ms var(--ease-arrive) both;
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { burstOrigin, fireBurst } from "@/app/components/moments/Burst";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
@@ -841,6 +842,8 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const submitter = (e.nativeEvent as SubmitEvent).submitter;
+    const saveOrigin = submitter ? burstOrigin(submitter) : null;
 
     if (!profile) return;
 
@@ -924,6 +927,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
     setProfile((prev) => (prev ? { ...prev, ...updates } : prev));
     setSaving(false);
+    if (saveOrigin) fireBurst(saveOrigin, "spark");
     setMessage("Profile updated.");
     setIsEditing(false);
   }

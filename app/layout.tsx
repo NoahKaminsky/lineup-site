@@ -4,6 +4,7 @@ import "./globals.css";
 import NavigationProgress from "./components/NavigationProgress";
 import NavbarWrapper from "./components/NavbarWrapper";
 import SplashScreen from "./components/SplashScreen";
+import BurstLayer from "./components/moments/Burst";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -91,6 +92,7 @@ export default function RootLayout({
         <NavigationProgress />
         <NavbarWrapper />
         {children}
+        <BurstLayer />
       </body>
     </html>
   );

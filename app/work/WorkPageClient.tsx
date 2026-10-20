@@ -11,6 +11,7 @@ import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/cus
 import { containsProfanity } from "@/app/lib/profanityFilter";
 import VerificationBanner from "@/app/components/VerificationBanner";
 import BidCountBlip from "@/app/components/BidCountBlip";
+import { burstOrigin, fireBurst } from "@/app/components/moments/Burst";
 import { useBidCounts } from "@/app/lib/useBidCounts";
 
 import { MapPin } from "lucide-react";
@@ -379,6 +380,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [withdrawState, setWithdrawState] = useState<{ itemId: string; phase: "confirm" | "loading" } | null>(null);
   const [withdrawError, setWithdrawError] = useState("");
+  const [leavingItemId, setLeavingItemId] = useState<string | null>(null);
 
   // "N pros have bid on this already" for open requests this pro hasn't bid on.
   const bidCountRequestIds = useMemo(() => {
@@ -427,8 +429,13 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       return;
     }
 
-    setRequestAndOfferItems((prev) => prev.filter((entry) => entry.id !== item.id));
+    // Strike it through and let it tip away before it leaves the list.
     setWithdrawState(null);
+    setLeavingItemId(item.id);
+    window.setTimeout(() => {
+      setRequestAndOfferItems((prev) => prev.filter((entry) => entry.id !== item.id));
+      setLeavingItemId(null);
+    }, 780);
   }
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [reviewItem, setReviewItem] = useState<BookedItem | null>(null);
@@ -1120,7 +1127,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
     }
   }
 
-  async function handleRateCustomer(item: BookedItem, rating: number) {
+  async function handleRateCustomer(item: BookedItem, rating: number, origin?: { x: number; y: number } | null) {
     if (!profile?.id || !item.customerId) return;
 
     const key = `${item.source}-${item.id}`;
@@ -1141,6 +1148,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
         return;
       }
 
+      if (origin) fireBurst(origin, "spark");
       setCustomerRatings((prev) => ({ ...prev, [key]: rating }));
     } catch (error) {
       console.error(error);
@@ -1423,6 +1431,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                           key={item.id}
                           item={item}
                           isProfessional={isProfessional}
+                          leaving={leavingItemId === item.id}
                           withdraw={
                             isProfessional && item.kind === "offer_sent" && item.rawOfferStatus === "pending"
                               ? {
@@ -1641,11 +1650,13 @@ function ActivityCard({
   isProfessional,
   withdraw,
   bidCount,
+  leaving = false,
 }: {
   item: RequestAndOfferItem;
   isProfessional: boolean;
   withdraw?: WithdrawControl;
   bidCount?: number;
+  leaving?: boolean;
 }) {
   const isOffer = item.kind === "offer_sent" || item.kind === "offer_received";
 
@@ -1711,7 +1722,7 @@ function ActivityCard({
   if (!withdraw) return card;
 
   return (
-    <div className="space-y-1.5">
+    <div className={`space-y-1.5 ${leaving ? "lu-leaving" : ""}`}>
       {card}
       <div className="flex items-center justify-end gap-2 px-1">
         {withdraw.phase === "confirm" ? (
@@ -1776,7 +1787,7 @@ function BookedList({
   ) => Promise<void>;
   customerRatings?: Record<string, number>;
   ratingSubmittingId?: string | null;
-  onRateCustomer?: (item: BookedItem, rating: number) => void;
+  onRateCustomer?: (item: BookedItem, rating: number, origin?: { x: number; y: number } | null) => void;
 }) {
   return (
     <div className="grid gap-3 lg:grid-cols-2">
@@ -1996,14 +2007,15 @@ function BookedList({
 
                     return (
                       <button
-                        key={star}
+                        key={`${star}-${rated ? "rated" : "open"}`}
                         type="button"
                         disabled={!!rated || ratingSubmittingId === actionKey}
-                        onClick={() => onRateCustomer(item, star)}
+                        onClick={(e) => onRateCustomer(item, star, burstOrigin(e))}
+                        style={filled ? { animationDelay: `${(star - 1) * 45}ms` } : undefined}
                         aria-label={`Rate ${star} star${star === 1 ? "" : "s"}`}
                         className={`text-lg leading-none transition ${
                           rated ? "cursor-default" : "cursor-pointer hover:scale-110"
-                        } ${filled ? "text-amber-400" : "text-neutral-200"}`}
+                        } ${filled ? "lu-star-pop text-amber-400" : "text-neutral-200"}`}
                       >
                         ★
                       </button>

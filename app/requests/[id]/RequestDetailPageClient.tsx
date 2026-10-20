@@ -18,10 +18,11 @@ import type { RequestDetailInitialData } from "./getInitialData";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { containsProfanity } from "@/app/lib/profanityFilter";
 import TimeSelect from "@/app/components/TimeSelect";
+import { burstOrigin, fireBurst } from "@/app/components/moments/Burst";
 
 import { MapPin } from "lucide-react";
 import { getSignedInUser } from "@/lib/getSignedInUser";
-import { BookedSheet, CancelMoment, MomentOverlay, formatMomentPrice } from "@/app/components/moments/Moments";
+import { BookedSheet, CancelMoment, DrawnCheck, MaskLine, MomentOverlay, formatMomentPrice } from "@/app/components/moments/Moments";
 import {
   CANCELLATION_CUTOFF_HOURS as CUTOFF_HOURS,
   canCancelForRefund,
@@ -250,11 +251,13 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
   const [reofferLoading, setReofferLoading] = useState(false);
   const [withdrawingOfferId, setWithdrawingOfferId] = useState<string | null>(null);
   const [confirmingWithdrawOfferId, setConfirmingWithdrawOfferId] = useState<string | null>(null);
+  const [leavingOfferId, setLeavingOfferId] = useState<string | null>(null);
   const [cancelingRequest, setCancelingRequest] = useState(false);
   const [confirmingCancelRequest, setConfirmingCancelRequest] = useState(false);
   const [editingRequest, setEditingRequest] = useState(false);
   const [savingRequestEdit, setSavingRequestEdit] = useState(false);
   const [requestEditError, setRequestEditError] = useState("");
+  const [requestEditedAt, setRequestEditedAt] = useState(0);
   const [editDraft, setEditDraft] = useState({
     title: "",
     description: "",
@@ -283,6 +286,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
   const [selectedOfferForPayment, setSelectedOfferForPayment] =
     useState<RequestOffer | null>(null);
 
+  const [justReviewed, setJustReviewed] = useState(false);
   const [reviewRating, setReviewRating] = useState(() => initialData?.existingReview?.rating ?? 5);
   const [reviewComment, setReviewComment] = useState(() => initialData?.existingReview?.comment ?? "");
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -1249,10 +1253,15 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
       return;
     }
 
-    setOffers((prev) => prev.filter((o) => o.id !== offerId));
-    setHasSubmittedOffer(false);
+    // Strike it through and let it tip away before it leaves the list.
     setWithdrawingOfferId(null);
-    setMessage("Offer withdrawn. You can send a new one any time while the request is open.");
+    setLeavingOfferId(offerId);
+    window.setTimeout(() => {
+      setOffers((prev) => prev.filter((o) => o.id !== offerId));
+      setHasSubmittedOffer(false);
+      setLeavingOfferId(null);
+      setMessage("Offer withdrawn. You can send a new one any time while the request is open.");
+    }, 780);
   }
 
   // A client can edit or cancel their request only while it's open and no
@@ -1277,6 +1286,9 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
   async function handleSaveRequestEdit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    // Burst from the Save button once it lands (grabbed now, before awaits).
+    const submitter = (e.nativeEvent as SubmitEvent).submitter;
+    const saveOrigin = submitter ? burstOrigin(submitter) : null;
     if (!request || !canManageRequest) return;
 
     if (!editDraft.title.trim()) {
@@ -1319,6 +1331,8 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
     setRequest((prev) => (prev ? { ...prev, ...(body?.request || {}) } : prev));
     setSavingRequestEdit(false);
     setEditingRequest(false);
+    if (saveOrigin) fireBurst(saveOrigin, "spark");
+    setRequestEditedAt(Date.now());
     setMessage(
       offers.some((offer) => offer.status === "pending")
         ? "Request updated. Pros who already sent offers have been told it changed."
@@ -1525,7 +1539,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
     }
   }
 
-  async function handleSubmitReview() {
+  async function handleSubmitReview(origin?: { x: number; y: number } | null) {
     if (!request) return;
 
     const acceptedOffer = offers.find((offer) => offer.status === "accepted");
@@ -1574,6 +1588,8 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
       return;
     }
 
+    if (origin) fireBurst(origin);
+    setJustReviewed(true);
     setExistingReview(data);
     setMessage("Review submitted.");
     setSubmittingReview(false);
@@ -1928,12 +1944,15 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 </form>
               ) : (
                 <>
-              <h1 className="mt-5 max-w-4xl text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-                {request.title}
+              <h1 key={`title-${requestEditedAt}`} className="mt-5 max-w-4xl text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+                {requestEditedAt ? <MaskLine>{request.title}</MaskLine> : request.title}
               </h1>
 
               {request.description ? (
-                <p className="mt-5 max-w-3xl text-base leading-8 text-neutral-600 md:text-lg">
+                <p
+                  key={`desc-${requestEditedAt}`}
+                  className={`mt-5 max-w-3xl text-base leading-8 text-neutral-600 md:text-lg ${requestEditedAt ? "lu-fade-in" : ""}`}
+                >
                   {request.description}
                 </p>
               ) : null}
@@ -2270,6 +2289,8 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                         <div
                           key={offer.id}
                           className={`overflow-hidden rounded-panel border shadow-sm ${
+                            leavingOfferId === offer.id ? "lu-leaving" : ""
+                          } ${
                             isAccepted
                               ? "border-ink bg-ink text-white"
                               : "border-neutral-200 bg-white text-neutral-900"
@@ -2926,10 +2947,29 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   </p>
 
                   {existingReview ? (
-                    <div className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
-                      <p className="text-lg font-semibold text-neutral-900">
-                        {"★".repeat(existingReview.rating)}
-                        {"☆".repeat(5 - existingReview.rating)}
+                    <div
+                      className={`relative mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-5 ${
+                        justReviewed ? "lu-lift-in" : ""
+                      }`}
+                    >
+                      {justReviewed ? (
+                        <>
+                          <span aria-hidden="true" className="lu-ring pointer-events-none absolute -inset-px rounded-2xl ring-2 ring-ink" />
+                          <span className="absolute -right-3 -top-3">
+                            <DrawnCheck size={32} delay={200} />
+                          </span>
+                        </>
+                      ) : null}
+                      <p className="text-lg font-semibold text-neutral-900" aria-label={`${existingReview.rating} out of 5 stars`}>
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <span
+                            key={i}
+                            className={`inline-block ${justReviewed && i < existingReview.rating ? "lu-star-pop" : ""}`}
+                            style={justReviewed ? { animationDelay: `${260 + i * 70}ms` } : undefined}
+                          >
+                            {i < existingReview.rating ? "★" : "☆"}
+                          </span>
+                        ))}
                       </p>
 
                       {existingReview.comment ? (
@@ -2946,17 +2986,42 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                         <label className="text-sm font-medium text-neutral-900">
                           Rating
                         </label>
-                        <select
-                          value={reviewRating}
-                          onChange={(e) => setReviewRating(Number(e.target.value))}
-                          className="mt-2 w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
+                        <div
+                          role="radiogroup"
+                          aria-label="Rating"
+                          className="mt-2 flex items-center gap-1.5"
                         >
-                          <option value={5}>5 - Excellent</option>
-                          <option value={4}>4 - Good</option>
-                          <option value={3}>3 - Okay</option>
-                          <option value={2}>2 - Poor</option>
-                          <option value={1}>1 - Bad</option>
-                        </select>
+                          {[1, 2, 3, 4, 5].map((value) => {
+                            const filled = value <= reviewRating;
+                            return (
+                              <button
+                                key={`${value}-${filled ? reviewRating : 0}`}
+                                type="button"
+                                role="radio"
+                                aria-checked={value === reviewRating}
+                                aria-label={`${value} star${value === 1 ? "" : "s"}`}
+                                onClick={() => setReviewRating(value)}
+                                className={`flex h-11 w-11 items-center justify-center rounded-full transition-colors ${
+                                  filled ? "text-ink" : "text-neutral-300 hover:text-neutral-400"
+                                } ${filled ? "lu-star-pop" : ""}`}
+                                style={filled ? { animationDelay: `${(value - 1) * 45}ms` } : undefined}
+                              >
+                                <svg viewBox="0 0 24 24" className="h-7 w-7" aria-hidden="true">
+                                  <path
+                                    d="M12 3.2l2.62 5.3 5.86.86-4.24 4.13 1 5.83L12 16.57l-5.24 2.75 1-5.83L3.52 9.36l5.86-.86L12 3.2z"
+                                    fill={filled ? "currentColor" : "none"}
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </button>
+                            );
+                          })}
+                          <span className="ml-2 text-sm font-medium text-neutral-500">
+                            {["", "Bad", "Poor", "Okay", "Good", "Excellent"][reviewRating]}
+                          </span>
+                        </div>
                       </div>
 
                       <div>
@@ -2974,7 +3039,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                       <button
                         type="button"
-                        onClick={handleSubmitReview}
+                        onClick={(e) => handleSubmitReview(burstOrigin(e))}
                         disabled={submittingReview}
                         className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                       >

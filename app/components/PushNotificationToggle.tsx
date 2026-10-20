@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { useWebPush } from "@/app/lib/useWebPush";
+import { burstOrigin, fireBurst } from "@/app/components/moments/Burst";
 
 // Drop this anywhere a user should be able to turn on/off browser push —
 // it loads its own state via useWebPush() and renders nothing on a
@@ -11,6 +12,7 @@ export default function PushNotificationToggle() {
   const { supported, permission, subscribed, loading, isIOS, isStandalone, subscribe, unsubscribe } = useWebPush();
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState("");
+  const [justEnabled, setJustEnabled] = useState(false);
 
   if (loading) return null;
 
@@ -62,11 +64,17 @@ export default function PushNotificationToggle() {
 
   if (!supported) return null;
 
-  async function handleEnable() {
+  async function handleEnable(e: MouseEvent<HTMLButtonElement>) {
+    const origin = burstOrigin(e);
     setWorking(true);
     setMessage("");
     const result = await subscribe();
     if (!result.ok) setMessage(result.error || "Couldn't turn on notifications.");
+    else {
+      // The bell rings once as the "on" pill lands.
+      if (origin) fireBurst(origin, "spark");
+      setJustEnabled(true);
+    }
     setWorking(false);
   }
 
@@ -90,8 +98,25 @@ export default function PushNotificationToggle() {
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {subscribed ? (
           <>
-            <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-900">
-              <span className="h-2 w-2 rounded-full bg-ink" />
+            <span
+              className={`inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-900 ${
+                justEnabled ? "lu-pop-in" : ""
+              }`}
+            >
+              <svg
+                viewBox="0 0 20 20"
+                className={`h-4 w-4 ${justEnabled ? "lu-bell-ring" : ""}`}
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M10 2.75a4.75 4.75 0 0 0-4.75 4.75v2.6L4 12.75h12l-1.25-2.65V7.5A4.75 4.75 0 0 0 10 2.75zM8 15a2 2 0 0 0 4 0"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
               Notifications on
             </span>
             <button

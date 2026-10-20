@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import LuLoader from "@/app/components/LuLoader";
+import { MomentOverlay } from "@/app/components/moments/Moments";
 import { useRouter } from "next/navigation";
 import { Scissors, Wand2, Hand, Eye, Pencil, Palette, Flame, Leaf, Star, ShoppingBag, Briefcase, Check } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
@@ -38,6 +39,7 @@ export default function OnboardingPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [welcomeMoment, setWelcomeMoment] = useState<"customer" | "professional" | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -198,7 +200,11 @@ export default function OnboardingPage() {
     // Professionals verify their credentials as part of signing up — until
     // approved they're hidden from Browse and can't send offers.
     // Customers who came from a booking link go straight back to it.
-    router.push(role === "professional" ? "/verification" : takeReturnTo() || "/requests");
+    // A short "you're in" before moving on — the same hold the moment's
+    // hairline fills over.
+    const destination = role === "professional" ? "/verification" : takeReturnTo() || "/requests";
+    setWelcomeMoment(role === "professional" ? "professional" : "customer");
+    window.setTimeout(() => router.push(destination), 1500);
   }
 
   if (loading) {
@@ -206,6 +212,16 @@ export default function OnboardingPage() {
   }
 
   return (
+    <>
+    {welcomeMoment ? (
+      <MomentOverlay
+        status="done"
+        workingTitle=""
+        title="You’re in."
+        subtitle={welcomeMoment === "professional" ? "One quick step: get verified." : "Welcome to LineUp."}
+        holdMs={1500}
+      />
+    ) : null}
     <main className="min-h-screen bg-paper text-neutral-900">
       {/* Minimal header — no nav to distract during setup */}
       <header className="border-b border-hairline">
@@ -545,5 +561,6 @@ export default function OnboardingPage() {
         </div>
       </div>
     </main>
+    </>
   );
 }

@@ -1363,7 +1363,17 @@ if (profileError || !profile) {
   );
 
   // Requests this pro chose to clear ("not for me").
-  const { dismissed: dismissedRequestIds, dismiss: dismissRequest } = useDismissedRequests(userId, isProfessional);
+  const { dismissed: dismissedRequestIds, dismiss: commitDismissRequest } = useDismissedRequests(userId, isProfessional);
+  // Struck through and tipped away first, then actually cleared.
+  const [leavingRequestId, setLeavingRequestId] = useState<string | null>(null);
+  const dismissRequest = (requestId: string) => {
+    if (leavingRequestId) return;
+    setLeavingRequestId(requestId);
+    window.setTimeout(() => {
+      commitDismissRequest(requestId);
+      setLeavingRequestId(null);
+    }, 760);
+  };
   const myServiceArea = useMyServiceArea(userId, isProfessional);
 
   const professionalOpenRequests = useMemo(
@@ -2654,7 +2664,10 @@ return (
                         ].filter(Boolean);
 
                         return (
-                          <div key={request.id} className="group/req relative">
+                          <div
+                            key={request.id}
+                            className={`group/req relative ${leavingRequestId === request.id ? "lu-leaving" : ""}`}
+                          >
                           {!responded ? (
                             <button
                               type="button"
