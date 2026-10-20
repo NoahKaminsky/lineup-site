@@ -17,6 +17,7 @@ import { getCached, setCached } from "@/app/lib/pageCache";
 import type { RequestDetailInitialData } from "./getInitialData";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { containsProfanity } from "@/app/lib/profanityFilter";
+import TimeSelect from "@/app/components/TimeSelect";
 
 import { MapPin } from "lucide-react";
 import { getSignedInUser } from "@/lib/getSignedInUser";
@@ -251,6 +252,17 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
   const [confirmingWithdrawOfferId, setConfirmingWithdrawOfferId] = useState<string | null>(null);
   const [cancelingRequest, setCancelingRequest] = useState(false);
   const [confirmingCancelRequest, setConfirmingCancelRequest] = useState(false);
+  const [editingRequest, setEditingRequest] = useState(false);
+  const [savingRequestEdit, setSavingRequestEdit] = useState(false);
+  const [requestEditError, setRequestEditError] = useState("");
+  const [editDraft, setEditDraft] = useState({
+    title: "",
+    description: "",
+    budget: "",
+    timing_flexibility: "exact",
+    preferred_date: "",
+    preferred_start_time: "",
+  });
   const [cancelingBooking, setCancelingBooking] = useState(false);
   const [confirmingCancelBooking, setConfirmingCancelBooking] = useState(false);
 
@@ -1243,8 +1255,79 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
     setMessage("Offer withdrawn. You can send a new one any time while the request is open.");
   }
 
+  // A client can edit or cancel their request only while it's open and no
+  // offer has been accepted (or is mid-payment).
+  const hasLockedOffer = offers.some((offer) => offer.status === "accepted" || offer.status === "payment_pending");
+  const canManageRequest = !!request && isCustomer && request.status === "open" && !hasLockedOffer;
+
+  function startEditingRequest() {
+    if (!request) return;
+    setEditDraft({
+      title: request.title || "",
+      description: request.description || "",
+      budget: request.budget || "",
+      timing_flexibility: request.timing_flexibility || (request.preferred_date ? "exact" : "anytime"),
+      preferred_date: request.preferred_date || "",
+      preferred_start_time: request.preferred_start_time ? request.preferred_start_time.slice(0, 5) : "",
+    });
+    setRequestEditError("");
+    setConfirmingCancelRequest(false);
+    setEditingRequest(true);
+  }
+
+  async function handleSaveRequestEdit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!request || !canManageRequest) return;
+
+    if (!editDraft.title.trim()) {
+      setRequestEditError("Give your request a title.");
+      return;
+    }
+    if (editDraft.timing_flexibility !== "anytime" && (!editDraft.preferred_date || !editDraft.preferred_start_time)) {
+      setRequestEditError("Pick a date and start time, or choose “Anytime”.");
+      return;
+    }
+    if (containsProfanity(editDraft.title) || containsProfanity(editDraft.description)) {
+      setRequestEditError("Please remove inappropriate language from your request.");
+      return;
+    }
+
+    setSavingRequestEdit(true);
+    setRequestEditError("");
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const res = await fetch("/api/requests/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ requestId: request.id, ...editDraft }),
+    }).catch(() => null);
+
+    const body = res ? await res.json().catch(() => null) : null;
+
+    if (!res || !res.ok) {
+      setRequestEditError(body?.error || "Could not save your changes. Please try again.");
+      setSavingRequestEdit(false);
+      return;
+    }
+
+    setRequest((prev) => (prev ? { ...prev, ...(body?.request || {}) } : prev));
+    setSavingRequestEdit(false);
+    setEditingRequest(false);
+    setMessage(
+      offers.some((offer) => offer.status === "pending")
+        ? "Request updated. Pros who already sent offers have been told it changed."
+        : "Request updated."
+    );
+  }
+
   async function handleCancelRequest() {
-    if (!request || !currentUserId || !isCustomer || request.status !== "open") return;
+    if (!request || !currentUserId || !canManageRequest) return;
 
     if (!confirmingCancelRequest) {
       setConfirmingCancelRequest(true);
@@ -1690,7 +1773,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   ) : null}
                 </div>
 
-                {isCustomer && request.status === "open" ? (
+                {canManageRequest && !editingRequest ? (
                   confirmingCancelRequest ? (
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-neutral-600">Cancel this request?</span>
@@ -1711,17 +1794,140 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       </button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={handleCancelRequest}
-                      className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-neutral-50"
-                    >
-                      Cancel request
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={startEditingRequest}
+                        className="rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-neutral-800"
+                      >
+                        Edit request
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelRequest}
+                        className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-neutral-50"
+                      >
+                        Cancel request
+                      </button>
+                    </div>
                   )
                 ) : null}
               </div>
 
+              {editingRequest && canManageRequest ? (
+                <form onSubmit={handleSaveRequestEdit} className="mt-5 max-w-2xl space-y-4" aria-busy={savingRequestEdit}>
+                  <div>
+                    <label htmlFor="edit-title" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Title</label>
+                    <input
+                      id="edit-title"
+                      value={editDraft.title}
+                      maxLength={120}
+                      onChange={(e) => setEditDraft((d) => ({ ...d, title: e.target.value }))}
+                      className="INPUT"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-description" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Details</label>
+                    <textarea
+                      id="edit-description"
+                      rows={4}
+                      value={editDraft.description}
+                      maxLength={2000}
+                      onChange={(e) => setEditDraft((d) => ({ ...d, description: e.target.value }))}
+                      className="INPUT resize-y"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-budget" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Budget <span className="font-normal normal-case tracking-normal text-neutral-400">(optional)</span></label>
+                    <input
+                      id="edit-budget"
+                      value={editDraft.budget}
+                      maxLength={60}
+                      onChange={(e) => setEditDraft((d) => ({ ...d, budget: e.target.value }))}
+                      placeholder="e.g. $60"
+                      className="INPUT"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-timing" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">When</label>
+                    <select
+                      id="edit-timing"
+                      value={editDraft.timing_flexibility}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setEditDraft((d) =>
+                          value === "anytime"
+                            ? { ...d, timing_flexibility: value, preferred_date: "", preferred_start_time: "" }
+                            : { ...d, timing_flexibility: value }
+                        );
+                      }}
+                      className="INPUT"
+                    >
+                      <option value="exact">Exact date and time</option>
+                      <option value="flexible">Flexible around this time</option>
+                      <option value="anytime">Anytime — let pros suggest</option>
+                    </select>
+                    {editDraft.timing_flexibility !== "anytime" ? (
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <input
+                          type="date"
+                          aria-label="Date"
+                          value={editDraft.preferred_date}
+                          onChange={(e) => setEditDraft((d) => ({ ...d, preferred_date: e.target.value }))}
+                          className="INPUT"
+                        />
+                        <TimeSelect
+                          value={editDraft.preferred_start_time}
+                          onChange={(value: string) => setEditDraft((d) => ({ ...d, preferred_start_time: value }))}
+                          selectClassName="w-full rounded-xl border border-neutral-200 bg-white px-2 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {offers.some((offer) => offer.status === "pending") ? (
+                    <p className="rounded-xl bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-600">
+                      Pros who already sent offers will be told your request changed, so they can update their offer.
+                    </p>
+                  ) : null}
+
+                  {requestEditError ? (
+                    <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {requestEditError}
+                    </p>
+                  ) : null}
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={savingRequestEdit}
+                      className="rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                    >
+                      {savingRequestEdit ? "Saving…" : "Save changes"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingRequest(false)}
+                      disabled={savingRequestEdit}
+                      className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-neutral-50"
+                    >
+                      Discard
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingRequest(false);
+                        setConfirmingCancelRequest(true);
+                      }}
+                      disabled={savingRequestEdit}
+                      className="ml-auto rounded-full px-3 py-2.5 text-sm font-medium text-red-700 transition hover:bg-red-50"
+                    >
+                      Cancel request
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
               <h1 className="mt-5 max-w-4xl text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
                 {request.title}
               </h1>
@@ -1731,6 +1937,8 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   {request.description}
                 </p>
               ) : null}
+                </>
+              )}
 
               {requestOwner ? (
                 <div className="mt-6 flex items-center gap-3">

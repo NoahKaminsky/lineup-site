@@ -15,10 +15,6 @@
     {
       "path": "/api/cron/completion-nudges",
       "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/cron/expire-requests",
-      "schedule": "0 13 * * *"
     }
   ]
 }
