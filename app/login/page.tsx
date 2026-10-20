@@ -175,13 +175,32 @@ export default function LoginPage() {
       }
 
       if (isSignup) {
-        const { error } = await supabase.auth.signUp({
-          email,
+        const cleanEmail = email.trim().toLowerCase();
+        setEmail(cleanEmail);
+
+        const { data, error } = await supabase.auth.signUp({
+          email: cleanEmail,
           password,
           options: {
             emailRedirectTo: getAuthCallbackUrl("/login?confirmed=1", safeReturnPath(new URLSearchParams(window.location.search).get("next"))),
           },
         });
+
+        const alreadyRegistered =
+          (error && ((error as { code?: string }).code === "user_already_exists" ||
+            /already (registered|exists)/i.test(error.message))) ||
+          // With email confirmation on, Supabase doesn't error for an email
+          // that already has an account — it returns a stand-in user with no
+          // identities (and sends nothing). Treat that as a duplicate.
+          (!error && Array.isArray(data?.user?.identities) && data.user.identities.length === 0);
+
+        if (alreadyRegistered) {
+          setMessageTone("error");
+          setMessage(
+            "An account with this email already exists. Sign in instead, or use “Forgot password?” if you can’t get in."
+          );
+          return;
+        }
 
         if (error) {
           setMessageTone("error");

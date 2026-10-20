@@ -10,6 +10,8 @@ import type { WorkInitialData } from "./getInitialData";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { containsProfanity } from "@/app/lib/profanityFilter";
 import VerificationBanner from "@/app/components/VerificationBanner";
+import BidCountBlip from "@/app/components/BidCountBlip";
+import { useBidCounts } from "@/app/lib/useBidCounts";
 
 import { MapPin } from "lucide-react";
 import { getSignedInUser } from "@/lib/getSignedInUser";
@@ -375,6 +377,59 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
   const [bookedItems, setBookedItems] = useState<BookedItem[]>(() => seed?.bookedItems ?? []);
   const [requestAndOfferItems, setRequestAndOfferItems] = useState<RequestAndOfferItem[]>(() => seed?.requestAndOfferItems ?? []);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [withdrawState, setWithdrawState] = useState<{ itemId: string; phase: "confirm" | "loading" } | null>(null);
+  const [withdrawError, setWithdrawError] = useState("");
+
+  // "N pros have bid on this already" for open requests this pro hasn't bid on.
+  const bidCountRequestIds = useMemo(() => {
+    const bidOn = new Set(
+      requestAndOfferItems
+        .filter((item) => item.kind === "offer_sent" && item.requestId)
+        .map((item) => item.requestId as string)
+    );
+    return requestAndOfferItems
+      .filter((item) => item.kind === "open_request" && item.requestId && !bidOn.has(item.requestId))
+      .map((item) => item.requestId as string);
+  }, [requestAndOfferItems]);
+  const bidCounts = useBidCounts(bidCountRequestIds);
+
+  async function withdrawOffer(item: RequestAndOfferItem) {
+    if (item.kind !== "offer_sent" || item.rawOfferStatus !== "pending") return;
+
+    // First tap arms it, second tap withdraws.
+    if (withdrawState?.itemId !== item.id) {
+      setWithdrawState({ itemId: item.id, phase: "confirm" });
+      setWithdrawError("");
+      return;
+    }
+    if (withdrawState.phase === "loading") return;
+
+    setWithdrawState({ itemId: item.id, phase: "loading" });
+    const offerId = item.id.replace(/^offer-sent-/, "");
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const res = await fetch("/api/offers/withdraw", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ offerId }),
+    }).catch(() => null);
+
+    if (!res || !res.ok) {
+      const body = res ? await res.json().catch(() => null) : null;
+      setWithdrawError(body?.error || "Could not withdraw your offer. Please try again.");
+      setWithdrawState(null);
+      return;
+    }
+
+    setRequestAndOfferItems((prev) => prev.filter((entry) => entry.id !== item.id));
+    setWithdrawState(null);
+  }
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
   const [reviewItem, setReviewItem] = useState<BookedItem | null>(null);
   const [reviewRating, setReviewRating] = useState(0);
@@ -1340,7 +1395,12 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                     </p>
                     <div className="grid gap-2.5 lg:grid-cols-2">
                       {openRequestItems.map((item) => (
-                        <ActivityCard key={item.id} item={item} isProfessional={isProfessional} />
+                        <ActivityCard
+                          key={item.id}
+                          item={item}
+                          isProfessional={isProfessional}
+                          bidCount={item.kind === "open_request" && item.requestId ? bidCounts[item.requestId] : undefined}
+                        />
                       ))}
                     </div>
                   </div>
@@ -1348,13 +1408,31 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
                 {offerItems.length > 0 ? (
                   <div>
+                    {withdrawError ? (
+                      <p role="alert" className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {withdrawError}
+                      </p>
+                    ) : null}
                     <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
                       {isProfessional ? "Offers sent" : "Offers received"}
                       <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{offerItems.length}</span>
                     </p>
                     <div className="grid gap-2.5 lg:grid-cols-2">
                       {offerItems.map((item) => (
-                        <ActivityCard key={item.id} item={item} isProfessional={isProfessional} />
+                        <ActivityCard
+                          key={item.id}
+                          item={item}
+                          isProfessional={isProfessional}
+                          withdraw={
+                            isProfessional && item.kind === "offer_sent" && item.rawOfferStatus === "pending"
+                              ? {
+                                  phase: withdrawState?.itemId === item.id ? withdrawState.phase : null,
+                                  onWithdraw: () => withdrawOffer(item),
+                                  onCancel: () => setWithdrawState(null),
+                                }
+                              : undefined
+                          }
+                        />
                       ))}
                     </div>
                   </div>
@@ -1552,7 +1630,23 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
   );
 }
 
-function ActivityCard({ item, isProfessional }: { item: RequestAndOfferItem; isProfessional: boolean }) {
+type WithdrawControl = {
+  phase: "confirm" | "loading" | null;
+  onWithdraw: () => void;
+  onCancel: () => void;
+};
+
+function ActivityCard({
+  item,
+  isProfessional,
+  withdraw,
+  bidCount,
+}: {
+  item: RequestAndOfferItem;
+  isProfessional: boolean;
+  withdraw?: WithdrawControl;
+  bidCount?: number;
+}) {
   const isOffer = item.kind === "offer_sent" || item.kind === "offer_received";
 
   const metaParts = [
@@ -1564,7 +1658,7 @@ function ActivityCard({ item, isProfessional }: { item: RequestAndOfferItem; isP
     item.date ? `${formatDate(item.date)}${item.startTime ? ` · ${formatTime(item.startTime)}` : ""}` : null,
   ].filter(Boolean);
 
-  return (
+  const card = (
     <Link
       href={`/requests/${item.requestId}`}
       className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-3.5 transition hover:border-neutral-300 hover:bg-neutral-50"
@@ -1602,6 +1696,8 @@ function ActivityCard({ item, isProfessional }: { item: RequestAndOfferItem; isP
             {metaParts.join(" · ")}
           </p>
         ) : null}
+
+        {bidCount ? <BidCountBlip count={bidCount} className="mt-1.5" /> : null}
       </div>
 
       {formatPrice(item.price) ? (
@@ -1610,6 +1706,41 @@ function ActivityCard({ item, isProfessional }: { item: RequestAndOfferItem; isP
         </span>
       ) : null}
     </Link>
+  );
+
+  if (!withdraw) return card;
+
+  return (
+    <div className="space-y-1.5">
+      {card}
+      <div className="flex items-center justify-end gap-2 px-1">
+        {withdraw.phase === "confirm" ? (
+          <button
+            type="button"
+            onClick={withdraw.onCancel}
+            className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-900"
+          >
+            Keep it
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={withdraw.onWithdraw}
+          disabled={withdraw.phase === "loading"}
+          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:opacity-60 ${
+            withdraw.phase === "confirm"
+              ? "border-red-300 bg-red-50 text-red-700"
+              : "border-neutral-300 text-neutral-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
+          }`}
+        >
+          {withdraw.phase === "loading"
+            ? "Withdrawing…"
+            : withdraw.phase === "confirm"
+            ? "Tap again to withdraw"
+            : "Withdraw offer"}
+        </button>
+      </div>
+    </div>
   );
 }
 

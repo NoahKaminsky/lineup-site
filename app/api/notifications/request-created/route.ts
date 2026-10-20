@@ -76,7 +76,7 @@ export async function POST(req: Request) {
     let professionalsQuery = supabase
       .from("profiles")
       .select("*")
-      .eq("role", "professional");
+      .in("role", ["professional", "I am a professional"]);
 
     if (request.preferred_professional_id) {
       // A direct request is meant for this one pro: they always get the
@@ -92,6 +92,17 @@ export async function POST(req: Request) {
     const { data: professionals } = await professionalsQuery;
 
     const matches = (professionals || []).filter((profile: any) => {
+      // Never alert the client who posted it, and never alert anything that
+      // isn't a real pro account — a client account (or one that only has a
+      // stale "professional" role with no profession set) must not get
+      // matching-request emails, texts or pushes.
+      if (profile.id === request.client_id) return false;
+      const role = String(profile.role || "").toLowerCase().trim();
+      if (role !== "professional" && role !== "i am a professional") return false;
+      const hasProfession =
+        !!profile.professional_type ||
+        (Array.isArray(profile.professional_types) && profile.professional_types.length > 0);
+      if (!hasProfession) return false;
       // Unverified professionals can't send offers, so don't alert them to requests.
       if (!isVerifiedNow(profile)) return false;
       if (request.preferred_professional_id) return profile.id === request.preferred_professional_id;

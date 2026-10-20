@@ -29,6 +29,8 @@ import {
 } from "@/app/lib/bookingTime";
 import { dismissRequestOnce } from "@/app/lib/requestDismissals";
 import { formatProfessions } from "@/app/lib/professions";
+import { useBidCounts } from "@/app/lib/useBidCounts";
+import BidCountBlip from "@/app/components/BidCountBlip";
 
 type ServiceRequest = {
   id: string;
@@ -246,6 +248,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
   const [reofferPrice, setReofferPrice] = useState("");
   const [reofferLoading, setReofferLoading] = useState(false);
   const [withdrawingOfferId, setWithdrawingOfferId] = useState<string | null>(null);
+  const [confirmingWithdrawOfferId, setConfirmingWithdrawOfferId] = useState<string | null>(null);
   const [cancelingRequest, setCancelingRequest] = useState(false);
   const [confirmingCancelRequest, setConfirmingCancelRequest] = useState(false);
   const [cancelingBooking, setCancelingBooking] = useState(false);
@@ -1204,29 +1207,40 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
   async function handleWithdrawOffer(offerId: string) {
     if (!currentUserId) return;
 
+    // First tap arms it, second tap withdraws — no accidental withdrawals.
+    if (confirmingWithdrawOfferId !== offerId) {
+      setConfirmingWithdrawOfferId(offerId);
+      return;
+    }
+
+    setConfirmingWithdrawOfferId(null);
     setWithdrawingOfferId(offerId);
+    setMessage("");
 
-    const { error } = await supabase
-      .from("request_offers")
-      .update({ status: "withdrawn" })
-      .eq("id", offerId)
-      .eq("professional_id", currentUserId);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-    if (error) {
-      setMessage(error.message);
+    const res = await fetch("/api/offers/withdraw", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ offerId }),
+    }).catch(() => null);
+
+    if (!res || !res.ok) {
+      const body = res ? await res.json().catch(() => null) : null;
+      setMessage(body?.error || "Could not withdraw your offer. Please try again.");
       setWithdrawingOfferId(null);
       return;
     }
 
-    fetch("/api/notifications/clear-offer", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ offerId }),
-    }).catch(() => {});
-
     setOffers((prev) => prev.filter((o) => o.id !== offerId));
     setHasSubmittedOffer(false);
     setWithdrawingOfferId(null);
+    setMessage("Offer withdrawn. You can send a new one any time while the request is open.");
   }
 
   async function handleCancelRequest() {
@@ -1529,6 +1543,11 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   }, [offers, unreadOfferIds]);
+
+  // "N pros have bid on this already" — for a pro who hasn't offered yet.
+  const showBidCount = isProfessional && request?.status === "open" && !hasSubmittedOffer && !!request?.id;
+  const bidCounts = useBidCounts(showBidCount && request?.id ? [request.id] : []);
+  const otherProsBidCount = request?.id ? bidCounts[request.id] : undefined;
 
   if (loading) {
     return (
@@ -1855,7 +1874,10 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               <section className="lu-dialog-in mt-8 rounded-[28px] bg-ink p-6 text-white sm:p-8">
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-white/60">Open request</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-xs font-medium text-white/60">Open request</p>
+                      <BidCountBlip count={otherProsBidCount} />
+                    </div>
                     <h2 className="mt-2 text-[1.6rem] font-semibold leading-[1.1] tracking-[-0.035em] sm:text-3xl">
                       Send your offer.
                       <span className="block text-white/55">Name your price and time.</span>
@@ -2171,8 +2193,21 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                               disabled={withdrawingOfferId === offer.id}
                               className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-600 transition hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:opacity-60"
                             >
-                              {withdrawingOfferId === offer.id ? "Withdrawing…" : "Withdraw offer"}
+                              {withdrawingOfferId === offer.id
+                                ? "Withdrawing…"
+                                : confirmingWithdrawOfferId === offer.id
+                                ? "Tap again to withdraw"
+                                : "Withdraw offer"}
                             </button>
+                            {confirmingWithdrawOfferId === offer.id ? (
+                              <button
+                                type="button"
+                                onClick={() => setConfirmingWithdrawOfferId(null)}
+                                className="ml-2 rounded-full px-3 py-2 text-sm font-medium text-neutral-500 hover:text-neutral-900"
+                              >
+                                Keep it
+                              </button>
+                            ) : null}
                           </div>
                         ) : null}
 

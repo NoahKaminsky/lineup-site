@@ -174,13 +174,20 @@ function Chip({ pressed, onClick, children }: { pressed: boolean; onClick: () =>
   );
 }
 
-function JoinButton({ className = "" }: { className?: string }) {
+function JoinButton({ className = "", compact = false }: { className?: string; compact?: boolean }) {
   return (
     <Link
       href="/login?mode=signup"
       className={`inline-flex items-center justify-center whitespace-nowrap rounded-full bg-ink px-7 py-3.5 font-medium text-white transition-colors duration-150 hover:bg-neutral-800 ${focusRing} ${className}`}
     >
-      Join LineUp
+      {compact ? (
+        <>
+          <span className="sm:hidden">Join</span>
+          <span className="hidden sm:inline">Join LineUp</span>
+        </>
+      ) : (
+        "Join LineUp"
+      )}
     </Link>
   );
 }
@@ -475,11 +482,16 @@ export default function LandingPage() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-5">
-            <Link href="/login" className={`hidden rounded text-sm text-neutral-600 hover:text-ink sm:block ${focusRing}`}>
+          <div className="flex items-center gap-2.5 sm:gap-5">
+            {/* Visible on every screen size — existing users shouldn't have
+                to go through "Join LineUp" to get back in. */}
+            <Link
+              href="/login"
+              className={`whitespace-nowrap rounded-full px-2 py-2 text-sm font-medium text-ink hover:text-neutral-600 sm:px-0 sm:font-normal sm:text-neutral-600 sm:hover:text-ink ${focusRing}`}
+            >
               Sign in
             </Link>
-            <JoinButton className="px-4 py-2 text-sm sm:px-5 sm:py-2.5" />
+            <JoinButton compact className="px-4 py-2 text-sm sm:px-5 sm:py-2.5" />
           </div>
         </div>
       </header>

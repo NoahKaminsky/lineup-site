@@ -19,6 +19,8 @@ import { useDismissedRequests } from "@/app/lib/requestDismissals";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { CompletionReminderSheet } from "@/app/components/moments/Moments";
 import { useMyServiceArea } from "@/app/lib/useMyServiceArea";
+import { useBidCounts } from "@/app/lib/useBidCounts";
+import BidCountBlip from "@/app/components/BidCountBlip";
 import { approxDistanceLabel, withinServiceArea } from "@/app/lib/serviceArea";
 
 // "Recently completed" lists show the last 24 hours only (older work lives in
@@ -1379,6 +1381,14 @@ if (profileError || !profile) {
     [requests, userId, dismissedRequestIds, myServiceArea]
   );
 
+  // "N pros have bid on this already" — only for requests this pro hasn't
+  // bid on yet.
+  const bidCounts = useBidCounts(
+    professionalOpenRequests
+      .filter((request) => !respondedRequestIds.includes(request.id))
+      .map((request) => request.id)
+  );
+
   const [openRequestOwnerRatings, setOpenRequestOwnerRatings] = useState<
     Record<string, CustomerRatingSummary>
   >({});
@@ -2688,6 +2698,10 @@ return (
                                 </span>
                               ) : null}
                             </div>
+
+                            {!responded && bidCounts[request.id] ? (
+                              <BidCountBlip count={bidCounts[request.id]} className="mt-2" />
+                            ) : null}
 
                             {request.description ? (
                               <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-neutral-600">{request.description}</p>
