@@ -265,3 +265,19 @@ set area_lat = round(location_lat::numeric, 2),
     area_lng = round(location_lng::numeric, 2)
 where area_lat is null and location_lat is not null and location_lng is not null;
 
+
+-- ================================================================
+-- 20261021_backfill_direct_booking.sql
+-- ================================================================
+-- Every paying professional gets instant booking on, without touching a
+-- setting. New and changed subscriptions already do this (Stripe webhook,
+-- /admin, and the sync_direct_booking_with_subscription trigger); this
+-- catches pros who were already paying before those existed and still have
+-- it switched off.
+update profiles
+set direct_booking_enabled = true,
+    public_availability_enabled = true
+where subscription_plan in ('apprentice', 'pro', 'master')
+  and subscription_status in ('active', 'trialing')
+  and (not coalesce(direct_booking_enabled, false)
+       or not coalesce(public_availability_enabled, false));
