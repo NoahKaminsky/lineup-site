@@ -4,7 +4,6 @@ import { deferRefresh } from "@/app/lib/deferRefresh";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import VerificationBanner from "@/app/components/VerificationBanner";
 import DayZoomArea from "@/app/components/DayZoom";
-import WeeklyAvailabilityEditor from "@/app/components/WeeklyAvailabilityEditor";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -847,8 +846,6 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
             ) : null}
           </div>
         ) : null}
-
-        <WeeklyAvailabilityEditor />
 
         {/* ── Phone: day strip + timeline + lists ───────────────────────── */}
         <div className="mt-8 md:hidden">
