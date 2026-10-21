@@ -235,6 +235,10 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
   const [phoneError, setPhoneError] = useState("");
 
   const isProfessional = isProfessionalRole(profile?.role);
+  // Booking links (lineup-aesthetics.ca/book/name) come with paid plans only.
+  const hasPaidPlan =
+    ["apprentice", "pro", "master"].includes(profile?.subscription_plan || "") &&
+    (profile?.subscription_status === "active" || profile?.subscription_status === "trialing");
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
@@ -1210,7 +1214,24 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
           {/* Booking link: the pro's key way to bring their own clients in. Its
               own card, right under the profile; it opens their calendar. */}
-          {isProfessional ? (
+          {isProfessional && !hasPaidPlan ? (
+            <section id="booking-link" className="relative mb-8 scroll-mt-28 overflow-hidden rounded-[28px] bg-ink p-6 text-white sm:p-8">
+              <p className="text-xs font-medium text-white/50">Booking link</p>
+              <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
+                Get your own link clients book from.
+              </h2>
+              <p className="mt-2 max-w-md text-sm text-white/55">
+                lineup-aesthetics.ca/book/yourname opens straight to your booking calendar. It comes with Apprentice, Pro and Master.
+              </p>
+              <Link
+                href="/subscription"
+                className="mt-6 inline-flex rounded-full bg-white px-6 py-3 text-sm font-semibold text-ink transition hover:bg-neutral-200"
+              >
+                View plans
+              </Link>
+            </section>
+          ) : null}
+          {isProfessional && hasPaidPlan ? (
             <section id="booking-link" className="relative mb-8 scroll-mt-28 overflow-hidden rounded-[28px] bg-ink p-6 text-white sm:p-8">
               {!profile.username || linkEditing ? (
                 <div className="lu-fade-in">
@@ -1340,9 +1361,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     <span>{profile.username}</span>
                   </p>
                   <p className="mt-2 text-sm text-white/55">
-                    {profile.subscription_status === "active" || profile.subscription_status === "trialing"
-                      ? "Clients who open it land straight on your booking calendar."
-                      : "Clients who open it see your profile and can request you."}
+                    Clients who open it land straight on your booking calendar.
                   </p>
 
                   <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -1382,14 +1401,6 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         Share
                       </button>
                     </div>
-                    {profile.subscription_status === "active" || profile.subscription_status === "trialing" ? null : (
-                      <Link
-                        href="/subscription"
-                        className="text-sm font-medium text-white/60 underline-offset-2 hover:text-white hover:underline sm:ml-auto"
-                      >
-                        Let clients book your calendar from it →
-                      </Link>
-                    )}
                   </div>
                 </div>
               )}
@@ -1538,9 +1549,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
                   <div>
                     <label className="mb-2 block text-sm font-medium text-neutral-700">
-                      {profile.role === "professional" ? "Booking link name" : "Username"}{" "}
+                      {profile.role === "professional" && hasPaidPlan ? "Booking link name" : "Username"}{" "}
                       <span className="text-neutral-400">
-                        {profile.role === "professional" ? `(lineup-aesthetics.ca/book/${normalizeUsername(username) || "yourname"})` : "(optional)"}
+                        {profile.role === "professional" && hasPaidPlan ? `(lineup-aesthetics.ca/book/${normalizeUsername(username) || "yourname"})` : "(optional)"}
                       </span>
                     </label>
                     <div className="flex items-center rounded-2xl border border-neutral-300 pl-4 transition focus-within:border-neutral-900">

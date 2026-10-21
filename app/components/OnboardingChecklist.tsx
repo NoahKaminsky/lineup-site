@@ -51,6 +51,14 @@ const STAND_OUT: Step[] = [
 
 const ALL_STEPS = [...ESSENTIALS, ...STAND_OUT];
 
+function hasPaidPlan(profile: { subscription_plan?: string | null; subscription_status?: string | null } | null) {
+  return (
+    !!profile &&
+    ["apprentice", "pro", "master"].includes(profile.subscription_plan || "") &&
+    (profile.subscription_status === "active" || profile.subscription_status === "trialing")
+  );
+}
+
 function storageKey(userId: string) {
   return `lineup_onboarding_dismissed_${userId}`;
 }
@@ -173,7 +181,7 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
       supabase
         .from("profiles")
         .select(
-          "username, avatar_url, banner_url, bio, instagram_handle, formatted_address, location, service_modes, stripe_account_id, verification_status, verified_until"
+          "username, avatar_url, banner_url, bio, instagram_handle, formatted_address, location, service_modes, stripe_account_id, verification_status, verified_until, subscription_plan, subscription_status"
         )
         .eq("id", userId)
         .single(),
@@ -192,7 +200,8 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
     const resolved: StepState = {
       verified: isVerifiedNow(profile),
       photo: !!profile?.avatar_url,
-      link: !!(profile?.username || "").trim(),
+      // Booking links are a paid-plan feature: not something to ask Basic pros for.
+      link: hasPaidPlan(profile) ? !!(profile?.username || "").trim() : true,
       bio: (profile?.bio || "").trim().length >= 40,
       where: !!(profile?.formatted_address || profile?.location) && modes.length > 0,
       service: (servicesRes.count ?? 0) > 0,
