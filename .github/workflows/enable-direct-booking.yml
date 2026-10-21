@@ -1,0 +1,27 @@
+# One-time: turns instant booking on for every pro who was already paying
+# before it switched on automatically. Runs once when this file is pushed
+# (waiting for Vercel to deploy the endpoint first), and can be re-run by
+# hand from the Actions tab. Uses the CRON_SECRET repository secret.
+name: Enable direct booking for paid pros
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/enable-direct-booking.yml
+  workflow_dispatch:
+
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deploy, then enable
+        run: |
+          url=https://www.lineup-aesthetics.ca/api/cron/enable-direct-booking
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /tmp/out.json -w "%{http_code}" -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" "$url")
+            if [ "$code" = "200" ]; then cat /tmp/out.json; echo; exit 0; fi
+            echo "Attempt $i: HTTP $code, waiting for deploy..."
+            sleep 30
+          done
+          echo "Endpoint never came up"; cat /tmp/out.json; exit 1
