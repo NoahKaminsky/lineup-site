@@ -6,7 +6,12 @@ type Anchor = { left: number; top: number; width: number; height: number };
 
 type DayZoomAreaProps = {
   /** Content for the zoomed-in day, or null to show nothing for that day. */
-  renderLens: (key: string) => ReactNode | null;
+  renderLens: (key: string, close: () => void) => ReactNode | null;
+  /**
+   * Touch screens: tapping a day opens the lens (tap it again, or anywhere
+   * outside, to close) instead of hovering.
+   */
+  tapToOpen?: boolean;
   /** Width of the zoomed lens in px. */
   lensWidth?: number;
   className?: string;
@@ -19,12 +24,13 @@ type DayZoomAreaProps = {
  * cell's size and scales up from the cell's centre), so it reads as zooming
  * into the day rather than a tooltip popping up.
  *
- * Pointer devices only — touch keeps the normal tap-to-select. With Reduce
+ * Pointer devices by default; with `tapToOpen` a tap opens it instead. With Reduce
  * Motion the global rule removes the animation, so the lens simply appears.
  * Purely presentational: it never changes selection or data on its own.
  */
-export default function DayZoomArea({ renderLens, lensWidth = 300, className = "", children }: DayZoomAreaProps) {
+export default function DayZoomArea({ renderLens, lensWidth = 300, tapToOpen = false, className = "", children }: DayZoomAreaProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const lensRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [enabled] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(hover: hover) and (pointer: fine)").matches
@@ -52,8 +58,52 @@ export default function DayZoomArea({ renderLens, lensWidth = 300, className = "
 
   useEffect(() => clearTimer, []);
 
+  // Handed to the lens content so a button inside it can close it.
+  const dismiss = useCallback(() => setActive(null), []);
+
+  // Tap mode: a tap anywhere outside the lens and the days closes it.
+  useEffect(() => {
+    if (!tapToOpen || !active) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (lensRef.current?.contains(target)) return;
+      const day = target.closest("[data-zoom-key]");
+      if (day && wrapperRef.current?.contains(day)) return; // the day's own tap handles it
+      close();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [tapToOpen, active, close]);
+
+  function measure(target: HTMLElement) {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return null;
+    const w = wrapper.getBoundingClientRect();
+    const r = target.getBoundingClientRect();
+    return {
+      anchor: { left: r.left - w.left, top: r.top - w.top, width: r.width, height: r.height },
+      wrapperWidth: w.width,
+    };
+  }
+
+  function handleClick(event: React.MouseEvent<HTMLDivElement>) {
+    if (!tapToOpen) return;
+    const wrapper = wrapperRef.current;
+    const target = (event.target as HTMLElement).closest<HTMLElement>("[data-zoom-key]");
+    if (!wrapper || !target || !wrapper.contains(target) || lensRef.current?.contains(target)) return;
+    const key = target.dataset.zoomKey;
+    if (!key) return;
+    if (key === active?.key) {
+      close();
+      return;
+    }
+    const measured = measure(target);
+    if (measured) setActive({ key, ...measured });
+  }
+
   function handlePointerOver(event: React.PointerEvent<HTMLDivElement>) {
-    if (!enabled || event.pointerType === "touch") return;
+    if (tapToOpen || !enabled || event.pointerType === "touch") return;
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
     const target = (event.target as HTMLElement).closest<HTMLElement>("[data-zoom-key]");
@@ -65,17 +115,12 @@ export default function DayZoomArea({ renderLens, lensWidth = 300, className = "
     // A short intent delay so sweeping the mouse across the grid doesn't
     // fire a zoom on every cell; quicker once a lens is already open.
     timerRef.current = setTimeout(() => {
-      const w = wrapper.getBoundingClientRect();
-      const r = target.getBoundingClientRect();
-      setActive({
-        key,
-        anchor: { left: r.left - w.left, top: r.top - w.top, width: r.width, height: r.height },
-        wrapperWidth: w.width,
-      });
+      const measured = measure(target);
+      if (measured) setActive({ key, ...measured });
     }, active ? 70 : 180);
   }
 
-  const lensContent = active ? renderLens(active.key) : null;
+  const lensContent = active ? renderLens(active.key, dismiss) : null;
   let lens: ReactNode = null;
 
   if (active && lensContent) {
@@ -89,6 +134,7 @@ export default function DayZoomArea({ renderLens, lensWidth = 300, className = "
 
     lens = (
       <div
+        ref={lensRef}
         key={active.key}
         className="lu-zoom-in pointer-events-auto absolute z-30"
         style={
@@ -111,7 +157,8 @@ export default function DayZoomArea({ renderLens, lensWidth = 300, className = "
       ref={wrapperRef}
       className={`relative ${className}`}
       onPointerOver={handlePointerOver}
-      onPointerLeave={close}
+      onPointerLeave={tapToOpen ? undefined : close}
+      onClick={handleClick}
     >
       {children}
       {lens}

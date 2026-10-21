@@ -304,6 +304,19 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedDate, setSelectedDate] = useState<string>(getTodayKey());
+  // Phone layout: a swipeable day strip, or the whole month on one screen.
+  const [mobileView, setMobileView] = useState<"days" | "month">("days");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("lu-calendar-mobile-view") === "month") setMobileView("month");
+    } catch {}
+  }, []);
+  function chooseMobileView(view: "days" | "month") {
+    setMobileView(view);
+    try {
+      localStorage.setItem("lu-calendar-mobile-view", view);
+    } catch {}
+  }
   const [userLocation, setUserLocation] = useState<{
     lat: number;
     lng: number;
@@ -673,7 +686,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   );
 
   // What the hovered day zooms into: the full day, Apple-Calendar style.
-  function renderDayLens(dateKey: string) {
+  function renderDayLens(dateKey: string, close?: () => void) {
     const dayBookings = bookingsByDate[dateKey] || [];
     const date = new Date(`${dateKey}T00:00:00`);
     return (
@@ -725,7 +738,12 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
         <div className="border-t border-hairline px-4 py-2.5">
           <button
             type="button"
-            onClick={() => setSelectedDate(dateKey)}
+            onClick={() => {
+              setSelectedDate(dateKey);
+              close?.();
+              // Phone month view: bring the full day's agenda into view.
+              document.getElementById("day-heading-mobile")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
             className="rounded text-xs font-medium text-ink underline decoration-ink/20 underline-offset-4 transition-colors hover:decoration-ink"
           >
             Open this day
@@ -854,6 +872,88 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
             {monthNav}
           </div>
 
+          <div role="tablist" aria-label="Calendar view" className="mt-4 grid grid-cols-2 rounded-full bg-ink/[0.05] p-1">
+            {(["days", "month"] as const).map((view) => (
+              <button
+                key={view}
+                type="button"
+                role="tab"
+                aria-selected={mobileView === view}
+                onClick={() => chooseMobileView(view)}
+                className={`rounded-full py-1.5 text-sm font-medium transition-colors duration-200 ${
+                  mobileView === view ? "bg-surface text-ink shadow-sm" : "text-neutral-500"
+                }`}
+              >
+                {view === "days" ? "Days" : "Month"}
+              </button>
+            ))}
+          </div>
+
+          {mobileView === "month" ? (
+            <DayZoomArea renderLens={renderDayLens} lensWidth={320} tapToOpen className="mt-4">
+              <div className="overflow-hidden rounded-2xl border border-hairline bg-surface">
+                <div className="grid grid-cols-7 border-b border-hairline bg-paper/50">
+                  {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+                    <div key={index} className="py-2 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-500">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+                <div key={formatMonthYear(currentMonth)} className="lu-fade-in grid grid-cols-7 gap-px bg-hairline">
+                  {monthCells.map((cell) => {
+                    if (!cell.date) {
+                      return <div key={cell.key} className="min-h-[56px] bg-paper/70" />;
+                    }
+                    const dateKey = getDateKey(cell.date);
+                    const dayBookings = bookingsByDate[dateKey] || [];
+                    const isSelected = selectedDate === dateKey;
+                    const isToday = todayKey === dateKey;
+                    const isPast = dateKey < todayKey;
+
+                    return (
+                      <button
+                        key={cell.key}
+                        type="button"
+                        data-zoom-key={dateKey}
+                        aria-pressed={isSelected}
+                        aria-label={`${formatDateLabel(dateKey)}, ${dayBookings.length} booking${dayBookings.length === 1 ? "" : "s"}`}
+                        onClick={() => setSelectedDate(dateKey)}
+                        className={`relative flex min-h-[56px] flex-col items-center gap-1 bg-surface pb-1.5 pt-1.5 transition-colors active:bg-neutral-50 ${
+                          isSelected ? "z-10 shadow-[inset_0_0_0_2px_#0a0a0a]" : ""
+                        }`}
+                      >
+                        <span
+                          className={`flex h-7 w-7 items-center justify-center rounded-full text-[14px] tabular-nums ${
+                            isToday
+                              ? "bg-ink font-semibold text-white"
+                              : isPast
+                              ? "font-medium text-neutral-400"
+                              : "font-medium text-ink"
+                          }`}
+                        >
+                          {cell.date.getDate()}
+                        </span>
+                        {dayBookings.length > 0 ? (
+                          <span aria-hidden="true" className="flex items-center gap-[3px]">
+                            {dayBookings.slice(0, 3).map((booking) => (
+                              <span
+                                key={booking.id}
+                                className={`h-1.5 w-1.5 rounded-full ${booking.status === "completed" ? "bg-neutral-300" : "bg-ink"}`}
+                              />
+                            ))}
+                            {dayBookings.length > 3 ? (
+                              <span className="text-[9px] font-semibold leading-none text-neutral-500">+{dayBookings.length - 3}</span>
+                            ) : null}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="mt-2 text-center text-xs text-neutral-500">Tap a day to see its bookings</p>
+            </DayZoomArea>
+          ) : (
           <div className="-mx-4 mt-4">
             <div className="flex snap-x snap-mandatory gap-1.5 overflow-x-auto scroll-smooth px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {mobileCalendarDays.map((date) => {
@@ -897,8 +997,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               })}
             </div>
           </div>
+          )}
 
-          <section aria-labelledby="day-heading-mobile" className="mt-6">
+          <section aria-labelledby="day-heading-mobile" className="mt-6 scroll-mt-24">
             <div className="flex items-baseline justify-between gap-3">
               <h2 id="day-heading-mobile" className="text-base font-semibold tracking-[-0.01em]">
                 {selectedDate === todayKey ? "Today" : formatDateLabel(selectedDate)}
