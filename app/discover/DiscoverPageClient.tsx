@@ -1,5 +1,6 @@
 "use client";
 
+import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -666,7 +667,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
       }
     }
 
-    loadDiscoverPage();
+    return deferRefresh(silent, () => loadDiscoverPage());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

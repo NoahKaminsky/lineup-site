@@ -1,5 +1,6 @@
 "use client";
 
+import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
@@ -937,7 +938,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
   }, [requestId, router, isCustomer, isProfessional, cacheKey]);
 
   useEffect(() => {
-    loadRequestLive({ silent: !!seed });
+    return deferRefresh(!!seed, () => loadRequestLive({ silent: !!seed }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadRequestLive]);
 

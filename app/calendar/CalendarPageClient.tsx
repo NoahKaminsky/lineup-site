@@ -1,5 +1,6 @@
 "use client";
 
+import { deferRefresh } from "@/app/lib/deferRefresh";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import VerificationBanner from "@/app/components/VerificationBanner";
 import DayZoomArea from "@/app/components/DayZoom";
@@ -435,7 +436,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   );
 
   useEffect(() => {
-    loadCalendarData({ silent: !!seed });
+    return deferRefresh(!!seed, () => loadCalendarData({ silent: !!seed }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadCalendarData]);
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { getSignedInUser } from "@/lib/getSignedInUser";
+import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -553,9 +555,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
         setProfile(profileData as Profile);
 
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const user = await getSignedInUser();
 
         if (user) {
           setViewerUserId(user.id);
@@ -744,7 +744,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     }
 
     if (profileId) {
-      loadProfilePage(!!seed);
+      return deferRefresh(!!seed, () => loadProfilePage(!!seed));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileId]);

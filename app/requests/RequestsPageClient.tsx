@@ -1,5 +1,6 @@
 "use client";
 
+import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -999,7 +1000,7 @@ if (profileError || !profile) {
     // a few seconds (or up to 5 minutes, for the cache) stale, and this page
     // needs to be current. The only thing seeding changes is whether that
     // refetch is silent (we already have something to show) or blocking.
-    loadRequestsLive({ silent: !!seed });
+    return deferRefresh(!!seed, () => loadRequestsLive({ silent: !!seed }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadRequestsLive]);
 

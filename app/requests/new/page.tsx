@@ -743,7 +743,7 @@ function NewRequestPageContent() {
       const uploadedUrls: string[] = [];
 
       for (const photo of referencePhotos) {
-        const upload = await normalizeImageFile(photo.file);
+        const upload = await normalizeImageFile(photo.file, { maxDimension: 1800 });
         const fileExt = upload.name.split(".").pop() || "jpg";
         const filePath = `${currentUserId}/${Date.now()}-${Math.random()
           .toString(36)

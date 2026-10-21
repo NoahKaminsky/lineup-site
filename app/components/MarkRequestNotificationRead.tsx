@@ -1,5 +1,6 @@
 "use client";
 
+import { getSignedInUser } from "@/lib/getSignedInUser";
 import { useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -10,9 +11,7 @@ export default function MarkRequestNotificationRead({
 }) {
   useEffect(() => {
     const markRead = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
 
       if (!user || !requestId) return;
 

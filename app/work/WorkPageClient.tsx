@@ -1,5 +1,6 @@
 "use client";
 
+import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -453,7 +454,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
   const myServiceArea = useMyServiceArea(profile?.id, isProfessional);
 
   useEffect(() => {
-    loadWork(!!seed);
+    return deferRefresh(!!seed, () => loadWork(!!seed));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

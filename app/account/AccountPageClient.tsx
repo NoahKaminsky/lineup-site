@@ -1,5 +1,6 @@
 "use client";
 
+import { deferRefresh } from "@/app/lib/deferRefresh";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { burstOrigin, fireBurst } from "@/app/components/moments/Burst";
 import { useRouter } from "next/navigation";
@@ -354,7 +355,8 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       setLoading(false);
     }
 
-    loadProfile();
+    return deferRefresh(!!seed, () => loadProfile());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   useEffect(() => {
@@ -470,7 +472,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
         return;
       }
 
-      const upload = await normalizeImageFile(file);
+      const upload = await normalizeImageFile(file, { maxDimension: 800 });
       const fileExt = upload.name.split(".").pop();
       const filePath = `${user.id}/${Date.now()}.${fileExt}`;
 
@@ -528,7 +530,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
         return;
       }
 
-      const upload = await normalizeImageFile(file);
+      const upload = await normalizeImageFile(file, { maxDimension: 2000 });
       const fileExt = upload.name.split(".").pop();
       const filePath = `${user.id}/banner-${Date.now()}.${fileExt}`;
 
@@ -588,7 +590,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       }
 
       const isVideo = uploadFile.type.startsWith("video/");
-      const upload = isVideo ? uploadFile : await normalizeImageFile(uploadFile);
+      const upload = isVideo ? uploadFile : await normalizeImageFile(uploadFile, { maxDimension: 1800 });
       const maxSizeMb = isVideo ? 100 : 15;
 
       if (upload.size > maxSizeMb * 1024 * 1024) {

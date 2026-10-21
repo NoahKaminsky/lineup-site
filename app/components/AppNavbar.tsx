@@ -1,5 +1,6 @@
 "use client";
 
+import { getSignedInUser } from "@/lib/getSignedInUser";
 import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -250,9 +251,7 @@ function NavbarComponent() {
 
     async function loadProfile() {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const user = await getSignedInUser();
 
         if (!mounted) return;
 

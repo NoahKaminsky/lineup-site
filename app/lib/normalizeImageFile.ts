@@ -50,7 +50,48 @@ async function toJpeg(source: ImageBitmap, name: string, lastModified: number): 
   return new File([blob], `${baseName(name)}.jpg`, { type: "image/jpeg", lastModified });
 }
 
-export async function normalizeImageFile(file: File): Promise<File> {
+// Phone photos are often 4000px+ and several MB; shown as a 48px avatar in a
+// list they made pages slow on mobile data. With maxDimension set, anything
+// larger is scaled down (keeping its aspect ratio) and saved as JPEG. GIFs
+// are left alone so animation survives, and the original is kept whenever
+// shrinking wouldn't actually make the file smaller.
+async function shrinkIfLarge(file: File, maxDimension: number): Promise<File> {
+  if (file.type === "image/gif") return file;
+  try {
+    const probe = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const { width, height } = probe;
+    if (Math.max(width, height) <= maxDimension) {
+      probe.close();
+      return file;
+    }
+    const scale = maxDimension / Math.max(width, height);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      probe.close();
+      return file;
+    }
+    ctx.imageSmoothingQuality = "high";
+    ctx.fillStyle = "#fff"; // JPEG has no transparency
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(probe, 0, 0, canvas.width, canvas.height);
+    probe.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.86));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], `${baseName(file.name)}.jpg`, { type: "image/jpeg", lastModified: file.lastModified });
+  } catch {
+    return file;
+  }
+}
+
+export async function normalizeImageFile(file: File, options?: { maxDimension?: number }): Promise<File> {
+  const normalized = await normalizeToWebSafe(file);
+  return options?.maxDimension ? shrinkIfLarge(normalized, options.maxDimension) : normalized;
+}
+
+async function normalizeToWebSafe(file: File): Promise<File> {
   let actual: string | null = null;
   try {
     actual = await sniff(file);
