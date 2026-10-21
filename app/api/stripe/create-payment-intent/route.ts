@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getBookingWindows, getTimeOffDays } from "@/app/lib/busyTimes";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
@@ -226,6 +227,30 @@ async function handleDirectBookingIntent(req: Request, body: any) {
   if (!insideAvailability) {
     return NextResponse.json(
       { error: "That time is outside this professional's availability. Please pick another time." },
+      { status: 409 }
+    );
+  }
+
+  // The pro's scheduling controls: how far ahead they take bookings, and
+  // days they've marked as time off.
+  const [windows, offDays] = await Promise.all([
+    getBookingWindows([professionalId]),
+    getTimeOffDays([professionalId], date, date),
+  ]);
+  // A day of slack for the gap between the client's and the server's clocks.
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const daysAhead = Math.round(
+    (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${todayKey}T00:00:00Z`)) / 86_400_000
+  );
+  if (daysAhead > (windows[professionalId] ?? 56)) {
+    return NextResponse.json(
+      { error: "This professional isn't taking bookings that far ahead yet. Please pick an earlier date." },
+      { status: 409 }
+    );
+  }
+  if (offDays.length > 0) {
+    return NextResponse.json(
+      { error: "This professional is off that day. Please pick another date." },
       { status: 409 }
     );
   }

@@ -370,7 +370,9 @@ export default function RespondToRequestPage() {
       );
       if (clash) {
         setMessage(
-          `You already have a booking from ${clash.start_time} to ${clash.end_time} that day. Pick a time that doesn't overlap it.`
+          clash.start_time === "00:00" && clash.end_time === "24:00"
+            ? "You marked that day as time off. Pick another day, or remove the time off in Services."
+            : `You already have a booking from ${clash.start_time} to ${clash.end_time} that day. Pick a time that doesn't overlap it.`
         );
         return;
       }

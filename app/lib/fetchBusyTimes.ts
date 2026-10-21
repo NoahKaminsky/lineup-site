@@ -1,5 +1,5 @@
-// Browser side of /api/professional/busy-times: booked time ranges for one or
-// more professionals, shaped like the booking rows the calendars use.
+// Browser side of /api/professional/busy-times: booked time ranges (and
+// days off) for one or more professionals, shaped like the booking rows the calendars use.
 // Returns null if the times couldn't be loaded (so callers can keep what
 // they already have instead of showing everything as open).
 
@@ -16,8 +16,19 @@ type BusyRow = {
 const CHUNK = 100;
 
 export async function fetchBusyTimes(professionalIds: string[], fromDate: string, toDate: string): Promise<BusyRow[] | null> {
+  const schedule = await fetchBookingSchedule(professionalIds, fromDate, toDate);
+  return schedule ? schedule.rows : null;
+}
+
+// Booked times (including time off) plus how many days ahead each pro takes
+// bookings.
+export async function fetchBookingSchedule(
+  professionalIds: string[],
+  fromDate: string,
+  toDate: string
+): Promise<{ rows: BusyRow[]; windows: Record<string, number> } | null> {
   const ids = [...new Set(professionalIds.filter(Boolean))];
-  if (ids.length === 0) return [];
+  if (ids.length === 0) return { rows: [], windows: {} };
 
   try {
     const chunks: string[][] = [];
@@ -30,12 +41,14 @@ export async function fetchBusyTimes(professionalIds: string[], fromDate: string
         if (!res.ok) throw new Error(`busy-times ${res.status}`);
         const json = (await res.json()) as {
           busy?: { professional_id: string; booking_date: string; start_time: string; end_time: string }[];
+          windows?: Record<string, number>;
         };
-        return json.busy || [];
+        return json;
       })
     );
 
-    return results.flat().map((row, index) => ({
+    const windows: Record<string, number> = Object.assign({}, ...results.map((r) => r.windows || {}));
+    const rows = results.flatMap((r) => r.busy || []).map((row, index) => ({
       id: `busy-${row.professional_id}-${row.booking_date}-${row.start_time}-${index}`,
       professional_id: row.professional_id,
       customer_id: "",
@@ -44,6 +57,7 @@ export async function fetchBusyTimes(professionalIds: string[], fromDate: string
       end_time: row.end_time,
       status: "confirmed" as const,
     }));
+    return { rows, windows };
   } catch (error) {
     console.error("Could not load booked times:", error);
     return null;

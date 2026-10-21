@@ -6,7 +6,7 @@
 
 import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
 import { BOOKING_WINDOW_DAYS } from "@/app/lib/bookingTime";
-import { busyTimesAsBookingRows, getBusyTimes } from "@/app/lib/busyTimes";
+import { busyTimesAsBookingRows, getBookingWindows, getBusyTimes } from "@/app/lib/busyTimes";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -56,6 +56,7 @@ export type ProfileDetailInitialData = {
   services: ProfessionalService[];
   availability: AvailabilityRow[];
   bookings: BookingRow[];
+  bookingWindowDays?: number;
   portfolioItems: PortfolioItem[];
   reviews: EnrichedReview[];
   viewerUserId: string | null;
@@ -114,9 +115,13 @@ export async function getInitialProfileDetailData(profileIdOrUsername: string): 
           .order("start_time", { ascending: true }),
         // Every booked time (calendar bookings and paid requests), not just
         // the ones this viewer is allowed to read.
-        getBusyTimes([resolvedId], todayString, endString).then(
-          (busy) => ({ data: busyTimesAsBookingRows(busy) as BookingRow[], error: null }),
-          (error: Error) => ({ data: null, error })
+        Promise.all([getBusyTimes([resolvedId], todayString, endString), getBookingWindows([resolvedId])]).then(
+          ([busy, windows]) => ({
+            data: busyTimesAsBookingRows(busy) as BookingRow[],
+            windowDays: windows[resolvedId] ?? BOOKING_WINDOW_DAYS,
+            error: null,
+          }),
+          (error: Error) => ({ data: null, windowDays: BOOKING_WINDOW_DAYS, error })
         ),
         supabase
           .from("professional_portfolio")
@@ -202,6 +207,7 @@ export async function getInitialProfileDetailData(profileIdOrUsername: string): 
         services,
         availability,
         bookings,
+        bookingWindowDays: bookingsResult.windowDays,
         portfolioItems,
         reviews,
         viewerUserId: user?.id ?? null,

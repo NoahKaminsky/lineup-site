@@ -304,6 +304,35 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedDate, setSelectedDate] = useState<string>(getTodayKey());
+  // Days the pro marked as time off (Services → Time off), shown on the grid.
+  const [timeOffDates, setTimeOffDates] = useState<Set<string>>(() => new Set());
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const user = await getSignedInUser();
+      if (!user) return;
+      const { data, error } = await supabase
+        .from("professional_time_off")
+        .select("start_date, end_date")
+        .eq("professional_id", user.id)
+        .gte("end_date", getTodayKey());
+      if (cancelled || error || !data) return;
+      const dates = new Set<string>();
+      for (const row of data) {
+        const cursor = new Date(`${row.start_date}T00:00:00`);
+        const last = String(row.end_date);
+        for (let i = 0; i < 400 && getDateKey(cursor) <= last; i += 1) {
+          dates.add(getDateKey(cursor));
+          cursor.setDate(cursor.getDate() + 1);
+        }
+      }
+      setTimeOffDates(dates);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Phone layout: a swipeable day strip, or the whole month on one screen.
   const [mobileView, setMobileView] = useState<"days" | "month">("days");
   useEffect(() => {
@@ -719,7 +748,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
         </div>
 
         {dayBookings.length === 0 ? (
-          <p className="px-4 py-5 text-sm text-neutral-500">Nothing booked. A free day.</p>
+          <p className="px-4 py-5 text-sm text-neutral-500">
+            {timeOffDates.has(dateKey) ? "Time off. Clients can't book this day." : "Nothing booked. A free day."}
+          </p>
         ) : (
           <ol className="lu-lineup max-h-[260px] divide-y divide-hairline overflow-y-auto overscroll-contain">
             {dayBookings.map((booking) => (
@@ -766,7 +797,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   const dayAgenda =
     selectedDateBookings.length === 0 ? (
       <p className="mt-4 rounded-xl border border-dashed border-neutral-300 px-4 py-6 text-center text-sm text-neutral-500">
-        Nothing booked{selectedDate === todayKey ? " today" : " this day"}.
+        {timeOffDates.has(selectedDate)
+          ? "Time off. Clients can't book this day."
+          : `Nothing booked${selectedDate === todayKey ? " today" : " this day"}.`}
       </p>
     ) : (
       <ol className="lu-lineup mt-4 space-y-3">
@@ -927,7 +960,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                         aria-pressed={isSelected}
                         aria-label={`${formatDateLabel(dateKey)}, ${dayBookings.length} booking${dayBookings.length === 1 ? "" : "s"}`}
                         onClick={() => setSelectedDate(dateKey)}
-                        className={`relative flex min-h-[56px] flex-col items-center gap-1 bg-surface pb-1.5 pt-1.5 transition-colors active:bg-neutral-50 ${
+                        className={`relative flex min-h-[56px] flex-col items-center gap-1 pb-1.5 pt-1.5 transition-colors active:bg-neutral-50 ${
+                          timeOffDates.has(dateKey) ? "bg-paper" : "bg-surface"
+                        } ${
                           isSelected ? "z-10 shadow-[inset_0_0_0_2px_#0a0a0a]" : ""
                         }`}
                       >
@@ -942,7 +977,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                         >
                           {cell.date.getDate()}
                         </span>
-                        {dayBookings.length > 0 ? (
+                        {timeOffDates.has(dateKey) && dayBookings.length === 0 ? (
+                          <span className="text-[9px] font-medium uppercase tracking-[0.06em] text-neutral-400">Off</span>
+                        ) : dayBookings.length > 0 ? (
                           <span aria-hidden="true" className="flex items-center gap-[3px]">
                             {dayBookings.slice(0, 3).map((booking) => (
                               <span
@@ -1065,7 +1102,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                         aria-label={`${formatDateLabel(dateKey)}, ${dayBookings.length} booking${dayBookings.length === 1 ? "" : "s"}`}
                         onClick={() => setSelectedDate(dateKey)}
                         className={`relative flex min-h-[118px] flex-col items-stretch gap-1 p-2 text-left transition-colors duration-150 hover:bg-neutral-50 ${
-                          isWeekend ? "bg-paper/40" : "bg-surface"
+                          timeOffDates.has(dateKey) ? "bg-paper" : isWeekend ? "bg-paper/40" : "bg-surface"
                         } ${isSelected ? "z-10 shadow-[inset_0_0_0_2px_#0a0a0a]" : ""}`}
                       >
                         <span
@@ -1079,6 +1116,10 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                         >
                           {cell.date.getDate()}
                         </span>
+
+                        {timeOffDates.has(dateKey) ? (
+                          <span className="px-1.5 text-[11px] font-medium text-neutral-400">Time off</span>
+                        ) : null}
 
                         {/* Preview of the day's bookings, right in the month view. */}
                         {dayBookings.slice(0, 2).map((booking) => (

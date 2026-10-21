@@ -10,6 +10,7 @@ import TimeSelect from "@/app/components/TimeSelect";
 
 import { MapPin } from "lucide-react";
 import { useHashTarget } from "@/app/lib/useHashTarget";
+import { BookingWindowControl, TimeOffControl } from "@/app/components/SchedulingControls";
 import { DEFAULT_SERVICE_RADIUS_KM, SERVICE_RADIUS_OPTIONS } from "@/app/lib/serviceArea";
 type Profile = {
   id: string;
@@ -1309,6 +1310,12 @@ export default function ServicesPage() {
               { id: "services", label: "Services" },
               { id: "add-service", label: "Add a service" },
               { id: "availability", label: "Availability" },
+              ...(isSubscribed
+                ? [
+                    { id: "booking-window", label: "Booking window" },
+                    { id: "time-off", label: "Time off" },
+                  ]
+                : []),
               { id: "booking", label: "Booking settings" },
               { id: "modes", label: "Where you work" },
               { id: "address", label: "Address" },
@@ -1710,6 +1717,20 @@ export default function ServicesPage() {
             </>
           )}
         </AccordionSection>
+        {isSubscribed && profile ? (
+          <>
+            <AccordionSection
+              id="booking-window"
+              title="How far ahead clients can book"
+              subtitle="Booking window"
+            >
+              <BookingWindowControl professionalId={profile.id} />
+            </AccordionSection>
+            <AccordionSection id="time-off" title="Time off" subtitle="Days you're away">
+              <TimeOffControl professionalId={profile.id} />
+            </AccordionSection>
+          </>
+        ) : null}
         {isSubscribed ? (
           <AccordionSection
             id="booking"

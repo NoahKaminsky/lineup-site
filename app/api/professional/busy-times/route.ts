@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { getBusyTimes } from "@/app/lib/busyTimes";
+import { getBookingWindows, getBusyTimes } from "@/app/lib/busyTimes";
 
 // GET /api/professional/busy-times?ids=<id,id>&from=YYYY-MM-DD&to=YYYY-MM-DD
-// Public: returns only booked time ranges, nothing about the bookings.
+// Public: returns only booked/time-off ranges (nothing about the bookings)
+// and how many days ahead each pro takes bookings.
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_IDS = 100;
@@ -27,8 +28,8 @@ export async function GET(req: Request) {
   }
 
   try {
-    const busy = await getBusyTimes(ids, from, to);
-    return NextResponse.json({ busy }, { headers: { "Cache-Control": "no-store" } });
+    const [busy, windows] = await Promise.all([getBusyTimes(ids, from, to), getBookingWindows(ids)]);
+    return NextResponse.json({ busy, windows }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not load times." }, { status: 500 });
   }

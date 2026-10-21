@@ -24,7 +24,7 @@ import type { ProfileDetailInitialData } from "./getInitialData";
 import { BookedSheet, MaskLine, MomentOverlay } from "@/app/components/moments/Moments";
 import { BOOKING_WINDOW_DAYS, formatCancellationDeadline } from "@/app/lib/bookingTime";
 import { useHashTarget } from "@/app/lib/useHashTarget";
-import { fetchBusyTimes } from "@/app/lib/fetchBusyTimes";
+import { fetchBookingSchedule } from "@/app/lib/fetchBusyTimes";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 
@@ -405,6 +405,7 @@ type ProfileDetailCache = {
   services: ProfessionalService[];
   availability: AvailabilityRow[];
   bookings: BookingRow[];
+  bookingWindowDays?: number;
   portfolioItems: PortfolioItem[];
   reviews: EnrichedReview[];
 };
@@ -498,6 +499,10 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [reviews, setReviews] = useState<EnrichedReview[]>(() => seed?.reviews ?? []);
   const [availability, setAvailability] = useState<AvailabilityRow[]>(() => seed?.availability ?? []);
   const [bookings, setBookings] = useState<BookingRow[]>(() => seed?.bookings ?? []);
+  // How many days ahead this pro takes bookings (their setting; 8 weeks max).
+  const [bookingWindowDays, setBookingWindowDays] = useState<number>(
+    () => seed?.bookingWindowDays ?? BOOKING_WINDOW_DAYS
+  );
   const bookingsRef = useRef(bookings);
   useEffect(() => {
     bookingsRef.current = bookings;
@@ -515,8 +520,11 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       const today = new Date();
       const end = new Date();
       end.setDate(today.getDate() + BOOKING_WINDOW_DAYS);
-      const rows = await fetchBusyTimes([busyProfileId], formatDateKey(today), formatDateKey(end));
-      if (!cancelled && rows) setBookings(rows as BookingRow[]);
+      const schedule = await fetchBookingSchedule([busyProfileId], formatDateKey(today), formatDateKey(end));
+      if (!cancelled && schedule) {
+        setBookings(schedule.rows as BookingRow[]);
+        setBookingWindowDays(schedule.windows[busyProfileId] ?? BOOKING_WINDOW_DAYS);
+      }
     };
     const interval = window.setInterval(refresh, 60_000);
     document.addEventListener("visibilitychange", refresh);
@@ -673,9 +681,11 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
         // Every booked time for this pro (calendar bookings and paid
         // requests); cancelled ones are left out, so they open back up.
-        const busyRows = await fetchBusyTimes([resolvedId], todayString, endString);
-        const resolvedBookings = (busyRows ?? bookingsRef.current) as BookingRow[];
+        const schedule = await fetchBookingSchedule([resolvedId], todayString, endString);
+        const resolvedBookings = (schedule?.rows ?? bookingsRef.current) as BookingRow[];
+        const resolvedWindowDays = schedule?.windows[resolvedId] ?? BOOKING_WINDOW_DAYS;
         setBookings(resolvedBookings);
+        setBookingWindowDays(resolvedWindowDays);
 
         const { data: portfolioData, error: portfolioError } = await supabase
           .from("professional_portfolio")
@@ -736,6 +746,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
             services: resolvedServices,
             availability: resolvedAvailability,
             bookings: resolvedBookings,
+            bookingWindowDays: resolvedWindowDays,
             portfolioItems: resolvedPortfolio,
             reviews: enrichedReviews,
           });
@@ -746,6 +757,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
             services: resolvedServices,
             availability: resolvedAvailability,
             bookings: resolvedBookings,
+            bookingWindowDays: resolvedWindowDays,
             portfolioItems: resolvedPortfolio,
             reviews: [],
           });
@@ -833,7 +845,9 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     const activeAvailability = availability.filter((row) => row.is_active);
     const nextSevenDays: GeneratedSlot[] = [];
 
-    for (let offset = 0; offset < BOOKING_WINDOW_DAYS; offset += 1) {
+    // Only as far ahead as this pro takes bookings.
+    const daysAhead = Math.min(BOOKING_WINDOW_DAYS, Math.max(1, bookingWindowDays));
+    for (let offset = 0; offset < daysAhead; offset += 1) {
       const currentDate = new Date();
       currentDate.setHours(0, 0, 0, 0);
       currentDate.setDate(currentDate.getDate() + offset);
@@ -900,7 +914,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     }
 
     return nextSevenDays;
-  }, [availability, bookings, profile, slotBlockMinutes, canDirectBook]);
+  }, [availability, bookings, profile, slotBlockMinutes, canDirectBook, bookingWindowDays]);
 
   const groupedSlots = useMemo(() => {
     const groups = new Map<
@@ -927,6 +941,13 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       slots: value.slots,
     }));
   }, [generatedSlots]);
+
+  const bookingWindowLabel =
+    bookingWindowDays >= BOOKING_WINDOW_DAYS
+      ? "in the next 8 weeks"
+      : bookingWindowDays % 7 === 0
+      ? `in the next ${bookingWindowDays / 7} week${bookingWindowDays === 7 ? "" : "s"}`
+      : `in the next ${bookingWindowDays} day${bookingWindowDays === 1 ? "" : "s"}`;
 
   const bookingCalendarDays = useMemo(() => {
     const slotMap = new Map(groupedSlots.map((group) => [group.date, group.slots]));
@@ -1383,8 +1404,8 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
           const today = new Date();
           const end = new Date();
           end.setDate(today.getDate() + BOOKING_WINDOW_DAYS);
-          const rows = await fetchBusyTimes([profile.id], formatDateKey(today), formatDateKey(end));
-          if (rows) setBookings(rows as BookingRow[]);
+          const schedule = await fetchBookingSchedule([profile.id], formatDateKey(today), formatDateKey(end));
+          if (schedule) setBookings(schedule.rows as BookingRow[]);
           setSelectedSlot(null);
         }
         return;
@@ -1951,8 +1972,8 @@ if (loading) {
               ) : generatedSlots.length === 0 ? (
                 <div className="mt-6 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-5 text-neutral-600">
                   {preferredService
-                    ? `No open times long enough for ${preferredService.service_name} in the next 8 weeks.`
-                    : "No open times in the next 8 weeks."}
+                    ? `No open times long enough for ${preferredService.service_name} ${bookingWindowLabel}.`
+                    : `No open times ${bookingWindowLabel}.`}
                 </div>
               ) : (
                 <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
