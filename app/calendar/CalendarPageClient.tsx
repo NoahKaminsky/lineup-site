@@ -601,6 +601,15 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
     setSelectedDate(getDateKey(nextMonth));
   }
 
+  // Phone "Days" view: the arrows step a week from the selected day, moving
+  // into the next/previous month when the week crosses over.
+  function goToWeek(direction: -1 | 1) {
+    const base = new Date(`${selectedDate}T00:00:00`);
+    base.setDate(base.getDate() + direction * 7);
+    setCurrentMonth(new Date(base.getFullYear(), base.getMonth(), 1));
+    setSelectedDate(getDateKey(base));
+  }
+
   function goToToday() {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -657,13 +666,13 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
     );
   }
 
-  const monthNav = (
+  const renderNav = (step: "month" | "week") => (
     <div className="flex items-center gap-1.5">
       <button
         type="button"
-        onClick={goToPreviousMonth}
+        onClick={step === "week" ? () => goToWeek(-1) : goToPreviousMonth}
         className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50 hover:text-ink"
-        aria-label="Previous month"
+        aria-label={step === "week" ? "Previous week" : "Previous month"}
       >
         <ChevronLeft aria-hidden="true" className="h-4 w-4" />
       </button>
@@ -676,9 +685,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       </button>
       <button
         type="button"
-        onClick={goToNextMonth}
+        onClick={step === "week" ? () => goToWeek(1) : goToNextMonth}
         className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50 hover:text-ink"
-        aria-label="Next month"
+        aria-label={step === "week" ? "Next week" : "Next month"}
       >
         <ChevronRight aria-hidden="true" className="h-4 w-4" />
       </button>
@@ -869,7 +878,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
         <div className="mt-8 md:hidden">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-semibold tracking-[-0.02em]">{formatMonthYear(currentMonth)}</h2>
-            {monthNav}
+            {renderNav(mobileView === "days" ? "week" : "month")}
           </div>
 
           <div role="tablist" aria-label="Calendar view" className="mt-4 grid grid-cols-2 rounded-full bg-ink/[0.05] p-1">
@@ -1021,7 +1030,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               <h2 id="month-heading" className="text-xl font-semibold tracking-[-0.02em]">
                 {formatMonthYear(currentMonth)}
               </h2>
-              {monthNav}
+              {renderNav("month")}
             </div>
 
             <DayZoomArea renderLens={renderDayLens} lensWidth={320} className="mt-4">
