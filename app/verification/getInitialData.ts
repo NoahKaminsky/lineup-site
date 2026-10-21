@@ -2,7 +2,7 @@
 // for the pattern this follows and why (duplicated query logic on purpose,
 // falls back to a normal client cold load on any failure).
 
-import { createSupabaseServerClient } from "@/app/lib/serverSupabase";
+import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
 import type { VerificationStatus, VerificationTrack } from "@/app/lib/verificationRules";
 
 export type VerificationSubmission = {
@@ -43,9 +43,7 @@ export type VerificationInitialResult =
 export async function getInitialVerificationData(): Promise<VerificationInitialResult> {
   const supabase = await createSupabaseServerClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getVerifiedUser(supabase);
 
   if (!user) return { kind: "redirect", to: "/login" };
 

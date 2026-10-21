@@ -162,3 +162,27 @@ export async function getProfileEmail(
     email,
   };
 }
+
+// Who's signed in, for server pages. getClaims() verifies the session JWT's
+// signature locally (Supabase's asymmetric signing keys, keys cached), so it
+// skips the extra round trip to the Auth server that getUser() makes on every
+// page load. If the project still uses the legacy shared secret, getClaims()
+// itself falls back to asking the Auth server — same result as before.
+// Pages only need the id; all their reads still go through RLS with the token.
+export async function getVerifiedUser(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>
+): Promise<{ id: string } | null> {
+  try {
+    const { data, error } = await supabase.auth.getClaims();
+    const sub = data?.claims?.sub;
+    if (!error && typeof sub === "string" && sub) return { id: sub };
+    if (!error) return null;
+  } catch {
+    // fall through to the network check
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user ? { id: user.id } : null;
+}

@@ -4,7 +4,7 @@
 // they're a customer, and whether they've booked this professional before),
 // which is why it still reads the cookie session.
 
-import { createSupabaseServerClient } from "@/app/lib/serverSupabase";
+import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
 import { BOOKING_WINDOW_DAYS } from "@/app/lib/bookingTime";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -81,9 +81,7 @@ export async function getInitialProfileDetailData(profileIdOrUsername: string): 
     const profile = profileData as Profile;
     const resolvedId = profile.id;
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getVerifiedUser(supabase);
 
     const today = new Date();
     const end = new Date();

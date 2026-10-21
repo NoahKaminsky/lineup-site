@@ -12,7 +12,7 @@
 // anyway — so that mutation stays client-only, and the initial unread state
 // server-renders correctly either way.
 
-import { createSupabaseServerClient } from "@/app/lib/serverSupabase";
+import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
 import { formatProfessions } from "@/app/lib/professions";
 
 type ServiceRequest = {
@@ -93,9 +93,7 @@ export type RequestDetailInitialResult =
 export async function getInitialRequestDetailData(requestId: string): Promise<RequestDetailInitialResult> {
   const supabase = await createSupabaseServerClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getVerifiedUser(supabase);
 
   if (!user) return { kind: "redirect", to: "/login" };
 

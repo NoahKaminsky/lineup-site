@@ -3,7 +3,7 @@
 // (refreshStripeAccountStatus) -- that's its own client effect hitting a
 // separate API route, not part of the page's own data-fetch chain.
 
-import { createSupabaseServerClient } from "@/app/lib/serverSupabase";
+import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
 
 type Profile = {
   id: string;
@@ -70,9 +70,7 @@ export type AccountInitialResult =
 export async function getInitialAccountData(): Promise<AccountInitialResult> {
   const supabase = await createSupabaseServerClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getVerifiedUser(supabase);
 
   if (!user) return { kind: "redirect", to: "/login" };
 

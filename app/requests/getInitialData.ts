@@ -14,7 +14,7 @@
 // they're batched with Promise.all, so a cold load is ~2 round trips instead
 // of ~5.
 
-import { createSupabaseServerClient } from "@/app/lib/serverSupabase";
+import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
 import { requestMatchesProfessional, formatProfessions } from "@/app/lib/professions";
 
 type ServiceRequestRow = Record<string, unknown> & {
@@ -94,9 +94,7 @@ export type RequestsInitialResult =
 export async function getInitialRequestsData(): Promise<RequestsInitialResult> {
   const supabase = await createSupabaseServerClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getVerifiedUser(supabase);
 
   if (!user) return { kind: "redirect", to: "/login" };
 

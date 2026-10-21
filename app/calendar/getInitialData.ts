@@ -4,7 +4,7 @@
 // fire-and-forget call on the client and only matters for subscribed
 // professionals, not worth duplicating server-side for this pass.
 
-import { createSupabaseServerClient } from "@/app/lib/serverSupabase";
+import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
 
 type BookingRow = {
   id: string;
@@ -60,9 +60,7 @@ export type CalendarInitialResult =
 export async function getInitialCalendarData(): Promise<CalendarInitialResult> {
   const supabase = await createSupabaseServerClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getVerifiedUser(supabase);
 
   if (!user) return { kind: "redirect", to: "/login" };
 

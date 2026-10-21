@@ -5,7 +5,7 @@
 // equivalent of getCustomerRatingsMap() (that helper hardcodes the browser
 // Supabase client, so it can't be called directly from here).
 
-import { createSupabaseServerClient } from "@/app/lib/serverSupabase";
+import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
 import { requestMatchesProfessional } from "@/app/lib/professions";
 
 type Profile = {
@@ -214,9 +214,7 @@ export type WorkInitialResult =
 export async function getInitialWorkData(): Promise<WorkInitialResult> {
   const supabase = await createSupabaseServerClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getVerifiedUser(supabase);
 
   if (!user) return { kind: "redirect", to: "/login" };
 

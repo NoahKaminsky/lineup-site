@@ -24,8 +24,9 @@ export default function SplashScreen() {
     // This used to hold for 1.3s before fading (1.6s total); real content was
     // already loading underneath the whole time, so that hold was pure
     // perceived latency with no functional benefit.
-    const fadeTimer = setTimeout(() => setFadingOut(true), 850);
-    const removeTimer = setTimeout(() => setVisible(false), 1100);
+    // Trimmed again: a quicker 0.5s sweep, then a 200ms fade (0.7s total).
+    const fadeTimer = setTimeout(() => setFadingOut(true), 500);
+    const removeTimer = setTimeout(() => setVisible(false), 700);
 
     return () => {
       clearTimeout(fadeTimer);
@@ -37,13 +38,13 @@ export default function SplashScreen() {
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-white transition-opacity duration-300"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-white transition-opacity duration-200"
       style={{ opacity: fadingOut ? 0 : 1 }}
     >
       <div
         className="h-24 w-24"
         style={{
-          animation: "lu-logo-reveal 0.85s cubic-bezier(0.4,0,0.2,1) forwards",
+          animation: "lu-logo-reveal 0.5s cubic-bezier(0.4,0,0.2,1) forwards",
         }}
       >
         <svg viewBox="0 0 1024 1024" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
@@ -54,7 +55,7 @@ export default function SplashScreen() {
                   attributeName="width"
                   from="0"
                   to="1024"
-                  dur="0.85s"
+                  dur="0.5s"
                   calcMode="spline"
                   keySplines="0.4 0 0.2 1"
                   keyTimes="0;1"
