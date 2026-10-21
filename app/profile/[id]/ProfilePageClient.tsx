@@ -24,6 +24,7 @@ import type { ProfileDetailInitialData } from "./getInitialData";
 import { BookedSheet, MaskLine, MomentOverlay } from "@/app/components/moments/Moments";
 import { BOOKING_WINDOW_DAYS, formatCancellationDeadline } from "@/app/lib/bookingTime";
 import { useHashTarget } from "@/app/lib/useHashTarget";
+import { fetchBusyTimes } from "@/app/lib/fetchBusyTimes";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 
@@ -497,6 +498,34 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [reviews, setReviews] = useState<EnrichedReview[]>(() => seed?.reviews ?? []);
   const [availability, setAvailability] = useState<AvailabilityRow[]>(() => seed?.availability ?? []);
   const [bookings, setBookings] = useState<BookingRow[]>(() => seed?.bookings ?? []);
+  const bookingsRef = useRef(bookings);
+  useEffect(() => {
+    bookingsRef.current = bookings;
+  }, [bookings]);
+
+  // Keep the open times live: re-check booked times when the page comes back
+  // into view and every minute while it's open, so a time someone else just
+  // booked disappears and a cancelled one opens back up.
+  const busyProfileId = profile?.id ?? null;
+  useEffect(() => {
+    if (!busyProfileId) return;
+    let cancelled = false;
+    const refresh = async () => {
+      if (document.visibilityState !== "visible") return;
+      const today = new Date();
+      const end = new Date();
+      end.setDate(today.getDate() + BOOKING_WINDOW_DAYS);
+      const rows = await fetchBusyTimes([busyProfileId], formatDateKey(today), formatDateKey(end));
+      if (!cancelled && rows) setBookings(rows as BookingRow[]);
+    };
+    const interval = window.setInterval(refresh, 60_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [busyProfileId]);
   const [services, setServices] = useState<ProfessionalService[]>(() => seed?.services ?? []);
   const [showBannerPreview, setShowBannerPreview] = useState(false);
   const [viewerUserId, setViewerUserId] = useState<string | null>(() => initialData?.viewerUserId ?? null);
@@ -642,26 +671,10 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
         const todayString = formatDateKey(today);
         const endString = formatDateKey(end);
 
-        const { data: bookingsData, error: bookingsError } = await supabase
-          .from("bookings")
-          .select(
-            "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes, service_price, service_mode, source, formatted_address, location_lat, location_lng, location_place_id"
-          )
-          .eq("professional_id", resolvedId)
-          .in("status", ["confirmed", "completion_requested", "completed"])
-          .gte("booking_date", todayString)
-          .lte("booking_date", endString)
-          .order("booking_date", { ascending: true })
-          .order("start_time", { ascending: true });
-
-        const resolvedBookings =
-          !bookingsError && bookingsData
-            ? (bookingsData.map((row) => ({
-                ...row,
-                start_time: String(row.start_time).slice(0, 5),
-                end_time: String(row.end_time).slice(0, 5),
-              })) as BookingRow[])
-            : [];
+        // Every booked time for this pro (calendar bookings and paid
+        // requests); cancelled ones are left out, so they open back up.
+        const busyRows = await fetchBusyTimes([resolvedId], todayString, endString);
+        const resolvedBookings = (busyRows ?? bookingsRef.current) as BookingRow[];
         setBookings(resolvedBookings);
 
         const { data: portfolioData, error: portfolioError } = await supabase
@@ -1364,6 +1377,16 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
       if (!response.ok) {
         abort(data?.error || "Could not start payment.");
+        // Someone else took the time (or it was closed): show the current
+        // open times instead of the stale ones.
+        if (response.status === 409) {
+          const today = new Date();
+          const end = new Date();
+          end.setDate(today.getDate() + BOOKING_WINDOW_DAYS);
+          const rows = await fetchBusyTimes([profile.id], formatDateKey(today), formatDateKey(end));
+          if (rows) setBookings(rows as BookingRow[]);
+          setSelectedSlot(null);
+        }
         return;
       }
 

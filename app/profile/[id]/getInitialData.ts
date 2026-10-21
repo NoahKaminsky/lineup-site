@@ -6,6 +6,7 @@
 
 import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
 import { BOOKING_WINDOW_DAYS } from "@/app/lib/bookingTime";
+import { busyTimesAsBookingRows, getBusyTimes } from "@/app/lib/busyTimes";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -111,17 +112,12 @@ export async function getInitialProfileDetailData(profileIdOrUsername: string): 
           .eq("professional_id", resolvedId)
           .order("day_of_week", { ascending: true })
           .order("start_time", { ascending: true }),
-        supabase
-          .from("bookings")
-          .select(
-            "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes, service_price, service_mode, source, formatted_address, location_lat, location_lng, location_place_id"
-          )
-          .eq("professional_id", resolvedId)
-          .in("status", ["confirmed", "completion_requested", "completed"])
-          .gte("booking_date", todayString)
-          .lte("booking_date", endString)
-          .order("booking_date", { ascending: true })
-          .order("start_time", { ascending: true }),
+        // Every booked time (calendar bookings and paid requests), not just
+        // the ones this viewer is allowed to read.
+        getBusyTimes([resolvedId], todayString, endString).then(
+          (busy) => ({ data: busyTimesAsBookingRows(busy) as BookingRow[], error: null }),
+          (error: Error) => ({ data: null, error })
+        ),
         supabase
           .from("professional_portfolio")
           .select("id, user_id, image_url, caption, media_type, created_at")

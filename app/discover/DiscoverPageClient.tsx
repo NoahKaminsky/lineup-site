@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchBusyTimes } from "@/app/lib/fetchBusyTimes";
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -342,6 +343,12 @@ function timeToMinutes(time: string) {
   return hours * 60 + minutes;
 }
 
+function busyDateKey(offsetDays: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function hasOpenThisWeek(profile: ProfileRow, availability: AvailabilityRow[], bookings: BookingRow[]) {
   if (!profile.direct_booking_enabled || !profile.public_availability_enabled) return false;
 
@@ -551,11 +558,8 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
               .select("id, professional_id, day_of_week, start_time, end_time, is_active")
               .in("professional_id", professionalIds),
 
-            supabase
-              .from("bookings")
-              .select("id, professional_id, customer_id, booking_date, start_time, end_time, status")
-              .in("professional_id", professionalIds)
-              .in("status", ["confirmed", "completion_requested", "completed"]),
+            // Booked times for the next week (calendar bookings and paid requests).
+            fetchBusyTimes(professionalIds, busyDateKey(0), busyDateKey(7)).then((rows) => ({ data: rows })),
           ]);
 
         const servicesData = (servicesResult.data || []) as ProfessionalService[];

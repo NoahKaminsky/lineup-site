@@ -8,6 +8,7 @@
 
 import { createSupabaseServerClient } from "@/app/lib/serverSupabase";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
+import { busyTimesAsBookingRows, getBusyTimes } from "@/app/lib/busyTimes";
 
 type ProfileRow = {
   id: string;
@@ -157,6 +158,12 @@ function buildTags(params: {
 
 export type DiscoverInitialResult = { kind: "ok"; cards: DiscoverCard[] } | { kind: "fallback" };
 
+function dateKeyFromToday(offsetDays: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + offsetDays);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 export async function getInitialDiscoverData(): Promise<DiscoverInitialResult> {
   const supabase = await createSupabaseServerClient();
 
@@ -197,11 +204,11 @@ export async function getInitialDiscoverData(): Promise<DiscoverInitialResult> {
         .from("professional_availability")
         .select("id, professional_id, day_of_week, start_time, end_time, is_active")
         .in("professional_id", professionalIds),
-      supabase
-        .from("bookings")
-        .select("id, professional_id, customer_id, booking_date, start_time, end_time, status")
-        .in("professional_id", professionalIds)
-        .in("status", ["confirmed", "completion_requested", "completed"]),
+      // Booked times for the next week (calendar bookings and paid requests).
+      getBusyTimes(professionalIds, dateKeyFromToday(0), dateKeyFromToday(7)).then(
+        (busy) => ({ data: busyTimesAsBookingRows(busy) as BookingRow[], error: null }),
+        (error: Error) => ({ data: null, error })
+      ),
     ]);
 
     if (servicesResult.error) throw new Error(servicesResult.error.message);

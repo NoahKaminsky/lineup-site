@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchBusyTimes } from "@/app/lib/fetchBusyTimes";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -356,6 +357,23 @@ export default function RespondToRequestPage() {
     if (finalProposedEndTime <= finalProposedStartTime) {
       setMessage("End time must be later than start time.");
       return;
+    }
+
+    // Don't offer a time that's already taken by another booking (from the
+    // calendar or another request) — the client couldn't pay for it anyway.
+    if (userId && finalProposedDate) {
+      const busy = await fetchBusyTimes([userId], finalProposedDate, finalProposedDate);
+      const clash = (busy || []).find(
+        (row) =>
+          String(finalProposedStartTime).slice(0, 5) < row.end_time &&
+          String(finalProposedEndTime).slice(0, 5) > row.start_time
+      );
+      if (clash) {
+        setMessage(
+          `You already have a booking from ${clash.start_time} to ${clash.end_time} that day. Pick a time that doesn't overlap it.`
+        );
+        return;
+      }
     }
 
     const finalMessage = offerMessage.trim();
