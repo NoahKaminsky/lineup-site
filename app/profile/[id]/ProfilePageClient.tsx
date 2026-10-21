@@ -509,6 +509,9 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [selectedSlot, setSelectedSlot] = useState<GeneratedSlot | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [selectedServiceMode, setSelectedServiceMode] = useState<string | null>(null);
+  // Service the client tapped in the Services list: the calendar then offers
+  // times long enough for it and puts it first once a time is picked.
+  const [preferredServiceId, setPreferredServiceId] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
   const [locationInput, setLocationInput] = useState("");
   const [locationPlaceId, setLocationPlaceId] = useState("");
@@ -781,9 +784,18 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     return (total / reviews.length).toFixed(1);
   }, [reviews]);
 
+  const preferredService = useMemo(
+    () => (preferredServiceId ? services.find((service) => service.id === preferredServiceId) ?? null : null),
+    [services, preferredServiceId]
+  );
+
+  // Slots are sized to the tapped service (so a 90-min service is bookable
+  // even when the default slot is 60), otherwise to the pro's default length.
   const slotBlockMinutes = useMemo(() => {
+    const preferredMinutes = Number(preferredService?.duration_minutes || 0);
+    if (preferredMinutes > 0) return Math.max(preferredMinutes, 15);
     return Math.max(Number(profile?.default_appointment_duration || 60), 30);
-  }, [profile?.default_appointment_duration]);
+  }, [preferredService, profile?.default_appointment_duration]);
 
   const directBookingModes = getPlainServiceModes(profile?.service_modes ?? null).filter((mode) =>
     ["in_shop", "home_studio"].includes(mode)
@@ -988,13 +1000,36 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
   const servicesThatFitSelectedSlot = useMemo(() => {
     if (!selectedSlot) return [];
-    return services.filter(
+    const fitting = services.filter(
       (service) =>
         service.is_active &&
         service.is_bookable &&
         Number(service.duration_minutes) <= Number(selectedSlot.duration_minutes)
     );
-  }, [services, selectedSlot]);
+    if (!preferredServiceId) return fitting;
+    return [
+      ...fitting.filter((service) => service.id === preferredServiceId),
+      ...fitting.filter((service) => service.id !== preferredServiceId),
+    ];
+  }, [services, selectedSlot, preferredServiceId]);
+
+  // Tapping a service jumps to the booking calendar with that service picked.
+  function openCalendarForService(serviceId: string | null) {
+    setPreferredServiceId(serviceId);
+    setSelectedSlot(null);
+    setSelectedServiceMode(null);
+    setSelectedDay(null);
+    setWeekIndex(0);
+    setMessage("");
+    if (typeof window === "undefined") return;
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#availability`);
+    window.setTimeout(() => {
+      const el = document.getElementById("availability");
+      if (!el) return;
+      const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+    }, 60);
+  }
 
   const visibleReviews = useMemo(() => {
     return showAllReviews ? reviews : reviews.slice(0, 4);
@@ -1864,13 +1899,37 @@ if (loading) {
                 </Link>
               </div>
 
+              {preferredService ? (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink bg-surface px-4 py-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-neutral-500">Booking</p>
+                    <p className="truncate font-semibold text-ink">
+                      {preferredService.service_name}
+                      <span className="font-normal text-neutral-500">
+                        {" "}· {preferredService.duration_minutes} min
+                        {formatPrice(preferredService.price) ? ` · ${formatPrice(preferredService.price)}` : ""}
+                      </span>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openCalendarForService(null)}
+                    className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium text-ink ring-1 ring-ink/15 transition hover:ring-ink/30"
+                  >
+                    Change service
+                  </button>
+                </div>
+              ) : null}
+
               {services.length === 0 ? (
                 <div className="mt-6 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-5 text-neutral-600">
                   This professional has not added any bookable services yet.
                 </div>
               ) : generatedSlots.length === 0 ? (
                 <div className="mt-6 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-5 text-neutral-600">
-                  No open times in the next 8 weeks.
+                  {preferredService
+                    ? `No open times long enough for ${preferredService.service_name} in the next 8 weeks.`
+                    : "No open times in the next 8 weeks."}
                 </div>
               ) : (
                 <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -2244,10 +2303,15 @@ if (loading) {
                                       handleStartBookingConfirmation(service);
                                     }}
                                     disabled={bookingSlotKey === selectedSlot.key}
-                                    className="w-full rounded-2xl bg-white p-4 ring-1 ring-ink/[0.06] text-left transition hover:border-ink hover:bg-neutral-50 disabled:opacity-60"
+                                    className={`w-full rounded-2xl bg-white p-4 text-left transition hover:border-ink hover:bg-neutral-50 disabled:opacity-60 ${
+                                      service.id === preferredServiceId ? "ring-2 ring-ink" : "ring-1 ring-ink/[0.06]"
+                                    }`}
                                   >
                                     <p className="font-semibold text-neutral-900">
                                       {service.service_name}
+                                      {service.id === preferredServiceId ? (
+                                        <span className="ml-2 align-middle text-xs font-medium text-neutral-500">Your pick</span>
+                                      ) : null}
                                     </p>
                                     <p className="mt-1 text-sm text-neutral-500">
                                       {service.duration_minutes} min
@@ -2346,7 +2410,14 @@ if (loading) {
                         if (canAct && canDirectBook) {
                           return (
                             <li key={service.id}>
-                              <a href="#availability" className={`${rowClass} group transition hover:bg-neutral-50`}>
+                              <a
+                                href="#availability"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  openCalendarForService(service.id);
+                                }}
+                                className={`${rowClass} group transition hover:bg-neutral-50`}
+                              >
                                 {body}
                                 <ChevronRight className="h-4 w-4 shrink-0 text-neutral-300 transition group-hover:translate-x-0.5 group-hover:text-ink" />
                               </a>
