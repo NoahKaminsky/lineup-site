@@ -7,7 +7,7 @@ export default function TermsPage() {
         </h1>
 
         <p className="mb-6 text-neutral-400">
-          Effective Date: June 8, 2026
+          Effective Date: October 22, 2026
         </p>
 
         <p className="mb-6 leading-7 text-neutral-300">
@@ -40,7 +40,7 @@ export default function TermsPage() {
 
         <h2 className="mt-10 mb-3 text-2xl font-semibold">5. Professional Responsibility</h2>
         <p className="leading-7 text-neutral-300">
-          Professionals are solely responsible for maintaining any licenses, certifications, permits, registrations, insurance coverage, and legal qualifications required to provide services in their jurisdiction. LineUp does not independently verify qualifications unless expressly stated.
+          Professionals are solely responsible for maintaining any licenses, certifications, permits, registrations, insurance coverage, and legal qualifications required to provide services in their jurisdiction. Where LineUp reviews credentials or identification as part of verification, that review is limited to the documents provided at that time and is not a guarantee, endorsement, or ongoing confirmation of any Professional&apos;s qualifications, skill, or conduct.
         </p>
 
         <h2 className="mt-10 mb-3 text-2xl font-semibold">6. Marketplace Services</h2>
@@ -132,6 +132,22 @@ export default function TermsPage() {
 
         <h2 className="mt-10 mb-3 text-2xl font-semibold">20. Limitation of Liability</h2>
         <p className="leading-7 text-neutral-300">
+          LineUp is a technology platform only. To the maximum extent permitted by applicable law, LineUp, its founders, officers, directors, employees, affiliates, agents, and partners are not liable for any loss, damage, injury, claim, cost, or expense of any kind arising from or related to the Platform, including without limitation:
+        </p>
+        <ul className="mt-4 list-disc space-y-2 pl-6 leading-7 text-neutral-300">
+          <li>the services provided by Professionals, their quality, safety, results, or outcomes, including any personal injury, allergic reaction, infection, illness, property damage, or dissatisfaction;</li>
+          <li>the acts, omissions, statements, conduct, qualifications, licensing, or insurance of any Professional or client, whether online or in person;</li>
+          <li>late arrivals, no-shows, cancellations, rescheduling, or appointments that do not take place;</li>
+          <li>payments, refunds, tips, chargebacks, payouts, or disputes between users, and the actions or failures of payment processors;</li>
+          <li>content, reviews, photos, profiles, or messages posted by users;</li>
+          <li>verification results, which reflect documents reviewed at a point in time and are not a guarantee of any Professional&apos;s qualifications, skill, or conduct;</li>
+          <li>errors, interruptions, outages, bugs, data loss, unauthorized access, or the unavailability of the Platform or any third-party service; and</li>
+          <li>any travel to or from, or time spent at, any location where services are provided.</li>
+        </ul>
+        <p className="mt-4 leading-7 text-neutral-300">
+          Any claim relating to services provided by a Professional must be brought against that Professional directly, not against LineUp.
+        </p>
+        <p className="mt-4 leading-7 text-neutral-300">
           To the maximum extent permitted by applicable law, LineUp, its founders, officers, directors, employees, affiliates, agents, and partners shall not be liable for indirect, incidental, special, consequential, punitive, or exemplary damages arising from use of the Platform, services booked through the Platform, user interactions, payment disputes, or service outcomes.
         </p>
         <p className="mt-4 leading-7 text-neutral-300">
