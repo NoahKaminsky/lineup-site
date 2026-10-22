@@ -63,6 +63,26 @@ function typesOf(person: Person | null) {
   return types.map((t) => t.replaceAll("_", " ")).join(", ");
 }
 
+type LookupResult = Person & {
+  username?: string | null;
+  business_name?: string | null;
+  role?: string | null;
+  verified_until?: string | null;
+  isProfessional: boolean;
+  hiddenReasons: string[];
+  submissions: {
+    id: string;
+    track: string;
+    status: string;
+    license_expiry: string | null;
+    enrollment_end_date: string | null;
+    is_manual: boolean | null;
+    reviewed_at: string | null;
+    created_at: string;
+    rejection_reason: string | null;
+  }[];
+};
+
 export default function AdminVerifications() {
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState<Submission[]>([]);
@@ -73,6 +93,22 @@ export default function AdminVerifications() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [lookupTerm, setLookupTerm] = useState("");
+  const [lookupResults, setLookupResults] = useState<LookupResult[] | null>(null);
+  const [lookupBusy, setLookupBusy] = useState(false);
+
+  async function runLookup(term = lookupTerm) {
+    if (term.trim().length < 2) return;
+    setLookupBusy(true);
+    const res = await authedFetch(`/api/admin/verifications?lookup=${encodeURIComponent(term.trim())}`);
+    const json = await res.json();
+    setLookupBusy(false);
+    if (!res.ok) {
+      setMessage(json.error || "Lookup failed.");
+      return;
+    }
+    setLookupResults(json.results || []);
+  }
 
   const load = useCallback(async () => {
     const res = await authedFetch("/api/admin/verifications");
@@ -124,6 +160,107 @@ export default function AdminVerifications() {
       {message ? (
         <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700">{message}</div>
       ) : null}
+
+      <section>
+        <h2 className="text-lg font-semibold">Look up a pro</h2>
+        <p className="mt-1 text-sm text-neutral-500">Search by name, username or email to see why someone is or isn&apos;t in Browse.</p>
+        <form
+          className="mt-3 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            runLookup();
+          }}
+        >
+          <input
+            value={lookupTerm}
+            onChange={(e) => setLookupTerm(e.target.value)}
+            placeholder="e.g. Prince"
+            className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-base"
+          />
+          <button
+            type="submit"
+            disabled={lookupBusy}
+            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          >
+            {lookupBusy ? "…" : "Search"}
+          </button>
+        </form>
+        {lookupResults !== null ? (
+          lookupResults.length === 0 ? (
+            <p className="mt-3 text-sm text-neutral-500">No one matches that.</p>
+          ) : (
+            <div className="mt-3 space-y-3">
+              {lookupResults.map((r) => {
+                const hidden = r.hiddenReasons.length > 0;
+                return (
+                  <div key={r.id} className="rounded-xl border border-neutral-200 bg-white p-4 text-sm">
+                    <p className="font-semibold">
+                      {r.full_name || "Unnamed"}
+                      {r.business_name ? ` · ${r.business_name}` : ""}
+                    </p>
+                    <p className="text-xs text-neutral-500 break-all">
+                      {r.email} · @{r.username || "—"} · role: {r.role || "none"}
+                    </p>
+                    <p className="mt-1 text-xs text-neutral-500">
+                      Status: {r.verification_status || "none"}
+                      {r.verified_until ? ` · valid until ${r.verified_until}` : r.verification_status === "verified" ? " · no expiry" : ""}
+                    </p>
+                    <p className={`mt-2 font-medium ${hidden ? "text-red-600" : "text-green-700"}`}>
+                      {hidden ? "Hidden from Browse" : "Should be showing in Browse"}
+                    </p>
+                    {hidden ? (
+                      <ul className="mt-1 list-disc pl-5 text-neutral-700">
+                        {r.hiddenReasons.map((reason) => (
+                          <li key={reason}>{reason}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    <div className="mt-2 space-y-1 text-xs text-neutral-600">
+                      {r.submissions.length === 0 ? (
+                        <p>No verification submissions.</p>
+                      ) : (
+                        r.submissions.map((s) => (
+                          <p key={s.id}>
+                            {s.is_manual ? "Manual approval" : `${s.track} submission`}: {s.status}
+                            {s.license_expiry || s.enrollment_end_date
+                              ? ` · expires ${s.license_expiry || s.enrollment_end_date}`
+                              : ""}
+                            {s.rejection_reason ? ` · ${s.rejection_reason}` : ""} · sent {s.created_at.slice(0, 10)}
+                          </p>
+                        ))
+                      )}
+                    </div>
+                    {hidden && r.isProfessional ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <input
+                          value={notes[r.id] || ""}
+                          onChange={(e) => setNotes((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                          placeholder="Why approve? (required)"
+                          className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-base"
+                        />
+                        <button
+                          type="button"
+                          disabled={busyId === r.id}
+                          onClick={async () => {
+                            const ok = await post(
+                              { action: "manual_approve", professionalId: r.id, note: notes[r.id] || "" },
+                              r.id
+                            );
+                            if (ok) runLookup();
+                          }}
+                          className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                        >
+                          {busyId === r.id ? "Working…" : "Approve"}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : null}
+      </section>
 
       <section>
         <h2 className="text-lg font-semibold">Waiting for review ({pending.length})</h2>

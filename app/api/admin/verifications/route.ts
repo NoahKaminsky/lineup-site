@@ -14,6 +14,58 @@ export async function GET(req: Request) {
 
   const service = getServiceSupabase();
 
+  // Look up any professional by name, username or email and say plainly why
+  // they are or aren't showing in Browse. Built for checking from a phone.
+  const lookup = new URL(req.url).searchParams.get("lookup");
+  if (lookup !== null) {
+    const term = lookup.replace(/[^\p{L}\p{N}@._\- ]/gu, "").trim().slice(0, 60);
+    if (term.length < 2) return NextResponse.json({ results: [] });
+
+    const { data: matches, error } = await service
+      .from("profiles")
+      .select(
+        "id, full_name, username, business_name, email, role, professional_type, professional_types, verification_status, verification_track, verified_until, verified_at"
+      )
+      .or(
+        ["full_name", "username", "business_name", "email"]
+          .map((col) => `${col}.ilike.%${term}%`)
+          .join(",")
+      )
+      .limit(10);
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const ids = (matches || []).map((m) => m.id);
+    const { data: submissions } = ids.length
+      ? await service
+          .from("professional_verifications")
+          .select("id, professional_id, track, status, license_expiry, enrollment_end_date, is_manual, reviewed_at, created_at, rejection_reason")
+          .in("professional_id", ids)
+          .order("created_at", { ascending: false })
+      : { data: [] };
+
+    const today = todayDateString();
+    const results = (matches || []).map((m) => {
+      const role = String(m.role || "").toLowerCase().trim();
+      const reasons: string[] = [];
+      if (!role) reasons.push("Their account has no role set, so the app doesn't treat them as a professional.");
+      else if (role.includes("customer")) reasons.push(`Their account role is "${m.role}", not a professional.`);
+      if (m.verification_status !== "verified") {
+        reasons.push(`Saved verification status is "${m.verification_status || "none"}".`);
+      } else if (m.verified_until && m.verified_until < today) {
+        reasons.push(`Verification ran out on ${m.verified_until}.`);
+      }
+      return {
+        ...m,
+        submissions: (submissions || []).filter((s) => s.professional_id === m.id),
+        hiddenReasons: reasons,
+        isProfessional: !!role && !role.includes("customer"),
+      };
+    });
+
+    return NextResponse.json({ results, today });
+  }
+
   // Catch up anyone whose credential lapsed since the daily 6am sweep, so they
   // show up below as "expired" right away instead of still reading "verified"
   // (Browse already hides them the moment their date passes).
