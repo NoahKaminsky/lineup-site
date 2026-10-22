@@ -962,7 +962,7 @@ function NewRequestPageContent() {
   const labelClass = "mb-2 block text-sm font-semibold text-neutral-700";
 
   const serviceModeOptions = [
-    { value: "at_home", label: "At my place", sub: "Pro comes to you" },
+    { value: "at_home", label: "Mobile: at my place", sub: "The pro comes to you" },
     { value: "in_shop", label: "Their shop", sub: "You go to them" },
     { value: "home_studio", label: "Home studio", sub: "At their home" },
   ];

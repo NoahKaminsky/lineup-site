@@ -122,7 +122,7 @@ function formatServiceMode(value: string | null | undefined) {
   if (!value) return "Not specified";
   if (value === "in_shop") return "In shop";
   if (value === "home_studio") return "Home studio";
-  if (value === "at_home") return "At home";
+  if (value === "at_home") return "Mobile (client's place)";
   return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 

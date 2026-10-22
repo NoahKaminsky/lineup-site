@@ -270,7 +270,7 @@ function formatCategory(category: string) {
 function formatMode(mode: string | null) {
   if (!mode) return null;
   if (mode === "in_shop") return "In shop";
-  if (mode === "at_home") return "At home";
+  if (mode === "at_home") return "Mobile (client's place)";
   if (mode === "home_studio") return "Home studio";
   return mode.replaceAll("_", " ");
 }

@@ -151,7 +151,7 @@ function buildTags(params: {
   if (isActive) tags.push("Active");
   if (averageRatingNumber !== null && averageRatingNumber >= 4.5 && reviewCount >= 2) tags.push("Top rated");
   if (isOpenThisWeek) tags.push("Available");
-  if (modes.includes("at_home")) tags.push("At home");
+  if (modes.includes("at_home")) tags.push("Mobile");
 
   return tags.slice(0, 2);
 }

@@ -325,7 +325,7 @@ function getPlainServiceModes(value: string | string[] | null | undefined) {
 function formatModeLabel(mode: string) {
   if (mode === "in_shop") return "At their shop";
   if (mode === "home_studio") return "At their home studio";
-  if (mode === "at_home") return "At your place";
+  if (mode === "at_home") return "Mobile: they come to you";
   return mode.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
@@ -830,7 +830,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
   // Instant booking needs a fixed location to book against, so it also
   // requires the professional to offer in-shop or home-studio (not just
-  // at-home) — without that, the calendar has nowhere valid to send someone.
+  // mobile) — without that, the calendar has nowhere valid to send someone.
   const profileVerified = isVerifiedNow(profile);
 
   // Instant booking is a paid-plan feature (checkout enforces the same).
@@ -1303,7 +1303,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
     if (!usesProfessionalLocation) {
       setMessage(
-        "Direct booking is only available for in-shop or home-studio appointments. Use Request service for at-home jobs."
+        "Direct booking is only available for in-shop or home-studio appointments. Use Request service for mobile appointments at your place."
       );
       return;
     }
@@ -1362,7 +1362,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
       if (!usesProfessionalLocation) {
         abort(
-          "Direct booking is only available for in-shop or home-studio appointments. Use Request service for at-home jobs."
+          "Direct booking is only available for in-shop or home-studio appointments. Use Request service for mobile appointments at your place."
         );
         return;
       }
@@ -1598,7 +1598,7 @@ if (loading) {
       });
     if (directBookingModes.length === 0)
       ownBookingBlockers.push({
-        text: "Offer in-shop or home-studio appointments (at-home only can't be booked instantly)",
+        text: "Offer in-shop or home-studio appointments (mobile-only can't be booked instantly)",
         href: "/services#modes",
         action: "Fix",
       });
@@ -2328,7 +2328,7 @@ if (loading) {
                                 Where it happens
                               </p>
                               <p className="mt-1 text-xs leading-5 text-neutral-500">
-                                Direct bookings are for appointments at the professional’s shop or studio. For at-home work, post a request instead.
+                                Direct bookings are for appointments at the professional’s shop or studio. For a mobile appointment at your place, post a request instead.
                               </p>
 
                               {directBookingModes.length > 0 ? (

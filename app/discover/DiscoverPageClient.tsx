@@ -115,7 +115,7 @@ const categoryOptions = [
 ] as const;
 
 const serviceModeOptions = [
-  { label: "At home", value: "at_home" },
+  { label: "Mobile", value: "at_home" },
   { label: "In shop", value: "in_shop" },
   { label: "Studio", value: "home_studio" },
 ] as const;
@@ -418,7 +418,7 @@ function buildTags(params: {
   if (isActive) tags.push("Active");
   if (averageRatingNumber !== null && averageRatingNumber >= 4.5 && reviewCount >= 2) tags.push("Top rated");
   if (isOpenThisWeek) tags.push("Available");
-  if (modes.includes("at_home")) tags.push("At home");
+  if (modes.includes("at_home")) tags.push("Mobile");
 
   return tags.slice(0, 2);
 }

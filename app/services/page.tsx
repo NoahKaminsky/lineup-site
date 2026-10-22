@@ -211,7 +211,7 @@ function formatPrice(value: string | number | null | undefined) {
 }
 
 function formatModeLabel(mode: string) {
-  if (mode === "at_home") return "At-home services";
+  if (mode === "at_home") return "Mobile (I go to the client)";
   if (mode === "in_shop") return "In-shop services";
   if (mode === "home_studio") return "Home studio";
   return mode.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
@@ -1672,7 +1672,7 @@ export default function ServicesPage() {
 
           {serviceModes.includes("at_home") ? (
             <p className="mt-4 text-sm leading-6 text-neutral-500">
-              <span className="font-medium text-neutral-700">At-home:</span> your location is only shown as an approximate distance until a customer confirms a booking.
+              <span className="font-medium text-neutral-700">Mobile:</span> you travel to the client. Your own location is only shown as an approximate distance.
             </p>
           ) : null}
 
