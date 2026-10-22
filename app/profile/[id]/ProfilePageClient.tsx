@@ -35,6 +35,8 @@ type Profile = {
   verification_status?: string | null;
   verification_track?: string | null;
   verified_until?: string | null;
+  subscription_plan?: string | null;
+  subscription_status?: string | null;
   created_at?: string | null;
   full_name: string | null;
   username?: string | null;
@@ -579,7 +581,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
         const isUuid = UUID_REGEX.test(profileId);
         const profileSelect =
-          "id, full_name, username, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, verification_status, verification_track, verified_until, created_at";
+          "id, full_name, username, avatar_url, banner_url, role, professional_type, professional_types, location, formatted_address, location_lat, location_lng, location_place_id, bio, instagram_handle, business_name, service_modes, specialties, direct_booking_enabled, public_availability_enabled, default_appointment_duration, verification_status, verification_track, verified_until, subscription_plan, subscription_status, created_at";
 
         const { data: profileData, error: profileError } = isUuid
           ? await supabase.from("profiles").select(profileSelect).eq("id", profileId).single()
@@ -831,8 +833,14 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   // at-home) — without that, the calendar has nowhere valid to send someone.
   const profileVerified = isVerifiedNow(profile);
 
+  // Instant booking is a paid-plan feature (checkout enforces the same).
+  const profileOnPaidPlan =
+    ["apprentice", "pro", "master"].includes(profile?.subscription_plan || "") &&
+    (profile?.subscription_status === "active" || profile?.subscription_status === "trialing");
+
   const canDirectBook =
     profileVerified &&
+    profileOnPaidPlan &&
     !!profile?.direct_booking_enabled &&
     !!profile?.public_availability_enabled &&
     directBookingModes.length > 0;
@@ -1574,6 +1582,46 @@ if (loading) {
     reviews.length >= 3 ? "Trusted by clients" : null,
   ].filter(Boolean) as string[];
 
+  // What's stopping clients booking this pro (shown to the pro only).
+  const ownBookingBlockers: { text: string; href: string; action: string }[] = [];
+  if (profile && isProfessional && viewerUserId === profile.id) {
+    const bookable = services.filter((s) => s.is_active && s.is_bookable);
+    const priced = bookable.filter((s) => Number(s.price) > 0);
+    if (!profileVerified) ownBookingBlockers.push({ text: "Get verified", href: "/verification", action: "Verify" });
+    if (!profileOnPaidPlan)
+      ownBookingBlockers.push({ text: "Instant booking comes with a paid plan", href: "/subscription", action: "Plans" });
+    if (!profile.direct_booking_enabled || !profile.public_availability_enabled)
+      ownBookingBlockers.push({
+        text: "Turn on “Allow instant booking” and “Show availability publicly”, then tap Save changes",
+        href: "/services#booking",
+        action: "Fix",
+      });
+    if (directBookingModes.length === 0)
+      ownBookingBlockers.push({
+        text: "Offer in-shop or home-studio appointments (at-home only can't be booked instantly)",
+        href: "/services#modes",
+        action: "Fix",
+      });
+    else if (!profile.formatted_address || typeof profile.location_lat !== "number" || typeof profile.location_lng !== "number")
+      ownBookingBlockers.push({
+        text: "Add your shop or studio address, picked from the suggestions",
+        href: "/services#address",
+        action: "Add",
+      });
+    if (bookable.length === 0)
+      ownBookingBlockers.push({ text: "Add a bookable service", href: "/services#add-service", action: "Add" });
+    else if (priced.length === 0)
+      ownBookingBlockers.push({ text: "Give your services a price (clients pay when they book)", href: "/services#services", action: "Fix" });
+    if (!availability.some((row) => row.is_active))
+      ownBookingBlockers.push({ text: "Set your weekly hours", href: "/services#availability", action: "Set" });
+    else if (canDirectBook && generatedSlots.length === 0)
+      ownBookingBlockers.push({
+        text: "No open times in your booking window. Check your hours, time off and how far ahead clients can book",
+        href: "/services#availability",
+        action: "Check",
+      });
+  }
+
   const servicePrices = services
     .map((service) => Number(service.price))
     .filter((price) => Number.isFinite(price) && price > 0);
@@ -1918,6 +1966,34 @@ if (loading) {
                 ) : null}
               </div>
             </nav>
+          ) : null}
+          {/* The pro looking at their own profile: say exactly what's stopping
+              clients from booking them, with a link to fix each thing. */}
+          {isProfessional && viewerUserId === profile.id && ownBookingBlockers.length > 0 ? (
+            <section className="mt-10 rounded-3xl bg-white p-5 ring-1 ring-amber-200 sm:p-6">
+              <p className="text-xs font-medium text-amber-700">Only you can see this</p>
+              <h2 className="mt-1.5 text-lg font-semibold tracking-[-0.02em] text-ink">
+                Clients can&apos;t book you from your calendar yet
+              </h2>
+              <ul className="mt-4 space-y-2.5">
+                {ownBookingBlockers.map((blocker) => (
+                  <li key={blocker.text} className="flex items-center justify-between gap-3 text-sm text-neutral-700">
+                    <span>{blocker.text}</span>
+                    <Link
+                      href={blocker.href}
+                      className="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium text-ink ring-1 ring-inset ring-ink/15 transition hover:ring-ink/30"
+                    >
+                      {blocker.action}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          {isProfessional && viewerUserId === profile.id && canDirectBook && ownBookingBlockers.length === 0 ? (
+            <p className="mt-10 rounded-2xl bg-white px-4 py-3 text-sm text-neutral-600 ring-1 ring-ink/[0.07]">
+              Your calendar is live. Below is what clients see. You can&apos;t book yourself, so test it from a client account.
+            </p>
           ) : null}
           {isProfessional && canDirectBook ? (
             <ProfileSection
