@@ -40,7 +40,7 @@ export default function TermsPage() {
 
         <h2 className="mt-10 mb-3 text-2xl font-semibold">5. Professional Responsibility</h2>
         <p className="leading-7 text-neutral-300">
-          Professionals are solely responsible for maintaining any licenses, certifications, permits, registrations, insurance coverage, and legal qualifications required to provide services in their jurisdiction. Where LineUp reviews credentials or identification as part of verification, that review is limited to the documents provided at that time and is not a guarantee, endorsement, or ongoing confirmation of any Professional&apos;s qualifications, skill, or conduct.
+          Professionals are solely responsible for maintaining any licenses, certifications, permits, registrations, insurance coverage, and legal qualifications required to provide services in their jurisdiction. Professionals are strongly encouraged to carry their own professional liability insurance. Where LineUp reviews credentials or identification as part of verification, that review is limited to the documents provided at that time and is not a guarantee, endorsement, or ongoing confirmation of any Professional&apos;s qualifications, skill, or conduct.
         </p>
 
         <h2 className="mt-10 mb-3 text-2xl font-semibold">6. Marketplace Services</h2>
@@ -84,53 +84,67 @@ export default function TermsPage() {
         <p className="leading-7 text-neutral-300">
           LineUp may charge service fees, processing fees, booking fees, subscription fees, or commissions. Applicable fees may be deducted before funds are released to Professionals. Fees may change at any time upon notice through the Platform.
         </p>
+        <p className="mt-4 leading-7 text-neutral-300">
+          LineUp currently keeps a commission of 15% of the service price on bookings paid through the Platform (10% for Professionals on an active Master subscription). The commission is deducted from the Professional&apos;s earnings; it is not added to the price the client pays. Part of a Professional&apos;s earnings may be paid when a booking is made, and the remainder after the appointment is marked complete or completes automatically.
+        </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">11. Professional Subscriptions</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">11. Tips</h2>
+        <p className="leading-7 text-neutral-300">
+          Clients may choose to add a tip when paying for a booking. Tips are optional, are paid to the Professional in full with their earnings, and are not subject to LineUp&apos;s commission. Tips are refunded together with the booking if the booking is cancelled for a refund. Professionals are responsible for any taxes that apply to tips they receive.
+        </p>
+
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">12. Professional Subscriptions</h2>
         <p className="leading-7 text-neutral-300">
           Certain Professional features may require a paid subscription. Unless otherwise stated, subscriptions may renew automatically unless cancelled before the renewal date. Subscription fees are generally non-refundable except where required by applicable law.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">12. Pricing and Taxes</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">13. Pricing and Taxes</h2>
         <p className="leading-7 text-neutral-300">
           Prices displayed on the Platform may include service costs, fees, and applicable taxes. Users are responsible for reviewing final pricing before confirming a booking or transaction and for complying with any tax obligations that apply to them.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">13. Cancellations, Refunds, and Disputes</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">14. Cancellations, Refunds, and Disputes</h2>
         <p className="leading-7 text-neutral-300">
-          Cancellation, refund, and no-show policies may vary depending on the Professional and booking circumstances. LineUp may assist in dispute resolution but is not obligated to resolve disputes or enforce outcomes between users.
+          Clients pay for a booking when they make it. A booking can be cancelled through the Platform by the client or the Professional more than twenty-four (24) hours before the appointment start time, and the client receives a full refund to their original payment method, including any tip. Refunds are issued promptly but may take several business days to appear, depending on the client&apos;s bank or card issuer.
+        </p>
+        <p className="mt-4 leading-7 text-neutral-300">
+          Bookings cannot be cancelled through the Platform within twenty-four (24) hours of the appointment start time, and payments for those bookings are non-refundable except where LineUp decides otherwise in its sole discretion or where required by applicable law. Users should contact each other directly if something comes up. No-shows and late arrivals are a matter between the client and the Professional.
+        </p>
+        <p className="mt-4 leading-7 text-neutral-300">
+          LineUp may assist in dispute resolution but is not obligated to resolve disputes, issue refunds outside this policy, or enforce outcomes between users.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">14. Chargebacks and Payment Disputes</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">15. Chargebacks and Payment Disputes</h2>
         <p className="leading-7 text-neutral-300">
           If a transaction is disputed, reversed, or subject to a chargeback, LineUp may investigate the matter, withhold funds, recover amounts where permitted, restrict account access, and provide transaction information to payment processors or financial institutions as necessary.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">15. Health and Safety Disclaimer</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">16. Health and Safety Disclaimer</h2>
         <p className="leading-7 text-neutral-300">
           Users acknowledge that beauty, aesthetics, wellness, cosmetic, and personal care services involve inherent risks, including but not limited to allergic reactions, personal injury, infection, dissatisfaction with results, property damage, or other adverse outcomes. Users voluntarily assume all risks associated with services booked through the Platform.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">16. Third-Party Services</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">17. Third-Party Services</h2>
         <p className="leading-7 text-neutral-300">
           The Platform may rely on third-party services, including payment processors, hosting providers, mapping services, email services, and analytics providers. LineUp is not responsible for the availability, security, functionality, or actions of third-party providers.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">17. Intellectual Property</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">18. Intellectual Property</h2>
         <p className="leading-7 text-neutral-300">
           All Platform content, software, trademarks, logos, branding, designs, graphics, text, and functionality are owned by LineUp or its licensors. Users may not reproduce, distribute, modify, or commercially exploit Platform content without written permission.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">18. Account Suspension</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">19. Account Suspension</h2>
         <p className="leading-7 text-neutral-300">
           LineUp may suspend, restrict, or terminate accounts at any time where necessary to protect users, enforce these Terms, address misuse, respond to fraud, or comply with legal or regulatory requirements.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">19. Disclaimer of Warranties</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">20. Disclaimer of Warranties</h2>
         <p className="leading-7 text-neutral-300">
           The Platform is provided on an &quot;AS IS&quot; and &quot;AS AVAILABLE&quot; basis. To the maximum extent permitted by applicable law, LineUp disclaims all warranties, express or implied, including warranties of merchantability, fitness for a particular purpose, non-infringement, accuracy, reliability, and availability.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">20. Limitation of Liability</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">21. Limitation of Liability</h2>
         <p className="leading-7 text-neutral-300">
           LineUp is a technology platform only. To the maximum extent permitted by applicable law, LineUp, its founders, officers, directors, employees, affiliates, agents, and partners are not liable for any loss, damage, injury, claim, cost, or expense of any kind arising from or related to the Platform, including without limitation:
         </p>
@@ -154,22 +168,22 @@ export default function TermsPage() {
           In no event shall LineUp&apos;s total liability exceed the greater of CAD $100 or the total amount paid by the user to LineUp during the twelve (12) months preceding the claim.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">21. User Release</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">22. User Release</h2>
         <p className="leading-7 text-neutral-300">
           To the maximum extent permitted by law, users release and discharge LineUp, its founders, officers, directors, employees, affiliates, and agents from any claims, liabilities, disputes, damages, losses, costs, or expenses arising from interactions, transactions, bookings, services, or relationships between users.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">22. Indemnification</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">23. Indemnification</h2>
         <p className="leading-7 text-neutral-300">
           You agree to defend, indemnify, and hold harmless LineUp, its founders, officers, directors, employees, affiliates, and agents from any claims, liabilities, damages, losses, costs, expenses, or legal fees arising from your use of the Platform, your violation of these Terms, your violation of applicable law, or your interactions with other users.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">23. Force Majeure</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">24. Force Majeure</h2>
         <p className="leading-7 text-neutral-300">
           LineUp shall not be liable for delays, interruptions, or failures caused by events beyond its reasonable control, including natural disasters, cyberattacks, internet outages, governmental actions, labour disputes, utility failures, public health emergencies, acts of war, or other force majeure events.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">24. Compliance with Laws</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">25. Compliance with Laws</h2>
         <p className="leading-7 text-neutral-300">
           Users agree to comply with all applicable federal, provincial, territorial, state, municipal, local, and international laws, regulations, licensing requirements, tax obligations, and professional standards applicable to their use of the Platform.
         </p>
@@ -177,7 +191,7 @@ export default function TermsPage() {
           LineUp intends to operate in compliance with applicable laws in the jurisdictions in which it conducts business. However, users remain solely responsible for ensuring their own legal, regulatory, tax, licensing, and professional compliance.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">25. Governing Law</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">26. Governing Law</h2>
         <p className="leading-7 text-neutral-300">
           These Terms shall be governed by and interpreted in accordance with the laws of the Province of Manitoba and the federal laws of Canada applicable therein, without regard to conflict of law principles.
         </p>
@@ -185,17 +199,17 @@ export default function TermsPage() {
           If a user accesses or uses the Platform from another province, territory, state, country, or jurisdiction, the user remains responsible for complying with all laws, rules, and regulations applicable to their activities in that jurisdiction.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">26. Severability</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">27. Severability</h2>
         <p className="leading-7 text-neutral-300">
           If any provision of these Terms is determined to be invalid, illegal, or unenforceable, the remaining provisions shall remain in full force and effect.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">27. Changes to These Terms</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">28. Changes to These Terms</h2>
         <p className="leading-7 text-neutral-300">
           LineUp may update these Terms at any time. Updated Terms become effective upon posting to the Platform. Continued use of the Platform after changes constitutes acceptance of the revised Terms.
         </p>
 
-        <h2 className="mt-10 mb-3 text-2xl font-semibold">28. Contact</h2>
+        <h2 className="mt-10 mb-3 text-2xl font-semibold">29. Contact</h2>
         <p className="leading-7 text-neutral-300">
           For questions about these Terms, contact:
           <br />
