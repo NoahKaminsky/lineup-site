@@ -46,7 +46,8 @@ function formatPrice(value?: string | number | null) {
   return new Intl.NumberFormat("en-CA", {
     style: "currency",
     currency: "CAD",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: Number.isInteger(numericValue) ? 0 : 2,
+    maximumFractionDigits: Number.isInteger(numericValue) ? 0 : 2,
   }).format(numericValue);
 }
 

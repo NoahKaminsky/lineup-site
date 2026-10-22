@@ -452,7 +452,7 @@ function NewRequestPageContent() {
   const [budget, setBudget] = useState(() => {
     const numeric = Number(clickedServicePrice);
     return clickedServicePrice && !Number.isNaN(numeric)
-      ? new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", maximumFractionDigits: 0 }).format(numeric)
+      ? new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD", minimumFractionDigits: Number.isInteger(numeric) ? 0 : 2, maximumFractionDigits: Number.isInteger(numeric) ? 0 : 2 }).format(numeric)
       : "";
   });
 
