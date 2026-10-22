@@ -250,8 +250,20 @@ export type VerificationFields = {
   verified_until?: string | null;
 };
 
+// LineUp runs on Winnipeg time. Using UTC here made credentials "expire" at
+// 7pm (6pm in summer) the night before their expiry date, because UTC had
+// already rolled over to the next day. Same result on the server and in the
+// browser, whatever their own time zone is.
+export const LINEUP_TIME_ZONE = "America/Winnipeg";
+
 export function todayDateString() {
-  return new Date().toISOString().slice(0, 10);
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: LINEUP_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 // A professional counts as verified only while their approval hasn't lapsed —
