@@ -5,7 +5,7 @@ import ContactForm from "./ContactForm";
 
 export const metadata: Metadata = {
   title: "Contact | LineUp",
-  description: "Get in touch with the LineUp team in Winnipeg.",
+  description: "Get in touch with the LineUp team.",
 };
 
 const WAYS = [

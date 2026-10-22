@@ -859,7 +859,7 @@ export default function LandingPage() {
                 home studios, and finding them usually means scrolling and messaging. We built LineUp so clients can
                 ask once and the right pros can answer.
               </p>
-              <p data-reveal>Launching first in Winnipeg, Manitoba.</p>
+              <p data-reveal>Launching first across Canada.</p>
             </div>
 
             <div className="lg:col-span-3 lg:col-start-10">

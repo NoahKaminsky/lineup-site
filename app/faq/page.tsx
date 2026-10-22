@@ -17,7 +17,7 @@ const GROUPS: FaqGroup[] = [
     items: [
       {
         q: "What is LineUp?",
-        a: "LineUp connects you with beauty and grooming pros in Winnipeg: barbers, stylists, lash and brow artists, nail techs and more. Browse real work, then book a time or post what you're looking for and let pros come to you.",
+        a: "LineUp connects you with beauty and grooming pros across Canada: barbers, stylists, lash and brow artists, nail techs and more. Browse real work, then book a time or post what you're looking for and let pros come to you.",
       },
       {
         q: "How do I book?",
@@ -51,7 +51,7 @@ const GROUPS: FaqGroup[] = [
       },
       {
         q: "Where is LineUp available?",
-        a: "Winnipeg, Manitoba, to start. More cities are coming.",
+        a: "Across Canada. Pros sign up and get verified under their own province's rules, so their credentials match where they work.",
       },
     ],
   },

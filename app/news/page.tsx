@@ -7,7 +7,7 @@ import { newsSerif } from "./fonts";
 
 export const metadata: Metadata = {
   title: "The LineUp | News",
-  description: "LineUp news and newsletters from Winnipeg, week by week.",
+  description: "LineUp news and newsletters, week by week.",
 };
 
 const serif = "font-[family-name:var(--font-news-serif)]";
@@ -53,7 +53,7 @@ export default function NewsPage() {
           <header>
             <div className="lu-rise-in flex items-center justify-between gap-4 pb-2 text-[10px] font-medium uppercase tracking-[0.2em] text-neutral-600 sm:text-[11px]">
               <span>Vol. 1 · No. {issues.length}</span>
-              <span className="hidden sm:inline">Winnipeg, Manitoba</span>
+              <span className="hidden sm:inline">Canadian edition</span>
               <span>Free</span>
             </div>
             <Rule double delay={80} />
@@ -128,7 +128,7 @@ export default function NewsPage() {
                     {[
                       { href: "/about", title: "Meet the founders", note: "Why we built LineUp" },
                       { href: "/faq", title: "How it all works", note: "Booking, payments, plans" },
-                      { href: "/discover", title: "Browse pros", note: "Find someone in Winnipeg" },
+                      { href: "/discover", title: "Browse pros", note: "Find someone near you" },
                     ].map((item) => (
                       <li key={item.href}>
                         <Link href={item.href} className="group block py-3.5">

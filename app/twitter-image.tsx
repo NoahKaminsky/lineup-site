@@ -78,7 +78,7 @@ export default function Image() {
               marginRight: 12,
             }}
           />
-          16 verified professionals · Winnipeg, MB
+          16 verified professionals · Canada
         </div>
       </div>
     ),

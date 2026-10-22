@@ -66,7 +66,7 @@ export function PublicFooter() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-end sm:justify-between sm:px-6">
         <div>
           <p className="text-lg font-semibold tracking-tight">LineUp</p>
-          <p className="mt-1 text-sm text-neutral-500">Beauty and grooming, booked. Winnipeg, Manitoba.</p>
+          <p className="mt-1 text-sm text-neutral-500">Beauty and grooming, booked. Across Canada.</p>
         </div>
         <nav aria-label="Footer">
           <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-neutral-600">

@@ -27,7 +27,7 @@ export const NEWSLETTER_ISSUES: NewsletterIssue[] = [
     subject: NEWSLETTER_LAUNCH_SUBJECT,
     date: "2026-10-17",
     summary:
-      "LineUp is officially open in Winnipeg. How to set up your account, post what you want as a client, and start getting booked as a pro.",
+      "LineUp is officially open. How to set up your account, post what you want as a client, and start getting booked as a pro.",
     audience: "Everyone",
     byline: "Noah Kaminsky",
     public: true,

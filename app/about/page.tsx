@@ -46,7 +46,7 @@ export default function AboutPage() {
           </figure>
 
           <p className="lu-rise-in pt-4 text-sm text-neutral-500" style={{ animationDelay: "500ms" }}>
-            Launching first in Winnipeg, Manitoba.
+            Launching first across Canada.
           </p>
         </div>
 
