@@ -461,7 +461,7 @@ export default function LandingPage() {
 
           {/* Which side of LineUp you're reading about. Flips on its own at
               the handoff; either half jumps to that side. */}
-          <nav aria-label="Who LineUp is for" className="relative flex rounded-full bg-ink/[0.05] p-1 text-sm">
+          <nav aria-label="Who LineUp is for" className="relative hidden rounded-full bg-ink/[0.05] p-1 text-sm sm:flex">
             <span
               aria-hidden="true"
               className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-premium ${
@@ -494,7 +494,7 @@ export default function LandingPage() {
               href="/login"
               className={`whitespace-nowrap rounded-full px-2 py-2 text-sm font-medium text-ink hover:text-neutral-600 sm:px-0 sm:font-normal sm:text-neutral-600 sm:hover:text-ink ${focusRing}`}
             >
-              Sign in
+              Log in
             </Link>
             <JoinButton compact className="px-4 py-2 text-sm sm:px-5 sm:py-2.5" />
           </div>
