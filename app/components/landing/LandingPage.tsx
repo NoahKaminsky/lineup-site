@@ -6,6 +6,8 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import Image from "next/image";
 import Link from "next/link";
+import SiteMenu from "@/app/components/site/SiteMenu";
+import FounderCards from "@/app/components/landing/FounderCards";
 import {
   focusRing,
   Line,
@@ -450,9 +452,12 @@ export default function LandingPage() {
         }`}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-3.5">
-          <Link href="/" className={`rounded text-lg font-semibold tracking-tight sm:text-xl ${focusRing}`}>
-            LineUp
-          </Link>
+          <div className="flex items-center gap-0.5 sm:gap-1.5">
+            <SiteMenu className="-ml-2" />
+            <Link href="/" className={`rounded text-lg font-semibold tracking-tight sm:text-xl ${focusRing}`}>
+              LineUp
+            </Link>
+          </div>
 
           {/* Which side of LineUp you're reading about. Flips on its own at
               the handoff; either half jumps to that side. */}
@@ -845,8 +850,8 @@ export default function LandingPage() {
           <div className="mt-16 grid gap-12 lg:grid-cols-12">
             <div className="space-y-5 text-base leading-8 text-neutral-600 lg:col-span-5 lg:col-start-4">
               <p data-reveal>
-                LineUp was founded by two University of Manitoba students, Dan Latimer and Noah Kaminsky, with
-                backgrounds in design and agriculture.
+                LineUp was founded in Winnipeg by Noah Kaminsky and Dan Latimer, from the University of Manitoba,
+                with backgrounds in agribusiness and design.
               </p>
               <p data-reveal>
                 Beauty and grooming is a fragmented industry: the best people are spread across shops, shared spaces and
@@ -856,17 +861,16 @@ export default function LandingPage() {
               <p data-reveal>Launching first in Winnipeg, Manitoba.</p>
             </div>
 
-            <ul className="lg:col-span-3 lg:col-start-10">
-              {[
-                { name: "Noah Kaminsky", title: "Co-Founder & CEO" },
-                { name: "Dan Latimer", title: "Co-Founder & CFO" },
-              ].map((founder) => (
-                <li key={founder.name} data-reveal className="border-t border-ink/10 py-5">
-                  <p className="font-semibold tracking-tight">{founder.name}</p>
-                  <p className="mt-1 text-sm text-neutral-500">{founder.title}</p>
-                </li>
-              ))}
-            </ul>
+            <div className="lg:col-span-3 lg:col-start-10">
+              <FounderCards />
+              <Link
+                href="/about"
+                data-reveal
+                className={`mt-5 inline-flex items-center gap-1.5 rounded text-sm font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink ${focusRing}`}
+              >
+                More about LineUp
+              </Link>
+            </div>
           </div>
         </div>
       </section>

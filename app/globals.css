@@ -520,3 +520,120 @@ main {
 .lu-star-pop {
   animation: lu-star-pop 380ms var(--ease-arrive) both;
 }
+
+/* ── Public site: menu, page intros, founder cards ─────────────────────── */
+/* The menu unrolls from the button's corner: a clip reveal with a soft
+   settle, then each link slides in after it. */
+@keyframes lu-menu-in {
+  0% { opacity: 0; clip-path: inset(0 92% 94% 0 round 24px); transform: translateY(-4px) scale(0.98); }
+  35% { opacity: 1; }
+  100% { opacity: 1; clip-path: inset(0 0 0 0 round 24px); transform: none; }
+}
+.lu-menu-in {
+  animation: lu-menu-in 520ms var(--ease-arrive) both;
+}
+@keyframes lu-menu-item {
+  from { opacity: 0; transform: translateX(-14px); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+.lu-menu-item {
+  animation: lu-menu-item 520ms var(--ease-arrive) both;
+}
+@keyframes lu-rise-in {
+  from { opacity: 0; transform: translateY(18px); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+.lu-rise-in {
+  animation: lu-rise-in 760ms var(--ease-arrive) both;
+}
+
+/* Founder card: tilts toward the pointer (vars set from JS). */
+.lu-founder-card {
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transform-style: preserve-3d;
+  transition: transform 500ms var(--ease-arrive), opacity 200ms ease, box-shadow 500ms var(--ease-arrive);
+  will-change: transform;
+}
+.lu-founder-card:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06), 0 44px 80px -30px rgba(0, 0, 0, 0.55);
+}
+.lu-founder-card:active {
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(0.985);
+}
+/* The open profile growing out of the card (FLIP; transform set from JS). */
+.lu-founder-panel {
+  transition: transform 560ms var(--ease-arrive), border-radius 560ms var(--ease-arrive);
+}
+/* Its details rise in one after another once it's open. */
+.lu-founder-stagger > * {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 520ms var(--ease-arrive), transform 620ms var(--ease-arrive);
+  transition-delay: calc(180ms + var(--i, 0) * 55ms);
+}
+.lu-founder-stagger > div > * {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 520ms var(--ease-arrive), transform 620ms var(--ease-arrive);
+  transition-delay: calc(180ms + var(--i, 0) * 55ms);
+}
+.lu-founder-stagger.is-open > *,
+.lu-founder-stagger.is-open > div > * {
+  opacity: 1;
+  transform: none;
+}
+
+/* /news: newsprint. Warm paper with a faint grain, rules that draw across,
+   a masthead that comes up out of a mask, and a drop cap on the lead. */
+.lu-newsprint {
+  background-color: #f3f0e8;
+  background-image: url("/images/news/grain.svg");
+}
+@keyframes lu-rule-draw {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.lu-rule {
+  transform-origin: left center;
+  animation: lu-rule-draw 900ms var(--ease-arrive) both;
+}
+@keyframes lu-masthead-in {
+  from { opacity: 0; transform: translateY(0.35em); clip-path: inset(0 0 100% 0); letter-spacing: 0.04em; }
+  to { opacity: 1; transform: none; clip-path: inset(0 0 -10% 0); letter-spacing: -0.02em; }
+}
+.lu-masthead {
+  animation: lu-masthead-in 1100ms var(--ease-arrive) 140ms both;
+}
+.lu-dropcap::first-letter {
+  float: left;
+  font-family: var(--font-news-serif), Georgia, serif;
+  font-size: 4.6em;
+  line-height: 0.8;
+  padding: 0.08em 0.1em 0 0;
+  color: #0a0a0a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lu-rule,
+  .lu-masthead {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lu-menu-in,
+  .lu-menu-item,
+  .lu-rise-in {
+    animation: none;
+  }
+  .lu-founder-card,
+  .lu-founder-panel {
+    transition: opacity 200ms ease;
+    transform: none !important;
+  }
+  .lu-founder-stagger > *,
+  .lu-founder-stagger > div > * {
+    transition: opacity 200ms ease;
+    transform: none;
+  }
+}
