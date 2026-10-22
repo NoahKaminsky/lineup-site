@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, getServiceSupabase } from "@/app/lib/serverSupabase";
-import { VERIFICATION_BUCKET } from "@/app/lib/verificationRules";
+import { VERIFICATION_BUCKET, todayDateString } from "@/app/lib/verificationRules";
 import {
   notifyVerificationOutcome,
   recomputeProfileVerification,
@@ -13,6 +13,23 @@ export async function GET(req: Request) {
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const service = getServiceSupabase();
+
+  // Catch up anyone whose credential lapsed since the daily 6am sweep, so they
+  // show up below as "expired" right away instead of still reading "verified"
+  // (Browse already hides them the moment their date passes).
+  const { data: lapsed } = await service
+    .from("profiles")
+    .select("id")
+    .eq("verification_status", "verified")
+    .not("verified_until", "is", null)
+    .lt("verified_until", todayDateString());
+
+  for (const profile of lapsed || []) {
+    const status = await recomputeProfileVerification(profile.id);
+    if (status === "expired") {
+      await notifyVerificationOutcome({ professionalId: profile.id, outcome: "expired" });
+    }
+  }
 
   const [{ data: pending }, { data: recent }, { data: needsAttention }] = await Promise.all([
     service
