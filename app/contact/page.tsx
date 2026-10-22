@@ -16,6 +16,13 @@ const WAYS = [
     note: "We usually reply within a day.",
   },
   {
+    label: "Instagram",
+    value: "@noah.kaminsky",
+    href: "https://www.instagram.com/noah.kaminsky/",
+    note: "DM the founder directly.",
+    external: true,
+  },
+  {
     label: "Quick answers",
     value: "Read the FAQ",
     href: "/faq",
@@ -49,6 +56,8 @@ export default function ContactPage() {
             <li key={way.label} className="lu-rise-in" style={{ animationDelay: `${240 + index * 70}ms` }}>
               <Link
                 href={way.href}
+                target={"external" in way && way.external ? "_blank" : undefined}
+                rel={"external" in way && way.external ? "noopener noreferrer" : undefined}
                 className="group block rounded-3xl bg-white p-5 ring-1 ring-ink/[0.07] transition-all duration-500 ease-[var(--ease-arrive)] hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-24px_rgba(0,0,0,0.25)] hover:ring-ink/15"
               >
                 <p className="text-xs font-medium text-neutral-500">{way.label}</p>

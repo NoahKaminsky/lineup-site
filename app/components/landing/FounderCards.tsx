@@ -35,7 +35,7 @@ const FOUNDERS: Founder[] = [
     firstName: "Noah",
     title: "Co-Founder & CEO",
     photo: "/images/founders/noah.webp",
-    photoPosition: "35% 30%",
+    photoPosition: "50% 35%",
     tags: ["Winnipeg, MB", "U of M Agribusiness grad", "Loves farming", "Always planning the next trip"],
     intro: "Hey, I'm Noah.",
     bio: [
@@ -44,7 +44,7 @@ const FOUNDERS: Founder[] = [
       "Think of it like a dating app for estheticians and clients: you say what you're looking for, and LineUp matches you with the pro who's right for you. You see their real work, and you book a time that actually works.",
     ],
     quote: "No more clapped haircuts.",
-    contact: { label: "Say hi", href: "mailto:lineupmb@gmail.com?subject=Hi%20Noah" },
+    contact: { label: "Say hi on Instagram", href: "https://www.instagram.com/noah.kaminsky/" },
   },
   {
     id: "dan",
@@ -334,6 +334,8 @@ function FounderDialog({
               {founder.contact ? (
                 <a
                   href={founder.contact.href}
+                  target={founder.contact.href.startsWith("http") ? "_blank" : undefined}
+                  rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800 active:scale-[0.98]"
                 >
                   {founder.contact.label}
