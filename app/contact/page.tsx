@@ -17,9 +17,16 @@ const WAYS = [
   },
   {
     label: "Instagram",
-    value: "@noah.kaminsky",
-    href: "https://www.instagram.com/noah.kaminsky/",
-    note: "DM the founder directly.",
+    value: "@lineup_aesthetics",
+    href: "https://www.instagram.com/lineup_aesthetics/",
+    note: "DM us, or follow along for new pros.",
+    external: true,
+  },
+  {
+    label: "TikTok",
+    value: "@line.up.aesthetic",
+    href: "https://www.tiktok.com/@line.up.aesthetic",
+    note: "Behind the scenes and pros at work.",
     external: true,
   },
   {

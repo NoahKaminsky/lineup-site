@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import SiteMenu, { SITE_PAGES } from "./SiteMenu";
+import SocialLinks from "./SocialLinks";
 
 // Shared frame for the public info pages (About, FAQ, News, Contact):
 // header with the page menu, Log in and Join beside it, and a footer.
@@ -88,6 +89,12 @@ export function PublicFooter() {
             </li>
           </ul>
         </nav>
+      </div>
+      <div className="border-t border-ink/[0.06]">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <p className="text-xs text-neutral-500">Follow LineUp</p>
+          <SocialLinks />
+        </div>
       </div>
     </footer>
   );

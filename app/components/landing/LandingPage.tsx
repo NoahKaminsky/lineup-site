@@ -7,6 +7,7 @@ import { useGSAP } from "@gsap/react";
 import Image from "next/image";
 import Link from "next/link";
 import SiteMenu from "@/app/components/site/SiteMenu";
+import SocialLinks from "@/app/components/site/SocialLinks";
 import FounderCards from "@/app/components/landing/FounderCards";
 import {
   focusRing,
@@ -925,8 +926,12 @@ export default function LandingPage() {
             <div className="flex items-center gap-6">
               <Link href="/terms" className="transition-colors hover:text-ink">Terms</Link>
               <Link href="/privacy" className="transition-colors hover:text-ink">Privacy</Link>
-              <a href="mailto:lineupmb@gmail.com" className="transition-colors hover:text-ink">Contact</a>
+              <Link href="/contact" className="transition-colors hover:text-ink">Contact</Link>
             </div>
+          </div>
+          <div className="mx-auto mt-5 flex max-w-7xl flex-col gap-3 px-6 md:flex-row md:items-center md:justify-between">
+            <p className="text-xs text-neutral-500">Follow LineUp</p>
+            <SocialLinks />
           </div>
         </footer>
       </section>
