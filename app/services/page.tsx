@@ -6,11 +6,11 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { getCached, setCached } from "@/app/lib/pageCache";
-import TimeSelect from "@/app/components/TimeSelect";
 
 import { MapPin } from "lucide-react";
 import { useHashTarget } from "@/app/lib/useHashTarget";
 import { BookingWindowControl, TimeOffControl } from "@/app/components/SchedulingControls";
+import WeeklyHoursEditor from "@/app/components/WeeklyHoursEditor";
 import { DEFAULT_SERVICE_RADIUS_KM, SERVICE_RADIUS_OPTIONS } from "@/app/lib/serviceArea";
 type Profile = {
   id: string;
@@ -185,16 +185,6 @@ const suggestedServiceTemplatesByType: Record<string, ServiceTemplate[]> = {
   ],
 };
 
-const dayLabels = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
-
 function makeLocalId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
@@ -205,14 +195,6 @@ function normalizeProfessionalType(value: string | null | undefined) {
 
 function normalizeTime(time: string) {
   return String(time || "").slice(0, 5);
-}
-
-function formatTime(time: string) {
-  const [hourString, minute = "00"] = normalizeTime(time).split(":");
-  const hour = Number(hourString);
-  const suffix = hour >= 12 ? "PM" : "AM";
-  const twelveHour = hour % 12 || 12;
-  return `${twelveHour}:${minute} ${suffix}`;
 }
 
 function formatPrice(value: string | number | null | undefined) {
@@ -264,16 +246,6 @@ function getMapsUrl(lat?: number | null, lng?: number | null, address?: string |
   }
 
   return null;
-}
-
-function getGroupedAvailability(windows: AvailabilityWindow[]) {
-  return dayLabels.map((day, dayIndex) => ({
-    day,
-    dayIndex,
-    windows: windows
-      .filter((window) => window.day_of_week === dayIndex)
-      .sort((a, b) => a.start_time.localeCompare(b.start_time)),
-  }));
 }
 
 function buildAvailabilitySignature(windows: AvailabilityWindow[]) {
@@ -577,10 +549,6 @@ export default function ServicesPage() {
 
   const normalizedType = normalizeProfessionalType(profile?.professional_type);
   const presetServices = suggestedServiceTemplatesByType[normalizedType] || [];
-  const groupedAvailability = useMemo(
-    () => getGroupedAvailability(availabilityWindows),
-    [availabilityWindows]
-  );
 
   const isSubscribed = profile ? isSubscribedToSchedule(profile) : false;
 
@@ -814,52 +782,6 @@ export default function ServicesPage() {
     setServiceModes((prev) =>
       prev.includes(mode) ? prev.filter((item) => item !== mode) : [...prev, mode]
     );
-  }
-
-  function addAvailabilityWindow(dayIndex: number) {
-    setAvailabilityWindows((prev) => [
-      ...prev,
-      {
-        day_of_week: dayIndex,
-        start_time: "09:00",
-        end_time: "12:00",
-        is_active: true,
-        local_id: makeLocalId(),
-      },
-    ]);
-  }
-
-  function updateAvailabilityWindow(
-    localId: string,
-    field: "start_time" | "end_time" | "is_active",
-    value: string | boolean
-  ) {
-    setAvailabilityWindows((prev) =>
-      prev.map((window) =>
-        window.local_id === localId ? { ...window, [field]: value } : window
-      )
-    );
-  }
-
-  function removeAvailabilityWindow(localId: string) {
-    setAvailabilityWindows((prev) => prev.filter((window) => window.local_id !== localId));
-  }
-
-  // Copy one day's hours onto every other day (common case: same hours all week).
-  function copyDayToAllDays(dayIndex: number) {
-    setAvailabilityWindows((prev) => {
-      const source = prev.filter((window) => window.day_of_week === dayIndex);
-      const copies = dayLabels.flatMap((_, otherDay) =>
-        otherDay === dayIndex
-          ? []
-          : source.map((window) => ({ ...window, day_of_week: otherDay, local_id: makeLocalId() }))
-      );
-      return [...source, ...copies];
-    });
-  }
-
-  function closeDay(dayIndex: number) {
-    setAvailabilityWindows((prev) => prev.filter((window) => window.day_of_week !== dayIndex));
   }
 
   async function handleAddService() {
@@ -1616,104 +1538,7 @@ export default function ServicesPage() {
             </div>
           ) : (
             <>
-          <p className="max-w-2xl text-sm leading-6 text-neutral-500">
-            Switch a day on to open it, then set your hours. Add more than one block if your day is split (e.g. 9–12 and 3–6). Use “Copy to all days” to repeat a day across the week.
-          </p>
-
-          <div className="mt-5 overflow-hidden rounded-xl border border-hairline">
-            {groupedAvailability.map((group, i) => (
-              <div key={group.dayIndex} className={`${i > 0 ? "border-t border-hairline" : ""} ${group.windows.length > 0 ? "bg-surface" : "bg-paper/50"}`}>
-                <div className="flex items-center justify-between gap-4 px-4 py-3">
-                  <div className="flex min-w-0 flex-1 items-center gap-4">
-                    <p className="w-24 shrink-0 text-sm font-semibold text-neutral-900">{group.day}</p>
-                    <span className={`truncate text-xs font-medium ${group.windows.length > 0 ? "text-ink" : "text-neutral-400"}`}>
-                      {group.windows.length === 0
-                        ? "Closed"
-                        : group.windows.map((w) => `${formatTime(w.start_time)}–${formatTime(w.end_time)}`).join(" · ")}
-                    </span>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    {group.windows.length > 0 ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => copyDayToAllDays(group.dayIndex)}
-                          className="hidden rounded-full px-2.5 py-1.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink sm:inline-flex"
-                        >
-                          Copy to all days
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => addAvailabilityWindow(group.dayIndex)}
-                          className="rounded-full px-2.5 py-1.5 text-xs font-medium text-neutral-600 ring-1 ring-inset ring-ink/10 transition-colors hover:ring-ink/30"
-                        >
-                          + Hours
-                        </button>
-                      </>
-                    ) : null}
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={group.windows.length > 0}
-                      aria-label={`${group.day} ${group.windows.length > 0 ? "open" : "closed"}`}
-                      onClick={() =>
-                        group.windows.length > 0 ? closeDay(group.dayIndex) : addAvailabilityWindow(group.dayIndex)
-                      }
-                      className={`relative h-6 w-10 shrink-0 rounded-full transition-colors duration-200 ${
-                        group.windows.length > 0 ? "bg-ink" : "bg-neutral-200"
-                      }`}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ease-premium ${
-                          group.windows.length > 0 ? "translate-x-[18px]" : "translate-x-0.5"
-                        }`}
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                {group.windows.length > 0 ? (
-                  <div className="space-y-2 px-4 pb-3">
-                    {group.windows.map((window) => (
-                      <div
-                        key={window.local_id}
-                        className="grid gap-2 rounded-xl border border-neutral-100 bg-neutral-50 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-center"
-                      >
-                        <div className="flex items-center gap-2">
-                          <label className="w-8 shrink-0 text-xs font-medium text-neutral-500">From</label>
-                          <TimeSelect
-                            value={window.start_time}
-                            onChange={(value) =>
-                              updateAvailabilityWindow(window.local_id, "start_time", value)
-                            }
-                            selectClassName="w-full rounded-xl border border-neutral-200 bg-white px-1.5 py-2 text-sm outline-none transition focus:border-neutral-900"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <label className="w-8 shrink-0 text-xs font-medium text-neutral-500">To</label>
-                          <TimeSelect
-                            value={window.end_time}
-                            onChange={(value) =>
-                              updateAvailabilityWindow(window.local_id, "end_time", value)
-                            }
-                            selectClassName="w-full rounded-xl border border-neutral-200 bg-white px-1.5 py-2 text-sm outline-none transition focus:border-neutral-900"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeAvailabilityWindow(window.local_id)}
-                          className="rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
+          <WeeklyHoursEditor windows={availabilityWindows} onChange={setAvailabilityWindows} />
             </>
           )}
         </AccordionSection>
