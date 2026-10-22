@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import CheckoutForm from "./CheckoutForm";
+import TipStep, { formatTipMoney } from "./TipStep";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
@@ -16,7 +17,9 @@ export default function PaymentModal({
   onClose,
   onSuccess,
   redirectTo = "/work",
+  proName,
 }: {
+  proName?: string | null;
   clientSecret: string;
   title?: string;
   subtitle?: string;
@@ -69,7 +72,15 @@ export default function PaymentModal({
             },
           }}
         >
-          <CheckoutForm onSuccess={onSuccess} redirectTo={redirectTo} />
+          <TipStep clientSecret={clientSecret} proName={proName}>
+            {(summary) => (
+              <CheckoutForm
+                onSuccess={onSuccess}
+                redirectTo={redirectTo}
+                payLabel={`Pay ${formatTipMoney(summary.totalCents, summary.currency)}`}
+              />
+            )}
+          </TipStep>
         </Elements>
       </div>
     </div>

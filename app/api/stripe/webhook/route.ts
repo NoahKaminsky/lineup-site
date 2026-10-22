@@ -282,7 +282,8 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
         location_place_id: bookingLocation.location_place_id,
         location_lat: bookingLocation.location_lat,
         location_lng: bookingLocation.location_lng,
-        service_price: amountCents / 100,
+        // The service itself, not counting any tip on top.
+        service_price: (amountCents - Number(metadata.tip_cents || 0)) / 100,
         payment_status: "paid",
         stripe_payment_intent_id: paymentIntent.id,
         stripe_charge_id: chargeId,
@@ -589,7 +590,8 @@ async function handleDirectBookingPaymentSucceeded(
         location_place_id: professionalProfile.location_place_id || null,
         location_lat: professionalProfile.location_lat ?? null,
         location_lng: professionalProfile.location_lng ?? null,
-        service_price: amountCents / 100,
+        // The service itself, not counting any tip on top.
+        service_price: (amountCents - Number(metadata.tip_cents || 0)) / 100,
         payment_status: "paid",
         stripe_payment_intent_id: paymentIntent.id,
         stripe_charge_id: chargeId,

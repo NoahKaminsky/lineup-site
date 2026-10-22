@@ -1,5 +1,6 @@
 "use client";
 
+import TipStep, { formatTipMoney } from "@/app/components/payments/TipStep";
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -128,7 +129,9 @@ const stripePromise = loadStripe(
 function RequestOfferCheckoutForm({
   offer,
   onPaymentComplete,
+  payLabel = "Confirm and pay",
 }: {
+  payLabel?: string;
   offer: RequestOffer;
   onPaymentComplete: () => void | Promise<void>;
 }) {
@@ -168,16 +171,7 @@ function RequestOfferCheckoutForm({
   }
 
   return (
-    <form onSubmit={handlePaymentSubmit} className="mt-6 space-y-5">
-      <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-        <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
-          Offer total
-        </p>
-        <p className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">
-          {offer.proposed_price || "Price not provided"}
-        </p>
-      </div>
-
+    <form onSubmit={handlePaymentSubmit} className="space-y-5">
       <PaymentElement />
 
       {paymentError ? (
@@ -191,7 +185,7 @@ function RequestOfferCheckoutForm({
         disabled={!stripe || !elements || paymentLoading}
         className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
       >
-        {paymentLoading ? "Processing…" : "Confirm and pay"}
+        {paymentLoading ? "Processing…" : payLabel}
       </button>
     </form>
   );
@@ -3153,7 +3147,10 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 },
               }}
             >
+              <TipStep clientSecret={paymentClientSecret} proName={selectedOfferForPayment.professional_name}>
+                {(summary) => (
               <RequestOfferCheckoutForm
+                payLabel={`Pay ${formatTipMoney(summary.totalCents, summary.currency)}`}
                 offer={selectedOfferForPayment}
                 onPaymentComplete={async () => {
                   setShowPaymentModal(false);
@@ -3183,6 +3180,8 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   setShowBookingSuccessModal(true);
                 }}
               />
+                )}
+              </TipStep>
             </Elements>
           </div>
         </div>

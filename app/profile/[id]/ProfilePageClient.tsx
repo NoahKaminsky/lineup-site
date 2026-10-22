@@ -2941,6 +2941,7 @@ if (loading) {
       {paymentClientSecret ? (
         <PaymentModal
           clientSecret={paymentClientSecret}
+          proName={profile?.full_name}
           title="Confirm your booking"
           subtitle="Payment is processed securely through Stripe. Your booking will be confirmed after payment succeeds."
           onClose={() => {

@@ -305,6 +305,9 @@ async function handleDirectBookingIntent(req: Request, body: any) {
       deposit_amount_cents: String(depositAmountCents),
       professional_payout_cents: String(professionalPayoutCents),
       remaining_payout_cents: String(remainingPayoutCents),
+      // The price before any tip; /api/stripe/tip adds the tip on top.
+      base_amount_cents: String(amountCents),
+      tip_cents: "0",
     },
   });
 
@@ -483,6 +486,9 @@ export async function POST(req: Request) {
         deposit_amount_cents: String(depositAmountCents),
         professional_payout_cents: String(professionalPayoutCents),
         remaining_payout_cents: String(remainingPayoutCents),
+        // The price before any tip; /api/stripe/tip adds the tip on top.
+        base_amount_cents: String(amountCents),
+        tip_cents: "0",
       },
     });
 

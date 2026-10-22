@@ -113,6 +113,10 @@ const GROUPS: FaqGroup[] = [
         a: "When you book. Payment goes through LineUp, so you don't need to bring cash or send an e-transfer.",
       },
       {
+        q: "Can I tip?",
+        a: "Yes. Right before you pay you can add a 15%, 18% or 20% tip, or no tip. Every cent of the tip goes to your pro.",
+      },
+      {
         q: "Can I cancel?",
         a: "Yes. Cancel more than 24 hours before your appointment and you get a full refund. Inside 24 hours you can't cancel in the app, so message your pro if something comes up.",
       },
@@ -151,6 +155,10 @@ const GROUPS: FaqGroup[] = [
       {
         q: "What does LineUp take from a booking?",
         a: `LineUp keeps a ${STANDARD_COMMISSION_PERCENT}% commission on bookings paid through the app (${MASTER_COMMISSION_PERCENT}% on the Master plan). It comes out of the booking price, and the rest is yours.`,
+      },
+      {
+        q: "Do I get tips?",
+        a: "Yes. Clients can add a 15%, 18% or 20% tip when they pay. You keep the whole tip: LineUp's commission only comes out of the service price, and the tip is paid out with the rest of your earnings.",
       },
       {
         q: "How do I get paid?",
