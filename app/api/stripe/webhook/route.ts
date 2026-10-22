@@ -8,6 +8,29 @@ function timeToMinutes(timeString: string) {
   return hours * 60 + minutes;
 }
 
+// A paid booking used a promo code: record it so a once-per-customer code
+// can't be used again. Never blocks the booking (it's already paid for).
+async function recordPromoRedemption(
+  supabase: ReturnType<typeof getServiceSupabase>,
+  params: { metadata: Record<string, string>; customerId: string | null; bookingId: string; paymentIntentId: string }
+) {
+  const code = params.metadata.promo_code;
+  const discountCents = Number(params.metadata.discount_cents || 0);
+  if (!code || discountCents <= 0 || !params.customerId) return;
+
+  const { error } = await supabase.from("promo_redemptions").insert([
+    {
+      code,
+      customer_id: params.customerId,
+      booking_id: params.bookingId,
+      stripe_payment_intent_id: params.paymentIntentId,
+      discount_cents: discountCents,
+    },
+  ]);
+  // 23505: already recorded (a webhook retry, or two payments at once).
+  if (error && error.code !== "23505") console.error("Failed to record promo redemption:", error);
+}
+
 // Postgres error codes that mean "this slot is already taken":
 // 23505 = unique violation (same start time / same request),
 // 23P01 = exclusion violation (overlapping time range, see
@@ -283,7 +306,7 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
         location_lat: bookingLocation.location_lat,
         location_lng: bookingLocation.location_lng,
         // The service itself, not counting any tip on top.
-        service_price: (amountCents - Number(metadata.tip_cents || 0)) / 100,
+        service_price: (amountCents - Number(metadata.tip_cents || 0) + Number(metadata.discount_cents || 0)) / 100,
         payment_status: "paid",
         stripe_payment_intent_id: paymentIntent.id,
         stripe_charge_id: chargeId,
@@ -400,6 +423,12 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
     },
   ]);
 
+  await recordPromoRedemption(supabase, {
+    metadata,
+    customerId: requestRow.client_id,
+    bookingId: createdBooking.id,
+    paymentIntentId: paymentIntent.id,
+  });
   await sendBookingConfirmedEmail(createdBooking.id);
   await notifyIfNearingMonthlyBookingCap(supabase, offer.professional_id);
 }
@@ -591,7 +620,7 @@ async function handleDirectBookingPaymentSucceeded(
         location_lat: professionalProfile.location_lat ?? null,
         location_lng: professionalProfile.location_lng ?? null,
         // The service itself, not counting any tip on top.
-        service_price: (amountCents - Number(metadata.tip_cents || 0)) / 100,
+        service_price: (amountCents - Number(metadata.tip_cents || 0) + Number(metadata.discount_cents || 0)) / 100,
         payment_status: "paid",
         stripe_payment_intent_id: paymentIntent.id,
         stripe_charge_id: chargeId,
@@ -618,6 +647,12 @@ async function handleDirectBookingPaymentSucceeded(
     throw new Error(createBookingError?.message || "Booking creation failed.");
   }
 
+  await recordPromoRedemption(supabase, {
+    metadata,
+    customerId,
+    bookingId: createdBooking.id,
+    paymentIntentId: paymentIntent.id,
+  });
   await sendBookingConfirmedEmail(createdBooking.id);
 }
 
