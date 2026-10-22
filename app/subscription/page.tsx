@@ -1,5 +1,6 @@
 "use client";
 
+import { PLAN_FEATURES } from "@/app/lib/plans";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -55,12 +56,7 @@ const PLANS: Plan[] = [
     tagline: "Where every professional starts",
     recommended: false,
     isBasic: true,
-    features: [
-      "Profile, portfolio and reviews",
-      "Show up in Browse once verified",
-      "Get requests and send offers",
-      "Up to 15 request bookings per month",
-    ],
+    features: PLAN_FEATURES.basic,
   },
   {
     key: "apprentice",
@@ -70,15 +66,7 @@ const PLANS: Plan[] = [
     trialDays: null,
     tagline: "Best for getting started",
     recommended: false,
-    features: [
-      "Everything in Basic",
-      "Instant-booking calendar on your profile",
-      "Your own booking link",
-      "Weekly hours, time off and booking window",
-      "Up to 25 request bookings per month",
-      "Basic analytics",
-      "Apprentice badge and a boost in Browse",
-    ],
+    features: ["Everything in Basic", ...PLAN_FEATURES.apprentice],
     envKey: "STRIPE_APPRENTICE_PRICE_ID",
   },
   {
@@ -89,13 +77,7 @@ const PLANS: Plan[] = [
     trialDays: 7,
     tagline: "Best for growing fast",
     recommended: true,
-    features: [
-      "Everything in Apprentice",
-      "Unlimited request bookings",
-      "Full analytics",
-      "Pro badge",
-      "Higher placement in Browse and the Spotlight row",
-    ],
+    features: ["Everything in Apprentice", ...PLAN_FEATURES.pro],
     envKey: "STRIPE_PRO_PRICE_ID",
   },
   {
@@ -106,11 +88,7 @@ const PLANS: Plan[] = [
     trialDays: 5,
     tagline: "Best for maximizing earnings",
     recommended: false,
-    features: [
-      "Everything in Pro",
-      "Master badge",
-      "Top placement in Browse and first in the Spotlight row",
-    ],
+    features: ["Everything in Pro", ...PLAN_FEATURES.master],
     envKey: "STRIPE_MASTER_PRICE_ID",
   },
 ];

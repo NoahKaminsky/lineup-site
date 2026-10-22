@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
+import { commissionPercentFor } from "@/app/lib/commission";
 import { getBookingWindows, getTimeOffDays } from "@/app/lib/busyTimes";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
 
-const PLATFORM_FEE_PERCENT = 15;
 const DEPOSIT_PERCENT = 20;
 const CURRENCY = "cad";
 
@@ -282,7 +282,8 @@ async function handleDirectBookingIntent(req: Request, body: any) {
     );
   }
 
-  const platformFeeCents = Math.round(amountCents * (PLATFORM_FEE_PERCENT / 100));
+  // Master pros pay a reduced commission.
+  const platformFeeCents = Math.round(amountCents * (commissionPercentFor(professional) / 100));
   const depositAmountCents = Math.round(amountCents * (DEPOSIT_PERCENT / 100));
   const professionalPayoutCents = amountCents - platformFeeCents;
   const remainingPayoutCents = professionalPayoutCents - depositAmountCents;
@@ -455,7 +456,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const platformFeeCents = Math.round(amountCents * (PLATFORM_FEE_PERCENT / 100));
+    // Master pros pay a reduced commission.
+    const { data: offerPro } = await serviceSupabase
+      .from("profiles")
+      .select("subscription_plan, subscription_status")
+      .eq("id", offer.professional_id)
+      .maybeSingle();
+    const platformFeeCents = Math.round(amountCents * (commissionPercentFor(offerPro) / 100));
     const depositAmountCents = Math.round(amountCents * (DEPOSIT_PERCENT / 100));
     const professionalPayoutCents = amountCents - platformFeeCents;
     const remainingPayoutCents = professionalPayoutCents - depositAmountCents;

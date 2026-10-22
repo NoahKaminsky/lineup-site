@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PublicLayout, { PageIntro } from "@/app/components/site/PublicLayout";
 import FaqList, { type FaqGroup } from "./FaqList";
+import { PLAN_FEATURES } from "@/app/lib/plans";
+import { MASTER_COMMISSION_PERCENT, STANDARD_COMMISSION_PERCENT } from "@/app/lib/commission";
 
 export const metadata: Metadata = {
   title: "FAQ | LineUp",
@@ -16,37 +18,20 @@ const PLANS = [
     name: "Basic",
     price: "Free",
     note: "Where every pro starts",
-    features: [
-      "Profile, portfolio and reviews",
-      "Show up in Browse once verified",
-      "Get requests and send offers",
-      "Up to 15 request bookings a month",
-    ],
+    features: PLAN_FEATURES.basic,
   },
   {
     name: "Apprentice",
     price: "$25/mo",
     note: "Everything in Basic, plus",
-    features: [
-      "Instant-booking calendar on your profile",
-      "Your own booking link",
-      "Weekly hours, time off and booking window",
-      "Up to 25 request bookings a month",
-      "Basic analytics",
-      "Apprentice badge and a boost in Browse",
-    ],
+    features: PLAN_FEATURES.apprentice,
   },
   {
     name: "Pro",
     price: "$50/mo",
     note: "Everything in Apprentice, plus",
     trial: "7-day free trial",
-    features: [
-      "Unlimited request bookings",
-      "Full analytics",
-      "Pro badge",
-      "Higher placement in Browse and the Spotlight row",
-    ],
+    features: PLAN_FEATURES.pro,
     highlight: true,
   },
   {
@@ -54,7 +39,7 @@ const PLANS = [
     price: "$75/mo",
     note: "Everything in Pro, plus",
     trial: "5-day free trial",
-    features: ["Master badge", "Top placement in Browse and first in the Spotlight row"],
+    features: PLAN_FEATURES.master,
   },
 ];
 
@@ -165,7 +150,7 @@ const GROUPS: FaqGroup[] = [
       },
       {
         q: "What does LineUp take from a booking?",
-        a: "LineUp keeps a 15% service fee on bookings paid through the app. The rest is yours.",
+        a: `LineUp keeps a ${STANDARD_COMMISSION_PERCENT}% commission on bookings paid through the app (${MASTER_COMMISSION_PERCENT}% on the Master plan). It comes out of the booking price, and the rest is yours.`,
       },
       {
         q: "How do I get paid?",
