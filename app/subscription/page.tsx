@@ -332,7 +332,7 @@ export default function SubscriptionPage() {
               : "Unlock the tools to grow your beauty business. Cancel anytime."}
           </p>
           <span className="mt-4 inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-4 py-2 text-sm font-medium text-neutral-700">
-            You're currently on the
+            You&apos;re currently on the
             <span className="font-semibold text-neutral-900">{currentTierName}</span>
             plan
           </span>
