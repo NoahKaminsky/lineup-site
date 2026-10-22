@@ -551,6 +551,9 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   // Service the client tapped in the Services list: the calendar then offers
   // times long enough for it and puts it first once a time is picked.
   const [preferredServiceId, setPreferredServiceId] = useState<string | null>(null);
+  // The service picked for the selected time: its length fills in on the
+  // time grid, from the start time to when the service ends.
+  const [chosenService, setChosenService] = useState<{ slotKey: string; serviceId: string } | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
   const [locationInput, setLocationInput] = useState("");
   const [locationPlaceId, setLocationPlaceId] = useState("");
@@ -816,13 +819,20 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     [services, preferredServiceId]
   );
 
-  // Slots are sized to the tapped service (so a 90-min service is bookable
-  // even when the default slot is 60), otherwise to the pro's default length.
+  // A start time is offered when at least this much free time follows it:
+  // the tapped service's length, otherwise the shortest bookable service.
+  // Each time also knows how long it stays free, so the services offered
+  // there are exactly the ones that fit before the next booking or closing.
   const slotBlockMinutes = useMemo(() => {
     const preferredMinutes = Number(preferredService?.duration_minutes || 0);
     if (preferredMinutes > 0) return Math.max(preferredMinutes, 15);
+    const durations = services
+      .filter((service) => service.is_active && service.is_bookable)
+      .map((service) => Number(service.duration_minutes))
+      .filter((minutes) => Number.isFinite(minutes) && minutes > 0);
+    if (durations.length > 0) return Math.max(Math.min(...durations), 15);
     return Math.max(Number(profile?.default_appointment_duration || 60), 30);
-  }, [preferredService, profile?.default_appointment_duration]);
+  }, [preferredService, services, profile?.default_appointment_duration]);
 
   const directBookingModes = getPlainServiceModes(profile?.service_modes ?? null).filter((mode) =>
     ["in_shop", "home_studio"].includes(mode)
@@ -888,10 +898,10 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
           const startTime = minutesToTime(slotStart);
           const endTime = minutesToTime(slotEnd);
 
-          const overlapsExistingBooking = bookings.some((booking) => {
-            if (booking.booking_date !== dateKey) return false;
-            if (booking.status === "cancelled") return false;
-
+          const dayBookings = bookings.filter(
+            (booking) => booking.booking_date === dateKey && booking.status !== "cancelled"
+          );
+          const overlapsExistingBooking = dayBookings.some((booking) => {
             const bookingStart = timeToMinutes(booking.start_time);
             const bookingEnd = timeToMinutes(booking.end_time);
 
@@ -899,6 +909,12 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
           });
 
           if (overlapsExistingBooking) continue;
+
+          // How long this time stays free: until closing or the next booking.
+          const freeUntil = dayBookings.reduce((bound, booking) => {
+            const bookingStart = timeToMinutes(booking.start_time);
+            return bookingStart >= slotStart && bookingStart < bound ? bookingStart : bound;
+          }, endMinutes);
 
           nextSevenDays.push({
             key: `${dateKey}-${startTime}-${endTime}-${slotBlockMinutes}`,
@@ -915,7 +931,8 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
             }),
             start_time: startTime,
             end_time: endTime,
-            duration_minutes: slotBlockMinutes,
+            // The longest service that fits starting here.
+            duration_minutes: freeUntil - slotStart,
           });
         }
       }
@@ -1054,6 +1071,28 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       ...fitting.filter((service) => service.id !== preferredServiceId),
     ];
   }, [services, selectedSlot, preferredServiceId]);
+
+  // The service filling in the selected time: the one the client picked for
+  // it, or the service they tapped in the Services list if it fits.
+  const activeChosenService = useMemo(() => {
+    if (!selectedSlot) return null;
+    const picked =
+      chosenService?.slotKey === selectedSlot.key
+        ? servicesThatFitSelectedSlot.find((service) => service.id === chosenService.serviceId)
+        : null;
+    if (picked) return picked;
+    return servicesThatFitSelectedSlot.find((service) => service.id === preferredServiceId) ?? null;
+  }, [selectedSlot, chosenService, servicesThatFitSelectedSlot, preferredServiceId]);
+
+  const chosenRange = useMemo(() => {
+    if (!selectedSlot || !activeChosenService) return null;
+    const start = timeToMinutes(selectedSlot.start_time);
+    return {
+      date: selectedSlot.date,
+      start,
+      end: start + Math.max(Number(activeChosenService.duration_minutes) || 0, 15),
+    };
+  }, [selectedSlot, activeChosenService]);
 
   // Tapping a service jumps to the booking calendar with that service picked.
   function openCalendarForService(serviceId: string | null) {
@@ -1317,9 +1356,13 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       return;
     }
 
+    setChosenService({ slotKey: selectedSlot.key, serviceId: service.id });
+    const start = timeToMinutes(selectedSlot.start_time);
+    const minutes = Math.max(Number(service.duration_minutes) || 0, 15);
     setPendingBookingChoice({
       service,
-      slot: selectedSlot,
+      // Book exactly as long as the service takes.
+      slot: { ...selectedSlot, end_time: minutesToTime(start + minutes), duration_minutes: minutes },
       mode: selectedServiceMode,
       address: professionalAddress,
     });
@@ -2229,11 +2272,24 @@ if (loading) {
                             <div className={selectedDayTimeGroups.length > 1 ? "mt-4" : ""}>
                               <p className="mb-3 text-xs text-neutral-500">{activePeriodGroup.helper}</p>
                               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                                {activePeriodGroup.slots.map((slot) => (
+                                {activePeriodGroup.slots.map((slot) => {
+                                  const isSelected = selectedSlot?.key === slot.key;
+                                  // Times the chosen service runs through: filled in and
+                                  // not pickable, so the client sees how long it takes.
+                                  const slotMinutes = timeToMinutes(slot.start_time);
+                                  const isCovered =
+                                    !isSelected &&
+                                    !!chosenRange &&
+                                    chosenRange.date === slot.date &&
+                                    slotMinutes > chosenRange.start &&
+                                    slotMinutes < chosenRange.end;
+                                  return (
                                   <button
                                     key={slot.key}
                                     type="button"
+                                    aria-label={isCovered ? `${formatTime(slot.start_time)}, part of your appointment` : undefined}
                                     disabled={
+                                      isCovered ||
                                       // Signed-out visitors can pick; they sign in to confirm.
                                       (!!viewerUserId && !viewerIsCustomer) ||
                                       viewerUserId === profile.id ||
@@ -2249,27 +2305,32 @@ if (loading) {
                                       setMessage("");
                                     }}
                                     className={`min-w-0 rounded-2xl border px-3 py-3 text-left transition-all duration-150 ${
-                                      selectedSlot?.key === slot.key
+                                      isSelected
                                         ? "border-ink bg-ink text-white shadow-md"
-                                        : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 hover:shadow-sm"
-                                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                                        : isCovered
+                                        ? "cursor-default border-ink/70 bg-ink/75 text-white"
+                                        : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                                    }`}
                                   >
-                                    <p className="text-base font-semibold">
-                                      {bookingSlotKey === slot.key
-                                        ? "Booking…"
-                                        : formatTime(slot.start_time)}
+                                    <p className={`text-base font-semibold ${isCovered ? "text-white/70" : ""}`}>
+                                      {bookingSlotKey === slot.key ? "Booking…" : formatTime(slot.start_time)}
                                     </p>
                                     <p
                                       className={`mt-1 text-xs ${
-                                        selectedSlot?.key === slot.key
-                                          ? "text-white/70"
-                                          : "text-neutral-500"
+                                        isSelected || isCovered ? "text-white/70" : "text-neutral-500"
                                       }`}
                                     >
-                                      until {formatTime(slot.end_time)}
+                                      {isSelected
+                                        ? chosenRange
+                                          ? `until ${formatTime(minutesToTime(chosenRange.end))}`
+                                          : "Pick a service"
+                                        : isCovered
+                                        ? "Your appointment"
+                                        : "Open"}
                                     </p>
                                   </button>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           ) : null}
@@ -2297,8 +2358,9 @@ if (loading) {
                             {selectedSlot.dayLabel} {selectedSlot.dateLabel}
                           </h3>
                           <p className="mt-2 text-sm text-neutral-600">
-                            {formatTime(selectedSlot.start_time)} -{" "}
-                            {formatTime(selectedSlot.end_time)}
+                            {chosenRange && activeChosenService
+                              ? `${formatTime(selectedSlot.start_time)} – ${formatTime(minutesToTime(chosenRange.end))} · ${activeChosenService.service_name} (${activeChosenService.duration_minutes} min)`
+                              : `Starts ${formatTime(selectedSlot.start_time)}. Pick a service to see when it ends.`}
                           </p>
 
                           <button
@@ -2416,20 +2478,18 @@ if (loading) {
                                     key={service.id}
                                     type="button"
                                     onClick={() => {
-                                      if (!selectedServiceMode) {
-                                        setMessage("Please select a service mode.");
-                                        return;
-                                      }
-                                      handleStartBookingConfirmation(service);
+                                      // Pick it first: its length fills in on the times.
+                                      setMessage("");
+                                      setChosenService({ slotKey: selectedSlot.key, serviceId: service.id });
                                     }}
                                     disabled={bookingSlotKey === selectedSlot.key}
                                     className={`w-full rounded-2xl bg-white p-4 text-left transition hover:border-ink hover:bg-neutral-50 disabled:opacity-60 ${
-                                      service.id === preferredServiceId ? "ring-2 ring-ink" : "ring-1 ring-ink/[0.06]"
+                                      service.id === activeChosenService?.id ? "ring-2 ring-ink" : "ring-1 ring-ink/[0.06]"
                                     }`}
                                   >
                                     <p className="font-semibold text-neutral-900">
                                       {service.service_name}
-                                      {service.id === preferredServiceId ? (
+                                      {service.id === activeChosenService?.id ? (
                                         <span className="ml-2 align-middle text-xs font-medium text-neutral-500">Your pick</span>
                                       ) : null}
                                     </p>
@@ -2445,6 +2505,26 @@ if (loading) {
                                   </button>
                                 ))}
                               </div>
+
+                              {activeChosenService ? (
+                                <button
+                                  type="button"
+                                  disabled={bookingSlotKey === selectedSlot.key}
+                                  onClick={() => {
+                                    if (!selectedServiceMode) {
+                                      setMessage("Pick where it happens first.");
+                                      return;
+                                    }
+                                    handleStartBookingConfirmation(activeChosenService);
+                                  }}
+                                  className="mt-4 w-full rounded-full bg-ink px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60"
+                                >
+                                  Book {activeChosenService.service_name}
+                                  {formatPrice(activeChosenService.price) ? ` · ${formatPrice(activeChosenService.price)}` : ""}
+                                </button>
+                              ) : (
+                                <p className="mt-3 text-xs text-neutral-500">Pick a service to see how long it takes on the calendar.</p>
+                              )}
                             </div>
                           </div>
                         )}
