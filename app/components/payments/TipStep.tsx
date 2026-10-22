@@ -13,10 +13,35 @@ import { supabase } from "@/lib/supabaseClient";
 
 const OPTIONS = [0, 15, 18, 20];
 
-export type TipSummary = { baseCents: number; tipCents: number; totalCents: number; currency: string };
+export type TipSummary = {
+  baseCents: number;
+  tipCents: number;
+  totalCents: number;
+  currency: string;
+  // A promo code taken off the service price (see /api/stripe/promo).
+  discountCents?: number;
+  promoCode?: string | null;
+};
 
 function money(cents: number, currency = "cad") {
   return new Intl.NumberFormat("en-CA", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
+}
+
+async function callPayments(path: string, payload: Record<string, unknown>, fallbackError: string) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const res = await fetch(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || fallbackError);
+  return json as TipSummary;
 }
 
 async function callTip(paymentIntentId: string, tipPercent?: number) {
@@ -53,6 +78,10 @@ export default function TipStep({
   const [summary, setSummary] = useState<TipSummary | null>(null);
   const [saving, setSaving] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [promoError, setPromoError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +108,28 @@ export default function TipStep({
       setError(err instanceof Error ? err.message : "Couldn't update the tip.");
     } finally {
       setSaving(null);
+    }
+  }
+
+  async function changePromo(payload: { code?: string; remove?: boolean }) {
+    setPromoError("");
+    setPromoBusy(true);
+    try {
+      const next = await callPayments(
+        "/api/stripe/promo",
+        { paymentIntentId, ...payload },
+        "Couldn't apply that code."
+      );
+      await elements?.fetchUpdates();
+      setSummary(next);
+      if (!payload.remove) {
+        setPromoOpen(false);
+        setPromoInput("");
+      }
+    } catch (err) {
+      setPromoError(err instanceof Error ? err.message : "Couldn't apply that code.");
+    } finally {
+      setPromoBusy(false);
     }
   }
 
@@ -143,11 +194,64 @@ export default function TipStep({
           </dt>
           <dd className="tabular-nums">{money(summary.tipCents, summary.currency)}</dd>
         </div>
+        {summary.discountCents ? (
+          <div className="flex items-center justify-between text-emerald-700">
+            <dt className="flex items-center gap-2">
+              Promo ({summary.promoCode})
+              <button
+                type="button"
+                disabled={promoBusy}
+                onClick={() => changePromo({ remove: true })}
+                className="text-xs font-medium text-ink underline decoration-ink/25 underline-offset-2 hover:decoration-ink disabled:opacity-50"
+              >
+                Remove
+              </button>
+            </dt>
+            <dd className="tabular-nums">−{money(summary.discountCents, summary.currency)}</dd>
+          </div>
+        ) : null}
         <div className="flex justify-between border-t border-ink/10 pt-2 text-base font-semibold text-ink">
           <dt>Total</dt>
           <dd className="tabular-nums">{money(summary.totalCents, summary.currency)}</dd>
         </div>
       </dl>
+      {!summary.discountCents ? (
+        promoOpen ? (
+          <form
+            className="mt-3 flex gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (promoInput.trim()) changePromo({ code: promoInput });
+            }}
+          >
+            <input
+              value={promoInput}
+              onChange={(event) => setPromoInput(event.target.value.toUpperCase())}
+              placeholder="Promo code"
+              autoCapitalize="characters"
+              autoComplete="off"
+              autoFocus
+              className="min-w-0 flex-1 rounded-full border border-neutral-300 px-4 py-2 text-sm uppercase tracking-wide outline-none focus:border-ink"
+            />
+            <button
+              type="submit"
+              disabled={promoBusy || !promoInput.trim()}
+              className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-50"
+            >
+              {promoBusy ? "Applying…" : "Apply"}
+            </button>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPromoOpen(true)}
+            className="mt-3 text-sm font-medium text-ink underline decoration-ink/25 underline-offset-2 hover:decoration-ink"
+          >
+            Have a promo code?
+          </button>
+        )
+      ) : null}
+      {promoError ? <p className="mt-2 text-sm text-red-600">{promoError}</p> : null}
       <div className="mt-5">{children(summary)}</div>
     </div>
   );
