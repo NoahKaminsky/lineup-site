@@ -6,8 +6,8 @@ import NewsSignup from "./NewsSignup";
 import { newsSerif } from "./fonts";
 
 export const metadata: Metadata = {
-  title: "The LineUp | News",
-  description: "LineUp news and newsletters, week by week.",
+  title: "The LineUp | Weekly news",
+  description: "The LineUp: weekly news from LineUp, plus every past issue.",
 };
 
 const serif = "font-[family-name:var(--font-news-serif)]";
@@ -54,7 +54,7 @@ export default function NewsPage() {
             <div className="lu-rise-in flex items-center justify-between gap-4 pb-2 text-[10px] font-medium uppercase tracking-[0.2em] text-neutral-600 sm:text-[11px]">
               <span>Vol. 1 · No. {issues.length}</span>
               <span className="hidden sm:inline">Canadian edition</span>
-              <span>Free</span>
+              <span>Weekly · Free</span>
             </div>
             <Rule double delay={80} />
             <h1
@@ -66,7 +66,7 @@ export default function NewsPage() {
             <div className="lu-rise-in flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5 text-[11px] uppercase tracking-[0.16em] text-neutral-600 sm:text-xs" style={{ animationDelay: "320ms" }}>
               <span>{todayLine()}</span>
               <span className={`${serif} text-sm normal-case italic tracking-normal text-ink sm:text-base`}>
-                Beauty &amp; grooming news, week by week
+                Your weekly beauty &amp; grooming news
               </span>
             </div>
             <Rule double delay={360} />
@@ -77,7 +77,7 @@ export default function NewsPage() {
               {/* ── Lead story ─────────────────────────────────── */}
               <article className="lu-rise-in lg:col-span-8 lg:border-r lg:border-ink/20 lg:pr-10" style={{ animationDelay: "440ms" }}>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-500">
-                  Latest issue · {fmt(lead.date, { month: "long", day: "numeric" })}
+                  Latest weekly issue · {fmt(lead.date, { month: "long", day: "numeric" })}
                 </p>
                 <Link href={`/news/${lead.slug}`} className="group block">
                   <h2
@@ -115,7 +115,7 @@ export default function NewsPage() {
                     Get <span className="italic">The LineUp</span>
                   </p>
                   <p className="mt-3 text-center text-sm leading-6 text-neutral-600">
-                    New issues straight to your inbox. No spam, unsubscribe anytime.
+                    A new issue every week, straight to your inbox. Unsubscribe anytime.
                   </p>
                   <div className="mt-5">
                     <NewsSignup compact />

@@ -94,7 +94,7 @@ export default function NewsSignup({ compact = false }: { compact?: boolean }) {
           ? "You're in. New issues will land in your inbox."
           : state === "error"
           ? error
-          : "One email when there's news. Unsubscribe anytime."}
+          : "One email a week. Unsubscribe anytime."}
       </p>
     </form>
   );

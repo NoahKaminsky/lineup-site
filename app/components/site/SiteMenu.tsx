@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 export const SITE_PAGES = [
   { href: "/about", label: "About", note: "Meet the founders" },
   { href: "/faq", label: "FAQ", note: "How LineUp works" },
-  { href: "/news", label: "News", note: "Updates, week by week" },
+  { href: "/news", label: "News", note: "The weekly LineUp" },
   { href: "/contact", label: "Contact", note: "Get in touch" },
 ];
 

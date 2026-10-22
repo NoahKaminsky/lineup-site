@@ -10,6 +10,96 @@ export const metadata: Metadata = {
 
 const linkClass = "font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink";
 
+// What each plan actually unlocks in the app today.
+const PLANS = [
+  {
+    name: "Basic",
+    price: "Free",
+    note: "Where every pro starts",
+    features: [
+      "Profile, portfolio and reviews",
+      "Show up in Browse once verified",
+      "Get requests and send offers",
+      "Up to 15 request bookings a month",
+    ],
+  },
+  {
+    name: "Apprentice",
+    price: "$25/mo",
+    note: "Everything in Basic, plus",
+    features: [
+      "Instant-booking calendar on your profile",
+      "Your own booking link",
+      "Weekly hours, time off and booking window",
+      "Up to 25 request bookings a month",
+      "Basic analytics",
+      "Apprentice badge and a boost in Browse",
+    ],
+  },
+  {
+    name: "Pro",
+    price: "$50/mo",
+    note: "Everything in Apprentice, plus",
+    trial: "7-day free trial",
+    features: [
+      "Unlimited request bookings",
+      "Full analytics",
+      "Pro badge",
+      "Higher placement in Browse and the Spotlight row",
+    ],
+    highlight: true,
+  },
+  {
+    name: "Master",
+    price: "$75/mo",
+    note: "Everything in Pro, plus",
+    trial: "5-day free trial",
+    features: ["Master badge", "Top placement in Browse and first in the Spotlight row"],
+  },
+];
+
+function PlanBreakdown() {
+  return (
+    <div className="not-prose">
+      <p>Direct calendar bookings never count toward the monthly limit, on any plan.</p>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        {PLANS.map((plan) => (
+          <div
+            key={plan.name}
+            className={`rounded-2xl p-4 ${plan.highlight ? "bg-ink text-white" : "bg-white ring-1 ring-ink/[0.08]"}`}
+          >
+            <div className="flex items-baseline justify-between gap-2">
+              <p className={`text-base font-semibold ${plan.highlight ? "text-white" : "text-ink"}`}>{plan.name}</p>
+              <p className={`text-sm font-semibold tabular-nums ${plan.highlight ? "text-white" : "text-ink"}`}>{plan.price}</p>
+            </div>
+            <p className={`mt-0.5 text-xs ${plan.highlight ? "text-white/60" : "text-neutral-500"}`}>
+              {plan.note}
+              {plan.trial ? ` · ${plan.trial}` : ""}
+            </p>
+            <ul className="mt-3 space-y-1.5">
+              {plan.features.map((feature) => (
+                <li key={feature} className={`flex gap-2 text-sm leading-6 ${plan.highlight ? "text-white/85" : "text-neutral-700"}`}>
+                  <svg viewBox="0 0 16 16" className="mt-1 h-3.5 w-3.5 shrink-0" fill="none" aria-hidden="true">
+                    <path d="M3 8.5l3 3L13 4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <p className="mt-4">
+        Compare and switch plans on the{" "}
+        <Link href="/subscription" className={linkClass}>
+          plans page
+        </Link>
+        .
+      </p>
+    </div>
+  );
+}
+
 const GROUPS: FaqGroup[] = [
   {
     id: "clients",
@@ -70,8 +160,8 @@ const GROUPS: FaqGroup[] = [
         ),
       },
       {
-        q: "What do paid plans add?",
-        a: "Your own booking calendar and booking link, so clients can book and pay for open times without messaging you, plus more requests each month, time off, a booking window and more.",
+        q: "What do I get on each plan?",
+        a: <PlanBreakdown />,
       },
       {
         q: "What does LineUp take from a booking?",
