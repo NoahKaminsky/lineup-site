@@ -120,6 +120,18 @@ const serviceDetailGroups: Record<string, ServiceDetailGroup[]> = {
 };
 
 
+// The handful of services most people book in each category. These show up
+// front; the full list is one tap away behind "More" so the form stays short.
+const popularServiceDetails: Record<string, string[]> = {
+  haircut: ["Haircut", "Skin fade", "Beard trim", "Color / highlights", "Blowout"],
+  nails: ["Gel manicure", "Acrylic full set", "Acrylic fill", "Manicure", "Pedicure"],
+  lashes: ["Classic set", "Hybrid set", "Volume set", "Fill", "Lash lift"],
+  brows: ["Brow shaping", "Brow tint", "Brow lamination", "Threading", "Microblading"],
+  makeup: ["Soft glam", "Full glam", "Natural / no-makeup look", "Event makeup", "Bridal makeup"],
+  waxing: ["Brazilian wax", "Eyebrow wax", "Underarm wax", "Full leg wax", "Bikini wax"],
+  body_sugaring: ["Brazilian sugaring", "Eyebrow sugaring", "Underarm sugaring", "Full leg sugaring", "Bikini sugaring"],
+};
+
 function NewRequestLoadingSkeleton() {
   return (
     <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
@@ -421,6 +433,9 @@ function NewRequestPageContent() {
 
   const [categories, setCategories] = useState<string[]>([]);
   const [serviceDetailsByCategory, setServiceDetailsByCategory] = useState<Record<string, string[]>>({});
+  // Which group tab is open per category — only one group's chips show at a
+  // time so picking a service doesn't flood the screen.
+  const [showAllTypesByCategory, setShowAllTypesByCategory] = useState<Record<string, boolean>>({});
   const [otherServiceDetail, setOtherServiceDetail] = useState(() =>
     requestingSpecificService ? clickedServiceName || "" : ""
   );
@@ -437,6 +452,7 @@ function NewRequestPageContent() {
 
   const [title, setTitle] = useState(() => clickedServiceName || "");
   const [description, setDescription] = useState("");
+  const [showMoreDetails, setShowMoreDetails] = useState(false);
   const [location, setLocation] = useState("");
   const [locationPlaceId, setLocationPlaceId] = useState("");
   const [locationSelectedFromGoogle, setLocationSelectedFromGoogle] = useState(false);
@@ -542,6 +558,16 @@ function NewRequestPageContent() {
     { value: "waxing", label: "Waxing", Icon: Droplet },
     { value: "body_sugaring", label: "Sugaring", Icon: Leaf },
   ];
+
+  // Title written for the client from what they picked ("Skin fade + Beard
+  // trim"), so the Title field can stay tucked away unless they want to edit it.
+  const pickedServiceDetails = categories.flatMap((c) => serviceDetailsByCategory[c] || []);
+  const autoTitle =
+    pickedServiceDetails.length > 0
+      ? pickedServiceDetails.slice(0, 3).join(" + ") +
+        (pickedServiceDetails.length > 3 ? ` + ${pickedServiceDetails.length - 3} more` : "")
+      : otherServiceDetail.trim() ||
+        categories.map((c) => categoryOptions.find((o) => o.value === c)?.label || c).join(" + ");
 
   // When requesting a specific professional directly, only offer the services they
   // actually do — e.g. a brow + lash artist shouldn't be requestable for a haircut.
@@ -790,21 +816,13 @@ function NewRequestPageContent() {
       return;
     }
 
-    const hasAnyServiceDetail = categories.some(
-      (c) => (serviceDetailsByCategory[c] || []).length > 0
-    );
-
-    if (!hasAnyServiceDetail && !otherServiceDetail.trim()) {
-      setMessage("Please select at least one service type, or describe what you need.");
-      return;
-    }
-
-    if (!title.trim()) {
+    const finalTitle = title.trim() || autoTitle;
+    if (!finalTitle) {
       setMessage("Please enter a title.");
       return;
     }
 
-    if (containsProfanity(title) || containsProfanity(description) || containsProfanity(otherServiceDetail)) {
+    if (containsProfanity(finalTitle) || containsProfanity(description) || containsProfanity(otherServiceDetail)) {
       setMessage("Please remove inappropriate language from your request before posting.");
       return;
     }
@@ -869,7 +887,7 @@ function NewRequestPageContent() {
         category: categories[0],
         categories,
         service_detail: finalServiceDetail || null,
-        title: title.trim(),
+        title: finalTitle,
         description: description.trim() || null,
         location: shouldUseCustomerLocation ? location.trim() || null : null,
         formatted_address: shouldUseCustomerLocation ? location.trim() || null : null,
@@ -1039,7 +1057,7 @@ function NewRequestPageContent() {
                   </p>
                 ) : (
                   <p className="mb-2 -mt-1 text-xs text-neutral-500">
-                    Select more than one if you want a few things done — like lashes and brows together.
+                    Pick one or more.
                   </p>
                 )}
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
@@ -1064,95 +1082,69 @@ function NewRequestPageContent() {
                 </div>
               </div>
 
-              {/* Service type — one column per selected category */}
+              {/* Service type — optional. Popular picks up front, the rest
+                  behind "More", so picking a category is all it takes. */}
               {categories.length > 0 ? (
-                <div>
-                  <label className={labelClass}>Service type</label>
-                  <p className="mb-2 -mt-1 text-xs text-neutral-500">
-                    Select as many as you like within each service.
-                  </p>
-                  <div className={`grid gap-5 ${categories.length > 1 ? "sm:grid-cols-2" : ""}`}>
-                    {categories.map((c) => {
-                      const categoryLabel = categoryOptions.find((opt) => opt.value === c)?.label || c;
-                      const selectedForCategory = serviceDetailsByCategory[c] || [];
-                      return (
-                        <div key={c} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                          <p className="mb-3 text-sm font-semibold text-neutral-900">{categoryLabel}</p>
-                          <div className="space-y-3.5">
-                            {serviceDetailGroups[c]?.map((group) => (
-                              <div key={group.label}>
-                                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                                  {group.label}
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                  {group.options.map((option) => {
-                                    const isSelected = selectedForCategory.includes(option);
-                                    return (
-                                      <button
-                                        key={option}
-                                        type="button"
-                                        onClick={() => toggleServiceDetail(c, option)}
-                                        className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition active:scale-[0.97] ${
-                                          isSelected
-                                            ? "border-ink bg-ink text-white"
-                                            : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400"
-                                        }`}
-                                      >
-                                        {option}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                <div className="space-y-4">
+                  {categories.map((c) => {
+                    const categoryLabel = categoryOptions.find((opt) => opt.value === c)?.label || c;
+                    const selectedForCategory = serviceDetailsByCategory[c] || [];
+                    const allOptions = (serviceDetailGroups[c] || []).flatMap((g) => g.options);
+                    const popular = popularServiceDetails[c] || allOptions.slice(0, 5);
+                    const showAll = !!showAllTypesByCategory[c];
+                    // Keep anything already picked visible even when collapsed.
+                    const visible = showAll
+                      ? allOptions
+                      : [...popular, ...selectedForCategory.filter((o) => !popular.includes(o))];
+                    const hiddenCount = allOptions.filter((o) => !visible.includes(o)).length;
+                    return (
+                      <div key={c}>
+                        <label className={labelClass}>
+                          {categories.length > 1 ? `${categoryLabel} type` : "What kind?"}{" "}
+                          <span className="font-normal text-neutral-400">(optional)</span>
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {visible.map((option) => {
+                            const isSelected = selectedForCategory.includes(option);
+                            return (
+                              <button
+                                key={option}
+                                type="button"
+                                onClick={() => toggleServiceDetail(c, option)}
+                                className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition active:scale-[0.97] ${
+                                  isSelected
+                                    ? "border-ink bg-ink text-white"
+                                    : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400"
+                                }`}
+                              >
+                                {option}
+                              </button>
+                            );
+                          })}
+                          {hiddenCount > 0 || showAll ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setShowAllTypesByCategory((prev) => ({ ...prev, [c]: !prev[c] }))
+                              }
+                              className="rounded-full px-3 py-1.5 text-sm font-medium text-neutral-500 underline-offset-2 hover:text-ink hover:underline"
+                            >
+                              {showAll ? "Less" : `More (${hiddenCount})`}
+                            </button>
+                          ) : null}
                         </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-3">
-                    <input
-                      type="text"
-                      placeholder="Don't see it? Type what you need"
-                      value={otherServiceDetail}
-                      onChange={(e) => setOtherServiceDetail(e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : null}
                 </>
               )}
 
-              {/* Title */}
-              <div>
-                <label className={labelClass}>Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Need a gel manicure this weekend"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className={labelClass}>Extra details <span className="font-normal text-neutral-400">(optional)</span></label>
-                <textarea
-                  placeholder="Describe what you want, any reference styles, specific requests..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className={`${inputClass} resize-none`}
-                  rows={4}
-                />
-              </div>
-
               {/* Service mode */}
               <div>
                 <label className={labelClass}>Where should this happen?</label>
-                <p className="mb-2 text-xs text-neutral-400">Select all that work for you — professionals will offer one of them.</p>
+                <p className="mb-2 -mt-1 text-xs text-neutral-500">Pick all that work. For their shop or studio, you don’t need an address.</p>
                 <div className="grid grid-cols-3 gap-2">
                   {serviceModeOptions.map((opt) => {
                     const isSelected = serviceModes.includes(opt.value);
@@ -1274,49 +1266,37 @@ function NewRequestPageContent() {
                 </div>
               ) : null}
 
-              {serviceModes.includes("in_shop") || serviceModes.includes("home_studio") ? (
-                <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm leading-6 text-neutral-600">
-                  For {[
-                    serviceModes.includes("in_shop") ? "their shop" : null,
-                    serviceModes.includes("home_studio") ? "home studio" : null,
-                  ].filter(Boolean).join(" or ")}, the professional’s location will be used — you don’t need to enter an address.
-                </div>
-              ) : null}
-
-              {/* Budget */}
-              <div>
-                <label className={labelClass}>Budget <span className="font-normal text-neutral-400">(optional)</span></label>
-                <input
-                  type="text"
-                  placeholder="e.g. $40–$60"
-                  value={budget}
-                  onChange={(e) => setBudget(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-
               {/* Timing */}
               <div>
                 <label className={labelClass}>When do you want this?</label>
                 <div className="space-y-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                  <select
-                    value={timingFlexibility}
-                    onChange={(e) => {
-                      setTimingFlexibility(e.target.value);
-                      if (e.target.value === "anytime") {
-                        setPreferredDate("");
-                        setPreferredStartTime("");
-                      }
-                    }}
-                    className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900"
-                  >
-                    <option value="exact">Exact date and time</option>
-                    <option value="flexible">Flexible around this time</option>
-                    <option value="anytime">Anytime — let pros suggest</option>
-                  </select>
+                  <div className="grid grid-cols-3 gap-1 rounded-full bg-white p-1 ring-1 ring-neutral-200">
+                    {[
+                      { value: "exact", label: "Exact time" },
+                      { value: "flexible", label: "Flexible" },
+                      { value: "anytime", label: "Anytime" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setTimingFlexibility(opt.value);
+                          if (opt.value === "anytime") {
+                            setPreferredDate("");
+                            setPreferredStartTime("");
+                          }
+                        }}
+                        className={`rounded-full py-2 text-xs font-semibold transition ${
+                          timingFlexibility === opt.value ? "bg-ink text-white" : "text-neutral-600 hover:text-ink"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
 
                   {timingFlexibility !== "anytime" ? (
-                    <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Date</label>
                         <input
@@ -1341,66 +1321,131 @@ function NewRequestPageContent() {
                 </div>
               </div>
 
-              {/* Reference photos */}
-              <div>
-                <label className={labelClass}>Reference photos <span className="font-normal text-neutral-400">(optional)</span></label>
-                <div
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Add reference photos"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      fileInputRef.current?.click();
-                    }
-                  }}
-                  className={`cursor-pointer rounded-2xl border border-dashed p-6 text-center transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
-                    isDragging
-                      ? "border-ink bg-neutral-100"
-                      : "border-neutral-300 bg-neutral-50 hover:border-neutral-400 hover:bg-white"
-                  }`}
+              {/* Optional extras, tucked away so the form stays short */}
+              <div className="rounded-2xl border border-neutral-200">
+                <button
+                  type="button"
+                  onClick={() => setShowMoreDetails((v) => !v)}
+                  aria-expanded={showMoreDetails}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
                 >
-                  <svg viewBox="0 0 24 24" className="mx-auto h-6 w-6 text-neutral-400" fill="none">
-                    <path d="M12 16V8M12 8L9 11M12 8L15 11M5 17.5V18C5 18.5523 5.44772 19 6 19H18C18.5523 19 19 18.5523 19 18V17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <span>
+                    <span className="block text-sm font-semibold text-neutral-900">Add details</span>
+                    <span className="block text-xs text-neutral-500">
+                      {[
+                        title.trim() ? "Title" : null,
+                        description.trim() ? "Notes" : null,
+                        budget.trim() ? `Budget ${budget.trim()}` : null,
+                        referencePhotos.length ? `${referencePhotos.length} photo${referencePhotos.length === 1 ? "" : "s"}` : null,
+                      ].filter(Boolean).join(" · ") || "Title, notes, budget, photos (optional)"}
+                    </span>
+                  </span>
+                  <svg viewBox="0 0 20 20" className={`h-4 w-4 shrink-0 text-neutral-500 transition ${showMoreDetails ? "rotate-180" : ""}`} fill="none">
+                    <path d="M5 7.5l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <p className="mt-2 text-sm font-semibold text-neutral-900">
-                    Drop photos here or choose files
-                  </p>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    Up to {MAX_REFERENCE_PHOTOS} images · {remainingPhotoSlots} slot{remainingPhotoSlots === 1 ? "" : "s"} remaining
-                  </p>
-                </div>
+                </button>
+                {showMoreDetails ? (
+                  <div className="space-y-5 border-t border-neutral-200 px-4 pb-4 pt-4">
+                  {/* Title */}
+                  <div>
+                    <label className={labelClass}>Title <span className="font-normal text-neutral-400">(optional)</span></label>
+                    <input
+                      type="text"
+                      placeholder={autoTitle || "e.g. Need a gel manicure this weekend"}
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
 
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleReferencePhotoChange}
-                  className="hidden"
-                />
+                  {/* Description */}
+                  <div>
+                    <label className={labelClass}>Extra details <span className="font-normal text-neutral-400">(optional)</span></label>
+                    <textarea
+                      placeholder="Describe what you want, any reference styles, specific requests..."
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className={`${inputClass} resize-none`}
+                      rows={3}
+                    />
+                  </div>
 
-                {referencePhotos.length > 0 ? (
-                  <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {referencePhotos.map((photo) => (
-                      <div key={photo.id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-                        <img loading="lazy" src={photo.previewUrl} alt={photo.name} className="h-32 w-full object-cover" />
-                        <div className="flex items-center justify-between gap-2 p-2">
-                          <p className="truncate text-xs text-neutral-500">{photo.name}</p>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleRemovePhoto(photo.id); }}
-                            className="shrink-0 rounded-lg border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50"
-                          >
-                            Remove
-                          </button>
-                        </div>
+                  {/* Budget */}
+                  <div>
+                    <label className={labelClass}>Budget <span className="font-normal text-neutral-400">(optional)</span></label>
+                    <input
+                      type="text"
+                      placeholder="e.g. $40–$60"
+                      value={budget}
+                      onChange={(e) => setBudget(e.target.value)}
+                      className={inputClass}
+                    />
+                  </div>
+
+                  {/* Reference photos */}
+                  <div>
+                    <label className={labelClass}>Reference photos <span className="font-normal text-neutral-400">(optional)</span></label>
+                    <div
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={() => fileInputRef.current?.click()}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Add reference photos"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          fileInputRef.current?.click();
+                        }
+                      }}
+                      className={`cursor-pointer rounded-2xl border border-dashed p-6 text-center transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${
+                        isDragging
+                          ? "border-ink bg-neutral-100"
+                          : "border-neutral-300 bg-neutral-50 hover:border-neutral-400 hover:bg-white"
+                      }`}
+                    >
+                      <svg viewBox="0 0 24 24" className="mx-auto h-6 w-6 text-neutral-400" fill="none">
+                        <path d="M12 16V8M12 8L9 11M12 8L15 11M5 17.5V18C5 18.5523 5.44772 19 6 19H18C18.5523 19 19 18.5523 19 18V17.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <p className="mt-2 text-sm font-semibold text-neutral-900">
+                        Drop photos here or choose files
+                      </p>
+                      <p className="mt-1 text-xs text-neutral-500">
+                        Up to {MAX_REFERENCE_PHOTOS} images · {remainingPhotoSlots} slot{remainingPhotoSlots === 1 ? "" : "s"} remaining
+                      </p>
+                    </div>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleReferencePhotoChange}
+                      className="hidden"
+                    />
+
+                    {referencePhotos.length > 0 ? (
+                      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {referencePhotos.map((photo) => (
+                          <div key={photo.id} className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+                            <img loading="lazy" src={photo.previewUrl} alt={photo.name} className="h-32 w-full object-cover" />
+                            <div className="flex items-center justify-between gap-2 p-2">
+                              <p className="truncate text-xs text-neutral-500">{photo.name}</p>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleRemovePhoto(photo.id); }}
+                                className="shrink-0 rounded-lg border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    ) : null}
+                  </div>
+
                   </div>
                 ) : null}
               </div>
@@ -1443,7 +1488,7 @@ function NewRequestPageContent() {
           card={
             <MomentCard
               eyebrow="Your request"
-              title={title.trim() || "New request"}
+              title={title.trim() || autoTitle || "New request"}
               meta={[
                 budget.trim() ? `Budget ${formatMomentPrice(budget)}` : null,
                 formatMomentDate(preferredDate),
