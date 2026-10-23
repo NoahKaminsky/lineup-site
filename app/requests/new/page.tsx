@@ -1296,22 +1296,22 @@ function NewRequestPageContent() {
                   </div>
 
                   {timingFlexibility !== "anytime" ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="min-w-0">
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Date</label>
                         <input
                           type="date"
                           value={preferredDate}
                           onChange={(e) => setPreferredDate(e.target.value)}
-                          className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900"
+                          className="block h-12 w-full min-w-0 appearance-none rounded-xl border border-neutral-200 bg-white px-4 text-left text-sm text-neutral-900 outline-none transition focus:border-neutral-900 [&::-webkit-date-and-time-value]:text-left"
                         />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Start time</label>
                         <TimeSelect
                           value={preferredStartTime}
                           onChange={setPreferredStartTime}
-                          selectClassName="w-full rounded-xl border border-neutral-200 bg-white px-2 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900"
+                          selectClassName="h-12 w-full min-w-0 rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900"
                         />
                       </div>
                     </div>
