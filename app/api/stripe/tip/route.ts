@@ -30,10 +30,21 @@ export async function POST(req: Request) {
   }
 
   const currentTip = Number(metadata.tip_cents || 0);
-  const baseCents = Number(metadata.base_amount_cents || intent.amount - currentTip);
+  // A promo code (see /api/stripe/promo) lowers what the client pays for the
+  // service; the tip is still worked out on the full service price.
+  const discountCents = Number(metadata.discount_cents || 0);
+  const promoCode = metadata.promo_code || null;
+  const baseCents = Number(metadata.base_amount_cents || intent.amount - currentTip + discountCents);
 
   if (body?.tipPercent === undefined || body?.tipPercent === null) {
-    return NextResponse.json({ baseCents, tipCents: currentTip, totalCents: intent.amount, currency: intent.currency });
+    return NextResponse.json({
+      baseCents,
+      tipCents: currentTip,
+      discountCents,
+      promoCode,
+      totalCents: intent.amount,
+      currency: intent.currency,
+    });
   }
 
   const tipPercent = Number(body.tipPercent);
@@ -50,7 +61,7 @@ export async function POST(req: Request) {
   const remainingBase = Number(metadata.remaining_payout_cents || 0) - currentTip;
 
   const updated = await stripe.paymentIntents.update(paymentIntentId, {
-    amount: baseCents + tipCents,
+    amount: baseCents - discountCents + tipCents,
     metadata: {
       tip_cents: String(tipCents),
       tip_percent: String(tipPercent),
@@ -59,5 +70,12 @@ export async function POST(req: Request) {
     },
   });
 
-  return NextResponse.json({ baseCents, tipCents, totalCents: updated.amount, currency: updated.currency });
+  return NextResponse.json({
+    baseCents,
+    tipCents,
+    discountCents,
+    promoCode,
+    totalCents: updated.amount,
+    currency: updated.currency,
+  });
 }
