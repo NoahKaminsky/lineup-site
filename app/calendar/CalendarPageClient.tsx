@@ -9,6 +9,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { getCached, setCached } from "@/app/lib/pageCache";
+import { calendarStatusFilter } from "@/app/lib/calendarBookings";
 import type { CalendarInitialData } from "./getInitialData";
 
 import { ChevronLeft, ChevronRight, MapPin, Moon, Sun } from "lucide-react";
@@ -298,6 +299,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   const [message, setMessage] = useState("");
   const [bookings, setBookings] = useState<CalendarBooking[]>(() => seed?.bookings ?? []);
   const [subscribed, setSubscribed] = useState(() => seed?.subscribed ?? false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [bookingUsage, setBookingUsage] = useState<{ count: number; cap: number | null } | null>(null);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
@@ -369,11 +371,27 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
         return;
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role, subscription_status, subscription_plan")
-        .eq("id", user.id)
-        .single();
+      setUserId(user.id);
+
+      // Profile and bookings are independent — fetch them together.
+      const [profileResult, bookingsResult] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("role, subscription_status, subscription_plan")
+          .eq("id", user.id)
+          .single(),
+        supabase
+          .from("bookings")
+          .select(
+            "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
+          )
+          .eq("professional_id", user.id)
+          .or(calendarStatusFilter())
+          .order("booking_date", { ascending: true })
+          .order("start_time", { ascending: true }),
+      ]);
+
+      const { data: profile, error: profileError } = profileResult;
 
       if (profileError || !profile) {
         setMessage("Could not load profile.");
@@ -387,13 +405,14 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       setSubscribed(subscribedNow);
 
       if (subscribedNow) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        fetch("/api/professional/booking-usage", {
-          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
-        })
+        // Fire-and-forget: the cap badge shouldn't hold up the calendar.
+        supabase.auth
+          .getSession()
+          .then(({ data: { session } }) =>
+            fetch("/api/professional/booking-usage", {
+              headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+            })
+          )
           .then((res) => res.json())
           .then((json) => {
             if (typeof json.count === "number") {
@@ -414,15 +433,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
         return;
       }
 
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from("bookings")
-        .select(
-          "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
-        )
-        .eq("professional_id", user.id)
-        .in("status", ["confirmed", "completion_requested", "completed"])
-        .order("booking_date", { ascending: true })
-        .order("start_time", { ascending: true });
+      const { data: bookingsData, error: bookingsError } = bookingsResult;
 
       if (bookingsError) {
         setMessage(bookingsError.message);
@@ -499,7 +510,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   }, []);
 
   useEffect(() => {
-    if (!role) return;
+    if (!role || !userId) return;
 
     const queueSilentReload = () => {
       if (reloadTimeoutRef.current) clearTimeout(reloadTimeoutRef.current);
@@ -509,13 +520,16 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
     };
 
     const channel = supabase
-      .channel("calendar-live")
+      .channel(`calendar-live-${userId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "bookings",
+          // Only this pro's bookings — unfiltered, every booking change by
+          // anyone on LineUp re-ran all of this page's queries.
+          filter: `professional_id=eq.${userId}`,
         },
         queueSilentReload
       )
@@ -525,7 +539,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       if (reloadTimeoutRef.current) clearTimeout(reloadTimeoutRef.current);
       supabase.removeChannel(channel);
     };
-  }, [role, loadCalendarData]);
+  }, [role, userId, loadCalendarData]);
 
   const bookingsByDate = useMemo(() => {
     const map: Record<string, CalendarBooking[]> = {};

@@ -8,6 +8,17 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code");
   const next = requestUrl.searchParams.get("next");
   const isRecovery = next === "/reset-password";
+  // Signup / resend confirmation links carry next=/login?confirmed=1.
+  const isEmailConfirmation = !!next && next.includes("confirmed=1");
+
+  // Leaves a one-time marker so the page they land on can show the
+  // "Email confirmed" modal (app/components/EmailConfirmedModal.tsx).
+  const withConfirmedMarker = (response: NextResponse, value: "1" | "signin") => {
+    if (isEmailConfirmation) {
+      response.cookies.set("lu_email_confirmed", value, { path: "/", maxAge: 300, sameSite: "lax" });
+    }
+    return response;
+  };
 
   const cookieStore = await cookies();
 
@@ -44,8 +55,9 @@ export async function GET(request: Request) {
       }
 
       // Code expired or already used — send to login with a message
-      return NextResponse.redirect(
-        new URL("/login?confirmed=1", requestUrl.origin)
+      return withConfirmedMarker(
+        NextResponse.redirect(new URL("/login?confirmed=1", requestUrl.origin)),
+        "signin"
       );
     }
 
@@ -83,9 +95,12 @@ export async function GET(request: Request) {
     if (!hasCompletedProfile) {
       const onboarding = new URL("/onboarding", requestUrl.origin);
       if (returnPath) onboarding.searchParams.set("next", returnPath);
-      return NextResponse.redirect(onboarding);
+      return withConfirmedMarker(NextResponse.redirect(onboarding), "1");
     }
-    return NextResponse.redirect(new URL(returnPath || "/requests", requestUrl.origin));
+    return withConfirmedMarker(
+      NextResponse.redirect(new URL(returnPath || "/requests", requestUrl.origin)),
+      "1"
+    );
   }
 
   // No code: Supabase sent an error instead (link expired / already used —

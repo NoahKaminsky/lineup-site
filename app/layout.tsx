@@ -5,6 +5,7 @@ import NavigationProgress from "./components/NavigationProgress";
 import NavbarWrapper from "./components/NavbarWrapper";
 import SplashScreen from "./components/SplashScreen";
 import BurstLayer from "./components/moments/Burst";
+import EmailConfirmedModal from "./components/EmailConfirmedModal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -93,6 +94,7 @@ export default function RootLayout({
         <NavbarWrapper />
         {children}
         <BurstLayer />
+        <EmailConfirmedModal />
       </body>
     </html>
   );

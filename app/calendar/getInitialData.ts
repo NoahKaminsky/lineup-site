@@ -5,6 +5,7 @@
 // professionals, not worth duplicating server-side for this pass.
 
 import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
+import { calendarStatusFilter } from "@/app/lib/calendarBookings";
 
 type BookingRow = {
   id: string;
@@ -65,12 +66,25 @@ export async function getInitialCalendarData(): Promise<CalendarInitialResult> {
   if (!user) return { kind: "redirect", to: "/login" };
 
   try {
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role, subscription_status, subscription_plan")
-      .eq("id", user.id)
-      .single();
+    // Profile and bookings don't depend on each other, so fetch them at the
+    // same time instead of one after the other (RLS keeps the bookings query
+    // scoped to this user either way).
+    const [profileResult, bookingsResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("role, subscription_status, subscription_plan")
+        .eq("id", user.id)
+        .single(),
+      supabase
+        .from("bookings")
+        .select(BOOKING_COLUMNS)
+        .eq("professional_id", user.id)
+        .or(calendarStatusFilter())
+        .order("booking_date", { ascending: true })
+        .order("start_time", { ascending: true }),
+    ]);
 
+    const { data: profile, error: profileError } = profileResult;
     if (profileError || !profile) return { kind: "fallback" };
 
     const role = profile.role as string | null;
@@ -78,14 +92,7 @@ export async function getInitialCalendarData(): Promise<CalendarInitialResult> {
     if (isCustomerRole(role)) return { kind: "redirect", to: "/requests" };
     if (!isProfessionalRole(role)) return { kind: "fallback" };
 
-    const { data: bookingsData, error: bookingsError } = await supabase
-      .from("bookings")
-      .select(BOOKING_COLUMNS)
-      .eq("professional_id", user.id)
-      .in("status", ["confirmed", "completion_requested", "completed"])
-      .order("booking_date", { ascending: true })
-      .order("start_time", { ascending: true });
-
+    const { data: bookingsData, error: bookingsError } = bookingsResult;
     if (bookingsError) throw new Error(bookingsError.message);
 
     const rawBookings = (bookingsData as BookingRow[]) || [];
