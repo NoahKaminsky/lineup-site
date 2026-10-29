@@ -7,6 +7,7 @@ import { syncMemberPlan, syncStudioMemberPlans } from "@/app/lib/studios";
 import { hasFrontDeskClash } from "@/app/lib/busyTimes";
 import { createPayAtShopBooking } from "@/app/lib/payAtShop";
 import { recordBoost } from "@/app/lib/boostsServer";
+import { markMembershipPastDue, syncMembershipSubscription } from "@/app/lib/memberships";
 
 function timeToMinutes(timeString: string) {
   const [hours, minutes] = String(timeString).slice(0, 5).split(":").map(Number);
@@ -701,7 +702,11 @@ export async function POST(req: Request) {
       if (session.mode === "payment" && session.metadata?.boost_kind) {
         await recordBoost(session as unknown as Parameters<typeof recordBoost>[0]);
       }
-      if (session.mode === "subscription" && session.metadata?.studio_rent_member_id) {
+      if (session.mode === "subscription" && session.metadata?.membership_plan_id) {
+        await syncMembershipSubscription(
+          (await stripe.subscriptions.retrieve(session.subscription as string)) as unknown as StudioSubscription
+        );
+      } else if (session.mode === "subscription" && session.metadata?.studio_rent_member_id) {
         await handleRentSubscriptionChanged(
           (await stripe.subscriptions.retrieve(session.subscription as string)) as unknown as StudioSubscription,
           { fromCheckout: true }
@@ -717,7 +722,9 @@ export async function POST(req: Request) {
     }
 
     if (event.type === "customer.subscription.updated") {
-      if (event.data.object.metadata?.studio_rent_member_id) {
+      if (event.data.object.metadata?.membership_plan_id) {
+        await syncMembershipSubscription(event.data.object as unknown as StudioSubscription);
+      } else if (event.data.object.metadata?.studio_rent_member_id) {
         await handleRentSubscriptionChanged(event.data.object as unknown as StudioSubscription);
       } else if (event.data.object.metadata?.studio_id) {
         await handleStudioSubscriptionChanged(event.data.object as unknown as StudioSubscription);
@@ -727,7 +734,9 @@ export async function POST(req: Request) {
     }
 
     if (event.type === "customer.subscription.deleted") {
-      if (event.data.object.metadata?.studio_rent_member_id) {
+      if (event.data.object.metadata?.membership_plan_id) {
+        await syncMembershipSubscription(event.data.object as unknown as StudioSubscription, { deleted: true });
+      } else if (event.data.object.metadata?.studio_rent_member_id) {
         await handleRentSubscriptionChanged(event.data.object as unknown as StudioSubscription, { deleted: true });
       } else if (event.data.object.metadata?.studio_id) {
         await handleStudioSubscriptionChanged(event.data.object as unknown as StudioSubscription, { deleted: true });
@@ -862,6 +871,9 @@ async function handleInvoicePaymentFailed(subscriptionId: string) {
     await syncStudioMemberPlans(supabase, studio.id);
     return;
   }
+
+  // A client's membership payment failed.
+  if (await markMembershipPastDue(subscriptionId)) return;
 
   // A pro's booth rent payment failed.
   const { data: renter } = await supabase

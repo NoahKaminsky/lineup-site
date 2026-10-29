@@ -6,6 +6,7 @@ import { getServiceSupabase } from "@/app/lib/serverSupabase";
 import { PROFESSION_LABELS, isVerifiedNow } from "@/app/lib/verificationRules";
 import { getProfileHref } from "@/app/lib/profileLink";
 import { isStudioLive } from "@/app/lib/studios";
+import ShopMemberships from "./ShopMemberships";
 
 // A studio's public booking page: lineup-aesthetics.ca/shop/<slug>.
 // One link for the whole shop (for Instagram, Google, the shop window): the
@@ -198,6 +199,8 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
             ))}
           </ul>
         )}
+
+        <ShopMemberships slug={slug} shopName={studio.name} />
 
         <p className="mt-10 text-center text-xs text-neutral-500">
           Booking and payment are handled securely by{" "}

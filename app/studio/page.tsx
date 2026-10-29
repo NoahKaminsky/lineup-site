@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Armchair, CalendarDays, Check, Mail, Percent, Plus, Settings, Users } from "lucide-react";
+import { Armchair, BadgeCheck, CalendarDays, Check, Mail, Percent, Plus, Settings, Users } from "lucide-react";
 import LuLoader from "@/app/components/LuLoader";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { STUDIO_PLANS, type StudioPlan } from "@/app/lib/plans";
 import { formatBoostPrice } from "@/app/lib/boosts";
-import { STUDIO_MAX_COMMISSION_PERCENT } from "@/app/lib/commission";
+import { MEMBERSHIP_FEE_PERCENT, STUDIO_MAX_COMMISSION_PERCENT } from "@/app/lib/commission";
 import { formatCad, studioFetch } from "./studioApi";
 
 type TeamMember = {
@@ -85,7 +85,7 @@ type StudioData = {
   payouts?: null | { connected: boolean; ready: boolean };
 };
 
-type Tab = "schedule" | "team" | "chairs" | "settings";
+type Tab = "schedule" | "team" | "members" | "chairs" | "settings";
 
 const card = "rounded-panel border border-hairline bg-surface";
 const eyebrow = "font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500";
@@ -149,7 +149,9 @@ export default function StudioPage() {
 
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get("tab");
-    if (tabParam === "chairs" || tabParam === "team" || tabParam === "settings" || tabParam === "schedule") setTab(tabParam);
+    if (tabParam === "chairs" || tabParam === "team" || tabParam === "settings" || tabParam === "schedule" || tabParam === "members") {
+      setTab(tabParam);
+    }
     if (params.get("boosted") === "1") {
       setNotice({ tone: "success", text: "Payment received. Your opening is featured for the next week." });
     } else if (params.get("subscribed") === "1") {
@@ -231,6 +233,7 @@ export default function StudioPage() {
                 [
                   { key: "schedule", label: "Schedule", Icon: CalendarDays, show: true },
                   { key: "team", label: "Team", Icon: Users, show: true },
+                  { key: "members", label: "Memberships", Icon: BadgeCheck, show: true },
                   { key: "chairs", label: "Chairs", Icon: Armchair, show: !!data.me?.canManage },
                   { key: "settings", label: "Settings", Icon: Settings, show: !!data.me?.isOwner },
                 ] as const
@@ -259,6 +262,7 @@ export default function StudioPage() {
               {tab === "team" ? (
                 <TeamView data={data} busy={busy} run={run} setNotice={setNotice} reload={load} />
               ) : null}
+              {tab === "members" ? <MembershipsView data={data} busy={busy} run={run} setNotice={setNotice} /> : null}
               {tab === "chairs" && data.me?.canManage ? (
                 <ChairsView data={data} busy={busy} run={run} setNotice={setNotice} />
               ) : null}
@@ -1447,6 +1451,384 @@ function ChairOpeningForm({
           {busy === "post-chair" ? "Posting…" : "Post opening"}
         </button>
         <p className="text-xs text-neutral-500">Shows your area, not your street address. Up for 30 days.</p>
+      </div>
+    </form>
+  );
+}
+
+type MembershipsData = {
+  canManage: boolean;
+  live: boolean;
+  payoutsSetUp: boolean;
+  monthlyCents: number;
+  plans: {
+    id: string;
+    name: string;
+    description: string | null;
+    priceCents: number;
+    visitsPerPeriod: number | null;
+    active: boolean;
+    memberCount: number;
+  }[];
+  members: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+    planName: string;
+    status: string;
+    cancelAtPeriodEnd: boolean;
+    renewsOn: string | null;
+    visitsUsed: number;
+    visitsIncluded: number | null;
+    lastVisit: string | null;
+  }[];
+};
+
+function MembershipsView({ data, busy, run, setNotice }: Omit<SectionProps, "reload">) {
+  const studio = data!.studio!;
+  const [info, setInfo] = useState<MembershipsData | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const reloadMemberships = useCallback(async () => {
+    const res = await studioFetch<MembershipsData>("/api/studio/memberships");
+    if (res.ok) setInfo(res.data);
+    else setNotice({ tone: "error", text: res.data.error || "Could not load memberships." });
+  }, [setNotice]);
+
+  useEffect(() => {
+    let cancelled = false;
+    studioFetch<MembershipsData>("/api/studio/memberships").then((res) => {
+      if (cancelled) return;
+      if (res.ok) setInfo(res.data);
+      else setNotice({ tone: "error", text: res.data.error || "Could not load memberships." });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [setNotice]);
+
+  async function act(body: Record<string, unknown>, key: string, success: string, method = "POST") {
+    await run(key, async () => {
+      const res = await studioFetch<{ code?: string }>("/api/studio/memberships", { method, body });
+      if (!res.ok) {
+        if (res.data.code === "limit_reached" && window.confirm(`${res.data.error} Check them in anyway?`)) {
+          const forced = await studioFetch("/api/studio/memberships", { method, body: { ...body, force: true } });
+          if (!forced.ok) {
+            setNotice({ tone: "error", text: forced.data.error || "Could not check them in." });
+            return;
+          }
+          setNotice({ tone: "success", text: success });
+          await reloadMemberships();
+          return;
+        }
+        setNotice({ tone: "error", text: res.data.error || "Something went wrong." });
+        return;
+      }
+      setNotice({ tone: "success", text: success });
+      await reloadMemberships();
+    });
+  }
+
+  if (!info) return <p className="text-sm text-neutral-500">Loading…</p>;
+
+  const query = search.trim().toLowerCase();
+  const members = info.members.filter((m) => !query || m.name.toLowerCase().includes(query));
+
+  return (
+    <section className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-[-0.02em]">Memberships</h2>
+          <p className="mt-1 text-sm text-neutral-600">
+            Clients pay monthly by card and it lands in the shop&apos;s payout account. Check members in when they visit.
+          </p>
+        </div>
+        {info.canManage && info.live ? (
+          <button type="button" onClick={() => setShowForm((v) => !v)} className={primaryButton}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {showForm ? "Close" : "New membership"}
+          </button>
+        ) : null}
+      </div>
+
+      {!info.live ? (
+        <p className={`${card} p-5 text-sm text-neutral-600`}>Memberships are included with a studio plan.</p>
+      ) : !info.payoutsSetUp && info.canManage ? (
+        <p className={`${card} p-5 text-sm text-neutral-600`}>
+          Set up shop payouts in Settings first. That&apos;s where membership payments go.
+        </p>
+      ) : null}
+
+      {showForm ? (
+        <MembershipPlanForm
+          busy={busy}
+          run={run}
+          setNotice={setNotice}
+          onCreated={async () => {
+            setShowForm(false);
+            setNotice({
+              tone: "success",
+              text: `Membership created. Clients can join from your booking page${studio.slug ? ` (/shop/${studio.slug})` : ""}.`,
+            });
+            await reloadMemberships();
+          }}
+        />
+      ) : null}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className={`${card} p-5`}>
+          <p className={eyebrow}>Members</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums">{info.members.length}</p>
+        </div>
+        <div className={`${card} p-5`}>
+          <p className={eyebrow}>Monthly membership sales</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums">{formatCad(info.monthlyCents)}</p>
+          <p className="mt-1 text-xs text-neutral-500">Before card processing and LineUp&apos;s fee.</p>
+        </div>
+      </div>
+
+      {info.plans.length ? (
+        <ul className={`${card} divide-y divide-hairline`}>
+          {info.plans.map((p) => (
+            <li key={p.id} className={`flex flex-wrap items-center gap-3 px-5 py-4 ${p.active ? "" : "opacity-60"}`}>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-ink">
+                  {p.name} · {formatCad(p.priceCents)}/mo
+                </p>
+                <p className="text-xs text-neutral-500">
+                  {p.visitsPerPeriod === null ? "Unlimited visits" : `${p.visitsPerPeriod} visits a month`} · {p.memberCount}{" "}
+                  {p.memberCount === 1 ? "member" : "members"}
+                  {p.active ? "" : " · hidden from your page"}
+                </p>
+              </div>
+              {info.canManage ? (
+                <button
+                  type="button"
+                  disabled={!!busy}
+                  onClick={() =>
+                    act(
+                      { planId: p.id, active: !p.active },
+                      `plan-${p.id}`,
+                      p.active ? "Hidden. Current members keep their membership." : "Back on your booking page.",
+                      "PATCH"
+                    )
+                  }
+                  className={secondaryButton}
+                >
+                  {p.active ? "Stop selling" : "Sell again"}
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {info.members.length ? (
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-base font-semibold">Members</h3>
+            <input
+              type="search"
+              aria-label="Find a member"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Find a member"
+              className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm outline-none focus:border-ink"
+            />
+          </div>
+          <ul className={`${card} mt-3 divide-y divide-hairline`}>
+            {members.map((m) => {
+              const atLimit = m.visitsIncluded !== null && m.visitsUsed >= m.visitsIncluded;
+              return (
+                <li key={m.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-ink">{m.name}</p>
+                    <p className="text-xs text-neutral-500">
+                      {m.planName} ·{" "}
+                      {m.visitsIncluded === null
+                        ? `${m.visitsUsed} visits this month`
+                        : `${m.visitsUsed} of ${m.visitsIncluded} visits used`}
+                      {m.lastVisit
+                        ? ` · last in ${new Date(m.lastVisit).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}`
+                        : ""}
+                      {m.status === "past_due" ? " · payment failed" : ""}
+                      {m.cancelAtPeriodEnd && m.renewsOn
+                        ? ` · ends ${new Date(m.renewsOn).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}`
+                        : ""}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      disabled={!!busy}
+                      onClick={() => act({ action: "checkin", membershipId: m.id }, `checkin-${m.id}`, `${m.name} checked in.`)}
+                      className={atLimit ? secondaryButton : primaryButton}
+                    >
+                      {busy === `checkin-${m.id}` ? "Checking in…" : "Check in"}
+                    </button>
+                    {info.canManage && !m.cancelAtPeriodEnd ? (
+                      <button
+                        type="button"
+                        disabled={!!busy}
+                        onClick={() => {
+                          if (window.confirm(`Cancel ${m.name}'s membership? It ends when their current month is up.`)) {
+                            void act({ action: "cancel", membershipId: m.id }, `cancel-${m.id}`, "Cancelled. It ends at the end of their month.");
+                          }
+                        }}
+                        className="px-2 text-sm font-medium text-neutral-500 hover:text-red-700"
+                      >
+                        Cancel
+                      </button>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : info.plans.length ? (
+        <p className={`${card} p-6 text-sm text-neutral-600`}>
+          No members yet. Share your booking page link so clients can join.
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function MembershipPlanForm({
+  busy,
+  run,
+  setNotice,
+  onCreated,
+}: {
+  busy: string | null;
+  run: SectionProps["run"];
+  setNotice: SectionProps["setNotice"];
+  onCreated: () => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [unlimited, setUnlimited] = useState(true);
+  const [visits, setVisits] = useState("2");
+  const [description, setDescription] = useState("");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    await run("create-plan", async () => {
+      const res = await studioFetch("/api/studio/memberships", {
+        method: "POST",
+        body: {
+          action: "create_plan",
+          name,
+          description,
+          priceCents: Math.round(Number(price) * 100),
+          visitsPerPeriod: unlimited ? null : Number(visits),
+        },
+      });
+      if (!res.ok) {
+        setNotice({ tone: "error", text: res.data.error || "Could not create it." });
+        return;
+      }
+      await onCreated();
+    });
+  }
+
+  const label = "mb-1.5 block text-xs font-medium text-neutral-700";
+
+  return (
+    <form onSubmit={submit} className={`${card} lu-fade-in grid gap-4 p-5 sm:grid-cols-2 sm:p-6`}>
+      <div>
+        <label htmlFor="plan-name" className={label}>
+          Name
+        </label>
+        <input
+          id="plan-name"
+          required
+          minLength={2}
+          maxLength={60}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Unlimited cuts"
+          className={input}
+        />
+      </div>
+      <div>
+        <label htmlFor="plan-price" className={label}>
+          Price per month (CAD)
+        </label>
+        <input
+          id="plan-price"
+          required
+          type="number"
+          inputMode="decimal"
+          min={5}
+          max={1000}
+          step="1"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          placeholder="60"
+          className={input}
+        />
+      </div>
+      <div className="sm:col-span-2">
+        <p className={label}>Visits included</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={unlimited}
+            onClick={() => setUnlimited(true)}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+              unlimited ? "bg-ink text-white" : "border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+            }`}
+          >
+            Unlimited
+          </button>
+          <button
+            type="button"
+            aria-pressed={!unlimited}
+            onClick={() => setUnlimited(false)}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+              !unlimited ? "bg-ink text-white" : "border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+            }`}
+          >
+            A set number
+          </button>
+          {!unlimited ? (
+            <label className="flex items-center gap-2 text-sm text-neutral-700">
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={visits}
+                onChange={(e) => setVisits(e.target.value)}
+                className="w-20 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm tabular-nums outline-none focus:border-ink"
+              />
+              a month
+            </label>
+          ) : null}
+        </div>
+      </div>
+      <div className="sm:col-span-2">
+        <label htmlFor="plan-description" className={label}>
+          What&apos;s included <span className="font-normal text-neutral-400">(optional)</span>
+        </label>
+        <input
+          id="plan-description"
+          maxLength={500}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="e.g. Any haircut or beard trim, with any barber"
+          className={input}
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+        <button type="submit" disabled={!!busy} className={primaryButton}>
+          {busy === "create-plan" ? "Creating…" : "Create membership"}
+        </button>
+        <p className="text-xs text-neutral-500">
+          LineUp keeps {MEMBERSHIP_FEE_PERCENT}% of each payment, card processing included. The rest goes to the shop.
+        </p>
       </div>
     </form>
   );

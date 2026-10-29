@@ -52,6 +52,8 @@ export const STUDIO_PLANS: Record<
       "Each pro gets their own login and Pro features",
       "Every member's schedule in one place",
       "Front desk: book walk-ins and phone-ins, paid at the shop",
+      "Sell monthly memberships to your clients",
+      "Post chair openings, seen only by pros in that trade",
       "0% LineUp commission on your own clients",
       "Commission only on new clients LineUp sends you through requests",
     ],
