@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { platformFeeCentsFor, splitBookingPayment } from "@/app/lib/commission";
 import { getStudioPricingForPro } from "@/app/lib/studios";
-import { getBookingWindows, getTimeOffDays } from "@/app/lib/busyTimes";
+import { getBookingWindows, getTimeOffDays, hasFrontDeskClash } from "@/app/lib/busyTimes";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
@@ -270,11 +270,12 @@ async function handleDirectBookingIntent(req: Request, body: any) {
   const startMinutes = timeToMinutes(normalizedStart);
   const endMinutes = timeToMinutes(normalizedEnd);
 
-  const hasBookingConflict = (existingBookings || []).some((booking) => {
-    const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
-    const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
-    return startMinutes < bookingEnd && endMinutes > bookingStart;
-  });
+  const hasBookingConflict =
+    (existingBookings || []).some((booking) => {
+      const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
+      const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
+      return startMinutes < bookingEnd && endMinutes > bookingStart;
+    }) || (await hasFrontDeskClash(professionalId, date, normalizedStart, normalizedEnd));
 
   if (hasBookingConflict) {
     return NextResponse.json(
@@ -459,11 +460,12 @@ export async function POST(req: Request) {
     const proposedStartMinutes = timeToMinutes(proposedStart);
     const proposedEndMinutes = timeToMinutes(proposedEnd);
 
-    const hasBookingConflict = (existingBookings || []).some((booking) => {
-      const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
-      const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
-      return proposedStartMinutes < bookingEnd && proposedEndMinutes > bookingStart;
-    });
+    const hasBookingConflict =
+      (existingBookings || []).some((booking) => {
+        const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
+        const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
+        return proposedStartMinutes < bookingEnd && proposedEndMinutes > bookingStart;
+      }) || (await hasFrontDeskClash(offer.professional_id, offer.proposed_date, proposedStart, proposedEnd));
 
     if (hasBookingConflict) {
       return NextResponse.json(

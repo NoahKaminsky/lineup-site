@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CalendarDays, Check, Mail, Percent, Settings, Users } from "lucide-react";
+import { CalendarDays, Check, Mail, Percent, Plus, Settings, Users } from "lucide-react";
 import LuLoader from "@/app/components/LuLoader";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { STUDIO_PLANS, type StudioPlan } from "@/app/lib/plans";
@@ -22,11 +22,17 @@ type TeamMember = {
   inviteExpired: boolean;
   commissionOverride: number | null;
   effectiveCut: number | null;
+  arrangement: "commission" | "booth_rent" | null;
+  rentCents: number | null;
+  rentInterval: "week" | "month" | null;
+  rentStatus: string | null;
+  rentPaidUntil: string | null;
   joinedAt: string | null;
 };
 
 type ScheduleItem = {
   id: string;
+  kind: "online" | "walk_in" | "phone";
   professionalId: string;
   date: string;
   start: string;
@@ -35,7 +41,12 @@ type ScheduleItem = {
   service: string | null;
   source: string | null;
   clientName: string | null;
+  clientPhone: string | null;
+  priceCents: number | null;
+  note: string | null;
 };
+
+type ServiceOption = { id: string; name: string; durationMinutes: number; priceCents: number | null };
 
 type StudioData = {
   role: string | null;
@@ -53,10 +64,15 @@ type StudioData = {
   me?: { memberId: string; role: TeamMember["role"]; canManage: boolean; isOwner: boolean };
   team?: TeamMember[];
   schedule?: ScheduleItem[];
+  services?: Record<string, ServiceOption[]>;
   earnings?: null | {
-    byMember: Record<string, { bookings: number; salesCents: number; shopCutCents: number }>;
+    byMember: Record<
+      string,
+      { bookings: number; salesCents: number; shopCutCents: number; inShopSalesCents: number; inShopCutCents: number }
+    >;
     paidCents: number;
     owedCents: number;
+    inShopCutCents: number;
   };
   payouts?: null | { connected: boolean; ready: boolean };
 };
@@ -126,16 +142,13 @@ export default function StudioPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("subscribed") === "1") {
       setNotice({ tone: "success", text: "Your studio plan is active. Your whole team is covered." });
+    } else if (params.get("rent") === "1") {
+      setNotice({ tone: "success", text: "Rent payments are set up. They'll come out automatically." });
     } else if (params.get("payouts") === "done") {
       setNotice({ tone: "success", text: "Payout details saved. The shop's cut will be paid to this account." });
     }
     if (params.toString()) window.history.replaceState({}, "", "/studio");
   }, [load, router]);
-
-  // Members see the team; owners and managers land on the schedule.
-  useEffect(() => {
-    if (data?.me && !data.me.canManage) setTab("team");
-  }, [data?.me]);
 
   async function run(key: string, fn: () => Promise<void>) {
     setBusy(key);
@@ -197,7 +210,7 @@ export default function StudioPage() {
             <nav className="mt-8 flex gap-1 border-b border-hairline" aria-label="Studio sections">
               {(
                 [
-                  { key: "schedule", label: "Schedule", Icon: CalendarDays, show: !!data.me?.canManage },
+                  { key: "schedule", label: "Schedule", Icon: CalendarDays, show: true },
                   { key: "team", label: "Team", Icon: Users, show: true },
                   { key: "settings", label: "Settings", Icon: Settings, show: !!data.me?.isOwner },
                 ] as const
@@ -220,7 +233,9 @@ export default function StudioPage() {
             </nav>
 
             <div className="mt-6">
-              {tab === "schedule" && data.me?.canManage ? <ScheduleView data={data} /> : null}
+              {tab === "schedule" ? (
+                <ScheduleView data={data} busy={busy} run={run} setNotice={setNotice} reload={load} />
+              ) : null}
               {tab === "team" ? (
                 <TeamView data={data} busy={busy} run={run} setNotice={setNotice} reload={load} />
               ) : null}
@@ -422,80 +437,439 @@ function NoStudio({ data, busy, run, setNotice, reload }: SectionProps) {
   );
 }
 
-function ScheduleView({ data }: { data: StudioData }) {
-  const [memberFilter, setMemberFilter] = useState("all");
-  const team = (data.team || []).filter((m) => m.status === "active");
-  const names = useMemo(() => new Map(team.map((m) => [m.profileId, m.name || "Team member"])), [team]);
+function localDateKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
-  const items = (data.schedule || []).filter((b) => memberFilter === "all" || b.professionalId === memberFilter);
+// Now, rounded up to the next quarter hour.
+function nextQuarterHour() {
+  const d = new Date();
+  const minutes = Math.ceil((d.getHours() * 60 + d.getMinutes() + 1) / 15) * 15;
+  const capped = Math.min(minutes, 23 * 60 + 45);
+  return `${String(Math.floor(capped / 60)).padStart(2, "0")}:${String(capped % 60).padStart(2, "0")}`;
+}
+
+function ScheduleView({ data, busy, run, setNotice, reload }: SectionProps) {
+  const me = data!.me!;
+  const studio = data!.studio!;
+  const [memberFilter, setMemberFilter] = useState("all");
+  const [showForm, setShowForm] = useState(false);
+  const team = (data!.team || []).filter((m) => m.status === "active");
+  const names = useMemo(() => new Map(team.map((m) => [m.profileId, m.name || "Team member"])), [team]);
+  const myProfileId = team.find((m) => m.id === me.memberId)?.profileId || null;
+
+  const todayKey = localDateKey(new Date());
+  const items = (data!.schedule || []).filter(
+    (b) =>
+      (memberFilter === "all" || b.professionalId === memberFilter) &&
+      // Yesterday only shows front-desk ones still waiting to be checked off.
+      (b.date >= todayKey || (b.kind !== "online" && b.status === "booked"))
+  );
   const byDay = items.reduce<Record<string, ScheduleItem[]>>((acc, b) => {
     (acc[b.date] ||= []).push(b);
     return acc;
   }, {});
   const days = Object.keys(byDay).sort();
 
+  async function setStatus(item: ScheduleItem, status: string, label: string) {
+    if (status === "cancelled" && !window.confirm(`Cancel ${item.clientName || "this"} appointment? The time opens up again.`)) return;
+    await run(`fd-${item.id}`, async () => {
+      const res = await studioFetch("/api/studio/front-desk", { method: "PATCH", body: { id: item.id, status } });
+      if (!res.ok) {
+        setNotice({ tone: "error", text: res.data.error || "Could not update it." });
+        return;
+      }
+      setNotice({ tone: "success", text: label });
+      await reload();
+    });
+  }
+
   return (
     <section>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold tracking-[-0.02em]">Next two weeks</h2>
-        <label className="flex items-center gap-2 text-sm text-neutral-600">
-          <span className="sr-only">Show</span>
-          <select
-            value={memberFilter}
-            onChange={(e) => setMemberFilter(e.target.value)}
-            className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm outline-none focus:border-ink"
-          >
-            <option value="all">Whole team</option>
-            {team.map((m) => (
-              <option key={m.id} value={m.profileId || ""}>
-                {m.name || "Team member"}
-              </option>
-            ))}
-          </select>
-        </label>
+        <h2 className="text-lg font-semibold tracking-[-0.02em]">{me.canManage ? "Next two weeks" : "Your next two weeks"}</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          {me.canManage ? (
+            <select
+              aria-label="Show"
+              value={memberFilter}
+              onChange={(e) => setMemberFilter(e.target.value)}
+              className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm outline-none focus:border-ink"
+            >
+              <option value="all">Whole team</option>
+              {team.map((m) => (
+                <option key={m.id} value={m.profileId || ""}>
+                  {m.name || "Team member"}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {studio.live ? (
+            <button type="button" onClick={() => setShowForm((v) => !v)} className={primaryButton}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {showForm ? "Close" : "Book a walk-in"}
+            </button>
+          ) : null}
+        </div>
       </div>
+
+      {showForm ? (
+        <FrontDeskForm
+          team={me.canManage ? team : team.filter((m) => m.profileId === myProfileId)}
+          services={data!.services || {}}
+          defaultPro={memberFilter !== "all" ? memberFilter : me.canManage ? "" : myProfileId || ""}
+          busy={busy}
+          onSaved={async (message) => {
+            setShowForm(false);
+            setNotice({ tone: "success", text: message });
+            await reload();
+          }}
+          run={run}
+          setNotice={setNotice}
+        />
+      ) : null}
 
       {days.length === 0 ? (
         <p className={`${card} mt-4 p-6 text-sm text-neutral-600`}>
-          No bookings in the next two weeks{memberFilter === "all" ? "" : " for this pro"}.
+          Nothing booked in the next two weeks{memberFilter === "all" ? "" : " for this pro"}.
         </p>
       ) : (
         <div className="mt-4 space-y-6">
           {days.map((day) => (
             <div key={day}>
-              <h3 className={eyebrow}>{dayLabel(day)}</h3>
+              <h3 className={eyebrow}>{day < todayKey ? "Yesterday, still open" : dayLabel(day)}</h3>
               <ul className={`${card} mt-2 divide-y divide-hairline`}>
-                {byDay[day].map((b) => (
-                  <li key={b.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3.5">
-                    <span className="w-32 shrink-0 text-sm font-semibold tabular-nums text-ink">
-                      {time12(b.start)}–{time12(b.end)}
-                    </span>
-                    <span className="min-w-0 flex-1 text-sm text-neutral-700">
-                      <span className="font-medium text-ink">{names.get(b.professionalId) || "Team member"}</span>
-                      {" · "}
-                      {b.service || "Booking"}
-                      {b.clientName ? <span className="text-neutral-500"> with {b.clientName}</span> : null}
-                    </span>
-                    <span className="flex gap-1.5">
-                      {b.source === "request" ? (
-                        <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-ink">
-                          New client
-                        </span>
-                      ) : null}
-                      {b.status !== "confirmed" ? (
-                        <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
-                          {b.status === "completed" ? "Done" : "Finishing up"}
-                        </span>
-                      ) : null}
-                    </span>
-                  </li>
-                ))}
+                {byDay[day].map((b) => {
+                  const frontDesk = b.kind !== "online";
+                  const closed = b.status === "completed" || b.status === "no_show";
+                  return (
+                    <li
+                      key={`${b.kind}-${b.id}`}
+                      className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 ${closed ? "opacity-60" : ""}`}
+                    >
+                      <span className="w-32 shrink-0 text-sm font-semibold tabular-nums text-ink">
+                        {time12(b.start)}–{time12(b.end)}
+                      </span>
+                      <span className="min-w-0 flex-1 text-sm text-neutral-700">
+                        {me.canManage ? (
+                          <>
+                            <span className="font-medium text-ink">{names.get(b.professionalId) || "Team member"}</span>
+                            {" · "}
+                          </>
+                        ) : null}
+                        {b.service || "Booking"}
+                        {b.clientName ? <span className="text-neutral-500"> with {b.clientName}</span> : null}
+                        {b.clientPhone ? <span className="text-neutral-500"> · {b.clientPhone}</span> : null}
+                        {frontDesk && b.priceCents !== null ? (
+                          <span className="text-neutral-500"> · {formatCad(b.priceCents)} at the shop</span>
+                        ) : null}
+                        {b.note ? <span className="mt-0.5 block text-xs text-neutral-500">{b.note}</span> : null}
+                      </span>
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        {frontDesk ? (
+                          <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-ink">
+                            {b.kind === "phone" ? "Phone-in" : "Walk-in"}
+                          </span>
+                        ) : b.source === "request" ? (
+                          <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-ink">
+                            New client
+                          </span>
+                        ) : (
+                          <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
+                            Paid online
+                          </span>
+                        )}
+                        {b.status === "completed" ? (
+                          <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">Done</span>
+                        ) : b.status === "no_show" ? (
+                          <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">No-show</span>
+                        ) : b.status === "completion_requested" ? (
+                          <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
+                            Finishing up
+                          </span>
+                        ) : null}
+                        {frontDesk && b.status === "booked" && (me.canManage || b.professionalId === myProfileId) ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={!!busy}
+                              onClick={() => setStatus(b, "completed", "Marked done.")}
+                              className="rounded-full border border-neutral-300 px-3 py-1 text-xs font-medium text-ink transition hover:bg-neutral-50"
+                            >
+                              Done
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!!busy}
+                              onClick={() => setStatus(b, "no_show", "Marked as a no-show.")}
+                              className="rounded-full px-2 py-1 text-xs font-medium text-neutral-500 hover:text-ink"
+                            >
+                              No-show
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!!busy}
+                              onClick={() => setStatus(b, "cancelled", "Cancelled. The time is open again.")}
+                              className="rounded-full px-2 py-1 text-xs font-medium text-neutral-500 hover:text-red-700"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : null}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+function FrontDeskForm({
+  team,
+  services,
+  defaultPro,
+  busy,
+  run,
+  setNotice,
+  onSaved,
+}: {
+  team: TeamMember[];
+  services: Record<string, ServiceOption[]>;
+  defaultPro: string;
+  busy: string | null;
+  run: SectionProps["run"];
+  setNotice: SectionProps["setNotice"];
+  onSaved: (message: string) => Promise<void>;
+}) {
+  const [pro, setPro] = useState(defaultPro || (team.length === 1 ? team[0].profileId || "" : ""));
+  const [kind, setKind] = useState<"walk_in" | "phone">("walk_in");
+  const [clientName, setClientName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [serviceId, setServiceId] = useState("");
+  const [customService, setCustomService] = useState("");
+  const [date, setDate] = useState(() => localDateKey(new Date()));
+  const [startTime, setStartTime] = useState(nextQuarterHour);
+  const [duration, setDuration] = useState("30");
+  const [price, setPrice] = useState("");
+  const [note, setNote] = useState("");
+
+  const proServices = services[pro] || [];
+
+  function pickService(id: string) {
+    setServiceId(id);
+    const svc = proServices.find((s) => s.id === id);
+    if (svc) {
+      setDuration(String(svc.durationMinutes));
+      setPrice(svc.priceCents !== null ? (svc.priceCents / 100).toFixed(2) : "");
+    }
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const svc = proServices.find((s) => s.id === serviceId);
+    const serviceName = svc ? svc.name : customService.trim();
+    const priceNumber = price.trim() === "" ? null : Number(price);
+    if (priceNumber !== null && !Number.isFinite(priceNumber)) {
+      setNotice({ tone: "error", text: "That price doesn't look right." });
+      return;
+    }
+
+    await run("front-desk", async () => {
+      const res = await studioFetch("/api/studio/front-desk", {
+        method: "POST",
+        body: {
+          professionalId: pro,
+          kind,
+          clientName,
+          clientPhone,
+          serviceName,
+          date,
+          startTime,
+          durationMinutes: Number(duration),
+          priceCents: priceNumber === null ? null : Math.round(priceNumber * 100),
+          note,
+        },
+      });
+      if (!res.ok) {
+        setNotice({ tone: "error", text: res.data.error || "Could not book that in." });
+        return;
+      }
+      await onSaved(`${clientName} is booked in. That time is blocked for online booking.`);
+    });
+  }
+
+  const label = "mb-1.5 block text-xs font-medium text-neutral-700";
+
+  return (
+    <form onSubmit={submit} className={`${card} lu-fade-in mt-4 grid gap-4 p-5 sm:grid-cols-2 sm:p-6`}>
+      <div className="flex gap-2 sm:col-span-2" role="radiogroup" aria-label="Type">
+        {(
+          [
+            ["walk_in", "Walk-in"],
+            ["phone", "Phone-in"],
+          ] as const
+        ).map(([value, text]) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={kind === value}
+            onClick={() => setKind(value)}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+              kind === value ? "bg-ink text-white" : "border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+            }`}
+          >
+            {text}
+          </button>
+        ))}
+      </div>
+
+      {team.length > 1 ? (
+        <div>
+          <label htmlFor="fd-pro" className={label}>
+            Pro
+          </label>
+          <select
+            id="fd-pro"
+            required
+            value={pro}
+            onChange={(e) => {
+              setPro(e.target.value);
+              setServiceId("");
+            }}
+            className={input}
+          >
+            <option value="">Choose a pro</option>
+            {team.map((m) => (
+              <option key={m.id} value={m.profileId || ""}>
+                {m.name || "Team member"}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
+      <div>
+        <label htmlFor="fd-client" className={label}>
+          Client name
+        </label>
+        <input id="fd-client" required maxLength={80} value={clientName} onChange={(e) => setClientName(e.target.value)} className={input} />
+      </div>
+
+      <div>
+        <label htmlFor="fd-phone" className={label}>
+          Phone <span className="font-normal text-neutral-400">(optional)</span>
+        </label>
+        <input
+          id="fd-phone"
+          type="tel"
+          maxLength={30}
+          value={clientPhone}
+          onChange={(e) => setClientPhone(e.target.value)}
+          className={input}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="fd-service" className={label}>
+          Service
+        </label>
+        <select id="fd-service" value={serviceId} onChange={(e) => pickService(e.target.value)} className={input}>
+          <option value="">{proServices.length ? "Something else" : "Type it below"}</option>
+          {proServices.map((svc) => (
+            <option key={svc.id} value={svc.id}>
+              {svc.name}
+            </option>
+          ))}
+        </select>
+        {!serviceId ? (
+          <input
+            aria-label="Service name"
+            required
+            maxLength={120}
+            value={customService}
+            onChange={(e) => setCustomService(e.target.value)}
+            placeholder="e.g. Skin fade"
+            className={`${input} mt-2`}
+          />
+        ) : null}
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 sm:col-span-2">
+        <div>
+          <label htmlFor="fd-date" className={label}>
+            Date
+          </label>
+          <input id="fd-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={input} />
+        </div>
+        <div>
+          <label htmlFor="fd-start" className={label}>
+            Start
+          </label>
+          <input
+            id="fd-start"
+            type="time"
+            required
+            step={300}
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            className={input}
+          />
+        </div>
+        <div>
+          <label htmlFor="fd-length" className={label}>
+            Minutes
+          </label>
+          <input
+            id="fd-length"
+            type="number"
+            required
+            min={5}
+            max={720}
+            step={5}
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            className={input}
+          />
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="fd-price" className={label}>
+          Price paid at the shop <span className="font-normal text-neutral-400">(optional)</span>
+        </label>
+        <input
+          id="fd-price"
+          type="number"
+          inputMode="decimal"
+          min={0}
+          step="0.01"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          placeholder="0.00"
+          className={input}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="fd-note" className={label}>
+          Note <span className="font-normal text-neutral-400">(optional)</span>
+        </label>
+        <input id="fd-note" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} className={input} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+        <button type="submit" disabled={!!busy || !pro} className={primaryButton}>
+          {busy === "front-desk" ? "Booking…" : "Book it in"}
+        </button>
+        <p className="text-xs text-neutral-500">Paid at the shop, not through LineUp. Online clients can&apos;t book over it.</p>
+      </div>
+    </form>
   );
 }
 
@@ -571,20 +945,23 @@ function TeamView({ data, busy, run, setNotice, reload }: SectionProps) {
 
   return (
     <section className="space-y-6">
-      {!me.canManage && myRow ? (
+      {myRow && me.role !== "owner" ? (
         <div className={`${card} p-6`}>
           <h2 className="text-base font-semibold">Your spot on the team</h2>
           <p className="mt-2 text-sm leading-6 text-neutral-600">
             {studio.live
               ? "Your plan is covered by the studio, so you get Pro features without paying for your own."
               : "The studio doesn't have an active plan right now, so you're on your own plan."}{" "}
-            {isPlus && myRow.effectiveCut ? (
+            {isPlus && myRow.arrangement !== "booth_rent" && myRow.effectiveCut ? (
               <>
                 The shop keeps <span className="font-semibold text-ink">{myRow.effectiveCut}%</span> of each booking
                 after LineUp&apos;s fee. Tips are all yours.
               </>
             ) : null}
           </p>
+          {myRow.arrangement === "booth_rent" && myRow.rentCents ? (
+            <RentPanel member={myRow} busy={busy} run={run} setNotice={setNotice} />
+          ) : null}
         </div>
       ) : null}
 
@@ -649,6 +1026,15 @@ function TeamView({ data, busy, run, setNotice, reload }: SectionProps) {
               <p className="mt-1 text-xs text-neutral-500">Set up payouts in Settings to receive it.</p>
             ) : null}
           </div>
+          {earnings.inShopCutCents > 0 ? (
+            <div className={`${card} p-5 sm:col-span-2`}>
+              <p className={eyebrow}>Shop&apos;s share of walk-ins this month</p>
+              <p className="mt-2 text-2xl font-semibold tabular-nums">{formatCad(earnings.inShopCutCents)}</p>
+              <p className="mt-1 text-xs text-neutral-500">
+                From appointments paid at the shop. LineUp doesn&apos;t move this money; it&apos;s here for your records.
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -688,14 +1074,30 @@ function TeamView({ data, busy, run, setNotice, reload }: SectionProps) {
                       ? " · not verified yet"
                       : null}
                     {stats && me.canManage
-                      ? ` · ${stats.bookings} ${stats.bookings === 1 ? "booking" : "bookings"} this month, ${formatCad(stats.salesCents)}`
+                      ? ` · ${stats.bookings} ${stats.bookings === 1 ? "booking" : "bookings"} this month, ${formatCad(
+                          stats.salesCents + stats.inShopSalesCents
+                        )}`
+                      : null}
+                    {me.canManage && m.status === "active" && m.arrangement === "booth_rent" && m.rentCents
+                      ? ` · rent ${formatCad(m.rentCents)}/${m.rentInterval === "week" ? "wk" : "mo"}, ${rentStatusLabel(m.rentStatus)}`
                       : null}
                   </p>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {me.isOwner && m.status === "active" ? (
+                {me.isOwner && m.status === "active" && isPlus && m.role !== "owner" ? (
+                  <ArrangementControls
+                    key={`arr-${m.id}-${m.arrangement}-${m.rentCents}-${m.rentInterval}`}
+                    member={m}
+                    busy={busy}
+                    run={run}
+                    setNotice={setNotice}
+                    reload={reload}
+                  />
+                ) : null}
+
+                {me.isOwner && m.status === "active" && m.arrangement !== "booth_rent" ? (
                   <CommissionInput
                     // Remounts with the saved value after each save.
                     key={`${m.id}-${m.commissionOverride}`}
@@ -755,6 +1157,185 @@ function TeamView({ data, busy, run, setNotice, reload }: SectionProps) {
         })}
       </ul>
     </section>
+  );
+}
+
+function rentStatusLabel(status: string | null) {
+  if (status === "active" || status === "trialing") return "paying";
+  if (status === "past_due" || status === "unpaid") return "payment failed";
+  return "not set up yet";
+}
+
+// Owner: put a pro on commission or booth rent (Studio Plus).
+function ArrangementControls({
+  member,
+  busy,
+  run,
+  setNotice,
+  reload,
+}: {
+  member: TeamMember;
+  busy: string | null;
+  run: SectionProps["run"];
+  setNotice: SectionProps["setNotice"];
+  reload: SectionProps["reload"];
+}) {
+  const [arrangement, setArrangement] = useState(member.arrangement || "commission");
+  const [rent, setRent] = useState(member.rentCents ? (member.rentCents / 100).toFixed(0) : "");
+  const [rentInterval, setRentInterval] = useState<"week" | "month">(member.rentInterval || "week");
+
+  const rentChanged =
+    arrangement === "booth_rent" &&
+    (member.arrangement !== "booth_rent" ||
+      Math.round(Number(rent) * 100) !== member.rentCents ||
+      rentInterval !== member.rentInterval);
+
+  async function save(next: "commission" | "booth_rent") {
+    if (next === "commission" && member.arrangement === "booth_rent") {
+      if (!window.confirm(`Switch ${member.name || "this pro"} to commission? Their rent stops after the period they've paid for.`)) {
+        setArrangement("booth_rent");
+        return;
+      }
+    }
+    if (next === "booth_rent" && member.arrangement === "booth_rent" && rentInterval !== member.rentInterval && member.rentStatus === "active") {
+      if (!window.confirm("Changing between weekly and monthly ends their current rent at the end of this period. They'll set up the new schedule from their Studio page. Continue?")) return;
+    }
+    await run(`rent-${member.id}`, async () => {
+      const res = await studioFetch("/api/studio/rent", {
+        method: "PATCH",
+        body:
+          next === "commission"
+            ? { memberId: member.id, arrangement: "commission" }
+            : { memberId: member.id, arrangement: "booth_rent", rentCents: Math.round(Number(rent) * 100), rentInterval: rentInterval },
+      });
+      if (!res.ok) {
+        setNotice({ tone: "error", text: res.data.error || "Could not save." });
+        return;
+      }
+      setNotice({
+        tone: "success",
+        text:
+          next === "commission"
+            ? "Switched to commission."
+            : `Rent saved. ${member.name || "They"} can set up payments from their Studio page.`,
+      });
+      await reload();
+    });
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <select
+        aria-label={`Pay arrangement for ${member.name || "this pro"}`}
+        value={arrangement}
+        disabled={!!busy}
+        onChange={(e) => {
+          const next = e.target.value as "commission" | "booth_rent";
+          setArrangement(next);
+          if (next === "commission" && member.arrangement === "booth_rent") void save("commission");
+        }}
+        className="rounded-full border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-ink"
+      >
+        <option value="commission">Commission</option>
+        <option value="booth_rent">Booth rent</option>
+      </select>
+      {arrangement === "booth_rent" ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save("booth_rent");
+          }}
+          className="flex items-center gap-1.5"
+        >
+          <label className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm">
+            <span className="text-neutral-400">$</span>
+            <span className="sr-only">Rent amount</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min={5}
+              max={10000}
+              step="1"
+              required
+              value={rent}
+              onChange={(e) => setRent(e.target.value)}
+              className="w-16 bg-transparent tabular-nums outline-none"
+            />
+          </label>
+          <select
+            aria-label="Rent schedule"
+            value={rentInterval}
+            onChange={(e) => setRentInterval(e.target.value as "week" | "month")}
+            className="rounded-full border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-ink"
+          >
+            <option value="week">/ week</option>
+            <option value="month">/ month</option>
+          </select>
+          {rentChanged ? (
+            <button type="submit" disabled={!!busy} className="text-sm font-medium text-ink underline underline-offset-4">
+              Save
+            </button>
+          ) : null}
+        </form>
+      ) : null}
+    </div>
+  );
+}
+
+// A booth renter's own view: what they owe and paying it by card.
+function RentPanel({
+  member,
+  busy,
+  run,
+  setNotice,
+}: {
+  member: TeamMember;
+  busy: string | null;
+  run: SectionProps["run"];
+  setNotice: SectionProps["setNotice"];
+}) {
+  const paying = member.rentStatus === "active" || member.rentStatus === "trialing";
+  const failed = member.rentStatus === "past_due" || member.rentStatus === "unpaid";
+
+  async function go(action: "setup" | "manage") {
+    await run(`rent-${action}`, async () => {
+      const res = await studioFetch<{ url?: string }>("/api/studio/rent", { method: "POST", body: { action } });
+      if (!res.ok || !res.data.url) {
+        setNotice({ tone: "error", text: res.data.error || "Something went wrong." });
+        return;
+      }
+      window.location.href = res.data.url;
+    });
+  }
+
+  return (
+    <div className="mt-4 rounded-2xl bg-neutral-50 p-4">
+      <p className="text-sm text-neutral-700">
+        Booth rent: <span className="font-semibold text-ink">{formatCad(member.rentCents || 0)}</span> a{" "}
+        {member.rentInterval === "week" ? "week" : "month"}. You keep everything you earn, minus LineUp&apos;s fee.
+      </p>
+      <p className="mt-1 text-xs text-neutral-500">
+        {paying
+          ? `Paid by card automatically${member.rentPaidUntil ? `, next on ${new Date(member.rentPaidUntil).toLocaleDateString("en-CA", { month: "long", day: "numeric" })}` : ""}.`
+          : failed
+          ? "Your last rent payment didn't go through. Update your card to keep things square with the shop."
+          : "Set it up once and it comes out on schedule. It goes straight to the shop."}
+      </p>
+      <button
+        type="button"
+        disabled={!!busy}
+        onClick={() => go(paying || failed ? "manage" : "setup")}
+        className={`mt-3 ${paying ? secondaryButton : primaryButton}`}
+      >
+        {busy === "rent-setup" || busy === "rent-manage"
+          ? "Opening…"
+          : paying
+          ? "Manage rent payments"
+          : failed
+          ? "Update card"
+          : "Set up rent payments"}
+      </button>
+    </div>
   );
 }
 

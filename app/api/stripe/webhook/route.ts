@@ -4,6 +4,7 @@ import { stripe } from "@/app/lib/stripe";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { studioPlanFromPriceId } from "@/app/lib/plans";
 import { syncMemberPlan, syncStudioMemberPlans } from "@/app/lib/studios";
+import { hasFrontDeskClash } from "@/app/lib/busyTimes";
 
 function timeToMinutes(timeString: string) {
   const [hours, minutes] = String(timeString).slice(0, 5).split(":").map(Number);
@@ -155,11 +156,12 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
   const proposedStartMinutes = timeToMinutes(proposedStart);
   const proposedEndMinutes = timeToMinutes(proposedEnd);
 
-  const hasBookingConflict = (existingBookings || []).some((booking) => {
-    const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
-    const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
-    return proposedStartMinutes < bookingEnd && proposedEndMinutes > bookingStart;
-  });
+  const hasBookingConflict =
+    (existingBookings || []).some((booking) => {
+      const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
+      const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
+      return proposedStartMinutes < bookingEnd && proposedEndMinutes > bookingStart;
+    }) || (await hasFrontDeskClash(offer.professional_id, offer.proposed_date, proposedStart, proposedEnd));
 
   if (hasBookingConflict) {
     await supabase
@@ -511,11 +513,12 @@ async function handleDirectBookingPaymentSucceeded(
   const startMinutes = timeToMinutes(startTime);
   const endMinutes = timeToMinutes(endTime);
 
-  const hasBookingConflict = (existingBookings || []).some((booking) => {
-    const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
-    const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
-    return startMinutes < bookingEnd && endMinutes > bookingStart;
-  });
+  const hasBookingConflict =
+    (existingBookings || []).some((booking) => {
+      const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
+      const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
+      return startMinutes < bookingEnd && endMinutes > bookingStart;
+    }) || (await hasFrontDeskClash(professionalId, bookingDate, startTime, endTime));
 
   if (hasBookingConflict) {
     await releaseTakenSlot(supabase, { paymentIntentId: paymentIntent.id, customerId });
@@ -683,7 +686,12 @@ export async function POST(req: Request) {
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      if (session.mode === "subscription" && session.metadata?.studio_id) {
+      if (session.mode === "subscription" && session.metadata?.studio_rent_member_id) {
+        await handleRentSubscriptionChanged(
+          (await stripe.subscriptions.retrieve(session.subscription as string)) as unknown as StudioSubscription,
+          { fromCheckout: true }
+        );
+      } else if (session.mode === "subscription" && session.metadata?.studio_id) {
         await handleStudioSubscriptionChanged(
           (await stripe.subscriptions.retrieve(session.subscription as string)) as unknown as StudioSubscription,
           { customerId: session.customer as string }
@@ -694,7 +702,9 @@ export async function POST(req: Request) {
     }
 
     if (event.type === "customer.subscription.updated") {
-      if (event.data.object.metadata?.studio_id) {
+      if (event.data.object.metadata?.studio_rent_member_id) {
+        await handleRentSubscriptionChanged(event.data.object as unknown as StudioSubscription);
+      } else if (event.data.object.metadata?.studio_id) {
         await handleStudioSubscriptionChanged(event.data.object as unknown as StudioSubscription);
       } else {
         await handleSubscriptionUpdated(event.data.object);
@@ -702,7 +712,9 @@ export async function POST(req: Request) {
     }
 
     if (event.type === "customer.subscription.deleted") {
-      if (event.data.object.metadata?.studio_id) {
+      if (event.data.object.metadata?.studio_rent_member_id) {
+        await handleRentSubscriptionChanged(event.data.object as unknown as StudioSubscription, { deleted: true });
+      } else if (event.data.object.metadata?.studio_id) {
         await handleStudioSubscriptionChanged(event.data.object as unknown as StudioSubscription, { deleted: true });
       } else {
         await handleSubscriptionDeleted(event.data.object);
@@ -836,6 +848,18 @@ async function handleInvoicePaymentFailed(subscriptionId: string) {
     return;
   }
 
+  // A pro's booth rent payment failed.
+  const { data: renter } = await supabase
+    .from("studio_members")
+    .select("id")
+    .eq("rent_subscription_id", subscriptionId)
+    .maybeSingle();
+
+  if (renter) {
+    await supabase.from("studio_members").update({ rent_status: "past_due" }).eq("id", renter.id);
+    return;
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("id")
@@ -897,4 +921,39 @@ async function handleStudioSubscriptionChanged(
     .eq("id", studioId);
 
   await syncStudioMemberPlans(supabase, studioId);
+}
+
+// A pro's booth rent was set up, renewed, changed or ended.
+async function handleRentSubscriptionChanged(
+  subscription: StudioSubscription,
+  options: { deleted?: boolean; fromCheckout?: boolean } = {}
+) {
+  const supabase = getServiceSupabase();
+  const memberId = subscription.metadata?.studio_rent_member_id;
+  if (!memberId) return;
+
+  const { data: member } = await supabase
+    .from("studio_members")
+    .select("id, rent_subscription_id")
+    .eq("id", memberId)
+    .maybeSingle();
+  if (!member) return;
+
+  // Ignore events from a rent subscription that's since been replaced.
+  if (!options.fromCheckout && member.rent_subscription_id && member.rent_subscription_id !== subscription.id) return;
+
+  const periodEnd = subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end;
+
+  await supabase
+    .from("studio_members")
+    .update(
+      options.deleted
+        ? { rent_subscription_id: null, rent_status: "canceled", rent_current_period_end: null }
+        : {
+            rent_subscription_id: subscription.id,
+            rent_status: subscription.status,
+            rent_current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+          }
+    )
+    .eq("id", member.id);
 }

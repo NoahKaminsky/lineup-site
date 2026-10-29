@@ -69,3 +69,9 @@ export function commissionPercentFor(profile: {
   const live = profile?.subscription_status === "active" || profile?.subscription_status === "trialing";
   return live && profile?.subscription_plan === "master" ? MASTER_COMMISSION_PERCENT : STANDARD_COMMISSION_PERCENT;
 }
+
+// Booth rent is a card subscription the pro pays, sent on to the shop.
+// LineUp is charged Stripe's fee on it (2.9% + 30¢), so this much of each
+// rent payment covers that; 3.2% matches Stripe's fee on a $100 payment
+// and covers it fully on anything larger. The shop gets the rest.
+export const RENT_PROCESSING_FEE_PERCENT = 3.2;

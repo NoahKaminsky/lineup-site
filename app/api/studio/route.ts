@@ -98,27 +98,54 @@ export async function GET(req: Request) {
             m.status === "invited" && !!m.invite_expires_at && Date.parse(m.invite_expires_at) < Date.now(),
           commissionOverride: canManage || m.id === me.id ? (m.commission_percent === null ? null : Number(m.commission_percent)) : null,
           effectiveCut: canManage || m.id === me.id ? effectiveCutPercent(studio, m) : null,
+          ...(canManage || m.id === me.id
+            ? {
+                arrangement: m.arrangement,
+                rentCents: m.rent_cents,
+                rentInterval: m.rent_interval,
+                rentStatus: m.rent_status,
+                rentPaidUntil: m.rent_current_period_end,
+              }
+            : { arrangement: null, rentCents: null, rentInterval: null, rentStatus: null, rentPaidUntil: null }),
           joinedAt: m.joined_at,
         };
       });
 
     let schedule: unknown[] = [];
+    let services: Record<string, { id: string; name: string; durationMinutes: number; priceCents: number | null }[]> = {};
     let earnings: unknown = null;
     let payouts: { connected: boolean; ready: boolean } | null = null;
 
-    if (canManage && activeIds.length) {
-      const today = new Date();
-      const end = new Date(today.getTime() + (SCHEDULE_DAYS - 1) * 86_400_000);
+    // Owners and managers see the whole team's day; members see their own.
+    const scheduleIds = canManage ? activeIds : me.profile_id ? [me.profile_id] : [];
 
-      const { data: bookings } = await supabase
-        .from("bookings")
-        .select("id, professional_id, customer_id, booking_date, start_time, end_time, status, service_name, source")
-        .in("professional_id", activeIds)
-        .gte("booking_date", dateKey(today))
-        .lte("booking_date", dateKey(end))
-        .in("status", ["confirmed", "completion_requested", "completed"])
-        .order("booking_date", { ascending: true })
-        .order("start_time", { ascending: true });
+    if (scheduleIds.length) {
+      const today = new Date();
+      const from = dateKey(new Date(today.getTime() - 86_400_000)); // yesterday, for late check-offs
+      const to = dateKey(new Date(today.getTime() + (SCHEDULE_DAYS - 1) * 86_400_000));
+
+      const [{ data: bookings }, { data: frontDesk }, { data: serviceRows }] = await Promise.all([
+        supabase
+          .from("bookings")
+          .select("id, professional_id, customer_id, booking_date, start_time, end_time, status, service_name, source")
+          .in("professional_id", scheduleIds)
+          .gte("booking_date", from)
+          .lte("booking_date", to)
+          .in("status", ["confirmed", "completion_requested", "completed"]),
+        supabase
+          .from("shop_appointments")
+          .select("id, professional_id, kind, client_name, client_phone, service_name, appointment_date, start_time, end_time, price_cents, status, note")
+          .eq("studio_id", studio.id)
+          .in("professional_id", scheduleIds)
+          .gte("appointment_date", from)
+          .lte("appointment_date", to)
+          .neq("status", "cancelled"),
+        supabase
+          .from("professional_services")
+          .select("id, professional_id, service_name, duration_minutes, price")
+          .in("professional_id", scheduleIds)
+          .eq("is_active", true),
+      ]);
 
       const customerIds = [...new Set((bookings || []).map((b) => b.customer_id).filter(Boolean))];
       const { data: customers } = customerIds.length
@@ -126,32 +153,79 @@ export async function GET(req: Request) {
         : { data: [] };
       const customerMap = new Map((customers || []).map((c) => [c.id, c.full_name]));
 
-      schedule = (bookings || []).map((b) => ({
-        id: b.id,
-        professionalId: b.professional_id,
-        date: b.booking_date,
-        start: String(b.start_time).slice(0, 5),
-        end: String(b.end_time).slice(0, 5),
-        status: b.status,
-        service: b.service_name,
-        source: b.source,
-        clientName: customerMap.get(b.customer_id) || null,
-      }));
+      schedule = [
+        ...(bookings || []).map((b) => ({
+          id: b.id,
+          kind: "online" as const,
+          professionalId: b.professional_id,
+          date: b.booking_date,
+          start: String(b.start_time).slice(0, 5),
+          end: String(b.end_time).slice(0, 5),
+          status: b.status,
+          service: b.service_name,
+          source: b.source,
+          clientName: customerMap.get(b.customer_id) || null,
+          clientPhone: null,
+          priceCents: null,
+          note: null,
+        })),
+        ...(frontDesk || []).map((a) => ({
+          id: a.id,
+          kind: a.kind as "walk_in" | "phone",
+          professionalId: a.professional_id,
+          date: a.appointment_date,
+          start: String(a.start_time).slice(0, 5),
+          end: String(a.end_time).slice(0, 5),
+          status: a.status,
+          service: a.service_name,
+          source: "front_desk",
+          clientName: a.client_name,
+          clientPhone: a.client_phone,
+          priceCents: a.price_cents,
+          note: a.note,
+        })),
+      ].sort((x, y) => (x.date + x.start).localeCompare(y.date + y.start));
 
-      // This month's numbers, per member.
-      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-      const { data: monthBookings } = await supabase
-        .from("bookings")
-        .select("professional_id, status, service_price, studio_cut_cents, stripe_studio_transfer_id")
-        .eq("studio_id", studio.id)
-        .gte("booking_date", dateKey(monthStart))
-        .in("status", ["confirmed", "completion_requested", "completed"]);
+      for (const row of serviceRows || []) {
+        const price = Number(String(row.price ?? "").replace(/[^0-9.]/g, ""));
+        (services[row.professional_id] ||= []).push({
+          id: row.id,
+          name: row.service_name,
+          durationMinutes: Number(row.duration_minutes) || 30,
+          priceCents: Number.isFinite(price) && price > 0 ? Math.round(price * 100) : null,
+        });
+      }
+    } else {
+      services = {};
+    }
 
-      const byMember: Record<string, { bookings: number; salesCents: number; shopCutCents: number }> = {};
+    if (canManage && activeIds.length) {
+      // This month's numbers, per member: online bookings plus front desk.
+      const today = new Date();
+      const monthStart = dateKey(new Date(today.getFullYear(), today.getMonth(), 1));
+      const [{ data: monthBookings }, { data: monthFrontDesk }] = await Promise.all([
+        supabase
+          .from("bookings")
+          .select("professional_id, status, service_price, studio_cut_cents, stripe_studio_transfer_id")
+          .eq("studio_id", studio.id)
+          .gte("booking_date", monthStart)
+          .in("status", ["confirmed", "completion_requested", "completed"]),
+        supabase
+          .from("shop_appointments")
+          .select("professional_id, price_cents, shop_cut_cents")
+          .eq("studio_id", studio.id)
+          .gte("appointment_date", monthStart)
+          .eq("status", "completed"),
+      ]);
+
+      type MemberStats = { bookings: number; salesCents: number; shopCutCents: number; inShopSalesCents: number; inShopCutCents: number };
+      const byMember: Record<string, MemberStats> = {};
+      const blank = (): MemberStats => ({ bookings: 0, salesCents: 0, shopCutCents: 0, inShopSalesCents: 0, inShopCutCents: 0 });
       let paidCents = 0;
       let owedCents = 0;
+      let inShopCutCents = 0;
       for (const b of monthBookings || []) {
-        const row = (byMember[b.professional_id] ||= { bookings: 0, salesCents: 0, shopCutCents: 0 });
+        const row = (byMember[b.professional_id] ||= blank());
         row.bookings += 1;
         row.salesCents += Math.round(Number(b.service_price || 0) * 100);
         row.shopCutCents += Number(b.studio_cut_cents || 0);
@@ -160,7 +234,14 @@ export async function GET(req: Request) {
           else owedCents += Number(b.studio_cut_cents);
         }
       }
-      earnings = { byMember, paidCents, owedCents };
+      for (const a of monthFrontDesk || []) {
+        const row = (byMember[a.professional_id] ||= blank());
+        row.bookings += 1;
+        row.inShopSalesCents += Number(a.price_cents || 0);
+        row.inShopCutCents += Number(a.shop_cut_cents || 0);
+        inShopCutCents += Number(a.shop_cut_cents || 0);
+      }
+      earnings = { byMember, paidCents, owedCents, inShopCutCents };
     }
 
     if (isOwner) {
@@ -190,6 +271,7 @@ export async function GET(req: Request) {
       },
       team,
       schedule,
+      services,
       earnings,
       payouts,
     });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
-import { getStudioForUser, parseCommissionPercent, syncMemberPlan, errorMessage } from "@/app/lib/studios";
+import { cancelRent, getStudioForUser, parseCommissionPercent, syncMemberPlan, errorMessage } from "@/app/lib/studios";
 
 // PATCH  /api/studio/members { memberId, commissionPercent?, role? }
 //   Owner only: a member's own commission split (null = studio default) and
@@ -13,7 +13,7 @@ async function loadTarget(supabase: ReturnType<typeof getServiceSupabase>, studi
   if (typeof memberId !== "string" || !memberId) return null;
   const { data } = await supabase
     .from("studio_members")
-    .select("id, studio_id, profile_id, role, status")
+    .select("id, studio_id, profile_id, role, status, rent_subscription_id")
     .eq("id", memberId)
     .eq("studio_id", studioId)
     .maybeSingle();
@@ -94,6 +94,9 @@ export async function DELETE(req: Request) {
         return NextResponse.json({ error: "Only the owner can remove a manager." }, { status: 403 });
       }
     }
+
+    // Leaving the shop ends their booth rent straight away.
+    await cancelRent(supabase, target, { immediately: true });
 
     const { error } = await supabase.from("studio_members").delete().eq("id", target.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

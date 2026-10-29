@@ -51,6 +51,7 @@ export const STUDIO_PLANS: Record<
       "Unlimited team members, one flat price",
       "Each pro gets their own login and Pro features",
       "Every member's schedule in one place",
+      "Front desk: book walk-ins and phone-ins, paid at the shop",
       "0% LineUp commission on your own clients",
       "Commission only on new clients LineUp sends you through requests",
     ],
@@ -61,6 +62,7 @@ export const STUDIO_PLANS: Record<
     features: [
       "Everything in Studio",
       "Set the shop's commission, for the whole team or per pro",
+      "Or charge booth rent, collected by card automatically",
       "The shop's cut is paid out to the shop automatically",
       "Shop earnings by member",
     ],
