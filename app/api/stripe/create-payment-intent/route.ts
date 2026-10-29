@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { commissionPercentFor } from "@/app/lib/commission";
+import { platformFeeCentsFor, splitBookingPayment } from "@/app/lib/commission";
+import { getStudioPricingForPro } from "@/app/lib/studios";
 import { getBookingWindows, getTimeOffDays } from "@/app/lib/busyTimes";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
@@ -282,11 +283,21 @@ async function handleDirectBookingIntent(req: Request, body: any) {
     );
   }
 
-  // Master pros pay a reduced commission.
-  const platformFeeCents = Math.round(amountCents * (commissionPercentFor(professional) / 100));
-  const depositAmountCents = Math.round(amountCents * (DEPOSIT_PERCENT / 100));
-  const professionalPayoutCents = amountCents - platformFeeCents;
-  const remainingPayoutCents = professionalPayoutCents - depositAmountCents;
+  // Master pros pay a reduced commission; studio members pay only card
+  // processing on their own clients, and their shop may take a cut.
+  const studioPricing = await getStudioPricingForPro(serviceSupabase, professionalId);
+  const { platformFeeCents, depositAmountCents, studioCutCents, professionalPayoutCents, remainingPayoutCents } =
+    splitBookingPayment({
+      amountCents,
+      platformFeeCents: platformFeeCentsFor({
+        amountCents,
+        source: "direct_booking",
+        inLiveStudio: studioPricing.inLiveStudio,
+        profile: professional,
+      }),
+      depositPercent: DEPOSIT_PERCENT,
+      studioCutPercent: studioPricing.cutPercent,
+    });
 
   const paymentIntent = await stripe.paymentIntents.create({
     amount: amountCents,
@@ -302,6 +313,8 @@ async function handleDirectBookingIntent(req: Request, body: any) {
       end_time: normalizedEnd,
       service_mode: mode,
       platform_fee_cents: String(platformFeeCents),
+      studio_id: studioPricing.studioId || "",
+      studio_cut_cents: String(studioCutCents),
       deposit_amount_cents: String(depositAmountCents),
       professional_payout_cents: String(professionalPayoutCents),
       remaining_payout_cents: String(remainingPayoutCents),
@@ -465,10 +478,21 @@ export async function POST(req: Request) {
       .select("subscription_plan, subscription_status")
       .eq("id", offer.professional_id)
       .maybeSingle();
-    const platformFeeCents = Math.round(amountCents * (commissionPercentFor(offerPro) / 100));
-    const depositAmountCents = Math.round(amountCents * (DEPOSIT_PERCENT / 100));
-    const professionalPayoutCents = amountCents - platformFeeCents;
-    const remainingPayoutCents = professionalPayoutCents - depositAmountCents;
+    // Request bookings are new clients LineUp found, so they pay the normal
+    // commission even for studio members; the shop's cut still applies.
+    const studioPricing = await getStudioPricingForPro(serviceSupabase, offer.professional_id);
+    const { platformFeeCents, depositAmountCents, studioCutCents, professionalPayoutCents, remainingPayoutCents } =
+      splitBookingPayment({
+        amountCents,
+        platformFeeCents: platformFeeCentsFor({
+          amountCents,
+          source: "request",
+          inLiveStudio: studioPricing.inLiveStudio,
+          profile: offerPro,
+        }),
+        depositPercent: DEPOSIT_PERCENT,
+        studioCutPercent: studioPricing.cutPercent,
+      });
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
@@ -483,6 +507,8 @@ export async function POST(req: Request) {
         customer_id: requestRow.client_id,
         professional_id: offer.professional_id,
         platform_fee_cents: String(platformFeeCents),
+        studio_id: studioPricing.studioId || "",
+        studio_cut_cents: String(studioCutCents),
         deposit_amount_cents: String(depositAmountCents),
         professional_payout_cents: String(professionalPayoutCents),
         remaining_payout_cents: String(remainingPayoutCents),

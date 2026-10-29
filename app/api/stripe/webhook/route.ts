@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
+import { studioPlanFromPriceId } from "@/app/lib/plans";
+import { syncMemberPlan, syncStudioMemberPlans } from "@/app/lib/studios";
 
 function timeToMinutes(timeString: string) {
   const [hours, minutes] = String(timeString).slice(0, 5).split(":").map(Number);
@@ -290,6 +292,11 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
         total_amount_cents: amountCents,
         deposit_amount_cents: depositAmountCents,
         platform_fee_cents: platformFeeCents,
+        // Only studio bookings carry these, so bookings keep working on a
+        // database where the studio migration hasn't been run yet.
+        ...(metadata.studio_id
+          ? { studio_id: metadata.studio_id, studio_cut_cents: Number(metadata.studio_cut_cents || 0) }
+          : {}),
         professional_payout_cents: professionalPayoutCents,
         remaining_payout_cents: remainingPayoutCents,
         payout_status: payoutStatus,
@@ -598,6 +605,11 @@ async function handleDirectBookingPaymentSucceeded(
         total_amount_cents: amountCents,
         deposit_amount_cents: depositAmountCents,
         platform_fee_cents: platformFeeCents,
+        // Only studio bookings carry these, so bookings keep working on a
+        // database where the studio migration hasn't been run yet.
+        ...(metadata.studio_id
+          ? { studio_id: metadata.studio_id, studio_cut_cents: Number(metadata.studio_cut_cents || 0) }
+          : {}),
         professional_payout_cents: professionalPayoutCents,
         remaining_payout_cents: remainingPayoutCents,
         payout_status: payoutStatus,
@@ -671,17 +683,30 @@ export async function POST(req: Request) {
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      if (session.mode === "subscription" && session.metadata?.supabase_user_id) {
+      if (session.mode === "subscription" && session.metadata?.studio_id) {
+        await handleStudioSubscriptionChanged(
+          (await stripe.subscriptions.retrieve(session.subscription as string)) as unknown as StudioSubscription,
+          { customerId: session.customer as string }
+        );
+      } else if (session.mode === "subscription" && session.metadata?.supabase_user_id) {
         await handleSubscriptionCheckoutCompleted(session);
       }
     }
 
     if (event.type === "customer.subscription.updated") {
-      await handleSubscriptionUpdated(event.data.object);
+      if (event.data.object.metadata?.studio_id) {
+        await handleStudioSubscriptionChanged(event.data.object as unknown as StudioSubscription);
+      } else {
+        await handleSubscriptionUpdated(event.data.object);
+      }
     }
 
     if (event.type === "customer.subscription.deleted") {
-      await handleSubscriptionDeleted(event.data.object);
+      if (event.data.object.metadata?.studio_id) {
+        await handleStudioSubscriptionChanged(event.data.object as unknown as StudioSubscription, { deleted: true });
+      } else {
+        await handleSubscriptionDeleted(event.data.object);
+      }
     }
 
     if (event.type === "invoice.payment_failed") {
@@ -738,6 +763,10 @@ async function handleSubscriptionCheckoutCompleted(session: any) {
         : {}),
     })
     .eq("id", userId);
+
+  // Their own paid plan from here on, not one granted by a studio. (Separate
+  // write so it's harmless on a database without the studio migration.)
+  await supabase.from("profiles").update({ plan_source: null }).eq("id", userId).eq("plan_source", "studio");
 }
 
 async function handleSubscriptionUpdated(subscription: any) {
@@ -765,6 +794,9 @@ async function handleSubscriptionUpdated(subscription: any) {
         : { direct_booking_enabled: false, public_availability_enabled: false }),
     })
     .eq("id", userId);
+
+  // A studio member whose own plan just lapsed falls back to the studio's.
+  await syncMemberPlan(supabase, userId);
 }
 
 async function handleSubscriptionDeleted(subscription: any) {
@@ -783,10 +815,26 @@ async function handleSubscriptionDeleted(subscription: any) {
       public_availability_enabled: false,
     })
     .eq("id", userId);
+
+  await syncMemberPlan(supabase, userId);
 }
 
 async function handleInvoicePaymentFailed(subscriptionId: string) {
   const supabase = getServiceSupabase();
+
+  // A studio's payment failed: the shop is past due, and so is every
+  // member's studio-granted plan.
+  const { data: studio } = await supabase
+    .from("studios")
+    .select("id")
+    .eq("stripe_subscription_id", subscriptionId)
+    .maybeSingle();
+
+  if (studio) {
+    await supabase.from("studios").update({ subscription_status: "past_due" }).eq("id", studio.id);
+    await syncStudioMemberPlans(supabase, studio.id);
+    return;
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -800,4 +848,53 @@ async function handleInvoicePaymentFailed(subscriptionId: string) {
     .from("profiles")
     .update({ subscription_status: "past_due" })
     .eq("id", profile.id);
+}
+
+// A studio's subscription was bought, changed, renewed or cancelled. The
+// studio row records it, then every member's studio-granted plan follows.
+type StudioSubscription = {
+  id: string;
+  status: string;
+  metadata?: Record<string, string> | null;
+  // Older Stripe API versions put the period end on the subscription, newer
+  // ones on each item; read either.
+  current_period_end?: number;
+  items?: { data?: { price?: { id?: string }; current_period_end?: number }[] };
+};
+
+async function handleStudioSubscriptionChanged(
+  subscription: StudioSubscription,
+  options: { deleted?: boolean; customerId?: string } = {}
+) {
+  const supabase = getServiceSupabase();
+  const studioId = subscription.metadata?.studio_id;
+  if (!studioId) return;
+
+  // Ignore late events from a subscription the shop has already replaced
+  // (e.g. the old one's "deleted" arriving after they re-subscribed).
+  if (!options.customerId) {
+    const { data: current } = await supabase
+      .from("studios")
+      .select("stripe_subscription_id")
+      .eq("id", studioId)
+      .maybeSingle();
+    if (current?.stripe_subscription_id && current.stripe_subscription_id !== subscription.id) return;
+  }
+
+  const plan = options.deleted ? null : studioPlanFromPriceId(subscription.items?.data?.[0]?.price?.id);
+  const periodEnd = subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end;
+
+  await supabase
+    .from("studios")
+    .update({
+      plan,
+      subscription_status: options.deleted ? "canceled" : subscription.status,
+      stripe_subscription_id: options.deleted ? null : subscription.id,
+      subscription_current_period_end:
+        !options.deleted && periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+      ...(options.customerId ? { stripe_customer_id: options.customerId } : {}),
+    })
+    .eq("id", studioId);
+
+  await syncStudioMemberPlans(supabase, studioId);
 }

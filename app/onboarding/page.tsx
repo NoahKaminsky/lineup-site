@@ -30,6 +30,8 @@ export default function OnboardingPage() {
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [professionalTypes, setProfessionalTypes] = useState<string[]>([]);
+  // "I run a shop or studio": after setup they land on /studio to create it.
+  const [runsStudio, setRunsStudio] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
@@ -202,7 +204,17 @@ export default function OnboardingPage() {
     // Customers who came from a booking link go straight back to it.
     // A short "you're in" before moving on — the same hold the moment's
     // hairline fills over.
-    const destination = role === "professional" ? "/verification" : takeReturnTo() || "/requests";
+    // A pro who came from a studio invite goes back to accept it; a shop
+    // owner goes to set up their studio.
+    const returnPath = takeReturnTo();
+    const destination =
+      role === "professional"
+        ? returnPath?.startsWith("/studio")
+          ? returnPath
+          : runsStudio
+          ? "/studio"
+          : "/verification"
+        : returnPath || "/requests";
     setWelcomeMoment(role === "professional" ? "professional" : "customer");
     window.setTimeout(() => router.push(destination), 1500);
   }
@@ -218,7 +230,13 @@ export default function OnboardingPage() {
         status="done"
         workingTitle=""
         title="You’re in."
-        subtitle={welcomeMoment === "professional" ? "One quick step: get verified." : "Welcome to LineUp."}
+        subtitle={
+          welcomeMoment === "professional"
+            ? runsStudio
+              ? "Next: set up your studio."
+              : "One quick step: get verified."
+            : "Welcome to LineUp."
+        }
         holdMs={1500}
       />
     ) : null}
@@ -397,6 +415,33 @@ export default function OnboardingPage() {
                   })}
                 </div>
               </div>
+            ) : null}
+
+            {role === "professional" ? (
+              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
+                <input
+                  type="checkbox"
+                  checked={runsStudio}
+                  onChange={(e) => setRunsStudio(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <span
+                  aria-hidden="true"
+                  className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink ${
+                    runsStudio ? "border-ink bg-ink" : "border-neutral-300 bg-white"
+                  }`}
+                >
+                  {runsStudio ? (
+                    <svg viewBox="0 0 10 8" className="h-2.5 w-2.5" fill="none">
+                      <path d="M1 4l2.5 2.5L9 1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  ) : null}
+                </span>
+                <span className="text-sm leading-6 text-neutral-700">
+                  <span className="font-semibold text-neutral-900">I run a shop or studio.</span> Set up a studio
+                  account next, then invite your team.
+                </span>
+              </label>
             ) : null}
 
             {/* Phone / text alerts — hidden for now in favor of push

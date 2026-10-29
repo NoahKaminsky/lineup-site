@@ -73,6 +73,9 @@ export async function completeBooking(
     await releaseRemainingPayout(supabase, booking, trigger);
   }
 
+  // The shop's cut, for pros on a studio's team.
+  await releaseStudioCut(supabase, booking.id, trigger);
+
   // Best-effort — reviews are the only way this platform builds trust, and
   // right now nothing ever prompts a customer to leave one unless they
   // happen to come back to this exact booking on their own. A failure here
@@ -272,5 +275,84 @@ export async function retryPendingPayouts() {
     await releaseRemainingPayout(supabase, booking, "auto");
     retried += 1;
   }
+
+  // Shop cuts that couldn't be paid yet (usually: the shop hadn't connected
+  // its payout account). Errors just mean the studio migration isn't run.
+  const { data: owedToStudios } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("status", "completed")
+    .gt("studio_cut_cents", 0)
+    .is("stripe_studio_transfer_id", null)
+    .limit(200);
+
+  for (const booking of owedToStudios || []) {
+    await releaseStudioCut(supabase, booking.id, "auto");
+    retried += 1;
+  }
+
   return retried;
+}
+
+
+// Pays a studio its cut of a completed booking, into the shop's own Stripe
+// account. The cut was set aside when the client paid (it's never part of the
+// pro's payout), so this can't take money from the pro. Safe to call more
+// than once: it checks the booking first and uses an idempotency key, so a
+// race between the manual confirm and the cron can't pay the shop twice.
+export async function releaseStudioCut(
+  supabase: ReturnType<typeof getServiceSupabase>,
+  bookingId: string,
+  trigger: "manual" | "auto"
+) {
+  const { data: booking, error } = await supabase
+    .from("bookings")
+    .select("id, status, studio_id, studio_cut_cents, stripe_studio_transfer_id, stripe_charge_id")
+    .eq("id", bookingId)
+    .maybeSingle();
+
+  // An error here means the studio columns don't exist yet: nothing to pay.
+  if (error || !booking) return;
+  if (booking.status !== "completed") return;
+  if (!booking.studio_id || booking.stripe_studio_transfer_id) return;
+
+  const amount = Number(booking.studio_cut_cents || 0);
+  if (amount <= 0) return;
+
+  const { data: studio } = await supabase
+    .from("studios")
+    .select("id, stripe_account_id")
+    .eq("id", booking.studio_id)
+    .maybeSingle();
+
+  // Kept owed until the shop connects its payout account; the daily cron retries.
+  if (!studio?.stripe_account_id) return;
+
+  try {
+    const transfer = await stripe.transfers.create(
+      {
+        amount,
+        currency: "cad",
+        destination: studio.stripe_account_id,
+        ...(booking.stripe_charge_id ? { source_transaction: booking.stripe_charge_id } : {}),
+        transfer_group: `booking_${booking.id}`,
+        metadata: {
+          flow_type: "studio_cut",
+          booking_id: booking.id,
+          studio_id: studio.id,
+          trigger,
+        },
+      },
+      // Per day, so a failed attempt (cached by Stripe for 24h) can be
+      // retried by the next day's cron.
+      { idempotencyKey: `studio_cut_${booking.id}_${new Date().toISOString().slice(0, 10)}` }
+    );
+
+    await supabase
+      .from("bookings")
+      .update({ stripe_studio_transfer_id: transfer.id })
+      .eq("id", booking.id);
+  } catch (transferError) {
+    console.error(`Studio cut transfer failed for booking ${booking.id}:`, transferError);
+  }
 }
