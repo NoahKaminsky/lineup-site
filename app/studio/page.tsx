@@ -1647,7 +1647,7 @@ function MembershipsView({ data, busy, run, setNotice }: Omit<SectionProps, "rel
                     <p className="text-xs text-neutral-500">
                       {m.planName} ·{" "}
                       {m.visitsIncluded === null
-                        ? `${m.visitsUsed} visits this month`
+                        ? `${m.visitsUsed} ${m.visitsUsed === 1 ? "visit" : "visits"} this month`
                         : `${m.visitsUsed} of ${m.visitsIncluded} visits used`}
                       {m.lastVisit
                         ? ` · last in ${new Date(m.lastVisit).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}`
