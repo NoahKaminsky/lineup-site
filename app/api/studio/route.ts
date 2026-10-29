@@ -11,6 +11,8 @@ import {
   type StudioMemberRow,
   type StudioRow,
   errorMessage,
+  uniqueStudioSlug,
+  STUDIO_MIN_PROS,
 } from "@/app/lib/studios";
 
 // GET  /api/studio  — everything the /studio page shows for the signed-in user.
@@ -265,9 +267,13 @@ export async function GET(req: Request) {
         plan: studio.plan,
         subscriptionStatus: studio.subscription_status,
         live: isStudioLive(studio),
+        coversTeam: isStudioLive(studio) && activeIds.length >= STUDIO_MIN_PROS,
+        minPros: STUDIO_MIN_PROS,
         periodEnd: studio.subscription_current_period_end,
         commissionPercent: Number(studio.commission_percent),
         hasBilling: !!studio.stripe_customer_id,
+        slug: studio.slug,
+        tagline: studio.tagline,
       },
       team,
       schedule,
@@ -310,7 +316,7 @@ export async function POST(req: Request) {
 
     const { data: studio, error: studioError } = await supabase
       .from("studios")
-      .insert({ name, owner_id: user.id })
+      .insert({ name, owner_id: user.id, slug: await uniqueStudioSlug(supabase, name) })
       .select(STUDIO_COLUMNS)
       .single<StudioRow>();
 

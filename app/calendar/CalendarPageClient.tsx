@@ -9,7 +9,12 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { getCached, setCached } from "@/app/lib/pageCache";
-import { calendarStatusFilter } from "@/app/lib/calendarBookings";
+import {
+  FRONT_DESK_COLUMNS,
+  calendarStatusFilter,
+  frontDeskAsCalendarBooking,
+  type FrontDeskRow,
+} from "@/app/lib/calendarBookings";
 import type { CalendarInitialData } from "./getInitialData";
 
 import { ChevronLeft, ChevronRight, MapPin, Moon, Sun } from "lucide-react";
@@ -44,6 +49,8 @@ type BookingRow = {
 type CalendarBooking = BookingRow & {
   client_name: string | null;
   client_avatar_url: string | null;
+  // Set on walk-ins/phone-ins booked at a studio's front desk.
+  front_desk?: { kind: "walk_in" | "phone"; clientPhone: string | null; priceCents: number | null };
 };
 
 type CalendarCache = {
@@ -212,7 +219,7 @@ function BookingCard({
 
   return (
     <Link
-      href={`/bookings/${booking.id}`}
+      href={booking.front_desk ? "/studio" : `/bookings/${booking.id}`}
       className={`group block rounded-xl border border-hairline bg-surface transition-[border-color,box-shadow] duration-200 hover:border-neutral-300 hover:shadow-[0_10px_28px_-18px_rgba(0,0,0,0.25)] ${
         compact ? "p-3.5" : "p-4"
       }`}
@@ -248,13 +255,19 @@ function BookingCard({
                   : "bg-neutral-100 text-ink"
               }`}
             >
-              {formatStatusLabel(booking.status)}
+              {booking.front_desk
+                ? booking.front_desk.kind === "phone"
+                  ? "Phone-in"
+                  : "Walk-in"
+                : formatStatusLabel(booking.status)}
             </span>
           </div>
 
           <p className="mt-0.5 truncate text-[13px] tabular-nums text-neutral-500">
             {booking.client_name || "Unknown client"} · {formatShortDateLabel(booking.booking_date)} · {formatTime(booking.start_time)}–{formatTime(booking.end_time)}
             {metaParts.length > 0 ? ` · ${metaParts.join(" · ")}` : ""}
+            {booking.front_desk?.clientPhone ? ` · ${booking.front_desk.clientPhone}` : ""}
+            {booking.front_desk ? " · paid at the shop" : ""}
           </p>
 
           {displayAddress ? (
@@ -480,8 +493,21 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
         };
       });
 
-      setBookings(enriched);
-      setCached<CalendarCache>("calendar-page", { role: userRole ?? "", bookings: enriched, subscribed: subscribedNow });
+      // Walk-ins and phone-ins from the studio front desk, if they're on a
+      // studio's team (an error just means the studio tables don't exist yet).
+      const { data: frontDesk } = await supabase
+        .from("shop_appointments")
+        .select(FRONT_DESK_COLUMNS)
+        .eq("professional_id", user.id)
+        .eq("status", "booked")
+        .gte("appointment_date", getDateKey(new Date(Date.now() - 86_400_000)));
+      const withFrontDesk: CalendarBooking[] = [
+        ...enriched,
+        ...((frontDesk as FrontDeskRow[] | null) || []).map(frontDeskAsCalendarBooking),
+      ];
+
+      setBookings(withFrontDesk);
+      setCached<CalendarCache>("calendar-page", { role: userRole ?? "", bookings: withFrontDesk, subscribed: subscribedNow });
       setLoading(false);
       hasLoadedOnceRef.current = true;
     },
@@ -770,7 +796,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
             {dayBookings.map((booking) => (
               <li key={booking.id}>
                 <Link
-                  href={`/bookings/${booking.id}`}
+                  href={booking.front_desk ? "/studio" : `/bookings/${booking.id}`}
                   className="grid grid-cols-[46px_1fr] gap-3 px-4 py-3 transition-colors hover:bg-neutral-50"
                 >
                   <span className="pt-0.5 text-right tabular-nums">

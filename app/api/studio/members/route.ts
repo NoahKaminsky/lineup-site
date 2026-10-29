@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
-import { cancelRent, getStudioForUser, parseCommissionPercent, syncMemberPlan, errorMessage } from "@/app/lib/studios";
+import { cancelRent, getStudioForUser, parseCommissionPercent, syncMemberPlan, syncStudioMemberPlans, errorMessage } from "@/app/lib/studios";
 
 // PATCH  /api/studio/members { memberId, commissionPercent?, role? }
 //   Owner only: a member's own commission split (null = studio default) and
@@ -104,6 +104,8 @@ export async function DELETE(req: Request) {
     // They keep their LineUp account, profile and bookings; only the
     // studio-covered plan goes away.
     if (target.profile_id) await syncMemberPlan(supabase, target.profile_id);
+    // The rest of the team too: dropping below the minimum turns benefits off.
+    await syncStudioMemberPlans(supabase, ctx.studio.id);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

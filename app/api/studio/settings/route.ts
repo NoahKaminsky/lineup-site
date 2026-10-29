@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
-import { getStudioForUser, parseCommissionPercent, errorMessage } from "@/app/lib/studios";
+import { SLUG_RE, getStudioForUser, parseCommissionPercent, errorMessage } from "@/app/lib/studios";
 
 // PATCH /api/studio/settings { name?, commissionPercent? } — owner only.
 // The commission is the shop's default cut of each member's bookings; it
@@ -35,10 +35,30 @@ export async function PATCH(req: Request) {
       update.commission_percent = parsed;
     }
 
+    if (typeof body?.slug === "string") {
+      const slug = body.slug.trim().toLowerCase();
+      if (!SLUG_RE.test(slug) || slug.length < 3 || slug.length > 40) {
+        return NextResponse.json(
+          { error: "Your link can use lowercase letters, numbers and dashes (3 to 40 characters)." },
+          { status: 400 }
+        );
+      }
+      update.slug = slug;
+    }
+
+    if (typeof body?.tagline === "string") {
+      const tagline = body.tagline.trim().replace(/\s+/g, " ");
+      if (tagline.length > 160) return NextResponse.json({ error: "Keep the tagline under 160 characters." }, { status: 400 });
+      update.tagline = tagline || null;
+    }
+
     if (!Object.keys(update).length) return NextResponse.json({ ok: true });
 
     const { error } = await supabase.from("studios").update(update).eq("id", ctx.studio.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      if (error.code === "23505") return NextResponse.json({ error: "That link is taken. Try another." }, { status: 409 });
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

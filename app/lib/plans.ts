@@ -48,7 +48,7 @@ export const STUDIO_PLANS: Record<
     label: "Studio",
     priceLabel: "$39",
     features: [
-      "Unlimited team members, one flat price",
+      "For teams of 2 or more, one flat price, no cap on team size",
       "Each pro gets their own login and Pro features",
       "Every member's schedule in one place",
       "Front desk: book walk-ins and phone-ins, paid at the shop",

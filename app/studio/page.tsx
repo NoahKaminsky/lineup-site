@@ -60,6 +60,10 @@ type StudioData = {
     periodEnd: string | null;
     commissionPercent: number;
     hasBilling: boolean;
+    slug: string | null;
+    tagline: string | null;
+    coversTeam: boolean;
+    minPros: number;
   };
   me?: { memberId: string; role: TeamMember["role"]; canManage: boolean; isOwner: boolean };
   team?: TeamMember[];
@@ -192,6 +196,13 @@ export default function StudioPage() {
         ) : (
           <>
             <StudioHeader data={data} />
+            {data.studio.live && !data.studio.coversTeam && data.me?.canManage ? (
+              <p className="mt-6 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">
+                Invite at least one more pro to switch on team benefits: Pro features for everyone and no LineUp
+                commission on your own clients. Studios start at {data.studio.minPros} pros.
+              </p>
+            ) : null}
+            {data.studio.slug ? <ShopLinkCard slug={data.studio.slug} canEdit={!!data.me?.isOwner} onEdit={() => setTab("settings")} /> : null}
 
             {data.me?.canManage && !data.studio.live ? (
               <PlanPicker
@@ -280,6 +291,45 @@ function StudioHeader({ data }: { data: StudioData }) {
         </span>
         {data.me ? (
           <span className="text-neutral-500">You&apos;re the {roleLabel(data.me.role).toLowerCase()}</span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// The shop's one public booking link, to post on Instagram, Google and the door.
+function ShopLinkCard({ slug, canEdit, onEdit }: { slug: string; canEdit: boolean; onEdit: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const url = `${typeof window !== "undefined" ? window.location.origin : "https://lineup-aesthetics.ca"}/shop/${slug}`;
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt("Copy your booking link", url);
+    }
+  }
+
+  return (
+    <div className={`${card} mt-6 flex flex-col gap-3 p-5 sm:flex-row sm:items-center`}>
+      <div className="min-w-0 flex-1">
+        <p className={eyebrow}>Your shop&apos;s booking link</p>
+        <p className="mt-1.5 truncate text-sm font-medium text-ink">{url.replace(/^https?:\/\//, "")}</p>
+        <p className="mt-0.5 text-xs text-neutral-500">Put it in your Instagram bio and Google listing. Clients pick a pro and book.</p>
+      </div>
+      <div className="flex shrink-0 gap-2">
+        <button type="button" onClick={copy} className={primaryButton}>
+          {copied ? "Copied" : "Copy link"}
+        </button>
+        <a href={`/shop/${slug}`} target="_blank" rel="noreferrer" className={secondaryButton}>
+          View
+        </a>
+        {canEdit ? (
+          <button type="button" onClick={onEdit} className="px-2 text-sm font-medium text-neutral-500 hover:text-ink">
+            Edit
+          </button>
         ) : null}
       </div>
     </div>
@@ -1398,6 +1448,8 @@ function SettingsView({
   const studio = data!.studio!;
   const payouts = data!.payouts;
   const [name, setName] = useState(studio.name);
+  const [slug, setSlug] = useState(studio.slug || "");
+  const [tagline, setTagline] = useState(studio.tagline || "");
   const [commission, setCommission] = useState(String(studio.commissionPercent));
 
   async function save(e: React.FormEvent) {
@@ -1405,7 +1457,7 @@ function SettingsView({
     await run("settings", async () => {
       const res = await studioFetch("/api/studio/settings", {
         method: "PATCH",
-        body: { name, commissionPercent: commission === "" ? 0 : Number(commission) },
+        body: { name, slug, tagline, commissionPercent: commission === "" ? 0 : Number(commission) },
       });
       if (!res.ok) {
         setNotice({ tone: "error", text: res.data.error || "Could not save settings." });
@@ -1430,6 +1482,40 @@ function SettingsView({
             maxLength={80}
             value={name}
             onChange={(e) => setName(e.target.value)}
+            className={input}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="settings-slug" className="mb-2 block text-sm font-medium text-neutral-800">
+            Booking page link
+          </label>
+          <div className="flex items-center rounded-xl border border-neutral-200 bg-neutral-50 pl-4 text-sm focus-within:border-ink focus-within:bg-white">
+            <span className="shrink-0 text-neutral-400">lineup-aesthetics.ca/shop/</span>
+            <input
+              id="settings-slug"
+              required
+              minLength={3}
+              maxLength={40}
+              pattern="[a-z0-9]+(-[a-z0-9]+)*"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+              className="min-w-0 flex-1 bg-transparent py-3 pr-4 outline-none"
+            />
+          </div>
+          <p className="mt-2 text-xs text-neutral-500">Changing it breaks the old link anywhere you&apos;ve posted it.</p>
+        </div>
+
+        <div>
+          <label htmlFor="settings-tagline" className="mb-2 block text-sm font-medium text-neutral-800">
+            Tagline <span className="font-normal text-neutral-400">(on your booking page)</span>
+          </label>
+          <input
+            id="settings-tagline"
+            maxLength={160}
+            value={tagline}
+            onChange={(e) => setTagline(e.target.value)}
+            placeholder="e.g. Fades, beards and hot towel shaves in the Exchange District"
             className={input}
           />
         </div>
