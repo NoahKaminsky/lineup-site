@@ -52,6 +52,16 @@ export async function PATCH(req: Request) {
       update.tagline = tagline || null;
     }
 
+    if (typeof body?.payAtShop === "boolean") update.pay_at_shop_enabled = body.payAtShop;
+
+    if ("noShowFeePercent" in (body || {})) {
+      const pct = Math.round(Number(body.noShowFeePercent));
+      if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+        return NextResponse.json({ error: "No-show fee must be between 0% and 100% of the price." }, { status: 400 });
+      }
+      update.no_show_fee_percent = pct;
+    }
+
     if (!Object.keys(update).length) return NextResponse.json({ ok: true });
 
     const { error } = await supabase.from("studios").update(update).eq("id", ctx.studio.id);

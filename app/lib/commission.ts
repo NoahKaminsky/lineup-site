@@ -75,3 +75,7 @@ export function commissionPercentFor(profile: {
 // rent payment covers that; 3.2% matches Stripe's fee on a $100 payment
 // and covers it fully on anything larger. The shop gets the rest.
 export const RENT_PROCESSING_FEE_PERCENT = 3.2;
+
+// No-show fees on "pay at the shop" bookings: LineUp keeps this share (it
+// pays Stripe's fee on the charge out of it); the rest goes to the pro.
+export const NO_SHOW_LINEUP_PERCENT = 10;

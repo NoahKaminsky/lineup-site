@@ -129,7 +129,7 @@ export async function GET(req: Request) {
       const [{ data: bookings }, { data: frontDesk }, { data: serviceRows }] = await Promise.all([
         supabase
           .from("bookings")
-          .select("id, professional_id, customer_id, booking_date, start_time, end_time, status, service_name, source")
+          .select("id, professional_id, customer_id, booking_date, start_time, end_time, status, service_name, source, payment_status, service_price")
           .in("professional_id", scheduleIds)
           .gte("booking_date", from)
           .lte("booking_date", to)
@@ -166,9 +166,10 @@ export async function GET(req: Request) {
           status: b.status,
           service: b.service_name,
           source: b.source,
+          payAtShop: b.payment_status === "pay_at_shop",
           clientName: customerMap.get(b.customer_id) || null,
           clientPhone: null,
-          priceCents: null,
+          priceCents: b.payment_status === "pay_at_shop" && b.service_price ? Math.round(Number(b.service_price) * 100) : null,
           note: null,
         })),
         ...(frontDesk || []).map((a) => ({
@@ -181,6 +182,7 @@ export async function GET(req: Request) {
           status: a.status,
           service: a.service_name,
           source: "front_desk",
+          payAtShop: true,
           clientName: a.client_name,
           clientPhone: a.client_phone,
           priceCents: a.price_cents,
@@ -246,6 +248,13 @@ export async function GET(req: Request) {
       earnings = { byMember, paidCents, owedCents, inShopCutCents };
     }
 
+    // Separate query: errors just mean the pay-at-shop migration hasn't run.
+    const { data: payAtShop } = await supabase
+      .from("studios")
+      .select("pay_at_shop_enabled, no_show_fee_percent")
+      .eq("id", studio.id)
+      .maybeSingle();
+
     if (isOwner) {
       payouts = { connected: !!studio.stripe_account_id, ready: false };
       if (studio.stripe_account_id) {
@@ -274,6 +283,8 @@ export async function GET(req: Request) {
         hasBilling: !!studio.stripe_customer_id,
         slug: studio.slug,
         tagline: studio.tagline,
+        payAtShop: !!payAtShop?.pay_at_shop_enabled,
+        noShowFeePercent: payAtShop ? Number(payAtShop.no_show_fee_percent) : 50,
       },
       team,
       schedule,

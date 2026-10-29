@@ -40,6 +40,7 @@ type ScheduleItem = {
   status: string;
   service: string | null;
   source: string | null;
+  payAtShop: boolean;
   clientName: string | null;
   clientPhone: string | null;
   priceCents: number | null;
@@ -62,6 +63,8 @@ type StudioData = {
     hasBilling: boolean;
     slug: string | null;
     tagline: string | null;
+    payAtShop: boolean;
+    noShowFeePercent: number;
     coversTeam: boolean;
     minPros: number;
   };
@@ -521,6 +524,19 @@ function ScheduleView({ data, busy, run, setNotice, reload }: SectionProps) {
   }, {});
   const days = Object.keys(byDay).sort();
 
+  async function markOnlineNoShow(item: ScheduleItem) {
+    if (!window.confirm(`Mark ${item.clientName || "this client"} as a no-show? Their card is charged the no-show fee.`)) return;
+    await run(`ns-${item.id}`, async () => {
+      const res = await studioFetch<{ message?: string }>("/api/bookings/no-show", { method: "POST", body: { bookingId: item.id } });
+      if (!res.ok) {
+        setNotice({ tone: "error", text: res.data.error || "Could not mark the no-show." });
+        return;
+      }
+      setNotice({ tone: "success", text: res.data.message || "Marked as a no-show." });
+      await reload();
+    });
+  }
+
   async function setStatus(item: ScheduleItem, status: string, label: string) {
     if (status === "cancelled" && !window.confirm(`Cancel ${item.clientName || "this"} appointment? The time opens up again.`)) return;
     await run(`fd-${item.id}`, async () => {
@@ -610,7 +626,7 @@ function ScheduleView({ data, busy, run, setNotice, reload }: SectionProps) {
                         {b.service || "Booking"}
                         {b.clientName ? <span className="text-neutral-500"> with {b.clientName}</span> : null}
                         {b.clientPhone ? <span className="text-neutral-500"> · {b.clientPhone}</span> : null}
-                        {frontDesk && b.priceCents !== null ? (
+                        {b.priceCents !== null ? (
                           <span className="text-neutral-500"> · {formatCad(b.priceCents)} at the shop</span>
                         ) : null}
                         {b.note ? <span className="mt-0.5 block text-xs text-neutral-500">{b.note}</span> : null}
@@ -626,7 +642,7 @@ function ScheduleView({ data, busy, run, setNotice, reload }: SectionProps) {
                           </span>
                         ) : (
                           <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
-                            Paid online
+                            {b.payAtShop ? "Pay at shop" : "Paid online"}
                           </span>
                         )}
                         {b.status === "completed" ? (
@@ -637,6 +653,20 @@ function ScheduleView({ data, busy, run, setNotice, reload }: SectionProps) {
                           <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
                             Finishing up
                           </span>
+                        ) : null}
+                        {!frontDesk &&
+                        b.payAtShop &&
+                        b.status === "confirmed" &&
+                        (me.canManage || b.professionalId === myProfileId) &&
+                        Date.now() >= new Date(`${b.date}T${b.start}:00`).getTime() + 15 * 60_000 ? (
+                          <button
+                            type="button"
+                            disabled={!!busy}
+                            onClick={() => markOnlineNoShow(b)}
+                            className="rounded-full px-2 py-1 text-xs font-medium text-neutral-500 hover:text-red-700"
+                          >
+                            No-show
+                          </button>
                         ) : null}
                         {frontDesk && b.status === "booked" && (me.canManage || b.professionalId === myProfileId) ? (
                           <>
@@ -1451,13 +1481,22 @@ function SettingsView({
   const [slug, setSlug] = useState(studio.slug || "");
   const [tagline, setTagline] = useState(studio.tagline || "");
   const [commission, setCommission] = useState(String(studio.commissionPercent));
+  const [payAtShop, setPayAtShop] = useState(studio.payAtShop);
+  const [noShowFee, setNoShowFee] = useState(String(studio.noShowFeePercent));
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     await run("settings", async () => {
       const res = await studioFetch("/api/studio/settings", {
         method: "PATCH",
-        body: { name, slug, tagline, commissionPercent: commission === "" ? 0 : Number(commission) },
+        body: {
+          name,
+          slug,
+          tagline,
+          commissionPercent: commission === "" ? 0 : Number(commission),
+          payAtShop,
+          noShowFeePercent: noShowFee === "" ? 0 : Number(noShowFee),
+        },
       });
       if (!res.ok) {
         setNotice({ tone: "error", text: res.data.error || "Could not save settings." });
@@ -1544,6 +1583,45 @@ function SettingsView({
             up to {STUDIO_MAX_COMMISSION_PERCENT}%.
             {studio.plan !== "studio_plus" || !studio.live ? " Takes effect on Studio Plus." : null}
           </p>
+        </div>
+
+        <div className="rounded-2xl bg-neutral-50 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={payAtShop}
+              onChange={(e) => setPayAtShop(e.target.checked)}
+              className="mt-1 h-4 w-4 accent-neutral-900"
+            />
+            <span className="text-sm leading-6 text-neutral-700">
+              <span className="font-semibold text-ink">Let clients pay at the shop.</span> They book online and save a card
+              instead of paying. Nothing is charged unless they don&apos;t show up.
+            </span>
+          </label>
+          {payAtShop ? (
+            <div className="mt-3 flex items-center gap-2 pl-7">
+              <label htmlFor="settings-no-show" className="text-sm text-neutral-700">
+                No-show fee
+              </label>
+              <input
+                id="settings-no-show"
+                type="number"
+                min={0}
+                max={100}
+                step={5}
+                value={noShowFee}
+                onChange={(e) => setNoShowFee(e.target.value)}
+                className="w-20 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm tabular-nums outline-none focus:border-ink"
+              />
+              <span className="text-sm text-neutral-500">% of the price</span>
+            </div>
+          ) : null}
+          {payAtShop ? (
+            <p className="mt-2 pl-7 text-xs leading-5 text-neutral-500">
+              The pro marks a no-show from the booking or this schedule, 15 minutes after the start time. The fee goes to
+              the pro, minus LineUp&apos;s 10%.
+            </p>
+          ) : null}
         </div>
 
         <button type="submit" disabled={!!busy} className={primaryButton}>

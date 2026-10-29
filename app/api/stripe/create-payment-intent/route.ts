@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { platformFeeCentsFor, splitBookingPayment } from "@/app/lib/commission";
 import { getStudioPricingForPro } from "@/app/lib/studios";
+import { startPayAtShopBooking } from "@/app/lib/payAtShop";
 import { getBookingWindows, getTimeOffDays, hasFrontDeskClash } from "@/app/lib/busyTimes";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
@@ -282,6 +283,22 @@ async function handleDirectBookingIntent(req: Request, body: any) {
       { error: "That professional already has a booking at this time." },
       { status: 409 }
     );
+  }
+
+  // "Pay at the shop": the client saves a card for no-show protection
+  // instead of paying now. Only for pros whose studio has turned it on.
+  if (body.payAtShop === true) {
+    return startPayAtShopBooking({
+      supabase: serviceSupabase,
+      user: { id: user.id, email: user.email ?? null },
+      professionalId,
+      serviceId: service.id,
+      amountCents,
+      date,
+      startTime: normalizedStart,
+      endTime: normalizedEnd,
+      mode,
+    });
   }
 
   // Master pros pay a reduced commission; studio members pay only card

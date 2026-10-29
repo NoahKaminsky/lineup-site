@@ -5,6 +5,7 @@ import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { studioPlanFromPriceId } from "@/app/lib/plans";
 import { syncMemberPlan, syncStudioMemberPlans } from "@/app/lib/studios";
 import { hasFrontDeskClash } from "@/app/lib/busyTimes";
+import { createPayAtShopBooking } from "@/app/lib/payAtShop";
 
 function timeToMinutes(timeString: string) {
   const [hours, minutes] = String(timeString).slice(0, 5).split(":").map(Number);
@@ -681,6 +682,16 @@ export async function POST(req: Request) {
           .update({ status: "pending" })
           .eq("id", paymentIntent.metadata.offer_id)
           .eq("status", "payment_pending");
+      }
+    }
+
+    // A client saved a card to book now and pay at the shop (backstop for
+    // when the page closed before it could make the booking itself).
+    if (event.type === "setup_intent.succeeded") {
+      const setupIntent = event.data.object;
+      if (setupIntent.metadata?.flow_type === "pay_at_shop_booking") {
+        const result = await createPayAtShopBooking(setupIntent.id);
+        if (!result.ok) console.error("Pay-at-shop booking from webhook not created:", result.error);
       }
     }
 
