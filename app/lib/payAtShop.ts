@@ -331,6 +331,7 @@ export async function markNoShow(bookingId: string, actorId: string): Promise<No
   await supabase.from("notifications").insert({
     user_id: booking.customer_id,
     request_id: null,
+    booking_id: booking.id,
     is_read: false,
     type: "booking_no_show",
     title:

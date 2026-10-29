@@ -31,6 +31,13 @@ export async function POST(req: Request) {
     let email = String(body?.email || "").trim().toLowerCase();
     let rowId: string | null = null;
 
+    // Inviting someone who applied for a chair: their account's email.
+    if (typeof body?.profileId === "string" && body.profileId) {
+      const { data: invitee } = await supabase.from("profiles").select("email").eq("id", body.profileId).maybeSingle();
+      if (!invitee?.email) return NextResponse.json({ error: "Couldn't find that pro's account." }, { status: 404 });
+      email = invitee.email.trim().toLowerCase();
+    }
+
     // Resending: a fresh link for an existing invite.
     if (body?.resendMemberId) {
       const { data: existing } = await supabase
@@ -146,6 +153,17 @@ export async function POST(req: Request) {
         { ok: true, emailed: false, joinUrl, warning: "The invite was saved but the email didn't send. Share this link with them instead." },
         { status: 200 }
       );
+    }
+
+    if (typeof body?.applicationId === "string") {
+      const { data: app } = await supabase
+        .from("chair_applications")
+        .select("id, chair_openings!inner(studio_id)")
+        .eq("id", body.applicationId)
+        .maybeSingle();
+      if ((app?.chair_openings as unknown as { studio_id: string } | null)?.studio_id === ctx.studio.id) {
+        await supabase.from("chair_applications").update({ status: "invited" }).eq("id", app!.id);
+      }
     }
 
     return NextResponse.json({ ok: true, emailed: true });

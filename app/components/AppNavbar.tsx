@@ -333,7 +333,7 @@ function NavbarComponent() {
 
     const { data: notifs } = await supabase
       .from("notifications")
-      .select("id, title, is_read, created_at, request_id, booking_id")
+      .select("id, title, is_read, created_at, request_id, booking_id, type")
       .eq("user_id", profile.id)
       .gte("created_at", cutoff)
       .order("created_at", { ascending: false })
@@ -363,11 +363,16 @@ function NavbarComponent() {
       created_at: string;
       request_id: string | null;
       booking_id: string | null;
+      type?: string | null;
     }) => {
       const reqTitle = n.request_id ? reqTitleMap.get(n.request_id) : null;
       return {
         id: n.id,
-        href: n.booking_id
+        href: n.type === "chair_opening"
+          ? "/chairs"
+          : n.type === "chair_application"
+          ? "/studio?tab=chairs"
+          : n.booking_id
           ? `/bookings/${n.booking_id}`
           : n.request_id
           ? `/requests/${n.request_id}`
@@ -610,6 +615,7 @@ function NavbarComponent() {
     { href: "/archive", label: "Archived services", show: true },
     { href: "/services", label: "Services & availability", show: isProfessional },
     { href: "/studio", label: "Studio", show: isProfessional },
+    { href: "/chairs", label: "Chair openings", show: isProfessional },
     { href: "/analytics", label: "Analytics", show: isProfessional },
     { href: "/subscription", label: "Subscription", show: isProfessional },
     { href: "/admin", label: "Switch to admin", show: !!profile?.is_admin },

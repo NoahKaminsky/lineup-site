@@ -6,6 +6,7 @@ import { studioPlanFromPriceId } from "@/app/lib/plans";
 import { syncMemberPlan, syncStudioMemberPlans } from "@/app/lib/studios";
 import { hasFrontDeskClash } from "@/app/lib/busyTimes";
 import { createPayAtShopBooking } from "@/app/lib/payAtShop";
+import { recordBoost } from "@/app/lib/boostsServer";
 
 function timeToMinutes(timeString: string) {
   const [hours, minutes] = String(timeString).slice(0, 5).split(":").map(Number);
@@ -697,6 +698,9 @@ export async function POST(req: Request) {
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
+      if (session.mode === "payment" && session.metadata?.boost_kind) {
+        await recordBoost(session as unknown as Parameters<typeof recordBoost>[0]);
+      }
       if (session.mode === "subscription" && session.metadata?.studio_rent_member_id) {
         await handleRentSubscriptionChanged(
           (await stripe.subscriptions.retrieve(session.subscription as string)) as unknown as StudioSubscription,

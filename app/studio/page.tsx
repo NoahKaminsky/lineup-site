@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CalendarDays, Check, Mail, Percent, Plus, Settings, Users } from "lucide-react";
+import { Armchair, CalendarDays, Check, Mail, Percent, Plus, Settings, Users } from "lucide-react";
 import LuLoader from "@/app/components/LuLoader";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { STUDIO_PLANS, type StudioPlan } from "@/app/lib/plans";
+import { formatBoostPrice } from "@/app/lib/boosts";
 import { STUDIO_MAX_COMMISSION_PERCENT } from "@/app/lib/commission";
 import { formatCad, studioFetch } from "./studioApi";
 
@@ -84,7 +85,7 @@ type StudioData = {
   payouts?: null | { connected: boolean; ready: boolean };
 };
 
-type Tab = "schedule" | "team" | "settings";
+type Tab = "schedule" | "team" | "chairs" | "settings";
 
 const card = "rounded-panel border border-hairline bg-surface";
 const eyebrow = "font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500";
@@ -147,7 +148,11 @@ export default function StudioPage() {
     })();
 
     const params = new URLSearchParams(window.location.search);
-    if (params.get("subscribed") === "1") {
+    const tabParam = params.get("tab");
+    if (tabParam === "chairs" || tabParam === "team" || tabParam === "settings" || tabParam === "schedule") setTab(tabParam);
+    if (params.get("boosted") === "1") {
+      setNotice({ tone: "success", text: "Payment received. Your opening is featured for the next week." });
+    } else if (params.get("subscribed") === "1") {
       setNotice({ tone: "success", text: "Your studio plan is active. Your whole team is covered." });
     } else if (params.get("rent") === "1") {
       setNotice({ tone: "success", text: "Rent payments are set up. They'll come out automatically." });
@@ -226,6 +231,7 @@ export default function StudioPage() {
                 [
                   { key: "schedule", label: "Schedule", Icon: CalendarDays, show: true },
                   { key: "team", label: "Team", Icon: Users, show: true },
+                  { key: "chairs", label: "Chairs", Icon: Armchair, show: !!data.me?.canManage },
                   { key: "settings", label: "Settings", Icon: Settings, show: !!data.me?.isOwner },
                 ] as const
               )
@@ -252,6 +258,9 @@ export default function StudioPage() {
               ) : null}
               {tab === "team" ? (
                 <TeamView data={data} busy={busy} run={run} setNotice={setNotice} reload={load} />
+              ) : null}
+              {tab === "chairs" && data.me?.canManage ? (
+                <ChairsView data={data} busy={busy} run={run} setNotice={setNotice} />
               ) : null}
               {tab === "settings" && data.me?.isOwner ? (
                 <SettingsView data={data} busy={busy} run={run} setNotice={setNotice} reload={load} redirectTo={redirectTo} />
@@ -948,6 +957,496 @@ function FrontDeskForm({
           {busy === "front-desk" ? "Booking…" : "Book it in"}
         </button>
         <p className="text-xs text-neutral-500">Paid at the shop, not through LineUp. Online clients can&apos;t book over it.</p>
+      </div>
+    </form>
+  );
+}
+
+type ManagedOpening = {
+  id: string;
+  title: string;
+  professions: string[];
+  professionLabels: string[];
+  arrangement: "booth_rent" | "commission" | "either";
+  rentCents: number | null;
+  rentInterval: "week" | "month" | null;
+  commissionNote: string | null;
+  description: string | null;
+  availableFrom: string | null;
+  areaLabel: string | null;
+  status: "open" | "filled" | "closed" | "expired";
+  expiresAt: string;
+  featured: boolean;
+  createdAt: string;
+  applicants: {
+    id: string;
+    profileId: string;
+    name: string;
+    avatarUrl: string | null;
+    profileHref: string | null;
+    trades: string[];
+    verified: boolean;
+    message: string | null;
+    status: "new" | "invited" | "declined";
+    appliedAt: string;
+  }[];
+};
+
+const TRADE_OPTIONS: { value: string; label: string }[] = [
+  { value: "barber", label: "Barber" },
+  { value: "hairstylist", label: "Hairstylist" },
+  { value: "nail_artist", label: "Nail Artist" },
+  { value: "lash_artist", label: "Lash Artist" },
+  { value: "brow_artist", label: "Brow Artist" },
+  { value: "makeup_artist", label: "Makeup Artist" },
+  { value: "wax_technician", label: "Wax Technician" },
+  { value: "body_sugaring", label: "Body Sugaring" },
+  { value: "other_beauty_professional", label: "Other" },
+];
+
+function ChairsView({
+  data,
+  busy,
+  run,
+  setNotice,
+}: Omit<SectionProps, "reload">) {
+  const studio = data!.studio!;
+  const [openings, setOpenings] = useState<ManagedOpening[] | null>(null);
+  const [showForm, setShowForm] = useState(false);
+
+  const loadOpenings = useCallback(async () => {
+    const res = await studioFetch<{ openings: ManagedOpening[] }>("/api/chairs/manage");
+    if (!res.ok) {
+      setNotice({ tone: "error", text: res.data.error || "Could not load your openings." });
+      setOpenings([]);
+      return;
+    }
+    setOpenings(res.data.openings || []);
+  }, [setNotice]);
+
+  useEffect(() => {
+    let cancelled = false;
+    studioFetch<{ openings: ManagedOpening[] }>("/api/chairs/manage").then((res) => {
+      if (cancelled) return;
+      if (!res.ok) setNotice({ tone: "error", text: res.data.error || "Could not load your openings." });
+      setOpenings(res.ok ? res.data.openings || [] : []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [setNotice]);
+
+  async function setStatus(o: ManagedOpening, status: "open" | "filled" | "closed", text: string) {
+    await run(`chair-${o.id}`, async () => {
+      const res = await studioFetch("/api/chairs/manage", { method: "PATCH", body: { openingId: o.id, status } });
+      if (!res.ok) {
+        setNotice({ tone: "error", text: res.data.error || "Could not update it." });
+        return;
+      }
+      setNotice({ tone: "success", text });
+      await loadOpenings();
+    });
+  }
+
+  async function inviteApplicant(a: ManagedOpening["applicants"][number]) {
+    await run(`invite-${a.id}`, async () => {
+      const res = await studioFetch("/api/studio/invite", {
+        method: "POST",
+        body: { profileId: a.profileId, applicationId: a.id },
+      });
+      if (!res.ok) {
+        setNotice({ tone: "error", text: res.data.error || "Could not invite them." });
+        return;
+      }
+      setNotice({ tone: "success", text: `Invite sent to ${a.name}. They'll join your team when they accept.` });
+      await loadOpenings();
+    });
+  }
+
+  async function declineApplicant(a: ManagedOpening["applicants"][number]) {
+    await run(`decline-${a.id}`, async () => {
+      const res = await studioFetch("/api/chairs/manage", { method: "PATCH", body: { applicationId: a.id, status: "declined" } });
+      if (!res.ok) {
+        setNotice({ tone: "error", text: res.data.error || "Could not update it." });
+        return;
+      }
+      await loadOpenings();
+    });
+  }
+
+  async function feature(o: ManagedOpening) {
+    await run(`feature-${o.id}`, async () => {
+      const res = await studioFetch<{ url?: string }>("/api/boosts", { method: "POST", body: { kind: "chair_opening", targetId: o.id } });
+      if (!res.ok || !res.data.url) {
+        setNotice({ tone: "error", text: res.data.error || "Could not start checkout." });
+        return;
+      }
+      window.location.href = res.data.url;
+    });
+  }
+
+  return (
+    <section className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-[-0.02em]">Chair openings</h2>
+          <p className="mt-1 text-sm text-neutral-600">
+            Only pros in the trades you pick can see these. Nearby ones get a notification when you post.
+          </p>
+        </div>
+        {studio.live ? (
+          <button type="button" onClick={() => setShowForm((v) => !v)} className={primaryButton}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            {showForm ? "Close" : "Post an opening"}
+          </button>
+        ) : null}
+      </div>
+
+      {!studio.live ? (
+        <p className={`${card} p-5 text-sm text-neutral-600`}>Posting chair openings is included with a studio plan.</p>
+      ) : null}
+
+      {showForm ? (
+        <ChairOpeningForm
+          busy={busy}
+          run={run}
+          setNotice={setNotice}
+          onPosted={async (notified) => {
+            setShowForm(false);
+            setNotice({
+              tone: "success",
+              text: notified
+                ? `Posted. ${notified} ${notified === 1 ? "pro" : "pros"} nearby in that trade got a notification.`
+                : "Posted. Pros in that trade can see it now.",
+            });
+            await loadOpenings();
+          }}
+        />
+      ) : null}
+
+      {openings === null ? (
+        <p className="text-sm text-neutral-500">Loading…</p>
+      ) : openings.length === 0 ? (
+        !showForm ? (
+          <p className={`${card} p-6 text-sm text-neutral-600`}>No openings posted yet.</p>
+        ) : null
+      ) : (
+        <ul className="space-y-4">
+          {openings.map((o) => {
+            const live = o.status === "open";
+            const activeApplicants = o.applicants.filter((a) => a.status !== "declined");
+            return (
+              <li key={o.id} className={`${card} p-5 sm:p-6 ${live ? "" : "opacity-70"}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-2">
+                      <span className="text-base font-semibold text-ink">{o.title}</span>
+                      <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
+                        {o.status === "open" ? "Open" : o.status === "filled" ? "Filled" : o.status === "expired" ? "Expired" : "Closed"}
+                      </span>
+                      {o.featured ? (
+                        <span className="rounded-md bg-ink px-2 py-0.5 text-[11px] font-medium text-white">Featured</span>
+                      ) : null}
+                    </p>
+                    <p className="mt-0.5 text-sm text-neutral-500">
+                      {o.professionLabels.join(", ")}
+                      {o.areaLabel ? ` · ${o.areaLabel}` : ""}
+                      {live ? ` · up until ${new Date(o.expiresAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {live && !o.featured ? (
+                      <button type="button" disabled={!!busy} onClick={() => feature(o)} className={secondaryButton}>
+                        {busy === `feature-${o.id}` ? "Opening…" : `Feature it · ${formatBoostPrice("chair_opening")}`}
+                      </button>
+                    ) : null}
+                    {live ? (
+                      <>
+                        <button
+                          type="button"
+                          disabled={!!busy}
+                          onClick={() => setStatus(o, "filled", "Marked as filled. It's off the list.")}
+                          className={secondaryButton}
+                        >
+                          Filled
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!!busy}
+                          onClick={() => setStatus(o, "closed", "Taken down.")}
+                          className="px-2 text-sm font-medium text-neutral-500 hover:text-ink"
+                        >
+                          Take down
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={!!busy}
+                        onClick={() => setStatus(o, "open", "Reposted for another 30 days.")}
+                        className={secondaryButton}
+                      >
+                        Repost
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 border-t border-hairline pt-4">
+                  <p className={eyebrow}>
+                    {activeApplicants.length} {activeApplicants.length === 1 ? "pro" : "pros"} interested
+                  </p>
+                  {activeApplicants.length ? (
+                    <ul className="mt-3 space-y-3">
+                      {activeApplicants.map((a) => (
+                        <li key={a.id} className="flex flex-col gap-3 rounded-2xl bg-neutral-50 p-4 sm:flex-row sm:items-start">
+                          <div className="flex min-w-0 flex-1 gap-3">
+                            {a.avatarUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={a.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+                            ) : (
+                              <span
+                                aria-hidden="true"
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold text-neutral-600"
+                              >
+                                {a.name.charAt(0).toUpperCase()}
+                              </span>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-ink">
+                                {a.profileHref ? (
+                                  <a href={a.profileHref} target="_blank" rel="noreferrer" className="underline decoration-neutral-300 underline-offset-4">
+                                    {a.name}
+                                  </a>
+                                ) : (
+                                  a.name
+                                )}
+                                {a.verified ? <span className="ml-1.5 text-xs font-normal text-neutral-500">Verified</span> : null}
+                              </p>
+                              <p className="text-xs text-neutral-500">{a.trades.join(", ")}</p>
+                              {a.message ? <p className="mt-2 whitespace-pre-line text-sm leading-6 text-neutral-700">{a.message}</p> : null}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 gap-2">
+                            {a.status === "invited" ? (
+                              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-neutral-600">Invited</span>
+                            ) : (
+                              <>
+                                <button type="button" disabled={!!busy} onClick={() => inviteApplicant(a)} className={primaryButton}>
+                                  {busy === `invite-${a.id}` ? "Inviting…" : "Invite to team"}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!!busy}
+                                  onClick={() => declineApplicant(a)}
+                                  className="px-2 text-sm font-medium text-neutral-500 hover:text-ink"
+                                >
+                                  Pass
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-sm text-neutral-500">Nobody yet.</p>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function ChairOpeningForm({
+  busy,
+  run,
+  setNotice,
+  onPosted,
+}: {
+  busy: string | null;
+  run: SectionProps["run"];
+  setNotice: SectionProps["setNotice"];
+  onPosted: (notified: number) => Promise<void>;
+}) {
+  const [title, setTitle] = useState("");
+  const [trades, setTrades] = useState<string[]>([]);
+  const [arrangement, setArrangement] = useState<"booth_rent" | "commission" | "either">("either");
+  const [rent, setRent] = useState("");
+  const [rentInterval, setRentInterval] = useState<"week" | "month">("week");
+  const [commissionNote, setCommissionNote] = useState("");
+  const [availableFrom, setAvailableFrom] = useState("");
+  const [description, setDescription] = useState("");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!trades.length) {
+      setNotice({ tone: "error", text: "Pick at least one trade." });
+      return;
+    }
+    await run("post-chair", async () => {
+      const res = await studioFetch<{ notified?: number }>("/api/chairs", {
+        method: "POST",
+        body: {
+          title,
+          professions: trades,
+          arrangement,
+          rentCents: rent.trim() === "" ? null : Math.round(Number(rent) * 100),
+          rentInterval,
+          commissionNote,
+          availableFrom: availableFrom || null,
+          description,
+        },
+      });
+      if (!res.ok) {
+        setNotice({ tone: "error", text: res.data.error || "Could not post the opening." });
+        return;
+      }
+      await onPosted(Number(res.data.notified) || 0);
+    });
+  }
+
+  const label = "mb-1.5 block text-xs font-medium text-neutral-700";
+
+  return (
+    <form onSubmit={submit} className={`${card} lu-fade-in space-y-4 p-5 sm:p-6`}>
+      <div>
+        <label htmlFor="chair-title" className={label}>
+          Title
+        </label>
+        <input
+          id="chair-title"
+          required
+          minLength={3}
+          maxLength={80}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g. Chair open for an experienced barber"
+          className={input}
+        />
+      </div>
+
+      <fieldset>
+        <legend className={label}>Who it&apos;s for</legend>
+        <div className="flex flex-wrap gap-2">
+          {TRADE_OPTIONS.map((t) => {
+            const on = trades.includes(t.value);
+            return (
+              <button
+                key={t.value}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setTrades((prev) => (on ? prev.filter((v) => v !== t.value) : [...prev, t.value]))}
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                  on ? "bg-ink text-white" : "border border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="chair-arrangement" className={label}>
+            Pay arrangement
+          </label>
+          <select
+            id="chair-arrangement"
+            value={arrangement}
+            onChange={(e) => setArrangement(e.target.value as typeof arrangement)}
+            className={input}
+          >
+            <option value="either">Booth rent or commission</option>
+            <option value="booth_rent">Booth rent</option>
+            <option value="commission">Commission</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="chair-from" className={label}>
+            Available from <span className="font-normal text-neutral-400">(optional)</span>
+          </label>
+          <input id="chair-from" type="date" value={availableFrom} onChange={(e) => setAvailableFrom(e.target.value)} className={input} />
+        </div>
+      </div>
+
+      {arrangement !== "commission" ? (
+        <div className="grid grid-cols-[1fr_auto] gap-3">
+          <div>
+            <label htmlFor="chair-rent" className={label}>
+              Rent <span className="font-normal text-neutral-400">(optional)</span>
+            </label>
+            <input
+              id="chair-rent"
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="1"
+              value={rent}
+              onChange={(e) => setRent(e.target.value)}
+              placeholder="$"
+              className={input}
+            />
+          </div>
+          <div>
+            <label htmlFor="chair-rent-interval" className={label}>
+              &nbsp;
+            </label>
+            <select
+              id="chair-rent-interval"
+              value={rentInterval}
+              onChange={(e) => setRentInterval(e.target.value as "week" | "month")}
+              className={input}
+            >
+              <option value="week">/ week</option>
+              <option value="month">/ month</option>
+            </select>
+          </div>
+        </div>
+      ) : null}
+
+      {arrangement !== "booth_rent" ? (
+        <div>
+          <label htmlFor="chair-commission" className={label}>
+            Commission split <span className="font-normal text-neutral-400">(optional)</span>
+          </label>
+          <input
+            id="chair-commission"
+            maxLength={60}
+            value={commissionNote}
+            onChange={(e) => setCommissionNote(e.target.value)}
+            placeholder="e.g. You keep 60%"
+            className={input}
+          />
+        </div>
+      ) : null}
+
+      <div>
+        <label htmlFor="chair-description" className={label}>
+          About the chair <span className="font-normal text-neutral-400">(optional)</span>
+        </label>
+        <textarea
+          id="chair-description"
+          rows={4}
+          maxLength={1500}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Hours, clientele, what's included (products, parking, front desk), who you're looking for."
+          className={input}
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={!!busy} className={primaryButton}>
+          {busy === "post-chair" ? "Posting…" : "Post opening"}
+        </button>
+        <p className="text-xs text-neutral-500">Shows your area, not your street address. Up for 30 days.</p>
       </div>
     </form>
   );

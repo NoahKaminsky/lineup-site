@@ -14,6 +14,8 @@ import { BadgeCheck, LayoutGrid, Layers, MapPin, Search, Star, X } from "lucide-
 
 type ProfileRow = {
   id: string;
+  // Has a paid boost running (set on the client from the boosts table).
+  is_promoted?: boolean;
   full_name: string | null;
   username?: string | null;
   avatar_url: string | null;
@@ -184,6 +186,8 @@ function getBadges(profile: ProfileRow): { label: string; className: string }[] 
 // so the work itself stays the focus. Full badges still show on the profile.
 function getPrimaryBadge(profile: ProfileRow): { label: string; tone: "ink" | "light" } | null {
   if (profile.is_featured) return { label: "LineUp Pick", tone: "ink" };
+  // Paid placement is always labelled as such.
+  if (profile.is_promoted) return { label: "Promoted", tone: "light" };
   if (profile.subscription_plan === "master") return { label: "Master", tone: "ink" };
   if (profile.is_founding_artist) return { label: "Founding Artist", tone: "light" };
   if (profile.subscription_plan === "pro") return { label: "Pro", tone: "light" };
@@ -718,10 +722,36 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
       .filter(Boolean) as { card: DiscoverCard; distance: number; x: number; y: number }[];
   }, [cards, userLocation, nearbyRadiusKm]);
 
+  // Pros with a paid boost running right now (public table; an error just
+  // means boosts aren't set up yet).
+  const [promotedIds, setPromotedIds] = useState<Set<string>>(() => new Set());
+  useEffect(() => {
+    const now = new Date().toISOString();
+    supabase
+      .from("boosts")
+      .select("target_id")
+      .eq("kind", "profile")
+      .lte("starts_at", now)
+      .gt("ends_at", now)
+      .then(({ data }) => {
+        if (data?.length) setPromotedIds(new Set(data.map((b: { target_id: string }) => b.target_id)));
+      });
+  }, []);
+
+  const cardsWithPromotion = useMemo(
+    () =>
+      promotedIds.size
+        ? cards.map((card) =>
+            promotedIds.has(card.profile.id) ? { ...card, profile: { ...card.profile, is_promoted: true } } : card
+          )
+        : cards,
+    [cards, promotedIds]
+  );
+
   const filteredCards = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    const filtered = cards.filter((card) => {
+    const filtered = cardsWithPromotion.filter((card) => {
       const { profile, services, tagBadges } = card;
       const roles = getProfessionalTypes(profile);
 
@@ -767,7 +797,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
 
       return distanceA - distanceB;
     });
-  }, [cards, search, selectedCategory, selectedModes, openThisWeekOnly, userLocation, maxDistanceKm]);
+  }, [cardsWithPromotion, search, selectedCategory, selectedModes, openThisWeekOnly, userLocation, maxDistanceKm]);
 
   // Subscription tier is the primary ranking signal everywhere on this page —
   // paying for Master/Pro should reliably outrank free accounts, not just get
@@ -784,7 +814,9 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
 
   // Admin-curated override for one-off promotion (launch pushes, VIP signups) —
   // deliberately worth more than any tier/quality score so it always wins.
-  const featuredScore = (card: DiscoverCard) => (card.profile.is_featured ? 1000 : 0);
+  // Paid boost: above every plan tier, below LineUp's own picks.
+  const featuredScore = (card: DiscoverCard) =>
+    (card.profile.is_featured ? 1000 : 0) + ((card.profile as ProfileRow).is_promoted ? 500 : 0);
 
   // Spotlight: featured first, then Master tier, then Pro — sorted within each by score
   const spotlightCards = useMemo(() => {
@@ -793,7 +825,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
       (card.profile.subscription_status === "active" || card.profile.subscription_status === "trialing");
 
     return [...filteredCards]
-      .filter((card) => isSubscribed(card) || card.profile.is_featured)
+      .filter((card) => isSubscribed(card) || card.profile.is_featured || (card.profile as ProfileRow).is_promoted)
       .sort((a, b) => {
         const score = (card: DiscoverCard) => {
           const ratingScore = card.averageRatingNumber ? card.averageRatingNumber * 8 : 0;
