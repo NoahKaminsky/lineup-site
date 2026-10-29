@@ -149,6 +149,8 @@ export default function SubscriptionPage() {
   const [portalLoadingKey, setPortalLoadingKey] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
+  // Set when this pro's plan is paid for by their studio (see /studio).
+  const [coveredByStudio, setCoveredByStudio] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -192,6 +194,14 @@ export default function SubscriptionPage() {
       setProfile(data as Profile);
       setCached<Profile>("subscription-page", data as Profile);
       setLoading(false);
+
+      // Separate query: an error just means the studio columns don't exist yet.
+      const { data: studioInfo } = await supabase
+        .from("profiles")
+        .select("plan_source")
+        .eq("id", user.id)
+        .maybeSingle();
+      setCoveredByStudio(studioInfo?.plan_source === "studio");
     }
 
     load();
@@ -338,6 +348,24 @@ export default function SubscriptionPage() {
           </span>
         </div>
 
+        {coveredByStudio ? (
+          <div className="mb-10 rounded-panel border border-hairline bg-surface p-6 sm:p-8">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Covered by your studio</p>
+            <p className="mt-3 text-lg font-semibold tracking-[-0.02em] text-ink">
+              Your studio pays for your plan. You don&apos;t need one of your own.
+            </p>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-600">
+              You get Pro features while you&apos;re on the team. If you leave the studio, you can pick a plan here.
+            </p>
+            <Link
+              href="/studio"
+              className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+            >
+              Go to your studio
+            </Link>
+          </div>
+        ) : null}
+
         {/* Success banner */}
         {showSuccess ? (
           <div className="mb-8 rounded-2xl border border-neutral-200 bg-neutral-100 p-4 text-sm font-medium text-ink">
@@ -353,7 +381,7 @@ export default function SubscriptionPage() {
         ) : null}
 
         {/* Active subscription card */}
-        {isActiveSubscriber && currentPlan ? (
+        {isActiveSubscriber && currentPlan && !coveredByStudio ? (
           <div className="mb-10 overflow-hidden rounded-panel border border-neutral-200 bg-white shadow-sm">
             <div className="border-b border-hairline bg-surface px-6 py-8 text-ink sm:px-8">
               <div className="flex flex-wrap items-center gap-3">
@@ -433,8 +461,8 @@ export default function SubscriptionPage() {
           </div>
         ) : null}
 
-        {/* Plans — always visible */}
-        <div>
+        {/* Plans — always visible (except to pros their studio pays for) */}
+        <div className={coveredByStudio ? "hidden" : undefined}>
           {isActiveSubscriber ? (
             <h2 className="mb-6 text-xl font-semibold tracking-tight">
               Available plans
@@ -571,7 +599,7 @@ export default function SubscriptionPage() {
         </div>
 
         {/* Past due warning */}
-        {profile?.subscription_status === "past_due" ? (
+        {profile?.subscription_status === "past_due" && !coveredByStudio ? (
           <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
             <p className="text-sm font-semibold text-amber-800">Payment required</p>
             <p className="mt-1 text-sm text-amber-700">

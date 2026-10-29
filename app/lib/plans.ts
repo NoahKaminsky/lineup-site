@@ -33,3 +33,50 @@ export const PLAN_FEATURES: Record<"basic" | "apprentice" | "pro" | "master", st
     "Top placement in Browse and first in the Spotlight row",
   ],
 };
+
+// Studio plans: one flat price for the whole shop, any number of pros.
+// Prices are CAD per month. Every member gets Pro features (unlimited request
+// bookings, instant-booking calendar, booking link) without paying for their
+// own plan.
+export type StudioPlan = "studio" | "studio_plus";
+
+export const STUDIO_PLANS: Record<
+  StudioPlan,
+  { label: string; priceLabel: string; features: string[] }
+> = {
+  studio: {
+    label: "Studio",
+    priceLabel: "$39",
+    features: [
+      "Unlimited team members, one flat price",
+      "Each pro gets their own login and Pro features",
+      "Every member's schedule in one place",
+      "0% LineUp commission on your own clients",
+      "Commission only on new clients LineUp sends you through requests",
+    ],
+  },
+  studio_plus: {
+    label: "Studio Plus",
+    priceLabel: "$99",
+    features: [
+      "Everything in Studio",
+      "Set the shop's commission, for the whole team or per pro",
+      "The shop's cut is paid out to the shop automatically",
+      "Shop earnings by member",
+    ],
+  },
+};
+
+// Read with literal names so Next.js inlines them in the browser bundle.
+export function studioPriceIdFor(plan: StudioPlan) {
+  return plan === "studio_plus"
+    ? process.env.NEXT_PUBLIC_STRIPE_STUDIO_PLUS_PRICE_ID
+    : process.env.NEXT_PUBLIC_STRIPE_STUDIO_PRICE_ID;
+}
+
+export function studioPlanFromPriceId(priceId: string | null | undefined): StudioPlan | null {
+  if (!priceId) return null;
+  if (priceId === process.env.NEXT_PUBLIC_STRIPE_STUDIO_PRICE_ID) return "studio";
+  if (priceId === process.env.NEXT_PUBLIC_STRIPE_STUDIO_PLUS_PRICE_ID) return "studio_plus";
+  return null;
+}

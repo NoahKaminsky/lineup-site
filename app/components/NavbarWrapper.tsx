@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Navbar from "./AppNavbar";
 
-const HIDE_ON: string[] = ["/", "/login", "/onboarding", "/privacy", "/terms", "/about", "/faq", "/contact"];
+const HIDE_ON: string[] = ["/", "/login", "/onboarding", "/privacy", "/terms", "/about", "/faq", "/contact", "/studio/join"];
 
 export default function NavbarWrapper() {
   const pathname = usePathname();
