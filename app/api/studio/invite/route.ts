@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { INVITE_TTL_DAYS, getStudioForUser, newInviteToken, errorMessage } from "@/app/lib/studios";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 // POST /api/studio/invite { email, role?, resendMemberId? }
 // Owners and managers invite a pro by email. The pro gets a link, signs in
@@ -127,7 +128,7 @@ export async function POST(req: Request) {
     }
 
     const { data: inviter } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lineup-aesthetics.ca";
+    const siteUrl = getSiteUrl("https://lineup-aesthetics.ca");
     const joinUrl = `${siteUrl}/studio/join?token=${encodeURIComponent(token)}`;
     const studioName = ctx.studio.name;
 

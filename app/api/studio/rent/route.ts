@@ -11,6 +11,7 @@ import {
   isStudioLive,
   type StudioMemberRow,
 } from "@/app/lib/studios";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 // PATCH /api/studio/rent { memberId, arrangement, rentCents?, rentInterval? }
 //   Owner only (Studio Plus): put a pro on commission or booth rent.
@@ -124,7 +125,7 @@ export async function POST(req: Request) {
       .eq("id", user.id)
       .maybeSingle();
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = getSiteUrl();
     const body = await req.json().catch(() => ({}));
 
     if (body?.action === "manage") {

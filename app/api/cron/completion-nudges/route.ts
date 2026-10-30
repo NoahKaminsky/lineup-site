@@ -3,6 +3,7 @@ import { getServiceSupabase, isCronAuthorized } from "@/app/lib/serverSupabase";
 import { sendPushToUser } from "@/app/lib/push";
 import { appointmentInstant } from "@/app/lib/bookingTime";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 // Once an appointment's end time passes, nudge both sides once
 // (bookings.completion_nudge_sent_at): the customer to confirm it's complete
@@ -33,7 +34,7 @@ export async function GET(req: Request) {
     return endedAt <= now && now - endedAt <= NUDGE_WINDOW_HOURS * 3600 * 1000;
   });
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.lineup-aesthetics.ca";
+  const siteUrl = getSiteUrl("https://www.lineup-aesthetics.ca");
   let nudged = 0;
 
   for (const booking of due) {

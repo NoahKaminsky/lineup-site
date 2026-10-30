@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { isAllowedSubscriptionPrice, stripe } from "@/app/lib/stripe";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 export async function POST(req: Request) {
   const user = await getAuthenticatedUser(req);
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No billing account found." }, { status: 404 });
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = getSiteUrl();
   const returnUrl = `${siteUrl}/subscription`;
 
   let flowData: any = undefined;

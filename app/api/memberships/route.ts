@@ -11,6 +11,7 @@ import {
   type ClientMembershipRow,
   type MembershipPlanRow,
 } from "@/app/lib/memberships";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 // Client side of memberships.
 // GET  /api/memberships?slug=<shop> — the shop's plans, and the signed-in
@@ -96,7 +97,7 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
     const supabase = getServiceSupabase();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = getSiteUrl();
 
     const { data: me } = await supabase
       .from("profiles")

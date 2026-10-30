@@ -3,6 +3,7 @@ import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@
 import { stripe } from "@/app/lib/stripe";
 import { BOOSTS, type BoostKind } from "@/app/lib/boosts";
 import { errorMessage, getStudioForUser } from "@/app/lib/studios";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 // POST /api/boosts { kind: "profile" | "chair_opening", targetId?, returnTo? }
 // Starts a one-time Stripe Checkout for a week of paid placement. The boost
@@ -51,7 +52,7 @@ export async function POST(req: Request) {
       returnPath = "/studio?tab=chairs";
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = getSiteUrl();
     const boost = BOOSTS[kind];
     const join = returnPath.includes("?") ? "&" : "?";
 

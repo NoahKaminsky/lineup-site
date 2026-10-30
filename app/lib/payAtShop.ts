@@ -14,6 +14,7 @@ import { NO_SHOW_LINEUP_PERCENT } from "./commission";
 import { appointmentInstant } from "./bookingTime";
 import { hasFrontDeskClash, hasOnlineBookingClash } from "./busyTimes";
 import { getMembershipForProfile, getStudioForUser, studioCoversTeam } from "./studios";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 type ServiceClient = ReturnType<typeof getServiceSupabase>;
 
@@ -227,7 +228,7 @@ export async function createPayAtShopBooking(
 }
 
 async function notifyBookingConfirmed(bookingId: string) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = getSiteUrl();
   try {
     await fetch(`${siteUrl}/api/notifications/booking-confirmed`, {
       method: "POST",

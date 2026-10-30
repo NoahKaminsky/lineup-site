@@ -8,6 +8,7 @@ import { hasFrontDeskClash } from "@/app/lib/busyTimes";
 import { createPayAtShopBooking } from "@/app/lib/payAtShop";
 import { recordBoost } from "@/app/lib/boostsServer";
 import { markMembershipPastDue, syncMembershipSubscription } from "@/app/lib/memberships";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 function timeToMinutes(timeString: string) {
   const [hours, minutes] = String(timeString).slice(0, 5).split(":").map(Number);
@@ -63,7 +64,7 @@ async function releaseTakenSlot(
 }
 
 async function sendBookingConfirmedEmail(bookingId: string) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = getSiteUrl();
 
   try {
     await fetch(`${siteUrl}/api/notifications/booking-confirmed`, {

@@ -3,6 +3,7 @@ import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { errorMessage } from "@/app/lib/studios";
 import { proTypes } from "@/app/lib/chairs";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 // POST /api/chairs/apply { openingId, message? } — a pro in the matching trade
 // tells the studio they're interested. The studio sees them in its Chairs tab
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
       if (owner?.profile_id) {
         const { data: ownerProfile } = await supabase.from("profiles").select("email").eq("id", owner.profile_id).maybeSingle();
         if (ownerProfile?.email) {
-          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lineup-aesthetics.ca";
+          const siteUrl = getSiteUrl("https://lineup-aesthetics.ca");
           sendEmail({
             to: ownerProfile.email,
             subject: `${me.full_name || "A pro"} is interested in your chair`,
