@@ -637,3 +637,34 @@ main {
     transform: none;
   }
 }
+
+/* ── LineUp Studio ─────────────────────────────────────────────────────────
+   Sheets rise from the bottom on phones and slide in from the right on wider
+   screens; the calendar's "now" line pulses once when the day opens. */
+@keyframes studio-sheet-up {
+  from { transform: translateY(28px); opacity: 0; }
+}
+@keyframes studio-sheet-side {
+  from { transform: translateX(28px); opacity: 0; }
+}
+.studio-sheet {
+  animation: studio-sheet-up 420ms var(--ease-arrive) both;
+}
+@media (min-width: 640px) {
+  .studio-sheet {
+    animation-name: studio-sheet-side;
+  }
+}
+@keyframes studio-now {
+  0% { box-shadow: 0 0 0 0 rgb(200 16 46 / 0.45); }
+  100% { box-shadow: 0 0 0 8px rgb(200 16 46 / 0); }
+}
+.studio-now-dot {
+  animation: studio-now 1400ms var(--ease-arrive) 300ms 2 both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-sheet,
+  .studio-now-dot {
+    animation: none;
+  }
+}

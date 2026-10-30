@@ -528,18 +528,42 @@ function NavbarComponent() {
     role === "I am a professional" ||
     (!!role && role !== "customer" && role !== "I am a customer");
 
-  // Header badge: a pro's current tier (Apprentice / Pro / Master) while the
-  // subscription is live, otherwise "Basic" (so the header reads
-  // "LineUp Basic"). Customers read "LineUp Client".
+  // On a studio's team? Then the header reads "LineUp Studio" whatever their
+  // own plan. Separate query so it's harmless before the studio migration.
+  const [onStudio, setOnStudio] = useState(false);
+  useEffect(() => {
+    const id = profile?.id;
+    if (!id || !isProfessional) {
+      setOnStudio(false);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("profiles")
+      .select("studio_id")
+      .eq("id", id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setOnStudio(!!(data as { studio_id?: string | null } | null)?.studio_id);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, isProfessional, pathname]);
+
+  // Header badge: "Studio" for pros on a studio's team; otherwise a pro's
+  // current tier (Apprentice / Pro / Master) while the subscription is live,
+  // or "Basic" (so the header reads "LineUp Basic"). Customers read "LineUp Client".
   const planBadge = useMemo(() => {
     if (!profile) return null;
     if (!isProfessional) return "Client";
+    if (onStudio) return "Studio";
     const live = profile.subscription_status === "active" || profile.subscription_status === "trialing";
     if (live && profile.subscription_plan === "master") return "Master";
     if (live && profile.subscription_plan === "pro") return "Pro";
     if (live && profile.subscription_plan === "apprentice") return "Apprentice";
     return "Basic";
-  }, [isProfessional, profile]);
+  }, [isProfessional, profile, onStudio]);
 
   // Tag the page with the signed-in side (theme.css reads data-role for motion
   // tempo and accent hooks) and remember it so the next load paints correctly.
