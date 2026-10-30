@@ -747,8 +747,12 @@ export async function POST(req: Request) {
 
     if (event.type === "invoice.payment_failed") {
       const invoice = event.data.object as any;
-      if (invoice.subscription) {
-        await handleInvoicePaymentFailed(invoice.subscription as string);
+      // Newer Stripe API versions moved this under invoice.parent.
+      const invoiceSubscription = invoice.subscription ?? invoice.parent?.subscription_details?.subscription;
+      if (invoiceSubscription) {
+        await handleInvoicePaymentFailed(
+          typeof invoiceSubscription === "string" ? invoiceSubscription : invoiceSubscription.id
+        );
       }
     }
 
@@ -787,9 +791,7 @@ async function handleSubscriptionCheckoutCompleted(session: any) {
       stripe_subscription_id: subscription.id,
       subscription_status: subscription.status,
       subscription_plan: plan,
-      subscription_current_period_end: new Date(
-        subscription.current_period_end * 1000
-      ).toISOString(),
+      subscription_current_period_end: periodEndIso(subscription),
       // Instant-booking calendar is available on any paid tier (not just
       // Master) — turn it on automatically instead of leaving it as a buried
       // settings toggle nobody knows to flip. Direct bookings are never
@@ -822,9 +824,7 @@ async function handleSubscriptionUpdated(subscription: any) {
     .update({
       subscription_status: subscription.status,
       subscription_plan: plan,
-      subscription_current_period_end: new Date(
-        subscription.current_period_end * 1000
-      ).toISOString(),
+      subscription_current_period_end: periodEndIso(subscription),
       ...(isSubscribed
         ? { direct_booking_enabled: true, public_availability_enabled: true }
         : { direct_booking_enabled: false, public_availability_enabled: false }),
@@ -983,4 +983,12 @@ async function handleRentSubscriptionChanged(
           }
     )
     .eq("id", member.id);
+}
+
+// When a subscription's current period ends, as an ISO string. Newer Stripe
+// API versions (the SDK's default since 2025) put it on each item instead of
+// the subscription; reading only the old field threw "Invalid time value".
+function periodEndIso(subscription: { current_period_end?: number; items?: { data?: { current_period_end?: number }[] } }) {
+  const end = subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end;
+  return end ? new Date(end * 1000).toISOString() : null;
 }
