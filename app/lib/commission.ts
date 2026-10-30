@@ -69,3 +69,18 @@ export function commissionPercentFor(profile: {
   const live = profile?.subscription_status === "active" || profile?.subscription_status === "trialing";
   return live && profile?.subscription_plan === "master" ? MASTER_COMMISSION_PERCENT : STANDARD_COMMISSION_PERCENT;
 }
+
+// Booth rent is a card subscription the pro pays, sent on to the shop.
+// LineUp is charged Stripe's fee on it (2.9% + 30¢), so this much of each
+// rent payment covers that; 3.2% matches Stripe's fee on a $100 payment
+// and covers it fully on anything larger. The shop gets the rest.
+export const RENT_PROCESSING_FEE_PERCENT = 3.2;
+
+// No-show fees on "pay at the shop" bookings: LineUp keeps this share (it
+// pays Stripe's fee on the charge out of it); the rest goes to the pro.
+export const NO_SHOW_LINEUP_PERCENT = 10;
+
+// Client memberships: LineUp keeps this share of each monthly payment.
+// About 3.5 points cover Stripe's card fee (LineUp pays it on these
+// charges); the rest is LineUp's. The shop gets everything else.
+export const MEMBERSHIP_FEE_PERCENT = 6.5;

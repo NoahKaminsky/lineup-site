@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
 import { getStudioForUser, errorMessage } from "@/app/lib/studios";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 // POST /api/studio/payouts — owner only. Sets up (or reopens) the shop's own
 // Stripe payout account, where its cut of members' bookings is sent. It's
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
     if (!ctx?.isOwner) return NextResponse.json({ error: "Only the studio owner manages payouts." }, { status: 403 });
 
     const { studio } = ctx;
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = getSiteUrl();
     let accountId = studio.stripe_account_id;
 
     if (!accountId) {

@@ -1,6 +1,7 @@
 import { stripe } from "@/app/lib/stripe";
 import { getServiceSupabase, getProfileEmail } from "@/app/lib/serverSupabase";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 type CompleteBookingResult = {
   ok: boolean;
@@ -113,7 +114,7 @@ async function notifyCustomerForReview(
     supabase.from("profiles").select("full_name").eq("id", booking.professional_id).maybeSingle(),
   ]);
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lineup-aesthetics.ca";
+  const siteUrl = getSiteUrl("https://lineup-aesthetics.ca");
   const reviewUrl = booking.request_id ? `${siteUrl}/requests/${booking.request_id}` : `${siteUrl}/bookings/${booking.id}`;
   const serviceLabel = booking.service_name || "your service";
   const professionalName = professional.data?.full_name || "your professional";

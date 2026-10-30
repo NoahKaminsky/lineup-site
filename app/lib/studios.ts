@@ -4,6 +4,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { getServiceSupabase } from "./serverSupabase";
 import { STUDIO_MAX_COMMISSION_PERCENT } from "./commission";
+import { stripe } from "./stripe";
 import type { StudioPlan } from "./plans";
 
 type ServiceClient = ReturnType<typeof getServiceSupabase>;
@@ -19,6 +20,8 @@ export type StudioRow = {
   stripe_subscription_id: string | null;
   commission_percent: number | string;
   stripe_account_id: string | null;
+  slug: string | null;
+  tagline: string | null;
   created_at: string;
 };
 
@@ -31,20 +34,50 @@ export type StudioMemberRow = {
   invited_email: string | null;
   invite_expires_at: string | null;
   commission_percent: number | string | null;
+  arrangement: "commission" | "booth_rent";
+  rent_cents: number | null;
+  rent_interval: "week" | "month" | null;
+  rent_subscription_id: string | null;
+  rent_status: string | null;
+  rent_current_period_end: string | null;
   joined_at: string | null;
   created_at: string;
 };
 
 export const STUDIO_COLUMNS =
-  "id, name, owner_id, plan, subscription_status, subscription_current_period_end, stripe_customer_id, stripe_subscription_id, commission_percent, stripe_account_id, created_at";
+  "id, name, owner_id, plan, subscription_status, subscription_current_period_end, stripe_customer_id, stripe_subscription_id, commission_percent, stripe_account_id, slug, tagline, created_at";
 export const MEMBER_COLUMNS =
-  "id, studio_id, profile_id, role, status, invited_email, invite_expires_at, commission_percent, joined_at, created_at";
+  "id, studio_id, profile_id, role, status, invited_email, invite_expires_at, commission_percent, arrangement, rent_cents, rent_interval, rent_subscription_id, rent_status, rent_current_period_end, joined_at, created_at";
 
 const PAID_SOLO_PLANS = ["apprentice", "pro", "master"];
 // The plan studio members get while their shop's subscription is live.
 const STUDIO_MEMBER_PLAN = "pro";
 
 export const INVITE_TTL_DAYS = 14;
+
+// A studio's plan only covers its team (Pro features, no commission on
+// their own clients) once it has at least this many active pros. Otherwise
+// a solo pro could open a "studio" of one to pay less than the Pro plan and
+// skip commission.
+export const STUDIO_MIN_PROS = 2;
+
+export async function countActivePros(supabase: ServiceClient, studioId: string) {
+  const { count } = await supabase
+    .from("studio_members")
+    .select("id", { count: "exact", head: true })
+    .eq("studio_id", studioId)
+    .eq("status", "active");
+  return count || 0;
+}
+
+// Live plan AND enough pros for the team benefits to apply.
+export async function studioCoversTeam(
+  supabase: ServiceClient,
+  studio: Pick<StudioRow, "id" | "plan" | "subscription_status">
+) {
+  if (!isStudioLive(studio)) return false;
+  return (await countActivePros(supabase, studio.id)) >= STUDIO_MIN_PROS;
+}
 
 export function isLiveStatus(status: string | null | undefined) {
   return status === "active" || status === "trialing";
@@ -57,9 +90,11 @@ export function isStudioLive(studio: Pick<StudioRow, "plan" | "subscription_stat
 // The shop's cut only applies on Studio Plus while it's live.
 export function effectiveCutPercent(
   studio: Pick<StudioRow, "plan" | "subscription_status" | "commission_percent">,
-  member: Pick<StudioMemberRow, "commission_percent"> | null
+  member: Pick<StudioMemberRow, "commission_percent" | "arrangement"> | null
 ) {
   if (!isStudioLive(studio) || studio.plan !== "studio_plus") return 0;
+  // Booth renters pay the shop rent instead of a cut.
+  if (member?.arrangement === "booth_rent") return 0;
   const raw = member?.commission_percent ?? studio.commission_percent;
   const value = Number(raw);
   if (!Number.isFinite(value)) return 0;
@@ -110,7 +145,7 @@ export async function getStudioPricingForPro(supabase: ServiceClient, profession
   const membership = await getMembershipForProfile(supabase, professionalId);
   if (!membership) return { studioId: null, inLiveStudio: false, cutPercent: 0 };
 
-  const live = isStudioLive(membership.studio);
+  const live = await studioCoversTeam(supabase, membership.studio);
   return {
     studioId: live ? membership.studio.id : null,
     inLiveStudio: live,
@@ -132,7 +167,7 @@ export async function syncMemberPlan(supabase: ServiceClient, profileId: string)
   if (!profile) return;
 
   const membership = await getMembershipForProfile(supabase, profileId);
-  const studioLive = membership ? isStudioLive(membership.studio) : false;
+  const studioLive = membership ? await studioCoversTeam(supabase, membership.studio) : false;
   const grantedByStudio = profile.plan_source === "studio";
   const hasOwnLivePlan =
     !grantedByStudio &&
@@ -197,4 +232,56 @@ export async function getStudioForUser(supabase: ServiceClient, userId: string) 
 export function errorMessage(error: unknown, fallback: string) {
   const e = error as { raw?: { message?: string }; message?: string } | null;
   return e?.raw?.message || e?.message || fallback;
+}
+
+// Stops a pro's booth rent. Immediately when they leave the studio; at the
+// end of the paid period when the shop switches them to commission.
+export async function cancelRent(
+  supabase: ServiceClient,
+  member: Pick<StudioMemberRow, "id" | "rent_subscription_id">,
+  options: { immediately: boolean }
+) {
+  if (!member.rent_subscription_id) return;
+  try {
+    if (options.immediately) {
+      await stripe.subscriptions.cancel(member.rent_subscription_id);
+    } else {
+      await stripe.subscriptions.update(member.rent_subscription_id, { cancel_at_period_end: true });
+    }
+  } catch (error) {
+    console.error(`Could not cancel rent subscription ${member.rent_subscription_id}:`, error);
+    return;
+  }
+  if (options.immediately) {
+    await supabase
+      .from("studio_members")
+      .update({ rent_subscription_id: null, rent_status: "canceled" })
+      .eq("id", member.id);
+  }
+}
+
+export const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+export function slugify(name: string) {
+  return name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 34)
+    .replace(/-+$/g, "");
+}
+
+// A free booking-page link for a new studio: its name, or its name plus a
+// number when that's taken.
+export async function uniqueStudioSlug(supabase: ServiceClient, name: string) {
+  let base = slugify(name);
+  if (base.length < 3) base = `${base || "studio"}-shop`.replace(/^-/, "");
+  for (let i = 0; i < 20; i += 1) {
+    const candidate = i === 0 ? base : `${base}-${i + 1}`;
+    const { data } = await supabase.from("studios").select("id").eq("slug", candidate).maybeSingle();
+    if (!data) return candidate;
+  }
+  return `${base}-${randomBytes(3).toString("hex")}`;
 }

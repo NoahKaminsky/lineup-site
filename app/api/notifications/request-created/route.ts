@@ -6,6 +6,7 @@ import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { sendPushToUser } from "@/app/lib/push";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { requestMatchesProfessional } from "@/app/lib/professions";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 function formatCategory(value: string | null | undefined) {
   if (!value) return "Service";
@@ -119,7 +120,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, sent: 0 });
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = getSiteUrl();
     const requestUrl = `${siteUrl}/requests/${request.id}`;
 
     const requestTitle = request.title || request.service_detail || "New request";

@@ -43,6 +43,9 @@ export async function getBusyTimes(professionalIds: string[], fromDate: string, 
       end_time: String(row.end_time).slice(0, 5),
     }));
 
+  // Walk-ins and phone-ins a studio booked at the front desk.
+  const frontDesk = await getFrontDeskTimes(ids, fromDate, toDate);
+
   // Time off blocks the whole day.
   const timeOff = await getTimeOffDays(ids, fromDate, toDate);
   const offDays = timeOff.map((day) => ({
@@ -52,7 +55,7 @@ export async function getBusyTimes(professionalIds: string[], fromDate: string, 
     end_time: "24:00",
   }));
 
-  return [...booked, ...offDays];
+  return [...booked, ...frontDesk, ...offDays];
 }
 
 // Every date (YYYY-MM-DD) inside a pro's time off, clipped to the range.
@@ -126,4 +129,73 @@ export function busyTimesAsBookingRows(busy: BusyTime[]) {
     end_time: row.end_time,
     status: "confirmed" as const,
   }));
+}
+
+export const BLOCKING_FRONT_DESK_STATUSES = ["booked", "completed"];
+
+// Front-desk appointments (see supabase/migrations/20261030_front_desk_and_booth_rent.sql).
+// Before that migration runs the table doesn't exist: treat it as empty.
+export async function getFrontDeskTimes(professionalIds: string[], fromDate: string, toDate: string): Promise<BusyTime[]> {
+  const ids = [...new Set(professionalIds.filter(Boolean))];
+  if (ids.length === 0) return [];
+
+  const { data, error } = await getServiceSupabase()
+    .from("shop_appointments")
+    .select("professional_id, appointment_date, start_time, end_time")
+    .in("professional_id", ids)
+    .in("status", BLOCKING_FRONT_DESK_STATUSES)
+    .gte("appointment_date", fromDate)
+    .lte("appointment_date", toDate);
+
+  if (error) return [];
+
+  return (data || []).map((row) => ({
+    professional_id: row.professional_id,
+    booking_date: String(row.appointment_date),
+    start_time: String(row.start_time).slice(0, 5),
+    end_time: String(row.end_time).slice(0, 5),
+  }));
+}
+
+function toMinutes(value: string) {
+  const [h, m] = value.slice(0, 5).split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Does this time clash with a front-desk appointment on the pro's day? The
+// online booking paths check their own bookings and call this on top, so a
+// client can't pay for a time the shop already gave to a walk-in.
+export async function hasFrontDeskClash(
+  professionalId: string,
+  date: string,
+  startTime: string,
+  endTime: string,
+  options: { ignoreId?: string } = {}
+) {
+  const start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+  const { data, error } = await getServiceSupabase()
+    .from("shop_appointments")
+    .select("id, start_time, end_time")
+    .eq("professional_id", professionalId)
+    .eq("appointment_date", date)
+    .in("status", BLOCKING_FRONT_DESK_STATUSES);
+  if (error) return false; // table not created yet
+  return (data || []).some(
+    (a) => a.id !== options.ignoreId && start < toMinutes(String(a.end_time)) && end > toMinutes(String(a.start_time))
+  );
+}
+
+// Does this time clash with an online booking? (For the front desk.)
+export async function hasOnlineBookingClash(professionalId: string, date: string, startTime: string, endTime: string) {
+  const start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+  const { data, error } = await getServiceSupabase()
+    .from("bookings")
+    .select("start_time, end_time")
+    .eq("professional_id", professionalId)
+    .eq("booking_date", date)
+    .in("status", BLOCKING_BOOKING_STATUSES);
+  if (error) throw new Error(error.message);
+  return (data || []).some((b) => start < toMinutes(String(b.end_time)) && end > toMinutes(String(b.start_time)));
 }

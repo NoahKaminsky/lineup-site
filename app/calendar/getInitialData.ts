@@ -5,7 +5,12 @@
 // professionals, not worth duplicating server-side for this pass.
 
 import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
-import { calendarStatusFilter } from "@/app/lib/calendarBookings";
+import {
+  FRONT_DESK_COLUMNS,
+  calendarStatusFilter,
+  frontDeskAsCalendarBooking,
+  type FrontDeskRow,
+} from "@/app/lib/calendarBookings";
 
 type BookingRow = {
   id: string;
@@ -123,9 +128,20 @@ export async function getInitialCalendarData(): Promise<CalendarInitialResult> {
       };
     });
 
+    // Front-desk walk-ins for pros on a studio's team. An error just means
+    // the studio tables aren't set up yet.
+    const today = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const { data: frontDesk } = await supabase
+      .from("shop_appointments")
+      .select(FRONT_DESK_COLUMNS)
+      .eq("professional_id", user.id)
+      .eq("status", "booked")
+      .gte("appointment_date", today);
+    const frontDeskBookings = ((frontDesk as FrontDeskRow[] | null) || []).map(frontDeskAsCalendarBooking);
+
     return {
       kind: "ok",
-      data: { role: role ?? "", bookings, subscribed: isSubscribedToSchedule(profile) },
+      data: { role: role ?? "", bookings: [...bookings, ...frontDeskBookings], subscribed: isSubscribedToSchedule(profile) },
     };
   } catch (error) {
     console.error("getInitialCalendarData failed, falling back to client load:", error);

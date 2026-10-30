@@ -3,6 +3,7 @@ import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { sendPushToUser } from "@/app/lib/push";
 import { getServiceSupabase, isCronAuthorized } from "@/app/lib/serverSupabase";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 function formatDate(dateString?: string | null) {
   if (!dateString) return "Date not provided";
@@ -196,7 +197,7 @@ export async function GET(req: Request) {
     const supabase = getServiceSupabase();
 
     const now = new Date();
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = getSiteUrl();
 
     // This cron runs once a day (see vercel.json). Matching a narrow time-of-day
     // window (e.g. "23-24h out right now") only reliably reaches bookings whose

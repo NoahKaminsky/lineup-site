@@ -3,6 +3,7 @@ import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { sendPushToUser } from "@/app/lib/push";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 type EmailProfile = {
   id: string;
@@ -148,7 +149,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = getSiteUrl();
     const requestUrl = `${siteUrl}/requests/${requestData.id}`;
 
     const customerFirstName = customer.full_name?.split(" ")[0] || "there";

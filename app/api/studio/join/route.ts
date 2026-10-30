@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
-import { getStudioForUser, hashInviteToken, syncMemberPlan, errorMessage } from "@/app/lib/studios";
+import { getStudioForUser, hashInviteToken, syncStudioMemberPlans, errorMessage } from "@/app/lib/studios";
 
 // GET  /api/studio/join?token=…   — which studio an invite link is for.
 // POST /api/studio/join { token } or { inviteId } — accept it.
@@ -137,7 +137,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "This invite has already been used." }, { status: 409 });
     }
 
-    await syncMemberPlan(supabase, user.id);
+    // Everyone, not just them: a second pro joining is what switches the
+    // team benefits on.
+    await syncStudioMemberPlans(supabase, invite.studioId);
 
     return NextResponse.json({ ok: true, studioName: invite.studioName });
   } catch (error) {

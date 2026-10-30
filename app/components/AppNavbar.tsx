@@ -333,7 +333,7 @@ function NavbarComponent() {
 
     const { data: notifs } = await supabase
       .from("notifications")
-      .select("id, title, is_read, created_at, request_id, booking_id")
+      .select("id, title, is_read, created_at, request_id, booking_id, type")
       .eq("user_id", profile.id)
       .gte("created_at", cutoff)
       .order("created_at", { ascending: false })
@@ -363,11 +363,16 @@ function NavbarComponent() {
       created_at: string;
       request_id: string | null;
       booking_id: string | null;
+      type?: string | null;
     }) => {
       const reqTitle = n.request_id ? reqTitleMap.get(n.request_id) : null;
       return {
         id: n.id,
-        href: n.booking_id
+        href: n.type === "chair_opening"
+          ? "/chairs"
+          : n.type === "chair_application"
+          ? "/studio?tab=chairs"
+          : n.booking_id
           ? `/bookings/${n.booking_id}`
           : n.request_id
           ? `/requests/${n.request_id}`
@@ -523,18 +528,42 @@ function NavbarComponent() {
     role === "I am a professional" ||
     (!!role && role !== "customer" && role !== "I am a customer");
 
-  // Header badge: a pro's current tier (Apprentice / Pro / Master) while the
-  // subscription is live, otherwise "Basic" (so the header reads
-  // "LineUp Basic"). Customers read "LineUp Client".
+  // On a studio's team? Then the header reads "LineUp Studio" whatever their
+  // own plan. Separate query so it's harmless before the studio migration.
+  const [onStudio, setOnStudio] = useState(false);
+  useEffect(() => {
+    const id = profile?.id;
+    if (!id || !isProfessional) {
+      setOnStudio(false);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("profiles")
+      .select("studio_id")
+      .eq("id", id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setOnStudio(!!(data as { studio_id?: string | null } | null)?.studio_id);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, isProfessional, pathname]);
+
+  // Header badge: "Studio" for pros on a studio's team; otherwise a pro's
+  // current tier (Apprentice / Pro / Master) while the subscription is live,
+  // or "Basic" (so the header reads "LineUp Basic"). Customers read "LineUp Client".
   const planBadge = useMemo(() => {
     if (!profile) return null;
     if (!isProfessional) return "Client";
+    if (onStudio) return "Studio";
     const live = profile.subscription_status === "active" || profile.subscription_status === "trialing";
     if (live && profile.subscription_plan === "master") return "Master";
     if (live && profile.subscription_plan === "pro") return "Pro";
     if (live && profile.subscription_plan === "apprentice") return "Apprentice";
     return "Basic";
-  }, [isProfessional, profile]);
+  }, [isProfessional, profile, onStudio]);
 
   // Tag the page with the signed-in side (theme.css reads data-role for motion
   // tempo and accent hooks) and remember it so the next load paints correctly.
@@ -610,6 +639,7 @@ function NavbarComponent() {
     { href: "/archive", label: "Archived services", show: true },
     { href: "/services", label: "Services & availability", show: isProfessional },
     { href: "/studio", label: "Studio", show: isProfessional },
+    { href: "/chairs", label: "Chair openings", show: isProfessional },
     { href: "/analytics", label: "Analytics", show: isProfessional },
     { href: "/subscription", label: "Subscription", show: isProfessional },
     { href: "/admin", label: "Switch to admin", show: !!profile?.is_admin },
