@@ -1060,6 +1060,41 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     ].filter((group) => group.slots.length > 0);
   }, [selectedBookingDay]);
 
+  // Arriving from a shop's booking page with a time already picked
+  // (?book=YYYY-MM-DDTHH:MM&service=<id>): open the calendar on that time
+  // with that service, ready to confirm. Done once; if the time has gone by
+  // the time they land, they just see the day.
+  const [handoff, setHandoff] = useState<{ date: string; time: string; service: string | null } | null>(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const book = params.get("book") || "";
+    const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(book);
+    return m ? { date: m[1], time: m[2], service: params.get("service") } : null;
+  });
+  useEffect(() => {
+    if (!handoff || !handoff.service) return;
+    if (services.some((service) => service.id === handoff.service)) setPreferredServiceId(handoff.service);
+  }, [handoff, services]);
+  useEffect(() => {
+    if (!handoff || generatedSlots.length === 0) return;
+    if (handoff.service && services.some((s) => s.id === handoff.service) && preferredServiceId !== handoff.service) return;
+    const slot = generatedSlots.find((s) => s.date === handoff.date && s.start_time === handoff.time);
+    setSelectedDay(handoff.date);
+    if (slot) {
+      setSelectedSlot(slot);
+      setSelectedServiceMode(directBookingModes.length === 1 ? directBookingModes[0] : null);
+      const minutes = timeToMinutes(slot.start_time);
+      setSelectedPeriod(minutes < 12 * 60 ? "Morning" : minutes < 16 * 60 ? "Afternoon" : "Evening");
+      if (handoff.service) setChosenService({ slotKey: slot.key, serviceId: handoff.service });
+    }
+    setHandoff(null);
+    window.setTimeout(() => {
+      document.getElementById("availability")?.scrollIntoView({ block: "start" });
+    }, 80);
+    // directBookingModes is derived each render; the handoff runs once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff, generatedSlots, services, preferredServiceId]);
+
   const activePeriodGroup =
     selectedDayTimeGroups.find((group) => group.label === selectedPeriod) ||
     selectedDayTimeGroups[0] ||

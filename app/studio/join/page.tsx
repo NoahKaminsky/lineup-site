@@ -9,7 +9,7 @@ import { getSignedInUser } from "@/lib/getSignedInUser";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 import { studioFetch } from "../studioApi";
 
-type Preview = { studioName: string; invitedEmail: string; expired: boolean };
+type Preview = { studioName: string; invitedEmail: string; expired: boolean; inviteId?: string; joined?: boolean };
 
 function JoinStudio() {
   const router = useRouter();
@@ -22,6 +22,8 @@ function JoinStudio() {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
   const [wrongAccount, setWrongAccount] = useState(false);
+  // The link itself is stale, but signing in will find their invite.
+  const [askSignIn, setAskSignIn] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -34,8 +36,10 @@ function JoinStudio() {
         studioFetch<Preview>(`/api/studio/join?token=${encodeURIComponent(token)}`),
         getSignedInUser(),
       ]);
-      if (!res.ok) setError(res.data.error || "This invite isn't valid anymore.");
-      else setPreview(res.data);
+      if (!res.ok) {
+        setError(res.data.error || "This invite isn't valid anymore.");
+        setAskSignIn(res.data.code === "sign_in");
+      } else setPreview(res.data);
       setSignedInEmail(user?.email || null);
       // So sign-up (through email confirmation) and onboarding come back here.
       rememberReturnTo(returnPath);
@@ -46,7 +50,10 @@ function JoinStudio() {
   async function join() {
     setJoining(true);
     setError("");
-    const res = await studioFetch<{ studioName?: string }>("/api/studio/join", { method: "POST", body: { token } });
+    const res = await studioFetch<{ studioName?: string }>("/api/studio/join", {
+      method: "POST",
+      body: preview?.inviteId ? { inviteId: preview.inviteId } : { token },
+    });
     setJoining(false);
 
     if (res.ok) {
@@ -81,7 +88,18 @@ function JoinStudio() {
 
       <div className="mx-auto max-w-lg px-6 py-16 md:py-24">
         <div className="rounded-2xl border border-hairline bg-surface p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-9">
-          {preview ? (
+          {preview?.joined ? (
+            <>
+              <h1 className="text-3xl font-semibold tracking-[-0.03em]">You&apos;re on {preview.studioName}&apos;s team</h1>
+              <p className="mt-4 text-sm leading-6 text-neutral-600">This invite is already accepted. Nothing else to do.</p>
+              <Link
+                href="/studio"
+                className="mt-6 block w-full rounded-full bg-ink py-3.5 text-center text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
+              >
+                Open the shop
+              </Link>
+            </>
+          ) : preview ? (
             <>
               <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">You&apos;re invited</p>
               <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em]">Join {preview.studioName}</h1>
@@ -101,7 +119,24 @@ function JoinStudio() {
             </p>
           ) : null}
 
-          {preview && !preview.expired ? (
+          {askSignIn ? (
+            <div className="mt-6 space-y-3">
+              <Link
+                href={loginHref(returnPath)}
+                className="block w-full rounded-full bg-ink py-3.5 text-center text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
+              >
+                Sign in
+              </Link>
+              <Link
+                href={loginHref(returnPath, "signup")}
+                className="block w-full rounded-full border border-neutral-300 py-3 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+              >
+                Create my account
+              </Link>
+            </div>
+          ) : null}
+
+          {preview && !preview.joined && !preview.expired ? (
             signedInEmail ? (
               <div className="mt-6 space-y-3">
                 <button
