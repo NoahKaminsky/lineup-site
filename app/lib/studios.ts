@@ -216,6 +216,10 @@ export async function syncMemberPlan(supabase: ServiceClient, profileId: string)
   }
 
   if (studioLive && !hasOwnLivePlan) {
+    // Coming onto the studio's plan turns instant booking and public hours
+    // on, same as buying a plan (the subscription trigger does this too; this
+    // covers databases without it). Already covered: leave their choice alone.
+    const switchingOn = !(grantedByStudio && isLiveStatus(profile.subscription_status));
     await supabase
       .from("profiles")
       .update({
@@ -224,6 +228,7 @@ export async function syncMemberPlan(supabase: ServiceClient, profileId: string)
         subscription_status: "active",
         subscription_current_period_end: membership!.studio.subscription_current_period_end,
         plan_source: "studio",
+        ...(switchingOn ? { direct_booking_enabled: true, public_availability_enabled: true } : {}),
       })
       .eq("id", profileId);
     return;
