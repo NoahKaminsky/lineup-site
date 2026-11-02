@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import LuLoader from "@/app/components/LuLoader";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
-import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
+import { forgetReturnTo, loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 import { studioFetch } from "../studioApi";
 
 type Preview = { studioName: string; invitedEmail: string; expired: boolean; inviteId?: string; joined?: boolean };
@@ -36,16 +36,26 @@ function JoinStudio() {
         studioFetch<Preview>(`/api/studio/join?token=${encodeURIComponent(token)}`),
         getSignedInUser(),
       ]);
+      // Already on the team: the invite is done with. Go to the shop and
+      // forget this link so no later sign-in lands back here.
+      if (res.ok && res.data.joined) {
+        forgetReturnTo("/studio/join");
+        router.replace("/studio");
+        return;
+      }
       if (!res.ok) {
         setError(res.data.error || "This invite isn't valid anymore.");
         setAskSignIn(res.data.code === "sign_in");
       } else setPreview(res.data);
       setSignedInEmail(user?.email || null);
-      // So sign-up (through email confirmation) and onboarding come back here.
-      rememberReturnTo(returnPath);
+      // Signed out: remember this page so sign-up (through email
+      // confirmation) and onboarding come back here. Signed in: nothing to
+      // come back to.
+      if (user) forgetReturnTo("/studio/join");
+      else rememberReturnTo(returnPath);
       setLoading(false);
     })();
-  }, [token, returnPath]);
+  }, [token, returnPath, router]);
 
   async function join() {
     setJoining(true);
@@ -57,7 +67,8 @@ function JoinStudio() {
     setJoining(false);
 
     if (res.ok) {
-      router.push("/studio");
+      forgetReturnTo("/studio/join");
+      router.replace("/studio");
       return;
     }
     if (res.data.code === "needs_onboarding") {
@@ -88,18 +99,7 @@ function JoinStudio() {
 
       <div className="mx-auto max-w-lg px-6 py-16 md:py-24">
         <div className="rounded-2xl border border-hairline bg-surface p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-9">
-          {preview?.joined ? (
-            <>
-              <h1 className="text-3xl font-semibold tracking-[-0.03em]">You&apos;re on {preview.studioName}&apos;s team</h1>
-              <p className="mt-4 text-sm leading-6 text-neutral-600">This invite is already accepted. Nothing else to do.</p>
-              <Link
-                href="/studio"
-                className="mt-6 block w-full rounded-full bg-ink py-3.5 text-center text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
-              >
-                Open the shop
-              </Link>
-            </>
-          ) : preview ? (
+          {preview ? (
             <>
               <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">You&apos;re invited</p>
               <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em]">Join {preview.studioName}</h1>
