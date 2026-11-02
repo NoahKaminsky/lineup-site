@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
-import { SLUG_RE, getStudioForUser, parseCommissionPercent, errorMessage } from "@/app/lib/studios";
+import { SLUG_RE, getStudioForUser, parseCommissionPercent, errorMessage, syncStudioMemberPlans } from "@/app/lib/studios";
 import { cleanTrades, parsePlace, setTakesClients } from "@/app/lib/shopAccount";
 
 // PATCH /api/studio/settings { name?, commissionPercent?, place?, trades?, ... }
@@ -99,6 +99,9 @@ export async function PATCH(req: Request) {
       if (error.code === "23505") return NextResponse.json({ error: "That link is taken. Try another." }, { status: 409 });
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // New shop address: everyone on the team shows it.
+    if ("place" in (body || {})) await syncStudioMemberPlans(supabase, ctx.studio.id);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

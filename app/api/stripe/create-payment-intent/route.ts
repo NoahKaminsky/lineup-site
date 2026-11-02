@@ -303,7 +303,8 @@ async function handleDirectBookingIntent(req: Request, body: any) {
 
   // Master pros pay a reduced commission; studio members pay only card
   // processing on their own clients, and their shop may take a cut.
-  const studioPricing = await getStudioPricingForPro(serviceSupabase, professionalId);
+  // Only appointments at the shop count as the shop's.
+  const studioPricing = await getStudioPricingForPro(serviceSupabase, professionalId, mode);
   const { platformFeeCents, depositAmountCents, studioCutCents, professionalPayoutCents, remainingPayoutCents } =
     splitBookingPayment({
       amountCents,
@@ -499,7 +500,11 @@ export async function POST(req: Request) {
       .maybeSingle();
     // Request bookings are new clients LineUp found, so they pay the normal
     // commission even for studio members; the shop's cut still applies.
-    const studioPricing = await getStudioPricingForPro(serviceSupabase, offer.professional_id);
+    const studioPricing = await getStudioPricingForPro(
+      serviceSupabase,
+      offer.professional_id,
+      (offer.proposed_service_mode as string | null) || null
+    );
     const { platformFeeCents, depositAmountCents, studioCutCents, professionalPayoutCents, remainingPayoutCents } =
       splitBookingPayment({
         amountCents,

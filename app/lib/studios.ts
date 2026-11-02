@@ -169,10 +169,20 @@ export async function getMembershipForProfile(supabase: ServiceClient, profileId
   return { studio, member };
 }
 
+// Where an appointment happens decides whose work it is. "in_shop" is the
+// shop's: the shop's cut applies and it shows on the shop's books. Mobile
+// ("at_home") and the pro's own home studio are their independent work.
+export function isShopWork(mode: string | null | undefined) {
+  return !mode || mode === "in_shop";
+}
+
 // What a booking with this pro looks like from the studio's side: whether
 // they're in a live studio (no commission on their own clients) and how big
-// the shop's cut is.
-export async function getStudioPricingForPro(supabase: ServiceClient, professionalId: string) {
+// the shop's cut is. Independent work (see isShopWork) is billed like a solo
+// pro's: no shop cut, nothing goes to the shop, and the pro's own plan sets
+// LineUp's fee.
+export async function getStudioPricingForPro(supabase: ServiceClient, professionalId: string, mode?: string | null) {
+  if (!isShopWork(mode)) return { studioId: null, inLiveStudio: false, cutPercent: 0 };
   const membership = await getMembershipForProfile(supabase, professionalId);
   if (!membership) return { studioId: null, inLiveStudio: false, cutPercent: 0 };
 
@@ -189,6 +199,9 @@ export async function getStudioPricingForPro(supabase: ServiceClient, profession
 // when they leave or the studio lapses, only that studio-granted plan is taken
 // away. A pro's own paid subscription is never touched.
 export async function syncMemberPlan(supabase: ServiceClient, profileId: string) {
+  // Best effort: needs 20261105_shop_location.sql.
+  await syncMemberLocation(supabase, profileId).catch((error) => console.error("Location sync failed:", error));
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, role, subscription_plan, subscription_status, plan_source, stripe_subscription_id, subscription_current_period_end")
@@ -371,4 +384,77 @@ export async function uniqueStudioSlug(supabase: ServiceClient, name: string) {
     if (!data) return candidate;
   }
   return `${base}-${randomBytes(3).toString("hex")}`;
+}
+
+// A pro on a shop's team shows the shop's address: on their profile, in
+// Browse, and as where in-shop bookings happen. Their own address from before
+// is kept privately and put back if they leave (or stop taking clients).
+// Needs 20261105_shop_location.sql; before it runs this does nothing.
+export async function syncMemberLocation(supabase: ServiceClient, profileId: string) {
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("id, formatted_address, location_lat, location_lng, location_place_id, location_source")
+    .eq("id", profileId)
+    .maybeSingle();
+  if (error || !profile) return;
+
+  const membership = await getMembershipForProfile(supabase, profileId);
+  const place = membership && takesClients(membership.member) ? await getStudioPlace(supabase, membership.studio.id) : null;
+  const shopHasAddress = !!place && place.lat !== null && place.lng !== null && !!place.address;
+  const onShop = profile.location_source === "studio";
+
+  if (shopHasAddress) {
+    if (!onShop) {
+      // Keep what they had, to put back later.
+      const { error: saveError } = await supabase.from("professional_home_base").upsert(
+        {
+          profile_id: profileId,
+          own_address: profile.formatted_address,
+          own_place_id: profile.location_place_id,
+          own_lat: profile.location_lat,
+          own_lng: profile.location_lng,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "profile_id" }
+      );
+      if (saveError) return;
+    }
+    if (
+      onShop &&
+      profile.formatted_address === place!.address &&
+      profile.location_lat === place!.lat &&
+      profile.location_lng === place!.lng
+    ) {
+      return;
+    }
+    await supabase
+      .from("profiles")
+      .update({
+        formatted_address: place!.address,
+        location_place_id: place!.place_id,
+        location_lat: place!.lat,
+        location_lng: place!.lng,
+        location_source: "studio",
+      })
+      .eq("id", profileId);
+    return;
+  }
+
+  if (onShop) {
+    const { data: saved } = await supabase
+      .from("professional_home_base")
+      .select("own_address, own_place_id, own_lat, own_lng")
+      .eq("profile_id", profileId)
+      .maybeSingle();
+    await supabase
+      .from("profiles")
+      .update({
+        formatted_address: saved?.own_address ?? null,
+        location_place_id: saved?.own_place_id ?? null,
+        location_lat: saved?.own_lat ?? null,
+        location_lng: saved?.own_lng ?? null,
+        location_source: null,
+      })
+      .eq("id", profileId);
+  }
 }

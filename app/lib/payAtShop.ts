@@ -66,6 +66,10 @@ export async function startPayAtShopBooking(params: {
 }) {
   const { supabase, user } = params;
   const terms = await getPayAtShopTerms(supabase, params.professionalId);
+  // Paying at the shop only makes sense for an appointment at the shop.
+  if (params.mode !== "in_shop") {
+    return NextResponse.json({ error: "Pay at the shop is only for appointments at the shop." }, { status: 409 });
+  }
   if (!terms.available) {
     return NextResponse.json({ error: "This professional takes payment when you book." }, { status: 409 });
   }

@@ -128,7 +128,9 @@ async function loadShop(slug: string) {
           onPaidPlan &&
           !!p.direct_booking_enabled &&
           !!p.public_availability_enabled &&
-          modes.some((m) => m === "in_shop" || m === "home_studio") &&
+          // Booked here means booked at the shop, for a set service.
+          modes.includes("in_shop") &&
+          proServices.length > 0 &&
           Object.keys(hours).length > 0,
         bookingWindowDays: windows[p.id] || 56,
         hours,

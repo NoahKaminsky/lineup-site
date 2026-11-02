@@ -63,6 +63,7 @@ function statusTag(item: ScheduleItem) {
 }
 
 function paymentLine(item: ScheduleItem) {
+  if (item.source === "independent") return "Their own appointment, away from the shop";
   const price = item.priceCents !== null ? formatCad(item.priceCents) : null;
   if (item.kind !== "online") {
     return `${item.kind === "phone" ? "Phone-in" : "Walk-in"}${price ? `, ${price} at the shop` : ", paid at the shop"}`;
@@ -495,7 +496,7 @@ function AppointmentBlock({ item, startMin, onOpen }: { item: ScheduleItem; star
   const closed = item.status === "completed" || item.status === "no_show";
   const frontDesk = item.kind !== "online";
 
-  const look = closed
+  const look = closed || item.source === "independent"
     ? "bg-ink/[0.05] text-neutral-500"
     : frontDesk
     ? "bg-[#ecebe6] text-ink shadow-[inset_3px_0_0_#0a0a0a]"
@@ -697,7 +698,7 @@ export function AppointmentSheet({
       description={when}
       footer={
         <>
-          {!frontDesk ? (
+          {!frontDesk && item.source !== "independent" ? (
             <a href={`/bookings/${item.id}`} className={buttonClass("secondary")}>
               Open booking
             </a>

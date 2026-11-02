@@ -3018,7 +3018,7 @@ if (loading) {
               ) : null}
             </div>
 
-            {payAtShopTerms ? (
+            {payAtShopTerms && pendingBookingChoice.mode === "in_shop" ? (
               <div className="mt-5 grid grid-cols-2 gap-2" role="radiogroup" aria-label="When to pay">
                 {[
                   { value: false, title: "Pay now", text: "Secure checkout" },
@@ -3047,7 +3047,7 @@ if (loading) {
 
             {/* The cancellation policy, stated before anyone pays. */}
             <p className="mt-5 rounded-2xl bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-600 ring-1 ring-ink/[0.05]">
-              {payAtShopTerms && payAtShopChoice ? (
+              {payAtShopTerms && payAtShopChoice && pendingBookingChoice.mode === "in_shop" ? (
                 <>
                   <span className="font-semibold text-neutral-900">No-show policy:</span> nothing is charged today. Cancel
                   free until {formatCancellationDeadline(pendingBookingChoice.slot.date, pendingBookingChoice.slot.start_time)}.
@@ -3069,7 +3069,12 @@ if (loading) {
                 onClick={() => {
                   const choice = pendingBookingChoice;
                   setPendingBookingChoice(null);
-                  handleBookServiceInSlot(choice.service, choice.slot, choice.mode, !!payAtShopTerms && payAtShopChoice);
+                  handleBookServiceInSlot(
+                    choice.service,
+                    choice.slot,
+                    choice.mode,
+                    !!payAtShopTerms && payAtShopChoice && choice.mode === "in_shop"
+                  );
                 }}
                 disabled={bookingSlotKey === pendingBookingChoice.slot.key}
                 className="inline-flex flex-1 items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"

@@ -13,13 +13,26 @@
 // clashes at payment, and the database refuses two bookings that overlap.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowRight, ChevronDown, ShieldCheck } from "lucide-react";
+import { Check, ChevronDown, ShieldCheck } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
+import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
+import PaymentModal from "@/app/components/payments/PaymentModal";
+import CardSetupModal from "@/app/components/payments/CardSetupModal";
 import type { ShopPro } from "./page";
 
 type Busy = { professional_id: string; booking_date: string; start_time: string; end_time: string };
 
 const DAYS_SHOWN = 14;
-const STEP_MIN = 15;
+// Start times on the half hour, plus the moment a pro frees up (so a 15
+// minute gap after a booking isn't lost). Fewer, cleaner choices.
+const STEP_MIN = 30;
+
+const PERIODS = [
+  { key: "morning", label: "Morning", from: 0, to: 12 * 60 },
+  { key: "afternoon", label: "Afternoon", from: 12 * 60, to: 17 * 60 },
+  { key: "evening", label: "Evening", from: 17 * 60, to: 24 * 60 },
+] as const;
+type PeriodKey = (typeof PERIODS)[number]["key"];
 const LEAD_MIN = 15; // never offer a time starting in the next 15 minutes
 
 function dateKey(d: Date) {
@@ -62,8 +75,13 @@ function openTimes(pro: ShopPro, busy: Busy[], day: string, minutes: number, tod
   for (const [ws, we] of windows) {
     const start = toMin(ws);
     const end = toMin(we);
-    for (let t = Math.ceil(start / STEP_MIN) * STEP_MIN; t + minutes <= end; t += STEP_MIN) {
-      if (t <= earliest) continue;
+    const candidates = new Set<number>();
+    for (let t = Math.ceil(start / STEP_MIN) * STEP_MIN; t <= end; t += STEP_MIN) candidates.add(t);
+    candidates.add(start);
+    // Right when a booking ends, if that's inside their hours.
+    for (const [, be] of taken) if (be > start && be < end) candidates.add(be);
+    for (const t of candidates) {
+      if (t + minutes > end || t <= earliest) continue;
       if (taken.some(([bs, be]) => t < be && t + minutes > bs)) continue;
       out.push(fromMin(t));
     }
@@ -112,6 +130,24 @@ export default function ShopBooking({ pros }: { pros: ShopPro[] }) {
   }, [load]);
 
   const days = useMemo(() => Array.from({ length: DAYS_SHOWN }, (_, i) => addDays(today, i)), [today]);
+
+  // Back from signing in: reopen the pro with the time they'd picked.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const pro = bookable.find((p) => p.id === params.get("pro"));
+    if (!pro) return;
+    const day = params.get("day");
+    const time = params.get("time");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from the URL
+    setOpenId(pro.id);
+    setPick({
+      day: day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null,
+      time: time && /^\d{2}:\d{2}$/.test(time) ? time : null,
+      serviceId: pro.services.some((s) => s.id === params.get("service")) ? params.get("service") : null,
+    });
+    window.history.replaceState(null, "", window.location.pathname);
+    window.setTimeout(() => document.getElementById(`pro-${pro.id}`)?.scrollIntoView({ block: "start" }), 120);
+  }, [bookable]);
 
   // Each bookable pro's first openings, at their shortest service.
   const nextFor = useMemo(() => {
@@ -197,6 +233,7 @@ export default function ShopBooking({ pros }: { pros: ShopPro[] }) {
                 pick={openId === pro.id ? pick : { day: null, time: null, serviceId: null }}
                 setPick={setPick}
                 onToggle={() => (openId === pro.id ? setOpenId(null) : openPro(pro))}
+                onChanged={load}
               />
             ))}
           </ul>
@@ -232,6 +269,7 @@ function ProCard({
   pick,
   setPick,
   onToggle,
+  onChanged,
 }: {
   pro: ShopPro;
   open: boolean;
@@ -243,6 +281,7 @@ function ProCard({
   pick: { day: string | null; time: string | null; serviceId: string | null };
   setPick: (p: { day: string | null; time: string | null; serviceId: string | null }) => void;
   onToggle: () => void;
+  onChanged: () => void;
 }) {
   const service = pro.services.find((s) => s.id === pick.serviceId) || null;
   const minutes = service?.minutes || pro.defaultMinutes;
@@ -256,6 +295,18 @@ function ProCard({
   // A time that's no longer free (someone booked it, or the service is longer) drops out.
   const time = pick.time && times.includes(pick.time) ? pick.time : null;
 
+  // One part of the day at a time: the one with the picked time, the one they
+  // chose, or the first with openings.
+  const [periodChoice, setPeriodChoice] = useState<PeriodKey | null>(null);
+  const byPeriod = PERIODS.map((p) => ({
+    ...p,
+    times: times.filter((t) => toMin(t) >= p.from && toMin(t) < p.to),
+  })).filter((p) => p.times.length > 0);
+  const timePeriod = time ? byPeriod.find((p) => p.times.includes(time))?.key : undefined;
+  const period =
+    byPeriod.find((p) => p.key === periodChoice)?.key || timePeriod || byPeriod[0]?.key || null;
+  const shownTimes = byPeriod.find((p) => p.key === period)?.times || [];
+
   const nextLabel = !pro.canBookOnline
     ? "Book by sending a request"
     : loading
@@ -264,10 +315,6 @@ function ProCard({
     ? `Next opening ${next[0].day === today ? "today" : dayName(next[0].day, today).split(",")[0].toLowerCase().replace(/^(\w)/, (c) => c)} at ${time12(next[0].time)}`
     : "No openings in the next two weeks";
 
-  const bookHref =
-    day && time
-      ? `${pro.href}?book=${day}T${time}${service ? `&service=${service.id}` : ""}#availability`
-      : null;
 
   return (
     <li
@@ -360,7 +407,10 @@ function ProCard({
                     disabled={!has}
                     aria-pressed={on}
                     aria-label={`${dayName(d, today)}${has ? "" : ", no openings"}`}
-                    onClick={() => setPick({ day: d, time: null, serviceId: pick.serviceId })}
+                    onClick={() => {
+                      setPeriodChoice(null);
+                      setPick({ day: d, time: null, serviceId: pick.serviceId });
+                    }}
                     className={`flex w-14 shrink-0 flex-col items-center rounded-xl py-2 transition-colors disabled:cursor-not-allowed ${
                       on ? "bg-ink text-white" : has ? "bg-ink/[0.04] text-ink hover:bg-ink/[0.08]" : "text-neutral-300"
                     }`}
@@ -380,8 +430,31 @@ function ProCard({
               {day ? `${dayName(day, today)}${service ? `, ${service.minutes} min` : ""}` : "Time"}
             </p>
             {times.length ? (
-              <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
-                {times.map((t) => {
+              <>
+              {byPeriod.length > 1 ? (
+                <div role="tablist" aria-label="Part of the day" className="mt-2 inline-flex rounded-full bg-ink/[0.06] p-1">
+                  {byPeriod.map((p) => {
+                    const on = p.key === period;
+                    return (
+                      <button
+                        key={p.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={on}
+                        onClick={() => setPeriodChoice(p.key)}
+                        className={`h-8 rounded-full px-3.5 text-[13px] font-medium transition-colors ${
+                          on ? "bg-surface text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)]" : "text-neutral-500 hover:text-ink"
+                        }`}
+                      >
+                        {p.label}
+                        <span className={`ml-1 tabular-nums ${on ? "text-neutral-400" : "text-neutral-400"}`}>{p.times.length}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+              <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
+                {shownTimes.map((t) => {
                   const on = t === time;
                   return (
                     <button
@@ -389,7 +462,7 @@ function ProCard({
                       type="button"
                       aria-pressed={on}
                       onClick={() => setPick({ day, time: t, serviceId: pick.serviceId })}
-                      className={`h-11 rounded-xl text-sm font-medium tabular-nums transition-colors ${
+                      className={`h-10 rounded-xl text-[13px] font-medium tabular-nums transition-colors sm:text-sm ${
                         on ? "bg-ink text-white" : "shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] hover:shadow-[inset_0_0_0_1.5px_#0a0a0a]"
                       }`}
                     >
@@ -398,6 +471,7 @@ function ProCard({
                   );
                 })}
               </div>
+              </>
             ) : (
               <p className="mt-2 text-sm text-neutral-500">
                 No openings in the next two weeks{service ? " for this service" : ""}. Try{" "}
@@ -409,41 +483,269 @@ function ProCard({
             )}
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-ink/[0.04] p-3 pl-4">
-            <p className="min-w-0 text-sm">
-              {time && day ? (
-                <>
-                  <span className="font-semibold">
-                    {dayName(day, today)}, {time12(time)}
-                  </span>
-                  <span className="text-neutral-500">
-                    {" "}
-                    with {pro.name.split(" ")[0]}
-                    {service ? `, ${service.name}${service.priceLabel ? ` ${service.priceLabel}` : ""}` : ""}
-                  </span>
-                </>
-              ) : (
-                <span className="text-neutral-500">
-                  {pro.services.length && !service ? "Pick a service and a time" : "Pick a time"}
-                </span>
-              )}
-            </p>
-            {bookHref && (service || !pro.services.length) ? (
-              <a
-                href={bookHref}
-                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-ink px-5 text-sm font-medium text-white hover:bg-neutral-800"
-              >
-                Continue
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </a>
-            ) : (
-              <span className="inline-flex h-10 shrink-0 items-center rounded-full bg-ink/10 px-5 text-sm font-medium text-neutral-400">
-                Continue
-              </span>
-            )}
-          </div>
+          <BookingBar pro={pro} service={service} day={day} time={time} today={today} onChanged={onChanged} />
         </div>
       ) : null}
     </li>
+  );
+}
+
+// The last step, right here: pay now, or (if the shop allows it) save a card
+// and pay at the shop. Signed-out visitors sign in and come straight back to
+// this time.
+function BookingBar({
+  pro,
+  service,
+  day,
+  time,
+  today,
+  onChanged,
+}: {
+  pro: ShopPro;
+  service: ShopPro["services"][number] | null;
+  day: string | null;
+  time: string | null;
+  today: string;
+  onChanged: () => void;
+}) {
+  const [payAtShop, setPayAtShop] = useState<{ shopName: string; feePercent: number } | null>(null);
+  const [payLater, setPayLater] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [message, setMessage] = useState("");
+  const [paymentSecret, setPaymentSecret] = useState<string | null>(null);
+  const [cardSetup, setCardSetup] = useState<{ clientSecret: string; priceCents: number; noShowFeeCents: number } | null>(null);
+  const [booked, setBooked] = useState<{ id: string | null; when: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/bookings/pay-at-shop?professionalId=${encodeURIComponent(pro.id)}`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (!cancelled && j?.available) setPayAtShop({ shopName: j.studioName, feePercent: Number(j.noShowFeePercent) || 0 });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [pro.id]);
+
+  const ready = !!(day && time && service);
+  const when = day && time ? `${dayName(day, today)}, ${time12(time)}` : "";
+
+  async function findBooking(): Promise<string | null> {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user || !day || !time) return null;
+    for (let i = 0; i < 12; i += 1) {
+      const { data } = await supabase
+        .from("bookings")
+        .select("id, start_time")
+        .eq("customer_id", user.id)
+        .eq("professional_id", pro.id)
+        .eq("booking_date", day)
+        .eq("status", "confirmed")
+        .order("created_at", { ascending: false })
+        .limit(5);
+      const hit = (data || []).find((b) => String(b.start_time).slice(0, 5) === time);
+      if (hit) return hit.id;
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    return null;
+  }
+
+  async function book() {
+    if (!ready || working) return;
+    setMessage("");
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      const back = `${window.location.pathname}?pro=${pro.id}&day=${day}&time=${time}&service=${service!.id}`;
+      rememberReturnTo(back);
+      window.location.assign(loginHref(back));
+      return;
+    }
+    const { data: me } = await supabase.from("profiles").select("role").eq("id", session.user.id).maybeSingle();
+    if (me?.role && me.role !== "customer" && me.role !== "I am a customer") {
+      setMessage("Booking is for client accounts. Sign in with your client account to book.");
+      return;
+    }
+
+    setWorking(true);
+    try {
+      const res = await fetch("/api/stripe/create-payment-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          flowType: "direct_booking",
+          professionalId: pro.id,
+          serviceId: service!.id,
+          date: day,
+          startTime: time,
+          endTime: fromMin(toMin(time!) + service!.minutes),
+          mode: "in_shop",
+          ...(payAtShop && payLater ? { payAtShop: true } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(data?.error || "Couldn't book that time. Try another.");
+        if (res.status === 409) onChanged();
+        setWorking(false);
+        return;
+      }
+      if (data.mode === "setup") {
+        setCardSetup({
+          clientSecret: data.clientSecret,
+          priceCents: Number(data.amountCents) || 0,
+          noShowFeeCents: Number(data.noShowFeeCents) || 0,
+        });
+        return;
+      }
+      setPaymentSecret(data.clientSecret);
+    } catch {
+      setMessage("Something went wrong. Try again.");
+      setWorking(false);
+    }
+  }
+
+  async function paid() {
+    setPaymentSecret(null);
+    setMessage("Payment received. Confirming your booking…");
+    const id = await findBooking();
+    setWorking(false);
+    setMessage("");
+    setBooked({ id, when });
+    onChanged();
+  }
+
+  async function cardSaved(setupIntentId: string) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const res = await fetch("/api/bookings/pay-at-shop", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ setupIntentId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setCardSetup(null);
+    setWorking(false);
+    if (!res.ok || !data?.bookingId) {
+      setMessage(data?.error || "Your card was saved, but we couldn't confirm the booking. Check your Bookings tab.");
+      return;
+    }
+    setBooked({ id: data.bookingId, when });
+    onChanged();
+  }
+
+  if (booked) {
+    return (
+      <div className="mt-6 rounded-2xl bg-ink p-5 text-white">
+        <p className="flex items-center gap-2 text-[15px] font-semibold">
+          <Check className="h-4 w-4" aria-hidden="true" />
+          You&apos;re booked with {pro.name.split(" ")[0]}
+        </p>
+        <p className="mt-1 text-sm text-white/70">
+          {booked.when}
+          {service ? `, ${service.name}` : ""}. It&apos;s in your bookings.
+        </p>
+        <a
+          href={booked.id ? `/bookings/${booked.id}` : "/work"}
+          className="mt-4 inline-flex h-10 items-center rounded-full bg-white px-5 text-sm font-medium text-ink"
+        >
+          View booking
+        </a>
+      </div>
+    );
+  }
+
+  const price = service?.priceLabel || "";
+
+  return (
+    <div className="mt-6 rounded-2xl bg-ink/[0.04] p-3 pl-4">
+      {ready && payAtShop ? (
+        <div role="radiogroup" aria-label="When to pay" className="mb-3 grid grid-cols-2 gap-2 pr-1 pt-1">
+          {[
+            { v: false, t: "Pay now", d: "Card, secure checkout" },
+            { v: true, t: "Pay at the shop", d: `Card saved for no-shows (${payAtShop.feePercent}% fee)` },
+          ].map((o) => (
+            <button
+              key={String(o.v)}
+              type="button"
+              role="radio"
+              aria-checked={payLater === o.v}
+              onClick={() => setPayLater(o.v)}
+              className={`rounded-xl px-3 py-2.5 text-left transition-colors ${
+                payLater === o.v ? "bg-ink text-white" : "bg-surface text-ink shadow-[inset_0_0_0_1px_rgba(10,10,10,0.1)]"
+              }`}
+            >
+              <span className="block text-sm font-medium">{o.t}</span>
+              <span className={`block text-xs ${payLater === o.v ? "text-white/70" : "text-neutral-500"}`}>{o.d}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="min-w-0 text-sm">
+          {ready ? (
+            <>
+              <span className="font-semibold">{when}</span>
+              <span className="text-neutral-500">
+                {" "}
+                with {pro.name.split(" ")[0]}, {service!.name}
+              </span>
+            </>
+          ) : (
+            <span className="text-neutral-500">{!service ? "Pick a service and a time" : "Pick a time"}</span>
+          )}
+        </p>
+        <button
+          type="button"
+          onClick={book}
+          disabled={!ready || working}
+          className="inline-flex h-10 shrink-0 items-center rounded-full bg-ink px-5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:bg-ink/10 disabled:text-neutral-400"
+        >
+          {working ? "One moment…" : !ready ? "Book" : payAtShop && payLater ? "Book" : `Book${price ? ` and pay ${price}` : ""}`}
+        </button>
+      </div>
+      {message ? (
+        <p role="alert" className="mt-2 pr-1 text-[13px] text-[#A30D25]">
+          {message}
+        </p>
+      ) : null}
+
+      {paymentSecret ? (
+        <PaymentModal
+          clientSecret={paymentSecret}
+          proName={pro.name}
+          title="Confirm your booking"
+          subtitle={`${when} with ${pro.name.split(" ")[0]}. Your booking is confirmed as soon as payment goes through.`}
+          onClose={() => {
+            setPaymentSecret(null);
+            setWorking(false);
+          }}
+          onSuccess={paid}
+          redirectTo={null}
+        />
+      ) : null}
+      {cardSetup ? (
+        <CardSetupModal
+          clientSecret={cardSetup.clientSecret}
+          priceCents={cardSetup.priceCents}
+          noShowFeeCents={cardSetup.noShowFeeCents}
+          shopName={payAtShop?.shopName}
+          onClose={() => {
+            setCardSetup(null);
+            setWorking(false);
+          }}
+          onSaved={cardSaved}
+        />
+      ) : null}
+    </div>
   );
 }

@@ -51,7 +51,7 @@ export async function GET(req: Request) {
       supabase
         .from("bookings")
         .select(
-          "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_name, source, payment_status, service_price, no_show_status"
+          "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_name, source, payment_status, service_price, no_show_status, service_mode"
         )
         .in("professional_id", ids)
         .gte("booking_date", from)
@@ -87,8 +87,29 @@ export async function GET(req: Request) {
       : { data: [] };
     const customerMap = new Map((customers || []).map((c) => [c.id, c.full_name]));
 
+    // A pro's own work away from the shop (mobile, their home studio) blocks
+    // the time on the shop's calendar but stays theirs: no client, service
+    // or price for anyone else.
+    const isAway = (b: { service_mode?: string | null; professional_id: string }) =>
+      !!b.service_mode && b.service_mode !== "in_shop" && b.professional_id !== user.id;
+
     const items = [
-      ...onlineRows.map((b) => ({
+      ...onlineRows.map((b) => isAway(b) ? ({
+        id: b.id,
+        kind: "online" as const,
+        professionalId: b.professional_id,
+        date: String(b.booking_date),
+        start: String(b.start_time).slice(0, 5),
+        end: String(b.end_time).slice(0, 5),
+        status: b.no_show_status ? "no_show" : b.status,
+        service: "Away",
+        source: "independent",
+        payAtShop: false,
+        clientName: null,
+        clientPhone: null,
+        priceCents: null,
+        note: null,
+      }) : ({
         id: b.id,
         kind: "online" as const,
         professionalId: b.professional_id,

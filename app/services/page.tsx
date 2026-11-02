@@ -529,6 +529,17 @@ export default function ServicesPage() {
   const [defaultAppointmentDuration, setDefaultAppointmentDuration] = useState(60);
   const [availabilityWindows, setAvailabilityWindows] = useState<AvailabilityWindow[]>([]);
   const [location, setLocation] = useState("");
+  // On a shop's team: the public address is the shop's, set by the shop.
+  const [shopLocked, setShopLocked] = useState(false);
+  // Private home base for mobile (at-home) work. Never shown to clients.
+  const [homeBase, setHomeBase] = useState<{ address: string; placeId: string; lat: number | null; lng: number | null }>({
+    address: "",
+    placeId: "",
+    lat: null,
+    lng: null,
+  });
+  const [homeBaseSaved, setHomeBaseSaved] = useState("");
+  const [savingHomeBase, setSavingHomeBase] = useState(false);
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
   const [locationPlaceId, setLocationPlaceId] = useState("");
@@ -679,6 +690,18 @@ export default function ServicesPage() {
       setLocationLat(profileData.location_lat ?? null);
       setLocationLng(profileData.location_lng ?? null);
       setLocationPlaceId(profileData.location_place_id || "");
+
+      // Separate queries: errors just mean 20261105_shop_location.sql hasn't run.
+      const [{ data: sourceRow }, { data: homeRow }] = await Promise.all([
+        supabase.from("profiles").select("location_source").eq("id", user.id).maybeSingle(),
+        supabase.from("professional_home_base").select("address, place_id, lat, lng").eq("profile_id", user.id).maybeSingle(),
+      ]);
+      setShopLocked((sourceRow as { location_source?: string | null } | null)?.location_source === "studio");
+      if (homeRow) {
+        const h = homeRow as { address: string | null; place_id: string | null; lat: number | null; lng: number | null };
+        setHomeBase({ address: h.address || "", placeId: h.place_id || "", lat: h.lat, lng: h.lng });
+        setHomeBaseSaved(h.address || "");
+      }
 
       const { data: availabilityData, error: availabilityError } = await supabase
         .from("professional_availability")
@@ -1047,7 +1070,7 @@ export default function ServicesPage() {
         Number.isFinite(locationLat) &&
         Number.isFinite(locationLng));
 
-    const locationWarning = !locationIsValid
+    const locationWarning = !locationIsValid && !shopLocked
       ? !location.trim()
         ? "Business address was not saved — enter your shop or studio address."
         : !locationPlaceId
@@ -1067,7 +1090,8 @@ export default function ServicesPage() {
         direct_booking_enabled: directBookingEnabled,
         public_availability_enabled: publicAvailabilityEnabled,
         default_appointment_duration: defaultAppointmentDuration,
-        ...(locationIsValid
+        // A shop member's address is the shop's: never overwrite it from here.
+        ...(locationIsValid && !shopLocked
           ? {
               formatted_address: savedFormattedAddress,
               location_lat: savedLocationLat,
@@ -1688,13 +1712,83 @@ export default function ServicesPage() {
           title="Shop or studio address"
           subtitle="Business location"
           summary={
-            displayedBusinessAddress
+            shopLocked
+              ? "Your shop's address"
+              : displayedBusinessAddress
               ? displayedBusinessAddress.primary
               : needsBusinessLocation
               ? "Required for in-shop or home studio bookings"
               : "Optional unless you offer location-based bookings"
           }
         >
+          {shopLocked ? (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <p className="text-sm font-semibold text-neutral-900">Your shop&apos;s address</p>
+                <p className="mt-1 text-sm text-neutral-700">
+                  <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />
+                  {location || "Set by your shop"}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-neutral-500">
+                  You&apos;re on a shop&apos;s team, so your profile and in-shop bookings use the shop&apos;s address. The shop
+                  owner changes it in their settings.
+                </p>
+              </div>
+
+              <div>
+                <LocationAutocomplete
+                  label="Home base for mobile appointments (private)"
+                  placeholder="Where you start from when you go to clients"
+                  value={homeBase.address}
+                  onInputChange={(value) => setHomeBase({ address: value, placeId: "", lat: null, lng: null })}
+                  onSelect={(selected) =>
+                    setHomeBase({
+                      address: selected.formattedAddress || homeBase.address,
+                      placeId: selected.placeId || "",
+                      lat: Number.isFinite(selected.lat) ? selected.lat : null,
+                      lng: Number.isFinite(selected.lng) ? selected.lng : null,
+                    })
+                  }
+                />
+                <p className="mt-2 text-xs leading-5 text-neutral-500">
+                  Only for work you do on your own at clients&apos; places. It&apos;s never shown to anyone.
+                </p>
+                {homeBase.address !== homeBaseSaved ? (
+                  <button
+                    type="button"
+                    disabled={savingHomeBase || (!!homeBase.address.trim() && homeBase.lat === null)}
+                    onClick={async () => {
+                      if (!profile) return;
+                      setSavingHomeBase(true);
+                      const cleared = !homeBase.address.trim();
+                      const { error } = await supabase.from("professional_home_base").upsert(
+                        {
+                          profile_id: profile.id,
+                          address: cleared ? null : homeBase.address.trim(),
+                          place_id: cleared ? null : homeBase.placeId || null,
+                          lat: cleared ? null : homeBase.lat,
+                          lng: cleared ? null : homeBase.lng,
+                          updated_at: new Date().toISOString(),
+                        },
+                        { onConflict: "profile_id" }
+                      );
+                      setSavingHomeBase(false);
+                      if (error) {
+                        setMessage(error.message);
+                        return;
+                      }
+                      setHomeBaseSaved(cleared ? "" : homeBase.address.trim());
+                      setMessage(cleared ? "Home base removed." : "Home base saved. It stays private.");
+                    }}
+                    className="mt-3 inline-flex rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-50"
+                  >
+                    {savingHomeBase ? "Saving…" : homeBase.address.trim() ? "Save home base" : "Remove home base"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+          <>
           <p className="max-w-2xl text-sm leading-6 text-neutral-500">
             This is used for in-shop and home studio bookings. Customers should only see the exact address after a booking is confirmed.
           </p>
@@ -1790,6 +1884,8 @@ export default function ServicesPage() {
             <p className="mt-3 text-sm text-neutral-500">
               Optional unless you offer in-shop or home studio services.
             </p>
+          )}
+          </>
           )}
         </AccordionSection>
         <AccordionSection

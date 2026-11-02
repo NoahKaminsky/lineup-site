@@ -77,7 +77,9 @@ export default function TodayView() {
 
   const now = nowMinutes();
   const todays = (items || []).filter((i) => i.date === today && i.status !== "cancelled");
-  const live = todays.filter((i) => i.status !== "no_show");
+  // A pro's own work away from the shop still makes them busy on the floor,
+  // but isn't part of the shop's day.
+  const live = todays.filter((i) => i.status !== "no_show" && i.source !== "independent");
   const upNext = live.filter((i) => i.status !== "completed" && toMinutes(i.end) > now);
   const doneCount = live.length - upNext.length;
   const walkIns = live.filter((i) => i.kind !== "online").length;
