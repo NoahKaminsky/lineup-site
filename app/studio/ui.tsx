@@ -6,7 +6,7 @@
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { MoreHorizontal, X } from "lucide-react";
+import { Check, MoreHorizontal, X } from "lucide-react";
 
 export const SIGNAL = "#C8102E";
 
@@ -239,9 +239,12 @@ export function EmptyState({ title, body, action }: { title: string; body?: Reac
 export function Menu({
   label,
   items,
+  trigger,
 }: {
   label: string;
   items: { label: string; onSelect: () => void; danger?: boolean; disabled?: boolean }[];
+  // A labelled button instead of the "⋯" icon.
+  trigger?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -266,18 +269,22 @@ export function Menu({
     <div ref={ref} className="relative">
       <button
         type="button"
-        aria-label={label}
+        aria-label={trigger ? undefined : label}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-ink/[0.06] hover:text-ink"
+        className={
+          trigger
+            ? buttonClass("secondary", "sm")
+            : "flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-ink/[0.06] hover:text-ink"
+        }
       >
-        <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+        {trigger || <MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
       </button>
       {open ? (
         <div
           role="menu"
-          className="lu-pop-in absolute right-0 top-9 z-30 min-w-[11rem] rounded-xl bg-surface p-1 shadow-[0_0_0_1px_rgba(10,10,10,0.08),0_12px_32px_-12px_rgba(0,0,0,0.3)]"
+          className="lu-pop-in absolute right-0 top-10 z-30 min-w-[11rem] rounded-xl bg-surface p-1 shadow-[0_0_0_1px_rgba(10,10,10,0.08),0_12px_32px_-12px_rgba(0,0,0,0.3)]"
         >
           {items.map((item) => (
             <button
@@ -420,6 +427,144 @@ export function Notice({
           <X className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       </div>
+    </div>
+  );
+}
+
+// The shop's address: type, pick a suggestion. Uses the same lookup as the
+// rest of LineUp (/api/places), styled to match these fields.
+export type PickedPlace = { address: string; placeId: string | null; lat: number; lng: number };
+
+export function AddressField({
+  id,
+  value,
+  onPick,
+  placeholder = "Start typing the shop's address",
+}: {
+  id: string;
+  value: string;
+  onPick: (place: PickedPlace | null) => void;
+  placeholder?: string;
+}) {
+  const [input, setInput] = useState(value);
+  const [suggestions, setSuggestions] = useState<{ placeId: string; text: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [picked, setPicked] = useState(!!value);
+
+  useEffect(() => {
+    if (picked || input.trim().length < 3) return;
+    const t = window.setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch("/api/places/autocomplete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input }),
+        });
+        const data = await res.json();
+        setSuggestions(data.suggestions || []);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 280);
+    return () => window.clearTimeout(t);
+  }, [input, picked]);
+
+  async function choose(s: { placeId: string; text: string }) {
+    setInput(s.text);
+    setSuggestions([]);
+    setPicked(true);
+    try {
+      const res = await fetch("/api/places/details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId: s.placeId }),
+      });
+      const d = await res.json();
+      if (typeof d.lat === "number" && typeof d.lng === "number") {
+        const address = d.formattedAddress || s.text;
+        setInput(address);
+        onPick({ address, placeId: d.placeId || s.placeId, lat: d.lat, lng: d.lng });
+      }
+    } catch {
+      onPick(null);
+    }
+  }
+
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        value={input}
+        autoComplete="off"
+        onChange={(e) => {
+          setInput(e.target.value);
+          setPicked(false);
+          if (e.target.value.trim().length < 3) setSuggestions([]);
+          onPick(null);
+        }}
+        placeholder={placeholder}
+        className={fieldClass}
+        aria-autocomplete="list"
+      />
+      {searching ? <p className="mt-1.5 text-xs text-neutral-500">Looking it up…</p> : null}
+      {suggestions.length ? (
+        <ul
+          role="listbox"
+          className="lu-pop-in absolute inset-x-0 top-12 z-30 overflow-hidden rounded-xl bg-surface p-1 shadow-[0_0_0_1px_rgba(10,10,10,0.08),0_16px_40px_-14px_rgba(0,0,0,0.3)]"
+        >
+          {suggestions.map((s) => (
+            <li key={s.placeId}>
+              <button
+                type="button"
+                role="option"
+                aria-selected="false"
+                onClick={() => choose(s)}
+                className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-ink hover:bg-ink/[0.05]"
+              >
+                {s.text}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+// Pick several from a set (trades): chips that fill in when chosen.
+export function ChipPicker({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-2">
+      {options.map((o) => {
+        const on = value.includes(o.value);
+        return (
+          <button
+            key={o.value}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(on ? value.filter((v) => v !== o.value) : [...value, o.value])}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors ${
+              on ? "bg-ink text-white" : "bg-surface text-neutral-700 shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] hover:text-ink"
+            }`}
+          >
+            {on ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : null}
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

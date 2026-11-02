@@ -152,6 +152,8 @@ export default function SubscriptionPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   // Set when this pro's plan is paid for by their studio (see /studio).
   const [coveredByStudio, setCoveredByStudio] = useState(false);
+  // On a shop's team, whether or not its plan covers them yet.
+  const [onStudio, setOnStudio] = useState(false);
   const [boostedUntil, setBoostedUntil] = useState<string | null>(null);
   const [boosting, setBoosting] = useState(false);
   const [boostNotice, setBoostNotice] = useState(false);
@@ -206,10 +208,11 @@ export default function SubscriptionPage() {
       // Separate query: an error just means the studio columns don't exist yet.
       const { data: studioInfo } = await supabase
         .from("profiles")
-        .select("plan_source")
+        .select("plan_source, studio_id")
         .eq("id", user.id)
         .maybeSingle();
       setCoveredByStudio(studioInfo?.plan_source === "studio");
+      setOnStudio(!!studioInfo?.studio_id);
 
       // A boost running now (or queued after it).
       const { data: boost } = await supabase
@@ -410,6 +413,20 @@ export default function SubscriptionPage() {
               className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
             >
               Go to your studio
+            </Link>
+          </div>
+        ) : onStudio ? (
+          <div className="mb-10 rounded-panel border border-hairline bg-surface p-6 sm:p-8">
+            <p className="text-lg font-semibold tracking-[-0.02em] text-ink">Your shop&apos;s plan can cover you</p>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-600">
+              Once your shop is on a studio plan with 2 or more pros taking clients, you get Pro features from it and don&apos;t
+              need a plan of your own. If you already pay for one, it stops renewing then, so you&apos;re never charged twice.
+            </p>
+            <Link
+              href="/studio"
+              className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+            >
+              Go to your shop
             </Link>
           </div>
         ) : null}

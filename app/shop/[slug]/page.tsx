@@ -40,10 +40,14 @@ async function loadShop(slug: string) {
 
   const { data: members } = await supabase
     .from("studio_members")
-    .select("profile_id, role")
+    .select("*")
     .eq("studio_id", studio.id)
     .eq("status", "active");
-  const ids = (members || []).map((m) => m.profile_id).filter(Boolean) as string[];
+  // Only pros who take clients are bookable.
+  const ids = ((members || []) as { profile_id: string | null; takes_clients?: boolean | null }[])
+    .filter((m) => m.takes_clients !== false)
+    .map((m) => m.profile_id)
+    .filter(Boolean) as string[];
 
   const [{ data: profiles }, { data: services }] = await Promise.all([
     ids.length
@@ -99,7 +103,8 @@ async function loadShop(slug: string) {
     .sort((a, b) => (a.id === studio.owner_id ? -1 : b.id === studio.owner_id ? 1 : a.name.localeCompare(b.name)));
 
   const owner = (profiles || []).find((p) => p.id === studio.owner_id);
-  const address = owner?.formatted_address || (profiles || []).find((p) => p.formatted_address)?.formatted_address || null;
+  const { data: place } = await supabase.from("studios").select("address").eq("id", studio.id).maybeSingle();
+  const address = (place as { address?: string | null } | null)?.address || owner?.formatted_address || (profiles || []).find((p) => p.formatted_address)?.formatted_address || null;
 
   return { studio, pros, address, live };
 }

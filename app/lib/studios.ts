@@ -25,6 +25,17 @@ export type StudioRow = {
   created_at: string;
 };
 
+// Added by 20261104_shop_accounts.sql; read separately so older databases
+// still load.
+export type StudioPlaceRow = {
+  address: string | null;
+  place_id: string | null;
+  lat: number | null;
+  lng: number | null;
+  area_label: string | null;
+  trades: string[] | null;
+};
+
 export type StudioMemberRow = {
   id: string;
   studio_id: string;
@@ -42,6 +53,8 @@ export type StudioMemberRow = {
   rent_current_period_end: string | null;
   joined_at: string | null;
   created_at: string;
+  takes_clients?: boolean | null;
+  solo_plan_handled?: boolean | null;
 };
 
 export const STUDIO_COLUMNS =
@@ -61,13 +74,30 @@ export const INVITE_TTL_DAYS = 14;
 // skip commission.
 export const STUDIO_MIN_PROS = 2;
 
+// Pros who take clients. A shop owner who only runs the shop doesn't count.
 export async function countActivePros(supabase: ServiceClient, studioId: string) {
-  const { count } = await supabase
+  const { data } = await supabase
     .from("studio_members")
-    .select("id", { count: "exact", head: true })
+    .select("*")
     .eq("studio_id", studioId)
     .eq("status", "active");
-  return count || 0;
+  return ((data || []) as StudioMemberRow[]).filter(takesClients).length;
+}
+
+// Missing column (migration not run yet) counts as taking clients.
+export function takesClients(member: Pick<StudioMemberRow, "takes_clients"> | null | undefined) {
+  return member?.takes_clients !== false;
+}
+
+// The shop's address and trades, or blanks before the shop-accounts migration.
+export async function getStudioPlace(supabase: ServiceClient, studioId: string): Promise<StudioPlaceRow> {
+  const { data, error } = await supabase
+    .from("studios")
+    .select("address, place_id, lat, lng, area_label, trades")
+    .eq("id", studioId)
+    .maybeSingle<StudioPlaceRow>();
+  if (error || !data) return { address: null, place_id: null, lat: null, lng: null, area_label: null, trades: [] };
+  return { ...data, trades: data.trades || [] };
 }
 
 // Live plan AND enough pros for the team benefits to apply.
@@ -119,9 +149,10 @@ export function hashInviteToken(token: string) {
 
 // The studio a pro is an active member of, with their membership row.
 export async function getMembershipForProfile(supabase: ServiceClient, profileId: string) {
+  // select("*") so takes_clients comes along once the migration has run.
   const { data: member } = await supabase
     .from("studio_members")
-    .select(MEMBER_COLUMNS)
+    .select("*")
     .eq("profile_id", profileId)
     .eq("status", "active")
     .maybeSingle<StudioMemberRow>();
@@ -160,14 +191,18 @@ export async function getStudioPricingForPro(supabase: ServiceClient, profession
 export async function syncMemberPlan(supabase: ServiceClient, profileId: string) {
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, subscription_plan, subscription_status, plan_source")
+    .select("id, role, subscription_plan, subscription_status, plan_source, stripe_subscription_id, subscription_current_period_end")
     .eq("id", profileId)
     .maybeSingle();
 
   if (!profile) return;
 
   const membership = await getMembershipForProfile(supabase, profileId);
-  const studioLive = membership ? await studioCoversTeam(supabase, membership.studio) : false;
+  // Only people who take clients get pro features from the studio; an owner
+  // who just runs the shop has the Studio page and nothing to "upgrade".
+  const bookable =
+    !!membership && takesClients(membership.member) && !!profile.role && !["shop", "customer"].includes(profile.role);
+  const studioLive = membership && bookable ? await studioCoversTeam(supabase, membership.studio) : false;
   const grantedByStudio = profile.plan_source === "studio";
   const hasOwnLivePlan =
     !grantedByStudio &&
@@ -175,6 +210,10 @@ export async function syncMemberPlan(supabase: ServiceClient, profileId: string)
     isLiveStatus(profile.subscription_status);
 
   const studioId = membership?.studio.id ?? null;
+
+  if (studioLive && hasOwnLivePlan) {
+    await stopSoloPlanRenewing(supabase, profile, membership!);
+  }
 
   if (studioLive && !hasOwnLivePlan) {
     await supabase
@@ -206,6 +245,49 @@ export async function syncMemberPlan(supabase: ServiceClient, profileId: string)
   }
 
   await supabase.from("profiles").update({ studio_id: studioId }).eq("id", profileId);
+}
+
+// A pro paying for Apprentice or Pro whose studio now covers them shouldn't
+// pay twice: their own plan stops renewing and they keep it until the end of
+// the period they've paid for, then the studio's plan takes over (the
+// subscription-deleted webhook re-runs syncMemberPlan). Master is left alone:
+// it has perks the studio plan doesn't. Done once per membership, so a pro
+// who turns their own plan back on isn't overruled.
+async function stopSoloPlanRenewing(
+  supabase: ServiceClient,
+  profile: { id: string; subscription_plan: string | null; stripe_subscription_id?: string | null; subscription_current_period_end?: string | null },
+  membership: { studio: StudioRow; member: StudioMemberRow }
+) {
+  if (membership.member.solo_plan_handled) return;
+  if (profile.subscription_plan === "master") return;
+
+  const { error: markError } = await supabase
+    .from("studio_members")
+    .update({ solo_plan_handled: true })
+    .eq("id", membership.member.id)
+    .eq("solo_plan_handled", false);
+  if (markError) return; // migration not run yet
+
+  if (!profile.stripe_subscription_id) return;
+  try {
+    const sub = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
+    if (sub.status === "canceled" || sub.cancel_at_period_end) return;
+    await stripe.subscriptions.update(profile.stripe_subscription_id, { cancel_at_period_end: true });
+  } catch (error) {
+    console.error(`Could not stop solo plan ${profile.stripe_subscription_id} renewing:`, error);
+    return;
+  }
+
+  const until = profile.subscription_current_period_end
+    ? new Date(profile.subscription_current_period_end).toLocaleDateString("en-CA", { month: "long", day: "numeric" })
+    : null;
+  await supabase.from("notifications").insert({
+    user_id: profile.id,
+    request_id: null,
+    is_read: false,
+    type: "studio_plan",
+    title: `${membership.studio.name} now covers your Pro features. Your own plan won't renew${until ? ` after ${until}` : ""}, so you won't be charged twice.`,
+  });
 }
 
 export async function syncStudioMemberPlans(supabase: ServiceClient, studioId: string) {

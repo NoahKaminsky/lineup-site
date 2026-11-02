@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
 import { PROFESSION_LABELS } from "@/app/lib/verificationRules";
-import { errorMessage, getStudioForUser, isStudioLive } from "@/app/lib/studios";
+import { errorMessage, getStudioForUser, getStudioPlace, isStudioLive } from "@/app/lib/studios";
 import {
   OPENING_COLUMNS,
   OPENING_DAYS,
@@ -141,12 +141,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "That rent doesn't look right." }, { status: 400 });
     }
 
-    // Where: the shop's address (from the owner's profile), shown as just the area.
-    const { data: owner } = await supabase
-      .from("profiles")
-      .select("formatted_address, location_lat, location_lng")
-      .eq("id", ctx.studio.owner_id)
-      .maybeSingle();
+    // Where: the shop's own address (or, for shops set up before it had
+    // one, the owner's), shown as just the area.
+    const place = await getStudioPlace(supabase, ctx.studio.id);
+    const { data: owner } =
+      place.lat !== null && place.lng !== null
+        ? { data: { formatted_address: place.address, location_lat: place.lat, location_lng: place.lng } }
+        : await supabase
+            .from("profiles")
+            .select("formatted_address, location_lat, location_lng")
+            .eq("id", ctx.studio.owner_id)
+            .maybeSingle();
 
     const { data: opening, error } = await supabase
       .from("chair_openings")
@@ -161,7 +166,7 @@ export async function POST(req: Request) {
         commission_note: arrangement === "booth_rent" ? null : commissionNote,
         description,
         available_from: availableFrom,
-        area_label: areaFromAddress(owner?.formatted_address),
+        area_label: place.area_label || areaFromAddress(owner?.formatted_address),
         lat: owner?.location_lat ?? null,
         lng: owner?.location_lng ?? null,
         expires_at: new Date(Date.now() + OPENING_DAYS * 86_400_000).toISOString(),

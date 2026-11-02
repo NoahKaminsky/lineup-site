@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
 import { SLUG_RE, getStudioForUser, parseCommissionPercent, errorMessage } from "@/app/lib/studios";
+import { cleanTrades, parsePlace, setTakesClients } from "@/app/lib/shopAccount";
 
-// PATCH /api/studio/settings { name?, commissionPercent? } — owner only.
+// PATCH /api/studio/settings { name?, commissionPercent?, place?, trades?, ... }
+// Owner only, except { takesClients, myTrades }: an owner or manager saying
+// whether they take clients themselves.
 // The commission is the shop's default cut of each member's bookings; it
 // applies to bookings paid from now on, never to ones already paid.
 export async function PATCH(req: Request) {
@@ -14,10 +17,37 @@ export async function PATCH(req: Request) {
 
     const supabase = getServiceSupabase();
     const ctx = await getStudioForUser(supabase, user.id);
+    const body = await req.json().catch(() => ({}));
+
+    if (typeof body?.takesClients === "boolean") {
+      if (!ctx?.canManage || !ctx.member.profile_id) {
+        return NextResponse.json({ error: "Only owners and managers can change this." }, { status: 403 });
+      }
+      const result = await setTakesClients(supabase, {
+        studioId: ctx.studio.id,
+        memberId: ctx.member.id,
+        profileId: ctx.member.profile_id,
+        takesClients: body.takesClients,
+        trades: cleanTrades(body?.myTrades),
+      });
+      if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
+      return NextResponse.json({ ok: true });
+    }
+
     if (!ctx?.isOwner) return NextResponse.json({ error: "Only the studio owner can change settings." }, { status: 403 });
 
-    const body = await req.json().catch(() => ({}));
     const update: Record<string, unknown> = {};
+
+    if ("place" in (body || {})) {
+      const place = parsePlace(body.place);
+      if (place === "invalid") return NextResponse.json({ error: "Pick the shop's address from the list." }, { status: 400 });
+      Object.assign(
+        update,
+        place || { address: null, place_id: null, lat: null, lng: null, area_label: null }
+      );
+    }
+
+    if ("trades" in (body || {})) update.trades = cleanTrades(body.trades);
 
     if (typeof body?.name === "string") {
       const name = body.name.trim().replace(/\s+/g, " ");

@@ -76,7 +76,7 @@ export async function POST(req: Request) {
               title: "Someone wants your chair",
               preview: `${me.full_name || "A pro"} replied to "${opening.title}".`,
               ctaLabel: "See who applied",
-              ctaUrl: `${siteUrl}/studio?tab=chairs`,
+              ctaUrl: `${siteUrl}/studio/chairs`,
               content: `
                 <p style="margin:0 0 16px 0;"><strong>${escapeHtml(me.full_name || "A pro")}</strong> is interested in <strong>${escapeHtml(opening.title)}</strong>.</p>
                 ${message ? `<p style="margin:0 0 16px 0;color:#444444;">"${escapeHtml(message)}"</p>` : ""}

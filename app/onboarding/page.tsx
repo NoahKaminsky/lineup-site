@@ -5,7 +5,7 @@ import Link from "next/link";
 import LuLoader from "@/app/components/LuLoader";
 import { MomentOverlay } from "@/app/components/moments/Moments";
 import { useRouter } from "next/navigation";
-import { Scissors, Wand2, Hand, Eye, Pencil, Palette, Flame, Leaf, Star, ShoppingBag, Briefcase, Check } from "lucide-react";
+import { Scissors, Wand2, Hand, Eye, Pencil, Palette, Flame, Leaf, Star, ShoppingBag, Briefcase, Check, Store } from "lucide-react";
 import { supabase } from "../../lib/supabaseClient";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 import { getSignedInUser } from "@/lib/getSignedInUser";
@@ -30,8 +30,10 @@ export default function OnboardingPage() {
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [professionalTypes, setProfessionalTypes] = useState<string[]>([]);
-  // "I run a shop or studio": after setup they land on /studio to create it.
-  const [runsStudio, setRunsStudio] = useState(false);
+  // "I run a shop": after setup they land on /studio to set it up. A shop
+  // owner who also takes clients is saved as a professional; one who only
+  // runs the shop gets a shop account.
+  const [shopTakesClients, setShopTakesClients] = useState<boolean | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
@@ -41,7 +43,7 @@ export default function OnboardingPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [welcomeMoment, setWelcomeMoment] = useState<"customer" | "professional" | null>(null);
+  const [welcomeMoment, setWelcomeMoment] = useState<"customer" | "professional" | "shop" | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -81,7 +83,7 @@ export default function OnboardingPage() {
           (profile.role !== "professional" || savedProfessionalTypes.length > 0);
 
         if (hasCompletedProfile) {
-          router.push(takeReturnTo() || "/requests");
+          router.push(profile.role === "shop" ? "/studio" : takeReturnTo() || "/requests");
           return;
         }
 
@@ -132,9 +134,19 @@ export default function OnboardingPage() {
       return;
     }
 
-    if (role === "professional" && professionalTypes.length === 0) {
+    if (role === "shop" && shopTakesClients === null) {
       setSaving(false);
-      setErrorMessage("Please choose at least one professional category.");
+      setErrorMessage("Let us know if you take clients yourself.");
+      return;
+    }
+
+    // A shop owner behind the chair is a professional with a shop.
+    const savedRole = role === "shop" && shopTakesClients ? "professional" : role;
+    const runsStudio = role === "shop";
+
+    if (savedRole === "professional" && professionalTypes.length === 0) {
+      setSaving(false);
+      setErrorMessage(role === "shop" ? "Pick what you do so clients can book you." : "Please choose at least one professional category.");
       return;
     }
 
@@ -168,16 +180,16 @@ export default function OnboardingPage() {
 
     const now = new Date().toISOString();
     const primaryProfessionalType =
-      role === "professional" ? professionalTypes[0] ?? null : null;
+      savedRole === "professional" ? professionalTypes[0] ?? null : null;
 
     const { error } = await supabase.from("profiles").upsert(
       {
         id: user.id,
         email: user.email,
         full_name: name.trim(),
-        role,
+        role: savedRole,
         professional_type: primaryProfessionalType,
-        professional_types: role === "professional" ? professionalTypes : [],
+        professional_types: savedRole === "professional" ? professionalTypes : [],
         terms_accepted: acceptedTerms,
         terms_accepted_at: acceptedTerms ? now : null,
         privacy_accepted: acceptedPrivacy,
@@ -207,15 +219,14 @@ export default function OnboardingPage() {
     // A pro who came from a studio invite goes back to accept it; a shop
     // owner goes to set up their studio.
     const returnPath = takeReturnTo();
-    const destination =
-      role === "professional"
-        ? returnPath?.startsWith("/studio")
-          ? returnPath
-          : runsStudio
-          ? "/studio"
-          : "/verification"
-        : returnPath || "/requests";
-    setWelcomeMoment(role === "professional" ? "professional" : "customer");
+    const destination = runsStudio
+      ? "/studio"
+      : savedRole === "professional"
+      ? returnPath?.startsWith("/studio")
+        ? returnPath
+        : "/verification"
+      : returnPath || "/requests";
+    setWelcomeMoment(runsStudio ? "shop" : savedRole === "professional" ? "professional" : "customer");
     window.setTimeout(() => router.push(destination), 1500);
   }
 
@@ -231,10 +242,10 @@ export default function OnboardingPage() {
         workingTitle=""
         title="You’re in."
         subtitle={
-          welcomeMoment === "professional"
-            ? runsStudio
-              ? "Next: set up your studio."
-              : "One quick step: get verified."
+          welcomeMoment === "shop"
+            ? "Next: set up your shop."
+            : welcomeMoment === "professional"
+            ? "One quick step: get verified."
             : "Welcome to LineUp."
         }
         holdMs={1500}
@@ -339,7 +350,7 @@ export default function OnboardingPage() {
                 <button
                   type="button"
                   aria-pressed={role === "customer"}
-                  onClick={() => { setRole("customer"); setProfessionalTypes([]); }}
+                  onClick={() => { setRole("customer"); setProfessionalTypes([]); setShopTakesClients(null); }}
                   className={`flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition active:scale-[0.98] ${
                     role === "customer"
                       ? "border-ink bg-ink text-white"
@@ -358,7 +369,7 @@ export default function OnboardingPage() {
                 <button
                   type="button"
                   aria-pressed={role === "professional"}
-                  onClick={() => setRole("professional")}
+                  onClick={() => { setRole("professional"); setShopTakesClients(null); }}
                   className={`flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition active:scale-[0.98] ${
                     role === "professional"
                       ? "border-ink bg-ink text-white"
@@ -373,11 +384,60 @@ export default function OnboardingPage() {
                     </p>
                   </div>
                 </button>
+
+                <button
+                  type="button"
+                  aria-pressed={role === "shop"}
+                  onClick={() => setRole("shop")}
+                  className={`col-span-2 flex items-center gap-3 rounded-2xl border p-4 text-left transition active:scale-[0.98] ${
+                    role === "shop"
+                      ? "border-ink bg-ink text-white"
+                      : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
+                  }`}
+                >
+                  <Store className="h-5 w-5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold">I run a shop</p>
+                    <p className={`mt-0.5 text-xs leading-5 ${role === "shop" ? "text-white/70" : "text-neutral-500"}`}>
+                      A salon, barbershop or studio with a team
+                    </p>
+                  </div>
+                </button>
               </div>
             </div>
 
+            {/* A shop owner: do they take clients themselves? */}
+            {role === "shop" ? (
+              <div>
+                <label className="mb-3 block text-sm font-semibold text-neutral-700">Do you take clients yourself?</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: true, label: "Yes, I'm behind the chair" },
+                    { value: false, label: "No, I run the shop" },
+                  ].map((o) => (
+                    <button
+                      key={String(o.value)}
+                      type="button"
+                      aria-pressed={shopTakesClients === o.value}
+                      onClick={() => {
+                        setShopTakesClients(o.value);
+                        if (!o.value) setProfessionalTypes([]);
+                      }}
+                      className={`rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition active:scale-[0.98] ${
+                        shopTakesClients === o.value
+                          ? "border-ink bg-ink text-white"
+                          : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             {/* Professional categories */}
-            {role === "professional" ? (
+            {role === "professional" || (role === "shop" && shopTakesClients) ? (
               <div>
                 <div className="mb-3 flex items-center justify-between">
                   <label className="text-sm font-semibold text-neutral-700">
@@ -415,33 +475,6 @@ export default function OnboardingPage() {
                   })}
                 </div>
               </div>
-            ) : null}
-
-            {role === "professional" ? (
-              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-                <input
-                  type="checkbox"
-                  checked={runsStudio}
-                  onChange={(e) => setRunsStudio(e.target.checked)}
-                  className="peer sr-only"
-                />
-                <span
-                  aria-hidden="true"
-                  className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink ${
-                    runsStudio ? "border-ink bg-ink" : "border-neutral-300 bg-white"
-                  }`}
-                >
-                  {runsStudio ? (
-                    <svg viewBox="0 0 10 8" className="h-2.5 w-2.5" fill="none">
-                      <path d="M1 4l2.5 2.5L9 1.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  ) : null}
-                </span>
-                <span className="text-sm leading-6 text-neutral-700">
-                  <span className="font-semibold text-neutral-900">I run a shop or studio.</span> Set up a studio
-                  account next, then invite your team.
-                </span>
-              </label>
             ) : null}
 
             {/* Phone / text alerts — hidden for now in favor of push

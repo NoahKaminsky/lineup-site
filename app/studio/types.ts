@@ -18,6 +18,8 @@ export type TeamMember = {
   rentStatus: string | null;
   rentPaidUntil: string | null;
   joinedAt: string | null;
+  takesClients?: boolean;
+  trades?: string[];
 };
 
 export type ScheduleItem = {
@@ -41,6 +43,8 @@ export type ServiceOption = { id: string; name: string; durationMinutes: number;
 
 export type StudioData = {
   role: string | null;
+  myTrades?: string[];
+  professions?: Record<string, string>;
   invites?: { id: string; studioName: string }[];
   studio: null | {
     id: string;
@@ -57,8 +61,19 @@ export type StudioData = {
     noShowFeePercent: number;
     coversTeam: boolean;
     minPros: number;
+    proCount?: number;
+    address?: string | null;
+    areaLabel?: string | null;
+    trades?: string[];
   };
-  me?: { memberId: string; role: TeamMember["role"]; canManage: boolean; isOwner: boolean };
+  me?: {
+    memberId: string;
+    role: TeamMember["role"];
+    canManage: boolean;
+    isOwner: boolean;
+    takesClients?: boolean;
+    profileId?: string | null;
+  };
   team?: TeamMember[];
   schedule?: ScheduleItem[];
   services?: Record<string, ServiceOption[]>;
@@ -83,6 +98,11 @@ export type SectionProps = {
   setNotice: (n: NoticeValue) => void;
   reload: () => Promise<void>;
 };
+
+// On the team and bookable (has a calendar column).
+export function isBookable(m: TeamMember) {
+  return m.status === "active" && !!m.profileId && m.takesClients !== false;
+}
 
 export function roleLabel(role: TeamMember["role"]) {
   return role === "owner" ? "Owner" : role === "manager" ? "Manager" : "Member";
@@ -128,3 +148,16 @@ export function nextQuarterHour() {
 export function firstName(name: string | null | undefined) {
   return (name || "").trim().split(/\s+/)[0] || "Team member";
 }
+
+// Trades a shop can offer, in the order the app lists them.
+export const TRADES = [
+  { value: "barber", label: "Barber" },
+  { value: "hairstylist", label: "Hairstylist" },
+  { value: "nail_artist", label: "Nail artist" },
+  { value: "lash_artist", label: "Lash artist" },
+  { value: "brow_artist", label: "Brow artist" },
+  { value: "makeup_artist", label: "Makeup artist" },
+  { value: "wax_technician", label: "Wax technician" },
+  { value: "body_sugaring", label: "Body sugaring" },
+  { value: "other_beauty_professional", label: "Other" },
+];

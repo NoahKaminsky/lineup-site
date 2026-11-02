@@ -7,9 +7,9 @@ import { useState, type ReactNode } from "react";
 import { STUDIO_MAX_COMMISSION_PERCENT } from "@/app/lib/commission";
 import { STUDIO_PLANS } from "@/app/lib/plans";
 import { studioFetch } from "./studioApi";
-import { Button, Field, Tag, Toggle, fieldClass } from "./ui";
+import { AddressField, Button, ChipPicker, Field, Segmented, Tag, Toggle, fieldClass, type PickedPlace } from "./ui";
 import { PlanPicker } from "./Plans";
-import type { SectionProps } from "./types";
+import { TRADES, type SectionProps } from "./types";
 
 type RedirectTo = (path: string, body: unknown, key: string) => Promise<void>;
 
@@ -34,6 +34,10 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
   const [commission, setCommission] = useState(String(studio.commissionPercent));
   const [payAtShop, setPayAtShop] = useState(studio.payAtShop);
   const [noShowFee, setNoShowFee] = useState(String(studio.noShowFeePercent));
+  // undefined = unchanged; null = cleared or mid-typing.
+  const [place, setPlace] = useState<PickedPlace | null | undefined>(undefined);
+  const [trades, setTrades] = useState<string[]>(studio.trades || []);
+  const tradesChanged = [...trades].sort().join() !== [...(studio.trades || [])].sort().join();
 
   const dirty =
     name !== studio.name ||
@@ -41,7 +45,9 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
     tagline !== (studio.tagline || "") ||
     Number(commission || 0) !== studio.commissionPercent ||
     payAtShop !== studio.payAtShop ||
-    Number(noShowFee || 0) !== studio.noShowFeePercent;
+    Number(noShowFee || 0) !== studio.noShowFeePercent ||
+    !!place ||
+    tradesChanged;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -55,6 +61,8 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
           commissionPercent: commission === "" ? 0 : Number(commission),
           payAtShop,
           noShowFeePercent: noShowFee === "" ? 0 : Number(noShowFee),
+          ...(place ? { place } : {}),
+          ...(tradesChanged ? { trades } : {}),
         },
       });
       if (!res.ok) {
@@ -62,6 +70,7 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
         return;
       }
       setNotice({ tone: "success", text: "Settings saved." });
+      setPlace(undefined);
       await reload();
     });
   }
@@ -71,9 +80,19 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
   return (
     <div>
       <form onSubmit={save}>
-        <Group title="Your shop" description="How the shop appears on its booking page.">
+        <Group title="Your shop" description="How the shop appears on its booking page, and which requests it gets.">
           <Field label="Name" htmlFor="s-name">
             <input id="s-name" required minLength={2} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} className={fieldClass} />
+          </Field>
+          <Field
+            label="Address"
+            htmlFor="s-address"
+            hint="Shown on your booking page. Chair openings and requests only ever show the area."
+          >
+            <AddressField id="s-address" value={studio.address || ""} onPick={setPlace} />
+          </Field>
+          <Field label="What the shop offers">
+            <ChipPicker label="What the shop offers" options={TRADES} value={trades} onChange={setTrades} />
           </Field>
           <Field label="Booking page link" htmlFor="s-slug" hint="Changing it breaks the old link anywhere you've posted it.">
             <div className="flex h-11 items-center overflow-hidden rounded-xl bg-surface text-sm shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] focus-within:shadow-[inset_0_0_0_1.5px_#0a0a0a]">
@@ -162,9 +181,10 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
           ) : null}
         </Group>
 
-        <div className="sticky bottom-4 z-10 -mx-1 flex justify-end py-2">
+        {/* Zero height so it takes no room until it's needed. */}
+        <div className="sticky bottom-24 z-10 h-0 sm:bottom-6">
           <div
-            className={`flex items-center gap-3 rounded-full bg-surface p-1.5 pl-4 shadow-[0_0_0_1px_rgba(10,10,10,0.08),0_12px_32px_-12px_rgba(0,0,0,0.3)] transition-opacity duration-200 ${
+            className={`absolute bottom-0 right-0 flex items-center gap-3 rounded-full bg-surface p-1.5 pl-4 shadow-[0_0_0_1px_rgba(10,10,10,0.08),0_12px_32px_-12px_rgba(0,0,0,0.3)] transition-opacity duration-200 ${
               dirty ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
             aria-hidden={!dirty}
@@ -177,9 +197,11 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
         </div>
       </form>
 
+      <YouGroup data={data} busy={busy} run={run} setNotice={setNotice} reload={reload} />
+
       <Group
         title="Shop payouts"
-        description="Where the shop's cut, booth rent and memberships are paid. The shop's own account, separate from your payouts as a pro."
+        description="Where the shop's cut, booth rent and memberships are paid. The shop's own account, separate from any pro's payouts."
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
@@ -214,16 +236,68 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
             </Button>
           </div>
         ) : null}
-        {studio.live ? (
-          <PlanPicker
-            compact
-            isOwner
-            current={studio.plan}
-            busy={busy}
-            onChoose={(plan) => redirectTo("/api/studio/billing", { action: "checkout", plan }, `plan-${plan}`)}
-          />
-        ) : null}
+        <PlanPicker
+          compact={studio.live}
+          stacked={!studio.live}
+          isOwner
+          current={studio.live ? studio.plan : null}
+          busy={busy}
+          onChoose={(plan) => redirectTo("/api/studio/billing", { action: "checkout", plan }, `plan-${plan}`)}
+        />
       </Group>
     </div>
+  );
+}
+
+// Whether the owner takes clients themselves. Turning it on gives them a
+// column on the calendar and a spot on the booking page.
+function YouGroup({ data, busy, run, setNotice, reload }: SectionProps) {
+  const me = data.me!;
+  const takes = me.takesClients !== false;
+  const isPro = data.role === "professional";
+  const [choice, setChoice] = useState<"yes" | "no">(takes ? "yes" : "no");
+  const [myTrades, setMyTrades] = useState<string[]>(data.myTrades?.length ? data.myTrades : data.studio?.trades || []);
+  const changed = (choice === "yes") !== takes;
+
+  async function save() {
+    await run("takes-clients", async () => {
+      const res = await studioFetch("/api/studio/settings", {
+        method: "PATCH",
+        body: { takesClients: choice === "yes", myTrades },
+      });
+      if (!res.ok) {
+        setNotice({ tone: "error", text: res.data.error || "Could not save." });
+        return;
+      }
+      setNotice({
+        tone: "success",
+        text: choice === "yes" ? "You're on the calendar and the booking page." : "You're off the calendar. You still run everything.",
+      });
+      await reload();
+    });
+  }
+
+  return (
+    <Group title="You" description="Whether clients can book you, or you just run the shop.">
+      <Segmented
+        label="Do you take clients?"
+        value={choice}
+        onChange={setChoice}
+        options={[
+          { value: "yes", label: "I take clients" },
+          { value: "no", label: "I just run the shop" },
+        ]}
+      />
+      {choice === "yes" && !takes && !isPro ? (
+        <Field label="What do you do?">
+          <ChipPicker label="What you do" options={TRADES} value={myTrades} onChange={setMyTrades} />
+        </Field>
+      ) : null}
+      {changed ? (
+        <Button variant="primary" loading={busy === "takes-clients"} onClick={save}>
+          {choice === "yes" ? "Put me on the calendar" : "Take me off the calendar"}
+        </Button>
+      ) : null}
+    </Group>
   );
 }

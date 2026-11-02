@@ -12,6 +12,7 @@ import {
   addDays,
   firstName,
   fromDateKey,
+  isBookable,
   fromMinutes,
   localDateKey,
   nextQuarterHour,
@@ -73,7 +74,7 @@ function paymentLine(item: ScheduleItem) {
 export default function ScheduleView({ data, busy, run, setNotice }: SectionProps) {
   const me = data.me!;
   const studio = data.studio!;
-  const team = useMemo(() => (data.team || []).filter((m) => m.status === "active" && m.profileId), [data.team]);
+  const team = useMemo(() => (data.team || []).filter(isBookable), [data.team]);
   const myProfileId = team.find((m) => m.id === me.memberId)?.profileId || null;
 
   const [view, setView] = useState<View>("day");
@@ -356,7 +357,7 @@ function DayGrid({
   if (!columns.length) {
     return (
       <div className={`${panelClass} px-6 py-12 text-center text-sm text-neutral-500`}>
-        No one on the team yet. Invite your pros from Team.
+        No one is taking clients yet. Invite your pros from Team.
       </div>
     );
   }
@@ -632,7 +633,7 @@ function MonthGrid({
 
 /* ── Appointment details ─────────────────────────────────────────────────── */
 
-function AppointmentSheet({
+export function AppointmentSheet({
   item,
   pro,
   canAct,
@@ -771,7 +772,7 @@ function AppointmentSheet({
 
 /* ── New appointment (front desk) ────────────────────────────────────────── */
 
-function NewAppointmentSheet({
+export function NewAppointmentSheet({
   draft,
   team,
   services,

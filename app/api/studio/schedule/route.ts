@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
-import { errorMessage, getStudioForUser } from "@/app/lib/studios";
+import { errorMessage, getStudioForUser, takesClients, type StudioMemberRow } from "@/app/lib/studios";
 
 // GET /api/studio/schedule?from=YYYY-MM-DD&to=YYYY-MM-DD
 // The studio calendar: every appointment in the range (online bookings and
@@ -34,10 +34,14 @@ export async function GET(req: Request) {
     if (ctx.canManage) {
       const { data: members } = await supabase
         .from("studio_members")
-        .select("profile_id")
+        .select("*")
         .eq("studio_id", ctx.studio.id)
         .eq("status", "active");
-      ids = (members || []).map((m) => m.profile_id).filter(Boolean) as string[];
+      // Only people who take clients get a column on the calendar.
+      ids = ((members || []) as StudioMemberRow[])
+        .filter(takesClients)
+        .map((m) => m.profile_id)
+        .filter(Boolean) as string[];
     } else {
       ids = [user.id];
     }

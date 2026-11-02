@@ -49,12 +49,15 @@ export async function POST(req: Request) {
 
     const { data: member } = await supabase
       .from("studio_members")
-      .select("commission_percent, arrangement")
+      .select("*")
       .eq("studio_id", ctx.studio.id)
       .eq("profile_id", professionalId)
       .eq("status", "active")
-      .maybeSingle<Pick<StudioMemberRow, "commission_percent" | "arrangement">>();
+      .maybeSingle<StudioMemberRow>();
     if (!member) return NextResponse.json({ error: "That pro isn't on your team." }, { status: 404 });
+    if (member.takes_clients === false) {
+      return NextResponse.json({ error: "They don't take clients. Pick a pro who does." }, { status: 400 });
+    }
 
     const clientName = cleanText(body?.clientName, 80);
     const serviceName = cleanText(body?.serviceName, 120);

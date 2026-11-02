@@ -44,25 +44,6 @@ export default function TeamView({ data, busy, run, setNotice, reload }: Section
     <div className="space-y-12">
       {myRow && me.role !== "owner" ? <YourSpot member={myRow} studio={studio} isPlus={isPlus} busy={busy} run={run} setNotice={setNotice} /> : null}
 
-      {me.canManage && isPlus && earnings ? (
-        <div className="grid gap-px overflow-hidden rounded-2xl bg-hairline shadow-[0_0_0_1px_rgba(10,10,10,0.07)] sm:grid-cols-3">
-          {[
-            { label: "Shop's cut paid this month", value: formatCad(earnings.paidCents) },
-            {
-              label: "Waiting to be paid",
-              value: formatCad(earnings.owedCents),
-              hint: earnings.owedCents > 0 && !data.payouts?.ready && me.isOwner ? "Set up payouts in Settings" : null,
-            },
-            { label: "Shop's share of walk-ins", value: formatCad(earnings.inShopCutCents), hint: "Paid at the shop, for your records" },
-          ].map((s) => (
-            <div key={s.label} className="bg-surface px-5 py-4">
-              <p className="text-[13px] text-neutral-500">{s.label}</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums tracking-[-0.02em] text-ink">{s.value}</p>
-              {s.hint ? <p className="mt-0.5 text-xs text-neutral-500">{s.hint}</p> : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
 
       <Section
         title="Your team"
@@ -80,10 +61,13 @@ export default function TeamView({ data, busy, run, setNotice, reload }: Section
           {active.map((m) => {
             const self = m.id === me.memberId;
             const stats = m.profileId ? earnings?.byMember?.[m.profileId] : undefined;
-            const clickable = me.canManage || self;
+            const bookable = m.takesClients !== false;
+            // An owner who only runs the shop has nothing to set about themselves here.
+            const clickable = (me.canManage || self) && !(m.role === "owner" && !bookable);
             const line = [
               roleLabel(m.role),
-              me.canManage ? payLine(m, isPlus, studio.commissionPercent) : null,
+              !bookable ? "Runs the shop" : null,
+              me.canManage && bookable ? payLine(m, isPlus, studio.commissionPercent) : null,
               stats && me.canManage ? `${stats.bookings} this month, ${formatCad(stats.salesCents + stats.inShopSalesCents)}` : null,
             ]
               .filter(Boolean)
@@ -123,6 +107,26 @@ export default function TeamView({ data, busy, run, setNotice, reload }: Section
           })}
         </ul>
       </Section>
+
+      {me.canManage && isPlus && earnings ? (
+        <div className="grid gap-px overflow-hidden rounded-2xl bg-hairline shadow-[0_0_0_1px_rgba(10,10,10,0.07)] sm:grid-cols-3">
+          {[
+            { label: "Shop's cut paid this month", value: formatCad(earnings.paidCents) },
+            {
+              label: "Waiting to be paid",
+              value: formatCad(earnings.owedCents),
+              hint: earnings.owedCents > 0 && !data.payouts?.ready && me.isOwner ? "Set up payouts in Settings" : null,
+            },
+            { label: "Shop's share of walk-ins", value: formatCad(earnings.inShopCutCents), hint: "Paid at the shop, for your records" },
+          ].map((s) => (
+            <div key={s.label} className="bg-surface px-5 py-4">
+              <p className="text-[13px] text-neutral-500">{s.label}</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums tracking-[-0.02em] text-ink">{s.value}</p>
+              {s.hint ? <p className="mt-0.5 text-xs text-neutral-500">{s.hint}</p> : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {me.canManage && invited.length ? (
         <Section title="Waiting to join" description="Invites last 14 days. Resend to give them a fresh link.">
@@ -281,13 +285,13 @@ function InviteRow({
   return (
     <li className="flex flex-wrap items-center gap-3.5 px-5 py-4">
       <Avatar name={member.invitedEmail} size={40} />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-40">
         <p className="truncate text-[15px] font-medium text-ink">{member.invitedEmail}</p>
         <p className="mt-0.5 text-[13px] text-neutral-500">
           {member.inviteExpired ? "Invite expired" : "Invite sent"}, as {roleLabel(member.role).toLowerCase()}
         </p>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="ml-auto flex items-center gap-1">
         {canCancel ? (
           <Button size="sm" variant="ghost" onClick={cancel} loading={busy === `remove-${member.id}`}>
             Cancel invite

@@ -20,7 +20,7 @@ type NavItem = {
   href: string;
   label: string;
   shortLabel: string;
-  icon: "dashboard" | "work" | "calendar" | "browse" | "services" | "account";
+  icon: "dashboard" | "work" | "calendar" | "browse" | "services" | "account" | "shop" | "requests" | "team" | "chair";
 };
 
 type NotifItem = {
@@ -76,6 +76,40 @@ function NavIcon({ icon }: { icon: NavItem["icon"] }) {
     return (
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
         <path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM20.5 20.5l-4.8-4.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (icon === "shop") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+        <path d="M4 9.5 5.5 4h13L20 9.5M4 9.5a2.67 2.67 0 0 0 5.33 0 2.67 2.67 0 0 0 5.34 0 2.67 2.67 0 0 0 5.33 0M4 9.5V20h16V9.5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M10 20v-5h4v5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (icon === "requests") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+        <path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 19 17h-7l-4.5 3.5V17H5a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 5 5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M8 10h8M8 13h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (icon === "team") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+        <path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20a6.5 6.5 0 0 1 13 0M16 4.3a3.5 3.5 0 0 1 0 6.4M18 14.2A6.5 6.5 0 0 1 21.5 20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (icon === "chair") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+        <path d="M7 4h10v7H7zM5 11h14v3H5zM8 14l-1.5 6M16 14l1.5 6M12 14v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }
@@ -371,7 +405,9 @@ function NavbarComponent() {
         href: n.type === "chair_opening"
           ? "/chairs"
           : n.type === "chair_application"
-          ? "/studio?tab=chairs"
+          ? "/studio/chairs"
+          : n.type === "studio_plan"
+          ? "/subscription"
           : n.booking_id
           ? `/bookings/${n.booking_id}`
           : n.request_id
@@ -523,17 +559,20 @@ function NavbarComponent() {
 
   const role = profile?.role || null;
 
+  // A shop account runs a studio and doesn't take clients itself.
+  const isShop = role === "shop";
   const isProfessional =
-    role === "professional" ||
-    role === "I am a professional" ||
-    (!!role && role !== "customer" && role !== "I am a customer");
+    !isShop &&
+    (role === "professional" ||
+      role === "I am a professional" ||
+      (!!role && role !== "customer" && role !== "I am a customer"));
 
   // On a studio's team? Then the header reads "LineUp Studio" whatever their
   // own plan. Separate query so it's harmless before the studio migration.
   const [onStudio, setOnStudio] = useState(false);
   useEffect(() => {
     const id = profile?.id;
-    if (!id || !isProfessional) {
+    if (!id || (!isProfessional && !isShop)) {
       setOnStudio(false);
       return;
     }
@@ -549,13 +588,14 @@ function NavbarComponent() {
     return () => {
       cancelled = true;
     };
-  }, [profile?.id, isProfessional, pathname]);
+  }, [profile?.id, isProfessional, isShop, pathname]);
 
   // Header badge: "Studio" for pros on a studio's team; otherwise a pro's
   // current tier (Apprentice / Pro / Master) while the subscription is live,
   // or "Basic" (so the header reads "LineUp Basic"). Customers read "LineUp Client".
   const planBadge = useMemo(() => {
     if (!profile) return null;
+    if (isShop) return "Studio";
     if (!isProfessional) return "Client";
     if (onStudio) return "Studio";
     const live = profile.subscription_status === "active" || profile.subscription_status === "trialing";
@@ -563,7 +603,7 @@ function NavbarComponent() {
     if (live && profile.subscription_plan === "pro") return "Pro";
     if (live && profile.subscription_plan === "apprentice") return "Apprentice";
     return "Basic";
-  }, [isProfessional, profile, onStudio]);
+  }, [isProfessional, isShop, profile, onStudio]);
 
   // Tag the page with the signed-in side (theme.css reads data-role for motion
   // tempo and accent hooks) and remember it so the next load paints correctly.
@@ -571,24 +611,47 @@ function NavbarComponent() {
     if (loading) return;
     const root = document.documentElement;
     if (hasUser && profile) {
-      const side = isProfessional ? "pro" : "customer";
+      const side = isProfessional || isShop ? "pro" : "customer";
       root.dataset.role = side;
       try { localStorage.setItem("lu-role", side); } catch {}
     } else {
       delete root.dataset.role;
       try { localStorage.removeItem("lu-role"); } catch {}
     }
-  }, [loading, hasUser, profile, isProfessional]);
+  }, [loading, hasUser, profile, isProfessional, isShop]);
+
+  // A shop account only has the shop: send it there from pages meant for
+  // pros or clients.
+  useEffect(() => {
+    if (!isShop) return;
+    const elsewhere = ["/requests", "/work", "/calendar", "/services", "/analytics", "/subscription", "/verification", "/archive", "/chairs"];
+    if (elsewhere.some((p) => pathname === p || pathname.startsWith(`${p}/`))) router.replace("/studio");
+  }, [isShop, pathname, router]);
 
   const navItems = useMemo<NavItem[]>(() => {
     if (loading || !hasUser || !profile) return [];
+
+    if (isShop) {
+      // Still setting the shop up: nothing to navigate to yet.
+      if (!onStudio) return [];
+      return [
+        { href: "/studio", label: "Today", shortLabel: "Today", icon: "dashboard" },
+        { href: "/studio/calendar", label: "Calendar", shortLabel: "Cal", icon: "calendar" },
+        { href: "/studio/requests", label: "Requests", shortLabel: "Requests", icon: "requests" },
+        { href: "/studio/team", label: "Team", shortLabel: "Team", icon: "team" },
+        { href: "/studio/chairs", label: "Chairs", shortLabel: "Chairs", icon: "chair" },
+      ];
+    }
 
     if (isProfessional) {
       return [
         { href: "/requests", label: "Dashboard", shortLabel: "Home", icon: "dashboard" },
         { href: "/work", label: "Work", shortLabel: "Work", icon: "work" },
         { href: "/calendar", label: "Calendar", shortLabel: "Cal", icon: "calendar" },
-        { href: "/discover", label: "Browse", shortLabel: "Browse", icon: "browse" },
+        // On a shop's team, the shop takes Browse's spot.
+        onStudio
+          ? { href: "/studio", label: "Shop", shortLabel: "Shop", icon: "shop" }
+          : { href: "/discover", label: "Browse", shortLabel: "Browse", icon: "browse" },
         { href: "/services", label: "Services", shortLabel: "Services", icon: "services" },
       ];
     }
@@ -599,19 +662,35 @@ function NavbarComponent() {
       { href: "/discover", label: "Browse", shortLabel: "Browse", icon: "browse" },
       { href: "/account", label: "Account", shortLabel: "You", icon: "account" },
     ];
-  }, [loading, hasUser, profile, isProfessional]);
+  }, [loading, hasUser, profile, isProfessional, isShop, onStudio]);
 
   const desktopNavItems = useMemo<NavItem[]>(() => {
+    if (isShop) {
+      const items = [...navItems];
+      items.splice(4, 0, { href: "/studio/memberships", label: "Memberships", shortLabel: "Members", icon: "account" });
+      return items;
+    }
     if (!isProfessional) return navItems;
+    if (onStudio) {
+      return [
+        ...navItems.slice(0, 3),
+        { href: "/studio", label: "Shop", shortLabel: "Shop", icon: "shop" },
+        { href: "/discover", label: "Browse", shortLabel: "Browse", icon: "browse" },
+        ...navItems.slice(4),
+        { href: "/analytics", label: "Analytics", shortLabel: "Stats", icon: "browse" },
+      ];
+    }
     return [
       ...navItems,
       { href: "/analytics", label: "Analytics", shortLabel: "Stats", icon: "browse" },
     ];
-  }, [navItems, isProfessional]);
+  }, [navItems, isProfessional, isShop, onStudio]);
 
   // A section stays highlighted on its sub-pages too (a request detail page is
   // still "Dashboard"; a booking detail page is still "Work").
   function isActive(path: string) {
+    // A shop account's "Today" is /studio itself; its sections are siblings.
+    if (isShop && path === "/studio") return pathname === "/studio";
     if (pathname === path || pathname.startsWith(`${path}/`)) return true;
     return path === "/work" && pathname.startsWith("/bookings/");
   }
@@ -633,12 +712,19 @@ function NavbarComponent() {
       active ? "bg-neutral-100 font-medium text-ink" : "text-neutral-700 hover:bg-neutral-50 hover:text-ink"
     }`;
 
-  const accountLinks = [
+  const accountLinks = isShop
+    ? [
+        { href: "/studio/settings", label: "Shop settings", show: true },
+        { href: "/studio/memberships", label: "Memberships", show: true },
+        { href: "/account", label: "Account", show: true },
+        { href: "/admin", label: "Switch to admin", show: !!profile?.is_admin },
+      ].filter((link) => link.show)
+    : [
     { href: "/account", label: "Profile", show: true },
     { href: "/work", label: isProfessional ? "Work" : "Bookings", show: true },
     { href: "/archive", label: "Archived services", show: true },
     { href: "/services", label: "Services & availability", show: isProfessional },
-    { href: "/studio", label: "Studio", show: isProfessional },
+    { href: "/studio", label: onStudio ? "Your shop" : "Open a shop", show: isProfessional },
     { href: "/chairs", label: "Chair openings", show: isProfessional },
     { href: "/analytics", label: "Analytics", show: isProfessional },
     { href: "/subscription", label: "Subscription", show: isProfessional },
@@ -653,7 +739,7 @@ function NavbarComponent() {
         <div className="px-4 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-10">
           <Link
-            href={hasUser ? "/requests" : "/"}
+            href={hasUser ? (isShop ? "/studio" : "/requests") : "/"}
             prefetch
             onClick={handleNavClick}
             className="order-1 flex h-16 shrink-0 items-center gap-2 rounded text-xl font-semibold tracking-tight text-ink"

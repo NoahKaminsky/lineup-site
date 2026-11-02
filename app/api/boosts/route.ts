@@ -26,13 +26,14 @@ export async function POST(req: Request) {
       .select("id, role, email, stripe_customer_id, verification_status")
       .eq("id", user.id)
       .maybeSingle();
-    if (me?.role !== "professional") return NextResponse.json({ error: "Boosts are for professionals." }, { status: 403 });
+    if (!me) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
     let targetId = user.id;
     let name = "LineUp profile boost (7 days)";
     let returnPath = typeof body?.returnTo === "string" && body.returnTo.startsWith("/") && !body.returnTo.startsWith("//") ? body.returnTo : "/subscription";
 
     if (kind === "profile") {
+      if (me.role !== "professional") return NextResponse.json({ error: "Profile boosts are for professionals." }, { status: 403 });
       if (me.verification_status !== "verified") {
         return NextResponse.json({ error: "Get verified first. Only verified pros show up in Browse." }, { status: 409 });
       }
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
       if (opening.status !== "open") return NextResponse.json({ error: "Only open chairs can be featured." }, { status: 409 });
       targetId = opening.id;
       name = `Featured chair opening (7 days): ${opening.title}`;
-      returnPath = "/studio?tab=chairs";
+      returnPath = "/studio/chairs";
     }
 
     const siteUrl = getSiteUrl();
