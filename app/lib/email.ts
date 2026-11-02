@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -25,7 +26,7 @@ export function createEmailLayout({
   ctaUrl?: string;
 }) {
   const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://lineup-aesthetics.ca";
+    getSiteUrl("https://lineup-aesthetics.ca");
 
   const logoUrl = `${siteUrl}/lineup-apple-touch-icon.png`;
 

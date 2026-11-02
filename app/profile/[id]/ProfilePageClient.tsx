@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import PaymentModal from "@/app/components/payments/PaymentModal";
+import CardSetupModal from "@/app/components/payments/CardSetupModal";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import DayZoomArea from "@/app/components/DayZoom";
 import type { ProfileDetailInitialData } from "./getInitialData";
@@ -565,6 +566,12 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [pendingBookingChoice, setPendingBookingChoice] = useState<PendingBookingChoice | null>(null);
   const [confirmedBooking, setConfirmedBooking] = useState<BookingRow | null>(null);
   const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
+  // "Book now, pay at the shop" (studio pros whose shop allows it).
+  const [payAtShopTerms, setPayAtShopTerms] = useState<{ studioName: string; noShowFeePercent: number } | null>(null);
+  const [payAtShopChoice, setPayAtShopChoice] = useState(false);
+  const [cardSetup, setCardSetup] = useState<{ clientSecret: string; priceCents: number; noShowFeeCents: number } | null>(
+    null
+  );
   const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showAllServices, setShowAllServices] = useState(false);
@@ -1053,6 +1060,41 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     ].filter((group) => group.slots.length > 0);
   }, [selectedBookingDay]);
 
+  // Arriving from a shop's booking page with a time already picked
+  // (?book=YYYY-MM-DDTHH:MM&service=<id>): open the calendar on that time
+  // with that service, ready to confirm. Done once; if the time has gone by
+  // the time they land, they just see the day.
+  const [handoff, setHandoff] = useState<{ date: string; time: string; service: string | null } | null>(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const book = params.get("book") || "";
+    const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(book);
+    return m ? { date: m[1], time: m[2], service: params.get("service") } : null;
+  });
+  useEffect(() => {
+    if (!handoff || !handoff.service) return;
+    if (services.some((service) => service.id === handoff.service)) setPreferredServiceId(handoff.service);
+  }, [handoff, services]);
+  useEffect(() => {
+    if (!handoff || generatedSlots.length === 0) return;
+    if (handoff.service && services.some((s) => s.id === handoff.service) && preferredServiceId !== handoff.service) return;
+    const slot = generatedSlots.find((s) => s.date === handoff.date && s.start_time === handoff.time);
+    setSelectedDay(handoff.date);
+    if (slot) {
+      setSelectedSlot(slot);
+      setSelectedServiceMode(directBookingModes.length === 1 ? directBookingModes[0] : null);
+      const minutes = timeToMinutes(slot.start_time);
+      setSelectedPeriod(minutes < 12 * 60 ? "Morning" : minutes < 16 * 60 ? "Afternoon" : "Evening");
+      if (handoff.service) setChosenService({ slotKey: slot.key, serviceId: handoff.service });
+    }
+    setHandoff(null);
+    window.setTimeout(() => {
+      document.getElementById("availability")?.scrollIntoView({ block: "start" });
+    }, 80);
+    // directBookingModes is derived each render; the handoff runs once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff, generatedSlots, services, preferredServiceId]);
+
   const activePeriodGroup =
     selectedDayTimeGroups.find((group) => group.label === selectedPeriod) ||
     selectedDayTimeGroups[0] ||
@@ -1369,10 +1411,70 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     });
   }
 
+  // Whether this pro's shop lets clients pay at the shop instead of now.
+  useEffect(() => {
+    const proId = profile?.id;
+    if (!proId) return;
+    let cancelled = false;
+    fetch(`/api/bookings/pay-at-shop?professionalId=${encodeURIComponent(proId)}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return;
+        setPayAtShopTerms(json?.available ? { studioName: json.studioName, noShowFeePercent: json.noShowFeePercent } : null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id]);
+
+  async function handlePayAtShopCardSaved(setupIntentId: string) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const response = await fetch("/api/bookings/pay-at-shop", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ setupIntentId }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setCardSetup(null);
+    setBookingSlotKey(null);
+
+    if (!response.ok || !data?.bookingId) {
+      setMessage(data?.error || "Your card was saved, but we couldn't confirm the booking. Check your Bookings tab.");
+      return;
+    }
+
+    const { data: created } = await supabase
+      .from("bookings")
+      .select(
+        "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes, service_price, service_mode, source, formatted_address, location_lat, location_lng, location_place_id"
+      )
+      .eq("id", data.bookingId)
+      .maybeSingle();
+
+    if (created) {
+      const booked = {
+        ...created,
+        start_time: String(created.start_time).slice(0, 5),
+        end_time: String(created.end_time).slice(0, 5),
+      } as BookingRow;
+      setBookings((prev) => [...prev, booked]);
+      setConfirmedBooking(booked);
+      setSelectedSlot(null);
+      setSelectedServiceMode(null);
+    }
+  }
+
   async function handleBookServiceInSlot(
     service: ProfessionalService,
     slotOverride?: GeneratedSlot,
-    modeOverride?: string
+    modeOverride?: string,
+    payAtShop = false
   ) {
     if (bookingSlotKey) return;
 
@@ -1443,6 +1545,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
           startTime: activeSlot.start_time,
           endTime: activeSlot.end_time,
           mode: activeMode,
+          ...(payAtShop ? { payAtShop: true } : {}),
         }),
       });
 
@@ -1460,6 +1563,15 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
           if (schedule) setBookings(schedule.rows as BookingRow[]);
           setSelectedSlot(null);
         }
+        return;
+      }
+
+      if (data.mode === "setup") {
+        setCardSetup({
+          clientSecret: data.clientSecret,
+          priceCents: Number(data.amountCents) || 0,
+          noShowFeeCents: Number(data.noShowFeeCents) || 0,
+        });
         return;
       }
 
@@ -2906,11 +3018,49 @@ if (loading) {
               ) : null}
             </div>
 
+            {payAtShopTerms && pendingBookingChoice.mode === "in_shop" ? (
+              <div className="mt-5 grid grid-cols-2 gap-2" role="radiogroup" aria-label="When to pay">
+                {[
+                  { value: false, title: "Pay now", text: "Secure checkout" },
+                  { value: true, title: "Pay at the shop", text: "Card holds your spot" },
+                ].map((option) => (
+                  <button
+                    key={String(option.value)}
+                    type="button"
+                    role="radio"
+                    aria-checked={payAtShopChoice === option.value}
+                    onClick={() => setPayAtShopChoice(option.value)}
+                    className={`rounded-2xl p-3 text-left ring-1 transition ${
+                      payAtShopChoice === option.value
+                        ? "bg-ink text-white ring-ink"
+                        : "bg-white text-neutral-900 ring-ink/[0.1] hover:bg-neutral-50"
+                    }`}
+                  >
+                    <span className="block text-sm font-semibold">{option.title}</span>
+                    <span className={`block text-xs ${payAtShopChoice === option.value ? "text-white/70" : "text-neutral-500"}`}>
+                      {option.text}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
             {/* The cancellation policy, stated before anyone pays. */}
             <p className="mt-5 rounded-2xl bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-600 ring-1 ring-ink/[0.05]">
-              <span className="font-semibold text-neutral-900">Cancellation policy:</span> cancel for a full refund until{" "}
-              {formatCancellationDeadline(pendingBookingChoice.slot.date, pendingBookingChoice.slot.start_time)}. Within 24
-              hours of the appointment, bookings can&apos;t be cancelled.
+              {payAtShopTerms && payAtShopChoice && pendingBookingChoice.mode === "in_shop" ? (
+                <>
+                  <span className="font-semibold text-neutral-900">No-show policy:</span> nothing is charged today. Cancel
+                  free until {formatCancellationDeadline(pendingBookingChoice.slot.date, pendingBookingChoice.slot.start_time)}.
+                  If you don&apos;t show up, {payAtShopTerms.studioName} charges a no-show fee of{" "}
+                  {payAtShopTerms.noShowFeePercent}% of the price to your card.
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold text-neutral-900">Cancellation policy:</span> cancel for a full refund
+                  until {formatCancellationDeadline(pendingBookingChoice.slot.date, pendingBookingChoice.slot.start_time)}.
+                  Within 24 hours of the appointment, bookings can&apos;t be cancelled.
+                </>
+              )}
             </p>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
@@ -2919,7 +3069,12 @@ if (loading) {
                 onClick={() => {
                   const choice = pendingBookingChoice;
                   setPendingBookingChoice(null);
-                  handleBookServiceInSlot(choice.service, choice.slot, choice.mode);
+                  handleBookServiceInSlot(
+                    choice.service,
+                    choice.slot,
+                    choice.mode,
+                    !!payAtShopTerms && payAtShopChoice && choice.mode === "in_shop"
+                  );
                 }}
                 disabled={bookingSlotKey === pendingBookingChoice.slot.key}
                 className="inline-flex flex-1 items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
@@ -2937,6 +3092,20 @@ if (loading) {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {cardSetup ? (
+        <CardSetupModal
+          clientSecret={cardSetup.clientSecret}
+          priceCents={cardSetup.priceCents}
+          noShowFeeCents={cardSetup.noShowFeeCents}
+          shopName={payAtShopTerms?.studioName}
+          onClose={() => {
+            setCardSetup(null);
+            setBookingSlotKey(null);
+          }}
+          onSaved={handlePayAtShopCardSaved}
+        />
       ) : null}
 
       {paymentClientSecret ? (

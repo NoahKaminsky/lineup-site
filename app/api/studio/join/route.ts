@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
-import { getStudioForUser, hashInviteToken, syncMemberPlan, errorMessage } from "@/app/lib/studios";
+import { getStudioForUser, hashInviteToken, syncStudioMemberPlans, errorMessage } from "@/app/lib/studios";
 
 // GET  /api/studio/join?token=…   — which studio an invite link is for.
 // POST /api/studio/join { token } or { inviteId } — accept it.
@@ -43,8 +43,45 @@ export async function GET(req: Request) {
   const token = new URL(req.url).searchParams.get("token") || "";
   if (!token) return NextResponse.json({ error: "Missing invite." }, { status: 400 });
 
-  const invite = await findInvite(getServiceSupabase(), { token });
-  if (!invite) return NextResponse.json({ error: "This invite has already been used or was cancelled." }, { status: 404 });
+  const supabase = getServiceSupabase();
+  const invite = await findInvite(supabase, { token });
+  if (!invite) {
+    // An older link (the invite was sent again since) or one already used.
+    // If they're signed in, find where they actually stand.
+    const user = await getAuthenticatedUser(req).catch(() => null);
+    if (user) {
+      const current = await getStudioForUser(supabase, user.id);
+      if (current) return NextResponse.json({ joined: true, studioName: current.studio.name });
+      const email = (user.email || "").toLowerCase();
+      const { data: pending } = email
+        ? await supabase
+            .from("studio_members")
+            .select("id, invite_expires_at, studios(name)")
+            .eq("status", "invited")
+            .eq("invited_email", email)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle()
+        : { data: null };
+      if (pending) {
+        return NextResponse.json({
+          inviteId: pending.id,
+          studioName: (pending.studios as unknown as { name: string } | null)?.name || "A studio",
+          invitedEmail: maskEmail(email),
+          expired: !!pending.invite_expires_at && Date.parse(pending.invite_expires_at) < Date.now(),
+        });
+      }
+    }
+    return NextResponse.json(
+      {
+        error: user
+          ? "This invite link isn't active anymore. Ask the shop to send you a new one."
+          : "This link was replaced by a newer invite, or already used. Sign in and we'll find your invite.",
+        code: user ? "no_invite" : "sign_in",
+      },
+      { status: 404 }
+    );
+  }
 
   return NextResponse.json({
     studioName: invite.studioName,
@@ -137,7 +174,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "This invite has already been used." }, { status: 409 });
     }
 
-    await syncMemberPlan(supabase, user.id);
+    // Everyone, not just them: a second pro joining is what switches the
+    // team benefits on.
+    await syncStudioMemberPlans(supabase, invite.studioId);
 
     return NextResponse.json({ ok: true, studioName: invite.studioName });
   } catch (error) {

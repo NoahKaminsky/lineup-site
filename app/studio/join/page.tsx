@@ -6,10 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import LuLoader from "@/app/components/LuLoader";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
-import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
+import { forgetReturnTo, loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 import { studioFetch } from "../studioApi";
 
-type Preview = { studioName: string; invitedEmail: string; expired: boolean };
+type Preview = { studioName: string; invitedEmail: string; expired: boolean; inviteId?: string; joined?: boolean };
 
 function JoinStudio() {
   const router = useRouter();
@@ -22,6 +22,8 @@ function JoinStudio() {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
   const [wrongAccount, setWrongAccount] = useState(false);
+  // The link itself is stale, but signing in will find their invite.
+  const [askSignIn, setAskSignIn] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -34,23 +36,39 @@ function JoinStudio() {
         studioFetch<Preview>(`/api/studio/join?token=${encodeURIComponent(token)}`),
         getSignedInUser(),
       ]);
-      if (!res.ok) setError(res.data.error || "This invite isn't valid anymore.");
-      else setPreview(res.data);
+      // Already on the team: the invite is done with. Go to the shop and
+      // forget this link so no later sign-in lands back here.
+      if (res.ok && res.data.joined) {
+        forgetReturnTo("/studio/join");
+        router.replace("/studio");
+        return;
+      }
+      if (!res.ok) {
+        setError(res.data.error || "This invite isn't valid anymore.");
+        setAskSignIn(res.data.code === "sign_in");
+      } else setPreview(res.data);
       setSignedInEmail(user?.email || null);
-      // So sign-up (through email confirmation) and onboarding come back here.
-      rememberReturnTo(returnPath);
+      // Signed out: remember this page so sign-up (through email
+      // confirmation) and onboarding come back here. Signed in: nothing to
+      // come back to.
+      if (user) forgetReturnTo("/studio/join");
+      else rememberReturnTo(returnPath);
       setLoading(false);
     })();
-  }, [token, returnPath]);
+  }, [token, returnPath, router]);
 
   async function join() {
     setJoining(true);
     setError("");
-    const res = await studioFetch<{ studioName?: string }>("/api/studio/join", { method: "POST", body: { token } });
+    const res = await studioFetch<{ studioName?: string }>("/api/studio/join", {
+      method: "POST",
+      body: preview?.inviteId ? { inviteId: preview.inviteId } : { token },
+    });
     setJoining(false);
 
     if (res.ok) {
-      router.push("/studio");
+      forgetReturnTo("/studio/join");
+      router.replace("/studio");
       return;
     }
     if (res.data.code === "needs_onboarding") {
@@ -101,7 +119,24 @@ function JoinStudio() {
             </p>
           ) : null}
 
-          {preview && !preview.expired ? (
+          {askSignIn ? (
+            <div className="mt-6 space-y-3">
+              <Link
+                href={loginHref(returnPath)}
+                className="block w-full rounded-full bg-ink py-3.5 text-center text-sm font-semibold text-white transition-colors hover:bg-neutral-800"
+              >
+                Sign in
+              </Link>
+              <Link
+                href={loginHref(returnPath, "signup")}
+                className="block w-full rounded-full border border-neutral-300 py-3 text-center text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+              >
+                Create my account
+              </Link>
+            </div>
+          ) : null}
+
+          {preview && !preview.joined && !preview.expired ? (
             signedInEmail ? (
               <div className="mt-6 space-y-3">
                 <button

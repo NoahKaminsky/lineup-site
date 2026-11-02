@@ -1,6 +1,7 @@
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { todayDateString, type VerificationStatus, type VerificationTrack } from "@/app/lib/verificationRules";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 type VerificationRow = {
   track: VerificationTrack;
@@ -106,7 +107,7 @@ export async function notifyVerificationOutcome(params: {
 
     if (!profile?.email) return;
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lineup-aesthetics.ca";
+    const siteUrl = getSiteUrl("https://lineup-aesthetics.ca");
     const firstName = profile.full_name?.split(" ")[0] || "there";
 
     const bodies = {

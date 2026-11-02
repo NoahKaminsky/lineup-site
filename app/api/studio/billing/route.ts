@@ -3,6 +3,7 @@ import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@
 import { stripe } from "@/app/lib/stripe";
 import { studioPriceIdFor, type StudioPlan } from "@/app/lib/plans";
 import { getStudioForUser, isStudioLive, errorMessage } from "@/app/lib/studios";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 // POST /api/studio/billing { action: "checkout", plan } | { action: "portal" }
 // Owner only. The studio has its own Stripe customer and subscription,
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
 
     const { studio } = ctx;
     const body = await req.json().catch(() => ({}));
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = getSiteUrl();
 
     if (body?.action === "portal") {
       if (!studio.stripe_customer_id) {

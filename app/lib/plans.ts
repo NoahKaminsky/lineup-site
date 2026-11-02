@@ -48,11 +48,13 @@ export const STUDIO_PLANS: Record<
     label: "Studio",
     priceLabel: "$39",
     features: [
-      "Unlimited team members, one flat price",
-      "Each pro gets their own login and Pro features",
-      "Every member's schedule in one place",
+      "One calendar for the whole shop, with online booking",
+      "Client requests near your shop, passed to the right pro",
+      "Walk-ins and phone bookings at the front desk",
       "0% LineUp commission on your own clients",
-      "Commission only on new clients LineUp sends you through requests",
+      "Chair openings, seen only by pros in that trade",
+      "Monthly memberships for your regulars",
+      "Every pro gets their own login and Pro features (2 pros or more)",
     ],
   },
   studio_plus: {
@@ -61,6 +63,7 @@ export const STUDIO_PLANS: Record<
     features: [
       "Everything in Studio",
       "Set the shop's commission, for the whole team or per pro",
+      "Or charge booth rent, collected by card automatically",
       "The shop's cut is paid out to the shop automatically",
       "Shop earnings by member",
     ],

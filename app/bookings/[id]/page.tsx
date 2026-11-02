@@ -14,6 +14,7 @@ import {
   canCancelForRefund,
   formatCancellationDeadline,
   hasAppointmentEnded,
+  appointmentInstant,
 } from "@/app/lib/bookingTime";
 import { DrawnCheck, MaskLine, formatMomentPrice } from "@/app/components/moments/Moments";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
@@ -40,6 +41,8 @@ type BookingRow = {
   source?: string | null;
   duration_minutes: number | null;
   service_price?: string | number | null;
+  // "pay_at_shop" when the client saved a card and pays in person.
+  payment_status?: string | null;
   cancelled_by: string | null;
   cancelled_at: string | null;
   completion_requested_at: string | null;
@@ -285,6 +288,11 @@ function BookingLoadingSkeleton() {
 }
 
 
+// No-shows can be marked 15 minutes after the start (see app/lib/payAtShop.ts).
+function hasNoShowWindowOpened(date: string, startTime: string) {
+  return Date.now() >= appointmentInstant(date, startTime).getTime() + 15 * 60_000;
+}
+
 export default function BookingDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -345,7 +353,7 @@ export default function BookingDetailPage() {
       const { data: bookingData, error: bookingError } = await supabase
         .from("bookings")
         .select(
-          "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, service_price, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
+          "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, service_price, payment_status, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
         )
         .eq("id", bookingId)
         .single();
@@ -578,6 +586,41 @@ export default function BookingDetailPage() {
     } finally {
       setReviewSubmitting(false);
       setShowReviewModal(false);
+    }
+  }
+
+  // Pay-at-the-shop client who didn't come: charges the shop's no-show fee
+  // to the card they saved when booking.
+  async function handleMarkNoShow() {
+    if (!booking || !window.confirm("Mark this client as a no-show? Their card is charged the no-show fee and the booking closes.")) {
+      return;
+    }
+    try {
+      setActionLoading("no-show");
+      setMessage("");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const response = await fetch("/api/bookings/no-show", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ bookingId: booking.id }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setMessage(data?.error || "Could not mark the no-show.");
+        return;
+      }
+      setBooking((prev) => (prev ? { ...prev, status: "cancelled", cancelled_by: viewerId || null } : prev));
+      setMessage(data.message || "Marked as a no-show.");
+    } catch (error) {
+      console.error(error);
+      setMessage("Something went wrong marking the no-show.");
+    } finally {
+      setActionLoading(null);
     }
   }
 
@@ -864,7 +907,12 @@ export default function BookingDetailPage() {
             {booking.service_price !== null && booking.service_price !== undefined && booking.service_price !== "" ? (
               <div className="flex items-baseline justify-between gap-6 py-4">
                 <dt className="text-sm text-neutral-500">Price</dt>
-                <dd className="text-sm font-medium tabular-nums text-ink">{formatMomentPrice(booking.service_price)}</dd>
+                <dd className="text-sm font-medium tabular-nums text-ink">
+                  {formatMomentPrice(booking.service_price)}
+                  {booking.payment_status === "pay_at_shop" ? (
+                    <span className="ml-1.5 font-normal text-neutral-500">· pay at the shop</span>
+                  ) : null}
+                </dd>
               </div>
             ) : null}
             {booking.duration_minutes ? (
@@ -889,8 +937,9 @@ export default function BookingDetailPage() {
                 : "Your appointment is over."}
             </p>
             <p className="mt-2 max-w-md text-sm leading-6 text-white/70">
-              If your service is finished, confirm it below. That&apos;s what pays them out, and then you can leave a
-              review.
+              {booking.payment_status === "pay_at_shop"
+                ? "If your service is finished, confirm it below, and then you can leave a review."
+                : "If your service is finished, confirm it below. That’s what pays them out, and then you can leave a review."}
             </p>
             <button
               type="button"
@@ -908,8 +957,20 @@ export default function BookingDetailPage() {
             <div className="min-w-0">
               <p className="font-semibold text-ink">Finished the service?</p>
               <p className="mt-1 text-sm leading-6 text-neutral-500">
-                Mark it complete and your client confirms. That releases your payout.
+                {booking.payment_status === "pay_at_shop"
+                  ? "They pay you at the shop. Mark it complete when you're done."
+                  : "Mark it complete and your client confirms. That releases your payout."}
               </p>
+              {booking.payment_status === "pay_at_shop" && hasNoShowWindowOpened(booking.booking_date, booking.start_time) ? (
+                <button
+                  type="button"
+                  onClick={handleMarkNoShow}
+                  disabled={actionLoading === "no-show"}
+                  className="mt-3 rounded text-sm font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-4 hover:text-red-700 disabled:opacity-60"
+                >
+                  {actionLoading === "no-show" ? "Charging no-show fee…" : "They didn't show up"}
+                </button>
+              ) : null}
             </div>
             {isServiceOver(booking.booking_date, booking.end_time) ? (
               <button
@@ -961,7 +1022,9 @@ export default function BookingDetailPage() {
                 </p>
               ) : confirmingCancel ? (
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-neutral-600">Cancel and refund in full?</span>
+                  <span className="text-sm text-neutral-600">
+                    {booking.payment_status === "pay_at_shop" ? "Cancel this booking?" : "Cancel and refund in full?"}
+                  </span>
                   <button
                     type="button"
                     onClick={handleCancelBooking}
