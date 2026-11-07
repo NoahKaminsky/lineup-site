@@ -35,7 +35,7 @@ type BookingRow = {
 };
 
 const BOOKING_COLUMNS =
-  "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id";
+  "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, payment_status";
 
 function normalizeRole(role: string | null | undefined) {
   return role?.toLowerCase().trim() || "";
