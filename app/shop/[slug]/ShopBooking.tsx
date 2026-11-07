@@ -94,7 +94,7 @@ function openTimes(pro: ShopPro, busy: Busy[], day: string, minutes: number, tod
   return [...new Set(out)].sort();
 }
 
-export default function ShopBooking({ pros }: { pros: ShopPro[] }) {
+export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: string }) {
   const bookable = useMemo(() => pros.filter((p) => p.canBookOnline), [pros]);
   const [today, setToday] = useState(() => dateKey(new Date()));
   const [busy, setBusy] = useState<Busy[] | null>(bookable.length ? null : []);
@@ -239,6 +239,7 @@ export default function ShopBooking({ pros }: { pros: ShopPro[] }) {
                 setPick={setPick}
                 onToggle={() => (openId === pro.id ? setOpenId(null) : openPro(pro))}
                 onChanged={load}
+                slug={slug}
               />
             ))}
           </ul>
@@ -275,6 +276,7 @@ function ProCard({
   setPick,
   onToggle,
   onChanged,
+  slug,
 }: {
   pro: ShopPro;
   open: boolean;
@@ -287,6 +289,7 @@ function ProCard({
   setPick: (p: { day: string | null; time: string | null; serviceId: string | null }) => void;
   onToggle: () => void;
   onChanged: () => void;
+  slug: string;
 }) {
   const service = pro.services.find((s) => s.id === pick.serviceId) || null;
   const minutes = service?.minutes || pro.defaultMinutes;
@@ -488,7 +491,7 @@ function ProCard({
             )}
           </div>
 
-          <BookingBar pro={pro} service={service} day={day} time={time} today={today} onChanged={onChanged} />
+          <BookingBar pro={pro} service={service} day={day} time={time} today={today} slug={slug} onChanged={onChanged} />
         </div>
       ) : null}
     </li>
@@ -504,6 +507,7 @@ function BookingBar({
   day,
   time,
   today,
+  slug,
   onChanged,
 }: {
   pro: ShopPro;
@@ -511,10 +515,15 @@ function BookingBar({
   day: string | null;
   time: string | null;
   today: string;
+  slug: string;
   onChanged: () => void;
 }) {
   const [payAtShop, setPayAtShop] = useState<{ shopName: string; feePercent: number } | null>(null);
   const [payLater, setPayLater] = useState(false);
+  // The client's membership at this shop, when it still has visits left this
+  // period. Their booking is "covered": no payment, a card held only for
+  // no-shows (the pay-at-the-shop flow).
+  const [membership, setMembership] = useState<{ planName: string } | null>(null);
   const [working, setWorking] = useState(false);
   const [message, setMessage] = useState("");
   const [paymentSecret, setPaymentSecret] = useState<string | null>(null);
@@ -534,6 +543,32 @@ function BookingBar({
     };
   }, [pro.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const res = await fetch(`/api/memberships?slug=${encodeURIComponent(slug)}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }).catch(() => null);
+      const j = await res?.json().catch(() => null);
+      type Mine = { planName: string; status: string; visitsUsed: number; visitsIncluded: number | null };
+      const usable = ((j?.mine || []) as Mine[]).find(
+        (m) => m.status !== "past_due" && (m.visitsIncluded === null || m.visitsUsed < m.visitsIncluded)
+      );
+      if (!cancelled && usable) {
+        setMembership({ planName: usable.planName });
+        setPayLater(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  const covered = !!(membership && payAtShop);
   const ready = !!(day && time && service);
   const when = day && time ? `${dayName(day, today)}, ${time12(time)}` : "";
 
@@ -677,7 +712,9 @@ function BookingBar({
         <div role="radiogroup" aria-label="When to pay" className="mb-3 grid grid-cols-2 gap-2 pr-1 pt-1">
           {[
             { v: false, t: "Pay now", d: "Card, secure checkout" },
-            { v: true, t: "Pay at the shop", d: `Card saved for no-shows (${payAtShop.feePercent}% fee)` },
+            covered
+              ? { v: true, t: "Covered by your membership", d: `${membership!.planName}. Card held for no-shows only` }
+              : { v: true, t: "Pay at the shop", d: `Card saved for no-shows (${payAtShop.feePercent}% fee)` },
           ].map((o) => (
             <button
               key={String(o.v)}
@@ -744,6 +781,7 @@ function BookingBar({
           priceCents={cardSetup.priceCents}
           noShowFeeCents={cardSetup.noShowFeeCents}
           shopName={payAtShop?.shopName}
+          coveredBy={covered ? membership!.planName : null}
           onClose={() => {
             setCardSetup(null);
             setWorking(false);

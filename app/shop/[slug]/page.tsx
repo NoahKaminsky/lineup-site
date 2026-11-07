@@ -189,7 +189,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
           </a>
         ) : null}
 
-        <ShopBooking pros={pros} />
+        <ShopBooking pros={pros} slug={slug} />
 
         <ShopMemberships slug={slug} shopName={studio.name} />
 
