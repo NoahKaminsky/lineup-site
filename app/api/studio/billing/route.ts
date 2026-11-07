@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
 import { studioPriceIdFor, type StudioPlan } from "@/app/lib/plans";
-import { getStudioForUser, isStudioLive, errorMessage } from "@/app/lib/studios";
+import { getStudioForUser, isStudioLive, errorMessage, syncStudioMemberPlans } from "@/app/lib/studios";
 import { getSiteUrl } from "@/app/lib/siteUrl";
 
 // POST /api/studio/billing { action: "checkout", plan } | { action: "portal" }
@@ -43,8 +43,31 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Studio plans aren't set up in Stripe yet." }, { status: 503 });
     }
 
-    // Already subscribed: plan changes go through the billing portal so
-    // Stripe handles proration.
+    // Already subscribed to the other plan: swap the price on the existing
+    // subscription. Stripe prorates the difference onto the next invoice.
+    // (The billing portal can't do this unless plan switching is turned on
+    // in Stripe's portal settings, so we don't rely on it.) The webhook's
+    // customer.subscription.updated also records the change; writing it
+    // here too means the page shows the new plan straight away.
+    if (isStudioLive(studio) && studio.stripe_subscription_id && studio.plan !== plan) {
+      const subscription = await stripe.subscriptions.retrieve(studio.stripe_subscription_id);
+      const item = subscription.items.data[0];
+      if (!item) return NextResponse.json({ error: "Couldn't find the studio's subscription." }, { status: 400 });
+
+      await stripe.subscriptions.update(subscription.id, {
+        items: [{ id: item.id, price: priceId }],
+        proration_behavior: "create_prorations",
+        metadata: { ...subscription.metadata, studio_id: studio.id },
+      });
+
+      await supabase.from("studios").update({ plan }).eq("id", studio.id);
+      await syncStudioMemberPlans(supabase, studio.id);
+
+      return NextResponse.json({ url: `${siteUrl}/studio/settings?plan_changed=${plan}` });
+    }
+
+    // Already on this plan (or no subscription on file): send them to the
+    // billing portal to manage it.
     if (isStudioLive(studio) && studio.stripe_customer_id) {
       const portal = await stripe.billingPortal.sessions.create({
         customer: studio.stripe_customer_id,
