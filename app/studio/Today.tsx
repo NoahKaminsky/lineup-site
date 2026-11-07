@@ -129,7 +129,7 @@ export default function TodayView() {
             <h3 id="up-next" className="text-[15px] font-semibold text-ink">
               Up next
             </h3>
-            <Link href="/studio/calendar" className="inline-flex items-center gap-1 text-[13px] font-medium text-neutral-500 hover:text-ink">
+            <Link href={me.canManage ? "/studio/calendar" : "/calendar"} className="inline-flex items-center gap-1 text-[13px] font-medium text-neutral-500 hover:text-ink">
               Calendar
               <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Link>

@@ -46,6 +46,9 @@ type BookingRow = {
   location_place_id: string | null;
   // "pay_at_shop" when the client saved a card and pays in person.
   payment_status?: string | null;
+  // Where it happens: shop work (in_shop at a studio) vs the pro's own.
+  service_mode?: string | null;
+  studio_id?: string | null;
   // Set when a member's visit is covered by their membership.
   member?: boolean;
 };
@@ -62,6 +65,13 @@ type CalendarCache = {
   bookings: CalendarBooking[];
   subscribed: boolean;
 };
+
+// Shop work: front desk walk-ins, and online bookings at a studio done in the
+// shop. Everything else is the pro's own (mobile, home studio, solo).
+function isShopBooking(b: CalendarBooking) {
+  if (b.front_desk) return true;
+  return !!b.studio_id && (!b.service_mode || b.service_mode === "in_shop");
+}
 
 function isSubscribedToSchedule(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {
   const subscribed =
@@ -205,11 +215,14 @@ function BookingCard({
   compact = false,
   userLat,
   userLng,
+  showWhere = false,
 }: {
   booking: CalendarBooking;
   compact?: boolean;
   userLat?: number | null;
   userLng?: number | null;
+  // Tag it "Shop" or "Mine" (pros on a shop's team).
+  showWhere?: boolean;
 }) {
   const displayAddress = formatDisplayAddress(booking.formatted_address);
   const mapsUrl = getGoogleMapsUrl(booking);
@@ -250,6 +263,15 @@ function BookingCard({
               <span className="truncate">{booking.service_name || "Booked service"}</span>
             </p>
 
+            {showWhere ? (
+              <span
+                className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                  isShopBooking(booking) ? "bg-ink text-white" : "text-neutral-600 ring-1 ring-inset ring-ink/15"
+                }`}
+              >
+                {isShopBooking(booking) ? "Shop" : "Mine"}
+              </span>
+            ) : null}
             <span
               className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
                 booking.status === "completion_requested"
@@ -314,7 +336,15 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   const [loading, setLoading] = useState(() => !seed);
   const [role, setRole] = useState<string | null>(() => seed?.role ?? null);
   const [message, setMessage] = useState("");
-  const [bookings, setBookings] = useState<CalendarBooking[]>(() => seed?.bookings ?? []);
+  const [allBookings, setBookings] = useState<CalendarBooking[]>(() => seed?.bookings ?? []);
+  // Pros on a shop's team see both sides in one schedule, tagged; they can
+  // narrow it to just the shop or just their own clients.
+  const [scope, setScope] = useState<"all" | "shop" | "mine">("all");
+  const onTeam = useMemo(() => allBookings.some(isShopBooking), [allBookings]);
+  const bookings = useMemo(
+    () => (scope === "all" || !onTeam ? allBookings : allBookings.filter((b) => (scope === "shop") === isShopBooking(b))),
+    [allBookings, scope, onTeam]
+  );
   const [subscribed, setSubscribed] = useState(() => seed?.subscribed ?? false);
   const [userId, setUserId] = useState<string | null>(null);
   const [bookingUsage, setBookingUsage] = useState<{ count: number; cap: number | null } | null>(null);
@@ -400,7 +430,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
         supabase
           .from("bookings")
           .select(
-            "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, payment_status"
+            "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, payment_status, service_mode, studio_id"
           )
           .eq("professional_id", user.id)
           .or(calendarStatusFilter())
@@ -867,7 +897,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
             </div>
             <div className="relative min-w-0 border-l border-hairline pl-3">
               <span aria-hidden="true" className="absolute -left-[4.5px] top-4 h-2 w-2 rounded-full bg-ink" />
-              <BookingCard booking={booking} compact userLat={userLocation?.lat} userLng={userLocation?.lng} />
+              <BookingCard booking={booking} compact userLat={userLocation?.lat} userLng={userLocation?.lng} showWhere={onTeam} />
             </div>
           </li>
         ))}
@@ -897,7 +927,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
           ) : (
             <div className="lu-lineup mt-3 max-h-[420px] space-y-2.5 overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {list.items.map((booking) => (
-                <BookingCard booking={booking} compact key={booking.id} userLat={userLocation?.lat} userLng={userLocation?.lng} />
+                <BookingCard booking={booking} compact key={booking.id} userLat={userLocation?.lat} userLng={userLocation?.lng} showWhere={onTeam} />
               ))}
             </div>
           )}
@@ -913,8 +943,34 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
           <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Calendar</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Your schedule</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
-            Confirmed bookings, upcoming appointments, and completed work in one place.
+            {onTeam
+              ? "Your shop appointments and your own clients, together in one place."
+              : "Confirmed bookings, upcoming appointments, and completed work in one place."}
           </p>
+          {onTeam ? (
+            <div role="radiogroup" aria-label="Show" className="mt-5 inline-flex rounded-full bg-ink/[0.05] p-1">
+              {(
+                [
+                  ["all", "Everything"],
+                  ["shop", "Shop"],
+                  ["mine", "My clients"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={scope === value}
+                  onClick={() => setScope(value)}
+                  className={`h-9 rounded-full px-4 text-[13px] font-medium transition-colors ${
+                    scope === value ? "bg-ink text-white shadow-sm" : "text-neutral-600 hover:text-ink"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <VerificationBanner />
