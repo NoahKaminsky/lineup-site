@@ -118,7 +118,7 @@ export default function VerificationBanner() {
     <div className="mt-8 rounded-2xl border border-ink bg-surface p-5 text-ink">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Verification required</p>
+          <p className="text-[13px] font-medium text-neutral-500">Verification required</p>
           <p className="mt-1 text-lg font-semibold tracking-tight">{copy.title}</p>
           <p className="mt-1 text-sm text-neutral-600">{copy.body}</p>
           <p className="mt-1 text-sm text-neutral-600">

@@ -1306,10 +1306,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
       <div className="mx-auto max-w-6xl py-4 sm:py-6">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-            {isProfessional ? "Work" : "Bookings"}
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+          <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
             {isProfessional ? "Your work" : "Your bookings"}
           </h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
@@ -1399,7 +1396,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
               <div className="lu-lineup space-y-6">
                 {openRequestItems.length > 0 ? (
                   <div>
-                    <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                    <p className="mb-3 text-[13px] font-medium text-neutral-500">
                       {isProfessional ? "Open requests" : "Your requests"}
                       <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{openRequestItems.length}</span>
                     </p>
@@ -1423,7 +1420,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                         {withdrawError}
                       </p>
                     ) : null}
-                    <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                    <p className="mb-3 text-[13px] font-medium text-neutral-500">
                       {isProfessional ? "Offers sent" : "Offers received"}
                       <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{offerItems.length}</span>
                     </p>
@@ -1529,7 +1526,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
                 {cancelledItems.length > 0 ? (
                   <div>
-                    <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                    <p className="mb-3 text-[13px] font-medium text-neutral-500">
                       Cancelled bookings
                       <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{cancelledItems.length}</span>
                     </p>
@@ -1548,7 +1545,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
                 {cancelledRequestItems.length > 0 ? (
                   <div>
-                    <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                    <p className="mb-3 text-[13px] font-medium text-neutral-500">
                       Cancelled requests
                       <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{cancelledRequestItems.length}</span>
                     </p>
@@ -1562,7 +1559,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
                 {resolvedOfferItems.length > 0 ? (
                   <div>
-                    <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                    <p className="mb-3 text-[13px] font-medium text-neutral-500">
                       Past offers
                       <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{resolvedOfferItems.length}</span>
                     </p>
@@ -1583,7 +1580,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
     {reviewItem ? (
       <div className="lu-fade-in fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-0 sm:items-center sm:p-4">
         <div className="lu-dialog-in w-full max-w-md rounded-t-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-panel">
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+          <p className="text-[13px] font-medium text-neutral-500">
             Service complete
           </p>
           <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em]">

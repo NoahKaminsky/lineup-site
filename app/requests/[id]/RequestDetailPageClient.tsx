@@ -1989,7 +1989,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             <div className="grid items-start gap-4 px-4 py-5 sm:px-6 md:px-8 lg:grid-cols-[0.9fr_1.1fr]">
               <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
                 <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Preferred time
                   </p>
                   <p className="mt-2 text-sm font-semibold text-neutral-900">
@@ -1998,7 +1998,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 </div>
 
                 <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     {acceptedOffer ? "Service mode" : "Open to"}
                   </p>
                   <p className="mt-2 text-sm font-semibold text-neutral-900">
@@ -2016,7 +2016,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 </div>
 
                 <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Budget
                   </p>
                   <p className="mt-2 text-sm font-semibold text-neutral-900">
@@ -2028,7 +2028,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               <div className="rounded-2xl border border-neutral-200 bg-white p-4 sm:p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                    <p className="text-[13px] font-medium text-neutral-500">
                       {usesProLocation ? "Professional's location" : "Location"}
                     </p>
                     {usesProLocation && !proLocationAddress ? (
@@ -2078,7 +2078,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             {scheduledSummary ? (
               <div className="px-4 pb-5 sm:px-6 md:px-8">
                 <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 sm:p-5">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Scheduled service time
                   </p>
                   <p className="mt-2 text-sm font-semibold text-neutral-900">
@@ -2150,7 +2150,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                      <p className="text-[13px] font-medium text-neutral-500">
                         Accepted professional
                       </p>
                       <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
@@ -2211,7 +2211,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
                   <div className="flex items-end justify-between gap-4">
                     <div>
-                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                      <p className="text-[13px] font-medium text-neutral-500">
                         Reference photos
                       </p>
                       <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
@@ -2249,7 +2249,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               <section id="offers" className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm md:p-8">
                 <div className="flex items-end justify-between gap-4">
                   <div>
-                    <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                    <p className="text-[13px] font-medium text-neutral-500">
                       Offers
                     </p>
                     <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
@@ -2592,7 +2592,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
               {isCustomer ? (
                 <section className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Matched professionals
                   </p>
 
@@ -2630,7 +2630,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 id="request-chat"
                 className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm"
               >
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                <p className="text-[13px] font-medium text-neutral-500">
                   Chat
                 </p>
 
@@ -2769,7 +2769,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
               {isCustomer && request.status === "completion_requested" ? (
                 <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Customer actions
                   </p>
 
@@ -2795,7 +2795,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
               {isProfessional && request.status === "open" && hasSubmittedOffer ? (
                 <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Professional actions
                   </p>
 
@@ -2826,7 +2826,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
               {isAcceptedProfessional && request.status === "accepted" ? (
                 <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Professional actions
                   </p>
 
@@ -2867,7 +2867,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               (request.status === "accepted" || request.status === "completion_requested") &&
               request.scheduled_date && request.scheduled_start_time ? (
                 <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Booking
                   </p>
 
@@ -2929,7 +2929,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
               {isCustomer && request.status === "completed" ? (
                 <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Review
                   </p>
 
@@ -3045,7 +3045,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                   {request.accepted_professional_id ? (
                     <div className="mt-6 border-t border-neutral-200 pt-6">
-                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                      <p className="text-[13px] font-medium text-neutral-500">
                         Book again
                       </p>
 
@@ -3101,7 +3101,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
           <div className="lu-dialog-in max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-panel">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                <p className="text-[13px] font-medium text-neutral-500">
                   Secure payment
                 </p>
 

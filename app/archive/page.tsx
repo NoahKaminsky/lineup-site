@@ -126,8 +126,7 @@ export default function ArchivePage() {
   return (
     <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl py-6 sm:py-8">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Archive</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Archived services</h1>
+        <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Archived services</h1>
         <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
           Every service you&apos;ve completed on LineUp. Recent work shows on your dashboard for 24 hours, then
           lands here.
@@ -180,7 +179,7 @@ export default function ArchivePage() {
               <div className="mt-8 space-y-10">
                 {groups.map(([month, items]) => (
                   <section key={month} aria-label={month}>
-                    <h2 className="font-mono text-[11px] uppercase tracking-[0.16em] text-neutral-500">{month}</h2>
+                    <h2 className="text-[13px] font-medium text-neutral-500">{month}</h2>
                     <ul className="lu-lineup mt-3 divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-surface">
                       {items.map((booking) => {
                         const iAmPro = booking.professional_id === userId;

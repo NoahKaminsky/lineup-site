@@ -499,7 +499,7 @@ export default function RespondToRequestPage() {
 
       <div className="mx-auto grid max-w-6xl gap-8 py-10 lg:grid-cols-[0.95fr_1.05fr]">
         <div className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+          <p className="text-[13px] font-medium text-neutral-500">
             Request summary
           </p>
 
@@ -536,7 +536,7 @@ export default function RespondToRequestPage() {
 
           <div className="mt-6 space-y-4 text-sm text-neutral-700">
             <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+              <p className="text-[13px] font-medium text-neutral-500">
                 Customer preferred time
               </p>
               <p className="mt-2 font-medium text-neutral-900">
@@ -548,7 +548,7 @@ export default function RespondToRequestPage() {
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+              <p className="text-[13px] font-medium text-neutral-500">
                 Location
               </p>
               <p className="mt-2 font-medium text-neutral-900">
@@ -557,7 +557,7 @@ export default function RespondToRequestPage() {
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+              <p className="text-[13px] font-medium text-neutral-500">
                 Open to
               </p>
               <p className="mt-2 font-medium text-neutral-900">
@@ -573,7 +573,7 @@ export default function RespondToRequestPage() {
             </div>
 
             <div className="rounded-2xl border border-neutral-200 bg-white p-4">
-              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+              <p className="text-[13px] font-medium text-neutral-500">
                 Budget
               </p>
               <p className="mt-2 font-medium text-neutral-900">
@@ -584,7 +584,7 @@ export default function RespondToRequestPage() {
         </div>
 
         <div className="rounded-panel border border-neutral-200 bg-white p-8 shadow-sm">
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+          <p className="text-[13px] font-medium text-neutral-500">
             Send an offer
           </p>
 
@@ -637,7 +637,7 @@ export default function RespondToRequestPage() {
             </div>
           ) : needsVerification ? (
             <div className="mt-8 rounded-2xl border border-ink bg-surface p-5 text-ink">
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+              <p className="text-[13px] font-medium text-neutral-500">
                 Verification needed
               </p>
               <p className="mt-1 text-lg font-semibold tracking-tight">

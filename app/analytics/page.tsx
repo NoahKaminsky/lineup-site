@@ -432,10 +432,7 @@ export default function AnalyticsPage() {
     return (
       <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl py-16">
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-            Analytics
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+          <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
             Performance insights
           </h1>
 
@@ -469,10 +466,7 @@ export default function AnalyticsPage() {
 
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-              Analytics
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+            <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
               Performance
             </h1>
           </div>
@@ -547,7 +541,7 @@ export default function AnalyticsPage() {
             <div className="mt-8 rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Trend
                   </p>
                   <h2 className="mt-1 text-xl font-semibold tracking-tight">
@@ -572,7 +566,7 @@ export default function AnalyticsPage() {
             <div className="mt-6 grid gap-6 md:grid-cols-2">
               <div className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                 <div>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Schedule
                   </p>
                   <h2 className="mt-1 text-xl font-semibold tracking-tight">
@@ -599,7 +593,7 @@ export default function AnalyticsPage() {
 
               <div className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                 <div>
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Activity
                   </p>
                   <h2 className="mt-1 text-xl font-semibold tracking-tight">
@@ -628,7 +622,7 @@ export default function AnalyticsPage() {
             {/* Top services */}
             {topServices.length > 0 ? (
               <div className="mt-6 rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                <p className="text-[13px] font-medium text-neutral-500">
                   Services
                 </p>
                 <h2 className="mt-1 text-xl font-semibold tracking-tight">

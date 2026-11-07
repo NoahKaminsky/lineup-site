@@ -432,8 +432,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
   return (
     <main className="px-4 sm:px-6 lg:px-8 min-h-screen bg-paper py-10 text-neutral-900">
       <div className="mx-auto max-w-2xl">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Verification</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Verify your credentials</h1>
+        <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Verify your credentials</h1>
         <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
           Clients book with confidence when they know a professional has been checked. Submit your
           licence or, if you&apos;re still studying, proof of enrollment — our team reviews it before

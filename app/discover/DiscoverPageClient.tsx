@@ -942,7 +942,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
     });
   }, [sortedCards, userLocation]);
 
-  const sectionLabel = "font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500";
+  const sectionLabel = "text-[13px] font-medium text-neutral-500";
 
   if (loading) {
     return (

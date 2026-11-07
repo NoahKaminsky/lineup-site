@@ -28,7 +28,7 @@ export default function AccordionSection({
       >
         <div>
           {subtitle ? (
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+            <p className="text-[13px] font-medium text-neutral-500">
               {subtitle}
             </p>
           ) : null}

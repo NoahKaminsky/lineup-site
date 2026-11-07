@@ -144,7 +144,7 @@ export default function ResetPasswordPage() {
 
       <div className="mx-auto grid max-w-6xl gap-10 py-16 md:grid-cols-2 md:items-center">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+          <p className="text-[13px] font-medium text-neutral-500">
             Reset password
           </p>
 

@@ -93,7 +93,7 @@ function JoinStudio() {
           <Link href="/" className="rounded text-xl font-semibold tracking-tight text-ink">
             LineUp
           </Link>
-          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Studio invite</span>
+          <span className="text-[13px] font-medium text-neutral-500">Studio invite</span>
         </div>
       </header>
 
@@ -101,8 +101,7 @@ function JoinStudio() {
         <div className="rounded-2xl border border-hairline bg-surface p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-9">
           {preview ? (
             <>
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">You&apos;re invited</p>
-              <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em]">Join {preview.studioName}</h1>
+              <h1 className="text-3xl font-semibold tracking-[-0.03em]">Join {preview.studioName}</h1>
               <p className="mt-4 text-sm leading-6 text-neutral-600">
                 You&apos;ll keep your own LineUp login, profile, services and calendar. The studio covers your plan and
                 can see the team&apos;s schedule.

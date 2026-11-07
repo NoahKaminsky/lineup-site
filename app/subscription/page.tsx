@@ -381,10 +381,7 @@ export default function SubscriptionPage() {
 
         {/* Header */}
         <div className="mb-10">
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-            LineUp Professional
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+          <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
             {isActiveSubscriber ? "Your subscription" : "Choose your plan"}
           </h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
@@ -401,7 +398,7 @@ export default function SubscriptionPage() {
 
         {coveredByStudio ? (
           <div className="mb-10 rounded-panel border border-hairline bg-surface p-6 sm:p-8">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Covered by your studio</p>
+            <p className="text-[13px] font-medium text-neutral-500">Covered by your studio</p>
             <p className="mt-3 text-lg font-semibold tracking-[-0.02em] text-ink">
               Your studio pays for your plan. You don&apos;t need one of your own.
             </p>
@@ -470,7 +467,7 @@ export default function SubscriptionPage() {
             <div className="px-6 py-6 sm:px-8">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     {profile?.subscription_status === "trialing"
                       ? "Trial ends"
                       : "Renews on"}
@@ -481,7 +478,7 @@ export default function SubscriptionPage() {
                 </div>
 
                 <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Included features
                   </p>
                   <p className="mt-2 text-base font-semibold text-neutral-900">
@@ -672,7 +669,7 @@ export default function SubscriptionPage() {
         {/* Paid boost: a week at the top of Browse. */}
         <div className="mt-10 flex flex-col gap-4 rounded-panel border border-hairline bg-surface p-6 sm:flex-row sm:items-center sm:p-8">
           <div className="min-w-0 flex-1">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Boost</p>
+            <p className="text-[13px] font-medium text-neutral-500">Boost</p>
             <p className="mt-2 text-lg font-semibold tracking-[-0.02em] text-ink">
               {BOOSTS.profile.label}: {formatBoostPrice("profile")} for {BOOSTS.profile.days} days
             </p>

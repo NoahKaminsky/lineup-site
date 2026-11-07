@@ -86,7 +86,7 @@ export default function ShopMemberships({ slug, shopName }: { slug: string; shop
 
       {mine.map((m) => (
         <div key={m.id} className="mt-4 rounded-panel border border-ink bg-surface p-5">
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Your membership</p>
+          <p className="text-[13px] font-medium text-neutral-500">Your membership</p>
           <p className="mt-1.5 font-semibold text-ink">{m.planName}</p>
           <p className="mt-1 text-sm text-neutral-600">
             {m.visitsIncluded === null

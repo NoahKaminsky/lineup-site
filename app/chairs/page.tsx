@@ -156,8 +156,7 @@ export default function ChairsPage() {
   return (
     <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl py-6 sm:py-10">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">For pros only</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Chair openings</h1>
+        <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Chair openings</h1>
         <p className="mt-3 max-w-xl text-base leading-7 text-neutral-600">
           Shops and studios on LineUp looking for pros in your trade
           {professions.length ? ` (${professions.join(", ")})` : ""}. Only professionals in the same trade can see these.

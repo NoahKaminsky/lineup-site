@@ -1834,11 +1834,7 @@ return (
       <div>
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                Dashboard
-              </p>
-
-              <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+              <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
                 Welcome back{userName ? `, ${userName.split(" ")[0]}` : ""}.
               </h1>
 
@@ -2611,7 +2607,7 @@ return (
             <div className="mt-10 space-y-12">
               {/* This month — the numbers a pro checks first. */}
               <section aria-label="This month">
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">This month</p>
+                <p className="text-[13px] font-medium text-neutral-500">This month</p>
                 <dl className="lu-slots mt-3 grid grid-cols-3 overflow-hidden rounded-2xl border border-hairline bg-surface">
                   {[
                     { label: "Completed", value: monthlyCompletedJobsCount },
@@ -2687,7 +2683,7 @@ return (
                             className="group block rounded-2xl border border-hairline bg-surface p-5 pr-12 transition-[border-color,box-shadow] duration-200 hover:border-neutral-300 hover:shadow-[0_12px_32px_-18px_rgba(0,0,0,0.25)] sm:p-6 sm:pr-12"
                           >
                             <div className="flex items-center gap-2">
-                              <span className="truncate font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                              <span className="truncate text-[13px] font-medium text-neutral-500">
                                 {formatCategory(request.category)}
                                 {request.service_detail &&
  cleanServiceLabel(request.service_detail).toLowerCase() !== formatCategory(request.category).toLowerCase() ? ` · ${cleanServiceLabel(request.service_detail)}` : ""}

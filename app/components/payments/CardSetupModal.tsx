@@ -93,7 +93,7 @@ export default function CardSetupModal({
       <div className="lu-dialog-in my-auto max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-panel">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+            <p className="text-[13px] font-medium text-neutral-500">
               {coveredBy ? "Member booking" : "Pay at the shop"}
             </p>
             <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">Hold your spot with a card</h2>

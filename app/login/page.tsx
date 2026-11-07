@@ -259,7 +259,7 @@ export default function LoginPage() {
 
       <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-2 md:items-center md:gap-16 md:py-24">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+          <p className="text-[13px] font-medium text-neutral-500">
             {isForgot ? "Reset password" : isSignup ? "Create account" : "Sign in"}
           </p>
 

@@ -503,7 +503,7 @@ function AccordionSection({
     <section id={id} className="scroll-mt-32 rounded-2xl border border-hairline bg-surface lg:scroll-mt-24">
       <div className="border-b border-hairline px-5 py-4 sm:px-6">
         {subtitle ? (
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">{subtitle}</p>
+          <p className="text-[13px] font-medium text-neutral-500">{subtitle}</p>
         ) : null}
         <h2 className="mt-1.5 text-lg font-semibold tracking-[-0.02em] text-ink">{title}</h2>
         {summary ? <p className="mt-0.5 text-sm leading-6 text-neutral-500">{summary}</p> : null}
@@ -1230,10 +1230,7 @@ export default function ServicesPage() {
       <div className="mx-auto max-w-6xl py-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-              Services & Availability
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+            <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
               Services & availability
             </h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
@@ -1340,7 +1337,7 @@ export default function ServicesPage() {
                     </div>
 
                     <div className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4">
-                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+                      <p className="text-[13px] font-medium text-neutral-500">
                         Edit details
                       </p>
 
@@ -1644,7 +1641,7 @@ export default function ServicesPage() {
         ) : (
           <div id="booking" className="scroll-mt-32 overflow-hidden rounded-2xl border border-hairline bg-surface lg:scroll-mt-24">
             <div className="px-5 py-5 sm:px-6">
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+              <p className="text-[13px] font-medium text-neutral-500">
                 Direct booking
               </p>
               <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">

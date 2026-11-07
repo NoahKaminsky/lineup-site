@@ -761,7 +761,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               <path d="M6.5 6h11A2.5 2.5 0 0 1 20 8.5v9A2.5 2.5 0 0 1 17.5 20h-11A2.5 2.5 0 0 1 4 17.5v-9A2.5 2.5 0 0 1 6.5 6Z" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" />
             </svg>
           </div>
-          <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+          <p className="mt-6 text-[13px] font-medium text-neutral-500">
             Calendar
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
@@ -940,8 +940,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
     <main className="min-h-screen overflow-x-hidden bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl py-6 sm:py-8">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Calendar</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Your schedule</h1>
+          <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Your schedule</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
             {onTeam
               ? "Your shop appointments and your own clients, together in one place."

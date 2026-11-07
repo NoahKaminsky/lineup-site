@@ -258,7 +258,7 @@ export default function OnboardingPage() {
           <Link href="/" className="rounded text-xl font-semibold tracking-tight text-ink">
             LineUp
           </Link>
-          <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+          <span className="text-[13px] font-medium text-neutral-500">
             Account setup
           </span>
         </div>
@@ -267,7 +267,7 @@ export default function OnboardingPage() {
       <div className="mx-auto grid max-w-6xl gap-10 px-6 py-12 md:grid-cols-2 md:items-start md:py-20">
         {/* Left: copy — hidden on mobile so form is first */}
         <div className="hidden md:block md:pt-4">
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+          <p className="text-[13px] font-medium text-neutral-500">
             Welcome to LineUp
           </p>
           <h1 className="mt-4 max-w-xl text-4xl font-semibold tracking-[-0.035em] md:text-5xl">
@@ -318,7 +318,7 @@ export default function OnboardingPage() {
         <div className="rounded-2xl border border-hairline bg-surface p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-8">
           {/* Mobile-only heading — desktop heading lives in the left column */}
           <div className="mb-6 md:hidden">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Account setup</p>
+            <p className="text-[13px] font-medium text-neutral-500">Account setup</p>
             <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-neutral-900">Let&apos;s set up your account.</h1>
             <p className="mt-1.5 text-sm leading-6 text-neutral-500">Tell us who you are — takes less than a minute.</p>
           </div>
