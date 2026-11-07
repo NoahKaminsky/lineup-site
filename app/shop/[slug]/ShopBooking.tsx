@@ -50,10 +50,15 @@ function toMin(t: string) {
 function fromMin(n: number) {
   return `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
 }
+// "tomorrow" reads as part of the sentence; weekday names keep their capital.
+function nextDayWord(label: string) {
+  return label.toLowerCase() === "tomorrow" ? "tomorrow" : label;
+}
 function time12(t: string) {
   const [h, m] = t.split(":").map(Number);
   const hour = h % 12 || 12;
-  return `${hour}${m ? `:${String(m).padStart(2, "0")}` : ""}${h >= 12 ? "pm" : "am"}`;
+  // Always "4:00pm", never "4pm", so times line up with "4:30pm".
+  return `${hour}:${String(m || 0).padStart(2, "0")}${h >= 12 ? "pm" : "am"}`;
 }
 function dayName(key: string, today: string) {
   if (key === today) return "Today";
@@ -312,7 +317,7 @@ function ProCard({
     : loading
     ? "Checking times…"
     : next && next.length
-    ? `Next opening ${next[0].day === today ? "today" : dayName(next[0].day, today).split(",")[0].toLowerCase().replace(/^(\w)/, (c) => c)} at ${time12(next[0].time)}`
+    ? `Next opening ${next[0].day === today ? "today" : nextDayWord(dayName(next[0].day, today).split(",")[0])} at ${time12(next[0].time)}`
     : "No openings in the next two weeks";
 
 

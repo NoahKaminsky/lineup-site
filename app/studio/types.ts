@@ -126,7 +126,8 @@ export function time12(value: string) {
   const [h, m] = value.split(":").map(Number);
   const suffix = h >= 12 ? "pm" : "am";
   const hour = h % 12 || 12;
-  return m ? `${hour}:${String(m).padStart(2, "0")}${suffix}` : `${hour}${suffix}`;
+  // Always "4:00pm", never "4pm", so times line up with "4:30pm".
+  return `${hour}:${String(m || 0).padStart(2, "0")}${suffix}`;
 }
 
 export function toMinutes(value: string) {

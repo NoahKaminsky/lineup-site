@@ -41,7 +41,7 @@ function formatTime(time: string) {
   const m = minutes % 60;
   const suffix = h >= 12 && h < 24 ? "pm" : "am";
   const h12 = h % 12 || 12;
-  return m === 0 ? `${h12}${suffix}` : `${h12}:${String(m).padStart(2, "0")}${suffix}`;
+  return `${h12}:${String(m).padStart(2, "0")}${suffix}`;
 }
 
 function formatTimeLong(time: string) {
