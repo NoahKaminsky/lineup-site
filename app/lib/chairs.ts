@@ -6,7 +6,7 @@ import type { getServiceSupabase } from "./serverSupabase";
 type ServiceClient = ReturnType<typeof getServiceSupabase>;
 
 export const OPENING_COLUMNS =
-  "id, studio_id, posted_by, title, professions, arrangement, rent_cents, rent_interval, commission_note, description, available_from, area_label, lat, lng, status, expires_at, created_at";
+  "id, studio_id, posted_by, title, professions, arrangement, rent_cents, rent_interval, commission_note, description, available_from, area_label, lat, lng, status, expires_at, created_at, requirements, resume_required";
 
 export type ChairOpeningRow = {
   id: string;
@@ -26,7 +26,20 @@ export type ChairOpeningRow = {
   status: "open" | "filled" | "closed";
   expires_at: string;
   created_at: string;
+  requirements: string | null;
+  resume_required: boolean;
 };
+
+// Resumes: a private bucket, opened by the shop through short-lived links.
+export const RESUME_BUCKET = "chair-resumes";
+export const RESUME_MAX_BYTES = 5 * 1024 * 1024;
+export const RESUME_TYPES: Record<string, string> = {
+  "application/pdf": "pdf",
+  "application/msword": "doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+};
+// How long a shop's resume link works.
+export const RESUME_LINK_SECONDS = 60 * 10;
 
 // Pros hear about openings this far away when they haven't set a radius.
 export const DEFAULT_NOTIFY_RADIUS_KM = 50;

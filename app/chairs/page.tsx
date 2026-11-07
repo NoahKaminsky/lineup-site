@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, MapPin, Sparkles } from "lucide-react";
+import { CalendarDays, FileText, MapPin, Sparkles } from "lucide-react";
 import LuLoader from "@/app/components/LuLoader";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { formatCad, studioFetch } from "@/app/studio/studioApi";
+import { supabase } from "@/lib/supabaseClient";
 
 // Chair openings for professionals: only chairs in their own trade(s).
 // Studios post these from the Chairs tab on /studio.
@@ -22,6 +23,8 @@ type Opening = {
   rentInterval: "week" | "month" | null;
   commissionNote: string | null;
   description: string | null;
+  requirements: string | null;
+  resumeRequired: boolean;
   availableFrom: string | null;
   areaLabel: string | null;
   distanceKm: number | null;
@@ -53,6 +56,12 @@ export default function ChairsPage() {
   const [composing, setComposing] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  // The application form (one opening at a time).
+  const [years, setYears] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [preferred, setPreferred] = useState<"" | "booth_rent" | "commission" | "either">("");
+  const [resume, setResume] = useState<File | null>(null);
+  const [formError, setFormError] = useState("");
 
   const load = useCallback(async () => {
     const res = await studioFetch<{ openings: Opening[]; professions: string[] }>("/api/chairs");
@@ -84,17 +93,62 @@ export default function ChairsPage() {
     })();
   }, [load, router]);
 
-  async function apply(id: string) {
-    setSending(true);
-    const res = await studioFetch("/api/chairs/apply", { method: "POST", body: { openingId: id, message } });
-    setSending(false);
-    if (!res.ok) {
-      setError(res.data.error || "Could not send that.");
+  function openForm(id: string) {
+    setComposing(id);
+    setMessage("");
+    setYears("");
+    setStartDate("");
+    setPreferred("");
+    setResume(null);
+    setFormError("");
+  }
+
+  // Resume first (straight to private storage with a signed token), then
+  // the application itself.
+  async function uploadResume(file: File) {
+    const start = await studioFetch<{ path: string; token: string }>("/api/chairs/resume-upload", {
+      method: "POST",
+      body: { contentType: file.type, size: file.size },
+    });
+    if (!start.ok) throw new Error(start.data.error || "Could not upload your resume.");
+    const { error: uploadError } = await supabase.storage
+      .from("chair-resumes")
+      .uploadToSignedUrl(start.data.path, start.data.token, file, { contentType: file.type });
+    if (uploadError) throw new Error("Could not upload your resume. Try again.");
+    return start.data.path;
+  }
+
+  async function apply(o: Opening) {
+    setFormError("");
+    if (o.resumeRequired && !resume) {
+      setFormError("This shop asks for a resume. Attach one to apply.");
       return;
     }
-    setOpenings((prev) => prev.map((o) => (o.id === id ? { ...o, applied: "new" } : o)));
-    setComposing(null);
-    setMessage("");
+    setSending(true);
+    try {
+      const resumePath = resume ? await uploadResume(resume) : null;
+      const res = await studioFetch("/api/chairs/apply", {
+        method: "POST",
+        body: {
+          openingId: o.id,
+          message,
+          yearsExperience: years === "" ? null : Number(years),
+          availableFrom: startDate || null,
+          preferredArrangement: preferred || null,
+          resumePath,
+        },
+      });
+      if (!res.ok) {
+        setFormError(res.data.error || "Could not send your application.");
+        return;
+      }
+      setOpenings((prev) => prev.map((x) => (x.id === o.id ? { ...x, applied: "new" } : x)));
+      setComposing(null);
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "Could not send your application.");
+    } finally {
+      setSending(false);
+    }
   }
 
   if (loading) return <LuLoader />;
@@ -167,33 +221,127 @@ export default function ChairsPage() {
 
                 {o.description ? <p className="mt-3 whitespace-pre-line text-sm leading-6 text-neutral-700">{o.description}</p> : null}
 
+                {o.requirements || o.resumeRequired ? (
+                  <div className="mt-3 rounded-xl bg-neutral-50 px-4 py-3 text-sm leading-6 text-neutral-700">
+                    <p className="font-medium text-ink">What they&apos;re looking for</p>
+                    {o.requirements ? <p className="mt-1 whitespace-pre-line">{o.requirements}</p> : null}
+                    {o.resumeRequired ? <p className="mt-1">A resume is required to apply.</p> : null}
+                  </div>
+                ) : null}
+
                 <div className="mt-4">
                   {o.applied ? (
                     <span className="inline-flex rounded-full bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-700">
-                      {o.applied === "invited" ? "They've invited you. Check your email." : "Sent. The shop will reach out."}
+                      {o.applied === "invited" ? "They've invited you. Check your email." : "Application sent. The shop will reach out."}
                     </span>
                   ) : composing === o.id ? (
-                    <div className="space-y-3">
-                      <label htmlFor={`msg-${o.id}`} className="sr-only">
-                        Message to the shop
+                    <form
+                      className="space-y-4 rounded-2xl border border-hairline p-4 sm:p-5"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        apply(o);
+                      }}
+                    >
+                      <p className="text-sm font-semibold text-ink">Apply for this chair</p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="block text-sm">
+                          <span className="font-medium text-ink">Years of experience</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={60}
+                            inputMode="numeric"
+                            value={years}
+                            onChange={(e) => setYears(e.target.value)}
+                            className="mt-1.5 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm outline-none transition focus:border-ink focus:bg-white"
+                          />
+                        </label>
+                        <label className="block text-sm">
+                          <span className="font-medium text-ink">When could you start?</span>
+                          <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="mt-1.5 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm outline-none transition focus:border-ink focus:bg-white"
+                          />
+                        </label>
+                      </div>
+                      {o.arrangement === "either" ? (
+                        <fieldset className="text-sm">
+                          <legend className="font-medium text-ink">How you&apos;d like to work</legend>
+                          <div className="mt-1.5 flex flex-wrap gap-2">
+                            {(
+                              [
+                                ["booth_rent", "Booth rent"],
+                                ["commission", "Commission"],
+                                ["either", "Either"],
+                              ] as const
+                            ).map(([value, label]) => (
+                              <button
+                                key={value}
+                                type="button"
+                                aria-pressed={preferred === value}
+                                onClick={() => setPreferred(preferred === value ? "" : value)}
+                                className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                                  preferred === value ? "border-ink bg-ink text-white" : "border-neutral-200 text-neutral-700 hover:border-ink"
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </fieldset>
+                      ) : null}
+                      <label className="block text-sm">
+                        <span className="font-medium text-ink">
+                          Resume{" "}
+                          <span className="font-normal text-neutral-500">{o.resumeRequired ? "(required)" : "(optional)"}</span>
+                        </span>
+                        <span className="mt-1.5 flex items-center gap-3 rounded-xl border border-dashed border-neutral-300 px-4 py-3">
+                          <FileText className="h-4 w-4 shrink-0 text-neutral-500" aria-hidden="true" />
+                          <span className="min-w-0 flex-1 truncate text-neutral-600">{resume ? resume.name : "PDF or Word, up to 5 MB"}</span>
+                          <span className="shrink-0 font-medium text-ink underline underline-offset-4">{resume ? "Change" : "Choose file"}</span>
+                          <input
+                            type="file"
+                            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            className="sr-only"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null;
+                              if (file && file.size > 5 * 1024 * 1024) {
+                                setFormError("Resumes must be 5 MB or smaller.");
+                                return;
+                              }
+                              setFormError("");
+                              setResume(file);
+                            }}
+                          />
+                        </span>
                       </label>
-                      <textarea
-                        id={`msg-${o.id}`}
-                        rows={3}
-                        maxLength={800}
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        placeholder="Optional: a bit about you, your experience, when you could start."
-                        className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
-                      />
+                      <label className="block text-sm">
+                        <span className="font-medium text-ink">
+                          Note to the shop <span className="font-normal text-neutral-500">(optional)</span>
+                        </span>
+                        <textarea
+                          rows={3}
+                          maxLength={800}
+                          value={message}
+                          onChange={(e) => setMessage(e.target.value)}
+                          placeholder="What you specialize in, why this shop, anything they should know."
+                          className="mt-1.5 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
+                        />
+                      </label>
+                      {formError ? (
+                        <p role="alert" className="text-sm text-red-600">
+                          {formError}
+                        </p>
+                      ) : null}
                       <div className="flex gap-2">
                         <button
-                          type="button"
-                          onClick={() => apply(o.id)}
+                          type="submit"
                           disabled={sending}
                           className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
                         >
-                          {sending ? "Sending…" : "Send"}
+                          {sending ? "Sending…" : "Send application"}
                         </button>
                         <button
                           type="button"
@@ -203,18 +351,15 @@ export default function ChairsPage() {
                           Cancel
                         </button>
                       </div>
-                      <p className="text-xs text-neutral-500">The shop sees your LineUp profile and this message.</p>
-                    </div>
+                      <p className="text-xs text-neutral-500">The shop also sees your LineUp profile, portfolio and reviews.</p>
+                    </form>
                   ) : (
                     <button
                       type="button"
-                      onClick={() => {
-                        setComposing(o.id);
-                        setMessage("");
-                      }}
+                      onClick={() => openForm(o.id)}
                       className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
                     >
-                      I&apos;m interested
+                      Apply
                     </button>
                   )}
                 </div>

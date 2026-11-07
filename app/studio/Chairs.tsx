@@ -3,7 +3,7 @@
 // Chair openings the studio has posted, and the pros who want them.
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import { formatBoostPrice } from "@/app/lib/boosts";
 import { formatCad, studioFetch } from "./studioApi";
 import { Avatar, Button, EmptyState, Field, Menu, Section, Segmented, Sheet, Tag, fieldClass, panelClass, textareaClass } from "./ui";
@@ -18,6 +18,11 @@ type Applicant = {
   trades: string[];
   verified: boolean;
   message: string | null;
+  yearsExperience: number | null;
+  availableFrom: string | null;
+  preferredArrangement: "booth_rent" | "commission" | "either" | null;
+  // Short-lived link to their resume, when they attached one.
+  resumeUrl: string | null;
   status: "new" | "invited" | "declined";
   appliedAt: string;
 };
@@ -32,6 +37,8 @@ type Opening = {
   rentInterval: "week" | "month" | null;
   commissionNote: string | null;
   description: string | null;
+  requirements: string | null;
+  resumeRequired: boolean;
   availableFrom: string | null;
   areaLabel: string | null;
   status: "open" | "filled" | "closed" | "expired";
@@ -52,6 +59,19 @@ const TRADES = [
   { value: "body_sugaring", label: "Body sugaring" },
   { value: "other_beauty_professional", label: "Other" },
 ];
+
+const ARRANGEMENT_LABELS = { booth_rent: "Booth rent", commission: "Commission", either: "Either" } as const;
+
+// "5 years · can start Dec 1 · prefers commission"
+function applicationFacts(a: Applicant) {
+  return [
+    a.yearsExperience !== null ? `${a.yearsExperience} ${a.yearsExperience === 1 ? "year" : "years"} experience` : null,
+    a.availableFrom
+      ? `can start ${new Date(`${a.availableFrom}T00:00:00`).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}`
+      : null,
+    a.preferredArrangement && a.preferredArrangement !== "either" ? `prefers ${ARRANGEMENT_LABELS[a.preferredArrangement].toLowerCase()}` : null,
+  ].filter(Boolean) as string[];
+}
 
 function payTerms(o: Opening) {
   const rent = o.rentCents !== null ? `${formatCad(o.rentCents)} a ${o.rentInterval === "month" ? "month" : "week"}` : null;
@@ -169,6 +189,11 @@ export default function ChairsView({ data, busy, run, setNotice }: SectionProps)
                         {live ? `. Up until ${new Date(o.expiresAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}` : ""}
                       </p>
                       <p className="mt-2 text-sm font-medium text-ink">{payTerms(o)}</p>
+                      {o.requirements || o.resumeRequired ? (
+                        <p className="mt-1 whitespace-pre-line text-[13px] text-neutral-500">
+                          {[o.requirements, o.resumeRequired ? "Resume required." : null].filter(Boolean).join(" ")}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex items-center gap-1">
                       {live && !o.featured ? (
@@ -192,7 +217,7 @@ export default function ChairsView({ data, busy, run, setNotice }: SectionProps)
 
                   <div className="border-t border-hairline px-6 py-5">
                     <p className="text-[13px] font-medium text-neutral-500">
-                      {people.length ? `${people.length} interested` : "Nobody yet"}
+                      {people.length ? `${people.length} ${people.length === 1 ? "application" : "applications"}` : "No applications yet"}
                     </p>
                     {people.length ? (
                       <ul className="mt-3 space-y-2">
@@ -212,7 +237,21 @@ export default function ChairsView({ data, busy, run, setNotice }: SectionProps)
                                   {a.verified ? <Tag tone="outline">Verified</Tag> : null}
                                 </p>
                                 <p className="text-[13px] text-neutral-500">{a.trades.join(", ")}</p>
+                                {applicationFacts(a).length ? (
+                                  <p className="mt-1 text-[13px] font-medium text-neutral-700">{applicationFacts(a).join(" · ")}</p>
+                                ) : null}
                                 {a.message ? <p className="mt-2 whitespace-pre-line text-sm leading-6 text-neutral-700">{a.message}</p> : null}
+                                {a.resumeUrl ? (
+                                  <a
+                                    href={a.resumeUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-ink underline decoration-ink/20 underline-offset-4 hover:decoration-ink"
+                                  >
+                                    <FileText className="h-4 w-4" aria-hidden="true" />
+                                    Open resume
+                                  </a>
+                                ) : null}
                               </div>
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
@@ -285,6 +324,8 @@ function PostOpeningSheet({
   const [split, setSplit] = useState("");
   const [from, setFrom] = useState("");
   const [description, setDescription] = useState("");
+  const [requirements, setRequirements] = useState("");
+  const [resumeRequired, setResumeRequired] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -304,6 +345,8 @@ function PostOpeningSheet({
           commissionNote: split,
           availableFrom: from || null,
           description,
+          requirements,
+          resumeRequired,
         },
       });
       if (!res.ok) {
@@ -313,6 +356,8 @@ function PostOpeningSheet({
       setTitle("");
       setTrades([]);
       setDescription("");
+      setRequirements("");
+      setResumeRequired(false);
       await onPosted(Number(res.data.notified) || 0);
     });
   }
@@ -425,6 +470,31 @@ function PostOpeningSheet({
             className={textareaClass}
           />
         </Field>
+
+        <Field label="Requirements" htmlFor="c-req" optional>
+          <textarea
+            id="c-req"
+            rows={3}
+            maxLength={1000}
+            value={requirements}
+            onChange={(e) => setRequirements(e.target.value)}
+            placeholder="2+ years behind the chair, own clippers, available Saturdays, a portfolio on LineUp."
+            className={textareaClass}
+          />
+        </Field>
+
+        <label className="flex items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={resumeRequired}
+            onChange={(e) => setResumeRequired(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-ink"
+          />
+          <span>
+            <span className="font-medium text-ink">Ask for a resume</span>
+            <span className="block text-[13px] text-neutral-500">Pros have to attach one (PDF or Word) to apply.</span>
+          </span>
+        </label>
       </form>
     </Sheet>
   );

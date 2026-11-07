@@ -3,11 +3,31 @@ import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@
 import { PROFESSION_LABELS } from "@/app/lib/verificationRules";
 import { getProfileHref } from "@/app/lib/profileLink";
 import { errorMessage, getStudioForUser } from "@/app/lib/studios";
-import { OPENING_COLUMNS, featuredOpeningIds, proTypes, type ChairOpeningRow } from "@/app/lib/chairs";
+import {
+  OPENING_COLUMNS,
+  RESUME_BUCKET,
+  RESUME_LINK_SECONDS,
+  featuredOpeningIds,
+  proTypes,
+  type ChairOpeningRow,
+} from "@/app/lib/chairs";
 
 // GET   /api/chairs/manage — the studio's own openings, with who applied.
 // PATCH /api/chairs/manage { openingId, status } | { applicationId, status: "declined" }
 // Owners and managers only.
+
+type ApplicationRow = {
+  id: string;
+  opening_id: string;
+  professional_id: string;
+  message: string | null;
+  status: string;
+  created_at: string;
+  years_experience: number | null;
+  available_from: string | null;
+  preferred_arrangement: string | null;
+  resume_path: string | null;
+};
 
 export async function GET(req: Request) {
   try {
@@ -32,10 +52,10 @@ export async function GET(req: Request) {
       ids.length
         ? supabase
             .from("chair_applications")
-            .select("id, opening_id, professional_id, message, status, created_at")
+            .select("id, opening_id, professional_id, message, status, created_at, years_experience, available_from, preferred_arrangement, resume_path")
             .in("opening_id", ids)
             .order("created_at", { ascending: false })
-        : Promise.resolve({ data: [] as { id: string; opening_id: string; professional_id: string; message: string | null; status: string; created_at: string }[] }),
+        : Promise.resolve({ data: [] as ApplicationRow[] }),
       featuredOpeningIds(supabase, ids),
     ]);
 
@@ -48,6 +68,14 @@ export async function GET(req: Request) {
       : { data: [] };
     const proMap = new Map((pros || []).map((p) => [p.id, p]));
 
+    // Short-lived links to each attached resume (private bucket).
+    const resumePaths = ((apps || []) as ApplicationRow[]).map((a) => a.resume_path).filter((p): p is string => !!p);
+    const resumeLinks = new Map<string, string>();
+    if (resumePaths.length) {
+      const { data: signed } = await supabase.storage.from(RESUME_BUCKET).createSignedUrls(resumePaths, RESUME_LINK_SECONDS);
+      for (const row of signed || []) if (row.path && row.signedUrl) resumeLinks.set(row.path, row.signedUrl);
+    }
+
     return NextResponse.json({
       openings: openings.map((o) => ({
         id: o.id,
@@ -59,6 +87,8 @@ export async function GET(req: Request) {
         rentInterval: o.rent_interval,
         commissionNote: o.commission_note,
         description: o.description,
+        requirements: o.requirements,
+        resumeRequired: !!o.resume_required,
         availableFrom: o.available_from,
         areaLabel: o.area_label,
         status: Date.parse(o.expires_at) < Date.now() && o.status === "open" ? "expired" : o.status,
@@ -78,6 +108,10 @@ export async function GET(req: Request) {
               trades: p ? proTypes(p).map((t) => PROFESSION_LABELS[t] || t) : [],
               verified: p?.verification_status === "verified",
               message: a.message,
+              yearsExperience: a.years_experience,
+              availableFrom: a.available_from,
+              preferredArrangement: a.preferred_arrangement,
+              resumeUrl: a.resume_path ? resumeLinks.get(a.resume_path) || null : null,
               status: a.status,
               appliedAt: a.created_at,
             };

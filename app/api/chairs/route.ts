@@ -82,6 +82,8 @@ export async function GET(req: Request) {
           rentInterval: o.rent_interval,
           commissionNote: o.commission_note,
           description: o.description,
+          requirements: o.requirements,
+          resumeRequired: !!o.resume_required,
           availableFrom: o.available_from,
           areaLabel: o.area_label,
           distanceKm: km === null ? null : Math.round(km),
@@ -125,6 +127,8 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const title = cleanText(body?.title, 80);
     const description = cleanText(body?.description, 1500) || null;
+    const requirements = cleanText(body?.requirements, 1000) || null;
+    const resumeRequired = body?.resumeRequired === true;
     const commissionNote = cleanText(body?.commissionNote, 60) || null;
     const professions = Array.isArray(body?.professions)
       ? [...new Set((body.professions as unknown[]).filter((p): p is string => typeof p === "string" && p in PROFESSION_LABELS))]
@@ -165,6 +169,8 @@ export async function POST(req: Request) {
         rent_interval: arrangement === "commission" || rentCents === null ? null : rentInterval || "week",
         commission_note: arrangement === "booth_rent" ? null : commissionNote,
         description,
+        requirements,
+        resume_required: resumeRequired,
         available_from: availableFrom,
         area_label: place.area_label || areaFromAddress(owner?.formatted_address),
         lat: owner?.location_lat ?? null,
