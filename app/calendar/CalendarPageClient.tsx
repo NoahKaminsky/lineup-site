@@ -46,6 +46,8 @@ type BookingRow = {
   location_place_id: string | null;
   // "pay_at_shop" when the client saved a card and pays in person.
   payment_status?: string | null;
+  // Set when a member's visit is covered by their membership.
+  member?: boolean;
 };
 
 type CalendarBooking = BookingRow & {
@@ -269,7 +271,7 @@ function BookingCard({
             {booking.client_name || "Unknown client"} · {formatShortDateLabel(booking.booking_date)} · {formatTime(booking.start_time)}–{formatTime(booking.end_time)}
             {metaParts.length > 0 ? ` · ${metaParts.join(" · ")}` : ""}
             {booking.front_desk?.clientPhone ? ` · ${booking.front_desk.clientPhone}` : ""}
-            {booking.front_desk ? " · paid at the shop" : booking.payment_status === "pay_at_shop" ? " · client pays at the shop" : ""}
+            {booking.front_desk ? " · paid at the shop" : booking.member ? " · member, covered by membership" : booking.payment_status === "pay_at_shop" ? " · client pays at the shop" : ""}
           </p>
 
           {displayAddress ? (
@@ -494,6 +496,18 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
           client_avatar_url: customer?.avatar_url ?? null,
         };
       });
+
+      // Member visits (best-effort: needs 20261107_member_bookings.sql).
+      const payAtShopIds = enriched.filter((b) => b.payment_status === "pay_at_shop").map((b) => b.id);
+      if (payAtShopIds.length) {
+        const { data: tagged } = await supabase
+          .from("bookings")
+          .select("id, membership_id")
+          .in("id", payAtShopIds)
+          .not("membership_id", "is", null);
+        const memberIds = new Set(((tagged as { id: string }[] | null) || []).map((t) => t.id));
+        for (const b of enriched) if (memberIds.has(b.id)) b.member = true;
+      }
 
       // Walk-ins and phone-ins from the studio front desk, if they're on a
       // studio's team (an error just means the studio tables don't exist yet).

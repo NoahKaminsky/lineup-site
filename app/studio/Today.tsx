@@ -164,7 +164,7 @@ export default function TodayView() {
                           {me.canManage && pro ? ` with ${firstName(pro.name)}` : ""}
                         </span>
                       </span>
-                      {i.kind !== "online" ? <Tag>{i.kind === "phone" ? "Phone-in" : "Walk-in"}</Tag> : i.payAtShop ? <Tag tone="outline">Pays here</Tag> : null}
+                      {i.kind !== "online" ? <Tag>{i.kind === "phone" ? "Phone-in" : "Walk-in"}</Tag> : i.memberPlan ? <Tag tone="outline">Member</Tag> : i.payAtShop ? <Tag tone="outline">Pays here</Tag> : null}
                     </button>
                   </li>
                 );

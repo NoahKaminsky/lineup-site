@@ -6,6 +6,7 @@
 // shop's no-show fee is charged to that card and sent to the pro, minus
 // LineUp's share. See supabase/migrations/20261101_pay_at_shop.sql.
 
+import { findCoveringMembership } from "./memberships";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { stripe } from "./stripe";
@@ -225,6 +226,16 @@ export async function createPayAtShopBooking(
     }
     console.error("Pay-at-shop booking insert failed:", error);
     return { ok: false, status: 500, error: "Could not make the booking." };
+  }
+
+  // A member's visit is covered by their membership. Separate, best-effort
+  // write so booking still works before 20261107_member_bookings.sql runs.
+  if (m.studio_id) {
+    const covering = await findCoveringMembership(supabase, m.customer_id, m.studio_id).catch(() => null);
+    if (covering) {
+      const { error: memberError } = await supabase.from("bookings").update({ membership_id: covering.id }).eq("id", created.id);
+      if (memberError) console.warn("Member booking not tagged (run 20261107_member_bookings.sql):", memberError.message);
+    }
   }
 
   await notifyBookingConfirmed(created.id);

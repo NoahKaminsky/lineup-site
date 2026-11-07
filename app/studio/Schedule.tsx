@@ -68,6 +68,7 @@ function paymentLine(item: ScheduleItem) {
   if (item.kind !== "online") {
     return `${item.kind === "phone" ? "Phone-in" : "Walk-in"}${price ? `, ${price} at the shop` : ", paid at the shop"}`;
   }
+  if (item.memberPlan) return `Member, covered by ${item.memberPlan}`;
   if (item.payAtShop) return `Booked online${price ? `, pays ${price} at the shop` : ", pays at the shop"}`;
   return item.source === "request" ? "New client from a request, paid online" : "Booked and paid online";
 }

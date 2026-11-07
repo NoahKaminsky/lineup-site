@@ -235,6 +235,28 @@ export async function GET(req: Request) {
           .eq("is_active", true),
       ]);
 
+      // Member bookings: separate, best-effort read (needs 20261107_member_bookings.sql).
+      const memberPlanByBooking = new Map<string, string>();
+      const payAtShopIds = (bookings || []).filter((b) => b.payment_status === "pay_at_shop").map((b) => b.id);
+      if (payAtShopIds.length) {
+        const { data: tagged } = await supabase
+          .from("bookings")
+          .select("id, membership_id")
+          .in("id", payAtShopIds)
+          .not("membership_id", "is", null);
+        const membershipIds = [...new Set((tagged || []).map((t) => t.membership_id as string))];
+        if (membershipIds.length) {
+          const { data: ms } = await supabase.from("client_memberships").select("id, plan_id").in("id", membershipIds);
+          const { data: plans } = await supabase
+            .from("membership_plans")
+            .select("id, name")
+            .in("id", [...new Set((ms || []).map((m) => m.plan_id))]);
+          const planName = new Map((plans || []).map((p) => [p.id, p.name as string]));
+          const planOf = new Map((ms || []).map((m) => [m.id, planName.get(m.plan_id) || "their membership"]));
+          for (const t of tagged || []) memberPlanByBooking.set(t.id, planOf.get(t.membership_id as string) || "their membership");
+        }
+      }
+
       const customerIds = [...new Set((bookings || []).map((b) => b.customer_id).filter(Boolean))];
       const { data: customers } = customerIds.length
         ? await supabase.from("profiles").select("id, full_name").in("id", customerIds)
@@ -253,9 +275,14 @@ export async function GET(req: Request) {
           service: b.service_name,
           source: b.source,
           payAtShop: b.payment_status === "pay_at_shop",
+          memberPlan: memberPlanByBooking.get(b.id) || null,
           clientName: customerMap.get(b.customer_id) || null,
           clientPhone: null,
-          priceCents: b.payment_status === "pay_at_shop" && b.service_price ? Math.round(Number(b.service_price) * 100) : null,
+          // Nothing to collect for a member's visit.
+          priceCents:
+            b.payment_status === "pay_at_shop" && b.service_price && !memberPlanByBooking.has(b.id)
+              ? Math.round(Number(b.service_price) * 100)
+              : null,
           note: null,
         })),
         ...(frontDesk || []).map((a) => ({

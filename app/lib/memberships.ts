@@ -64,6 +64,39 @@ export async function visitsThisPeriod(supabase: ServiceClient, memberships: Cli
   return { counts, lastVisit };
 }
 
+// The client's membership at this studio that still has visits left this
+// period, if any: a booking they make there is covered by it.
+export async function findCoveringMembership(
+  supabase: ServiceClient,
+  customerId: string,
+  studioId: string
+): Promise<{ id: string; planName: string } | null> {
+  const { data: rows } = await supabase
+    .from("client_memberships")
+    .select(CLIENT_MEMBERSHIP_COLUMNS)
+    .eq("customer_id", customerId)
+    .eq("studio_id", studioId)
+    .in("status", ["active", "trialing"]);
+  const memberships = (rows as ClientMembershipRow[]) || [];
+  if (!memberships.length) return null;
+
+  const { data: plans } = await supabase
+    .from("membership_plans")
+    .select("id, name, visits_per_period")
+    .in("id", memberships.map((m) => m.plan_id));
+  const planMap = new Map((plans || []).map((p) => [p.id, p]));
+  const { counts } = await visitsThisPeriod(supabase, memberships);
+
+  for (const m of memberships) {
+    const plan = planMap.get(m.plan_id);
+    if (!plan) continue;
+    if (plan.visits_per_period === null || (counts.get(m.id) || 0) < Number(plan.visits_per_period)) {
+      return { id: m.id, planName: plan.name };
+    }
+  }
+  return null;
+}
+
 type MembershipSubscription = {
   id: string;
   status: string;

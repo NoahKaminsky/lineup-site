@@ -104,7 +104,8 @@ function formatBookingDate(dateString: string) {
 
 function formatDateTime(dateString: string | null | undefined) {
   if (!dateString) return "Not provided";
-  return new Date(dateString).toLocaleString("en-CA", {
+  // en-US for "3:11 PM", matching the other times on the page.
+  return new Date(dateString).toLocaleString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -301,6 +302,7 @@ export default function BookingDetailPage() {
   const cacheKey = `booking-detail-${bookingId}`;
   const cached = getCached<BookingDetailCache>(cacheKey);
 
+  const [coveredByMembership, setCoveredByMembership] = useState(false);
   const [loading, setLoading] = useState(() => !cached);
   const [message, setMessage] = useState("");
 
@@ -362,6 +364,13 @@ export default function BookingDetailPage() {
         setMessage("Booking not found.");
         setLoading(false);
         return;
+      }
+
+      // A member's visit, covered by their membership (best-effort: the column
+      // arrives with 20261107_member_bookings.sql).
+      if (bookingData.payment_status === "pay_at_shop") {
+        const { data: tag } = await supabase.from("bookings").select("membership_id").eq("id", bookingId).maybeSingle();
+        setCoveredByMembership(!!(tag as { membership_id?: string | null } | null)?.membership_id);
       }
 
       const normalizedBooking = {
@@ -910,7 +919,9 @@ export default function BookingDetailPage() {
                 <dd className="text-sm font-medium tabular-nums text-ink">
                   {formatMomentPrice(booking.service_price)}
                   {booking.payment_status === "pay_at_shop" ? (
-                    <span className="ml-1.5 font-normal text-neutral-500">· pay at the shop</span>
+                    <span className="ml-1.5 font-normal text-neutral-500">
+                      {coveredByMembership ? "· covered by membership" : "· pay at the shop"}
+                    </span>
                   ) : null}
                 </dd>
               </div>
@@ -958,7 +969,9 @@ export default function BookingDetailPage() {
               <p className="font-semibold text-ink">Finished the service?</p>
               <p className="mt-1 text-sm leading-6 text-neutral-500">
                 {booking.payment_status === "pay_at_shop"
-                  ? "They pay you at the shop. Mark it complete when you're done."
+                  ? coveredByMembership
+                    ? "Covered by their membership, so there's nothing to collect. Mark it complete when you're done."
+                    : "They pay you at the shop. Mark it complete when you're done."
                   : "Mark it complete and your client confirms. That releases your payout."}
               </p>
               {booking.payment_status === "pay_at_shop" && hasNoShowWindowOpened(booking.booking_date, booking.start_time) ? (
@@ -992,7 +1005,9 @@ export default function BookingDetailPage() {
         {isViewerCustomer && booking.status === "confirmed" && !isServiceOver(booking.booking_date, booking.end_time) ? (
           <p className="mt-4 px-2 text-sm leading-6 text-neutral-500">
             {booking.payment_status === "pay_at_shop"
-              ? "You'll pay at the shop. Your saved card is only charged if you miss the appointment."
+              ? coveredByMembership
+                ? "Covered by your membership. Your saved card is only charged if you miss the appointment."
+                : "You'll pay at the shop. Your saved card is only charged if you miss the appointment."
               : <>Once the appointment is over, you&apos;ll confirm it here so your professional gets paid.</>}
           </p>
         ) : null}

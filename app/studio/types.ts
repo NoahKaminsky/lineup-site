@@ -33,6 +33,8 @@ export type ScheduleItem = {
   service: string | null;
   source: string | null;
   payAtShop: boolean;
+  // The membership covering this visit (a member's booking): nothing to collect.
+  memberPlan?: string | null;
   clientName: string | null;
   clientPhone: string | null;
   priceCents: number | null;
