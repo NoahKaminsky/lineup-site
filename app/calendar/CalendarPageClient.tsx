@@ -17,7 +17,7 @@ import {
 } from "@/app/lib/calendarBookings";
 import type { CalendarInitialData } from "./getInitialData";
 
-import { ChevronLeft, ChevronRight, MapPin, Moon, Sun } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -170,11 +170,6 @@ function getBookingDateTime(booking: CalendarBooking) {
   return new Date(`${booking.booking_date}T${booking.start_time}:00`);
 }
 
-function isEveningBooking(booking: CalendarBooking) {
-  const hour = Number(String(booking.start_time).slice(0, 2));
-  return hour >= 16;
-}
-
 function formatDisplayAddress(address: string | null) {
   if (!address?.trim()) return null;
 
@@ -210,39 +205,77 @@ function getGoogleMapsUrl(booking: CalendarBooking) {
   return null;
 }
 
+// Small labels on a booking: where it happens, how it's paid, and its
+// status when that's anything other than plain "confirmed".
+function Chip({ children, tone = "soft" }: { children: React.ReactNode; tone?: "ink" | "soft" | "outline" }) {
+  const look =
+    tone === "ink"
+      ? "bg-ink text-white"
+      : tone === "outline"
+      ? "text-ink ring-1 ring-inset ring-ink/25"
+      : "bg-ink/[0.05] text-neutral-700";
+  return <span className={`inline-flex h-[22px] items-center rounded-full px-2.5 text-[11px] font-medium ${look}`}>{children}</span>;
+}
+
 function BookingCard({
   booking,
   compact = false,
   userLat,
   userLng,
   showWhere = false,
+  showDate = true,
+  showTime = true,
 }: {
   booking: CalendarBooking;
   compact?: boolean;
   userLat?: number | null;
   userLng?: number | null;
-  // Tag it "Shop" or "Mine" (pros on a shop's team).
+  // Label shop work "At the shop" (pros on a shop's team).
   showWhere?: boolean;
+  // Off in a single day's list, where the date is already the heading.
+  showDate?: boolean;
+  // Off beside the day timeline, which already shows the time.
+  showTime?: boolean;
 }) {
-  const displayAddress = formatDisplayAddress(booking.formatted_address);
-  const mapsUrl = getGoogleMapsUrl(booking);
-  const distance = formatDistance(
-    getDistanceKm(userLat, userLng, booking.location_lat, booking.location_lng)
-  );
+  const atShop = isShopBooking(booking);
+  // The shop's address is a given for shop work; show where only when the
+  // pro is going somewhere else (mobile, home studio).
+  const displayAddress = atShop ? null : formatDisplayAddress(booking.formatted_address);
+  const mapsUrl = atShop ? null : getGoogleMapsUrl(booking);
+  const distance = formatDistance(getDistanceKm(userLat, userLng, booking.location_lat, booking.location_lng));
 
-  const metaParts = [
-    booking.duration_minutes ? `${booking.duration_minutes} min` : null,
-  ].filter(Boolean);
+  const when = `${showDate ? `${formatShortDateLabel(booking.booking_date)}, ` : ""}${formatTime(booking.start_time)}–${formatTime(booking.end_time)}`;
+  const what = [booking.service_name || "Booked service", booking.duration_minutes ? `${booking.duration_minutes} min` : null]
+    .filter(Boolean)
+    .join(", ");
+
+  const payment = booking.front_desk
+    ? booking.front_desk.kind === "phone"
+      ? "Phone-in"
+      : "Walk-in"
+    : booking.member
+    ? "Member"
+    : booking.payment_status === "pay_at_shop"
+    ? "Pays at the shop"
+    : null;
+  const status =
+    booking.status === "completion_requested"
+      ? "Awaiting client"
+      : booking.status === "completed"
+      ? "Completed"
+      : booking.status === "confirmed"
+      ? null
+      : formatStatusLabel(booking.status);
 
   return (
     <Link
       href={booking.front_desk ? "/studio" : `/bookings/${booking.id}`}
-      className={`group block rounded-xl border border-hairline bg-surface transition-[border-color,box-shadow] duration-200 hover:border-neutral-300 hover:shadow-[0_10px_28px_-18px_rgba(0,0,0,0.25)] ${
-        compact ? "p-3.5" : "p-4"
-      }`}
+      className={`group block rounded-2xl bg-surface ring-1 ring-ink/[0.06] transition-[box-shadow] duration-200 hover:ring-ink/15 ${
+        compact ? "p-4" : "p-5"
+      } ${booking.status === "completed" ? "opacity-70" : ""}`}
     >
-      <div className="flex items-start gap-3">
-        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-100">
+      <div className="flex items-start gap-3.5">
+        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-ink/[0.05]">
           {booking.client_avatar_url ? (
             <img loading="lazy" src={booking.client_avatar_url} alt="" className="h-full w-full object-cover" />
           ) : (
@@ -253,69 +286,44 @@ function BookingCard({
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <p className={`flex min-w-0 items-center gap-1.5 ${compact ? "text-sm" : "text-[15px]"} font-semibold text-ink`}>
-              {isEveningBooking(booking) ? (
-                <Moon aria-label="Evening" className="h-3.5 w-3.5 shrink-0 text-neutral-400" strokeWidth={2} />
-              ) : (
-                <Sun aria-label="Daytime" className="h-3.5 w-3.5 shrink-0 text-neutral-400" strokeWidth={2} />
-              )}
-              <span className="truncate">{booking.service_name || "Booked service"}</span>
+          <div className="flex items-baseline justify-between gap-3">
+            <p className={`truncate ${compact ? "text-[15px]" : "text-base"} font-semibold tracking-[-0.01em] text-ink`}>
+              {booking.client_name || "Client"}
             </p>
-
-            {showWhere ? (
-              <span
-                className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                  isShopBooking(booking) ? "bg-ink text-white" : "text-neutral-600 ring-1 ring-inset ring-ink/15"
-                }`}
-              >
-                {isShopBooking(booking) ? "Shop" : "Mine"}
-              </span>
-            ) : null}
-            <span
-              className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                booking.status === "completion_requested"
-                  ? "text-ink ring-1 ring-inset ring-ink"
-                  : booking.status === "completed"
-                  ? "bg-neutral-100 text-neutral-500"
-                  : "bg-neutral-100 text-ink"
-              }`}
-            >
-              {booking.front_desk
-                ? booking.front_desk.kind === "phone"
-                  ? "Phone-in"
-                  : "Walk-in"
-                : formatStatusLabel(booking.status)}
-            </span>
+            {showTime ? <p className="shrink-0 text-[13px] tabular-nums text-neutral-500">{when}</p> : null}
           </div>
-
-          <p className="mt-0.5 truncate text-[13px] tabular-nums text-neutral-500">
-            {booking.client_name || "Unknown client"} · {formatShortDateLabel(booking.booking_date)} · {formatTime(booking.start_time)}–{formatTime(booking.end_time)}
-            {metaParts.length > 0 ? ` · ${metaParts.join(" · ")}` : ""}
-            {booking.front_desk?.clientPhone ? ` · ${booking.front_desk.clientPhone}` : ""}
-            {booking.front_desk ? " · paid at the shop" : booking.member ? " · member, covered by membership" : booking.payment_status === "pay_at_shop" ? " · client pays at the shop" : ""}
+          <p className="mt-0.5 truncate text-[13px] text-neutral-500">
+            {what}
+            {booking.front_desk?.clientPhone ? `, ${booking.front_desk.clientPhone}` : ""}
           </p>
 
-          {displayAddress ? (
-            <p className="mt-1 flex min-w-0 items-center gap-1 text-[13px] text-neutral-500">
-              <MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{displayAddress}</span>
-              {distance ? <span className="shrink-0 text-neutral-400">· {distance}</span> : null}
-            </p>
+          {(showWhere && atShop) || payment || status ? (
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {showWhere && atShop ? <Chip tone="ink">At the shop</Chip> : null}
+              {payment ? <Chip>{payment}</Chip> : null}
+              {status ? <Chip tone="outline">{status}</Chip> : null}
+            </div>
           ) : null}
 
-          {mapsUrl ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                window.open(mapsUrl, "_blank", "noopener,noreferrer");
-              }}
-              className="mt-2 rounded text-xs font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-4 transition-colors hover:text-ink hover:decoration-ink"
-            >
-              Open in Maps
-            </button>
+          {displayAddress ? (
+            <p className="mt-2.5 flex min-w-0 items-center gap-1.5 text-[13px] text-neutral-500">
+              <MapPin aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{displayAddress}</span>
+              {distance ? <span className="shrink-0 text-neutral-400">{distance}</span> : null}
+              {mapsUrl ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    window.open(mapsUrl, "_blank", "noopener,noreferrer");
+                  }}
+                  className="ml-auto shrink-0 rounded text-xs font-medium text-ink underline decoration-ink/20 underline-offset-4 hover:decoration-ink"
+                >
+                  Directions
+                </button>
+              ) : null}
+            </p>
           ) : null}
         </div>
       </div>
@@ -337,14 +345,10 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   const [role, setRole] = useState<string | null>(() => seed?.role ?? null);
   const [message, setMessage] = useState("");
   const [allBookings, setBookings] = useState<CalendarBooking[]>(() => seed?.bookings ?? []);
-  // Pros on a shop's team see both sides in one schedule, tagged; they can
-  // narrow it to just the shop or just their own clients.
-  const [scope, setScope] = useState<"all" | "shop" | "mine">("all");
+  // Pros on a shop's team see both sides in one schedule; shop work is
+  // labelled "At the shop", their own clients aren't labelled.
+  const bookings = allBookings;
   const onTeam = useMemo(() => allBookings.some(isShopBooking), [allBookings]);
-  const bookings = useMemo(
-    () => (scope === "all" || !onTeam ? allBookings : allBookings.filter((b) => (scope === "shop") === isShopBooking(b))),
-    [allBookings, scope, onTeam]
-  );
   const [subscribed, setSubscribed] = useState(() => seed?.subscribed ?? false);
   const [userId, setUserId] = useState<string | null>(null);
   const [bookingUsage, setBookingUsage] = useState<{ count: number; cap: number | null } | null>(null);
@@ -897,7 +901,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
             </div>
             <div className="relative min-w-0 border-l border-hairline pl-3">
               <span aria-hidden="true" className="absolute -left-[4.5px] top-4 h-2 w-2 rounded-full bg-ink" />
-              <BookingCard booking={booking} compact userLat={userLocation?.lat} userLng={userLocation?.lng} showWhere={onTeam} />
+              <BookingCard booking={booking} compact userLat={userLocation?.lat} userLng={userLocation?.lng} showWhere={onTeam} showDate={false} showTime={false} />
             </div>
           </li>
         ))}
@@ -943,33 +947,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
           <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Your schedule</h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
             {onTeam
-              ? "Your shop appointments and your own clients, together in one place."
-              : "Confirmed bookings, upcoming appointments, and completed work in one place."}
+              ? "Everything you're booked for, at the shop and with your own clients."
+              : "Everything you're booked for, and what you've finished."}
           </p>
-          {onTeam ? (
-            <div role="radiogroup" aria-label="Show" className="mt-5 inline-flex rounded-full bg-ink/[0.05] p-1">
-              {(
-                [
-                  ["all", "Everything"],
-                  ["shop", "Shop"],
-                  ["mine", "My clients"],
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={scope === value}
-                  onClick={() => setScope(value)}
-                  className={`h-9 rounded-full px-4 text-[13px] font-medium transition-colors ${
-                    scope === value ? "bg-ink text-white shadow-sm" : "text-neutral-600 hover:text-ink"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          ) : null}
         </div>
 
         <VerificationBanner />
@@ -1044,15 +1024,15 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
 
           {mobileView === "month" ? (
             <DayZoomArea renderLens={renderDayLens} lensWidth={320} tapToOpen className="mt-4">
-              <div className="overflow-hidden rounded-2xl border border-hairline bg-surface">
-                <div className="grid grid-cols-7 border-b border-hairline bg-paper/50">
+              <div className="overflow-hidden rounded-2xl bg-surface ring-1 ring-ink/[0.06]">
+                <div className="grid grid-cols-7 px-1.5 pt-2">
                   {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
                     <div key={index} className="py-2 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-500">
                       {day}
                     </div>
                   ))}
                 </div>
-                <div key={formatMonthYear(currentMonth)} className="lu-fade-in grid grid-cols-7 gap-px bg-hairline">
+                <div key={formatMonthYear(currentMonth)} className="lu-fade-in grid grid-cols-7 gap-1 p-1.5">
                   {monthCells.map((cell) => {
                     if (!cell.date) {
                       return <div key={cell.key} className="min-h-[56px] bg-paper/70" />;
@@ -1072,9 +1052,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                         aria-label={`${formatDateLabel(dateKey)}, ${dayBookings.length} booking${dayBookings.length === 1 ? "" : "s"}`}
                         onClick={() => setSelectedDate(dateKey)}
                         className={`relative flex min-h-[56px] flex-col items-center gap-1 pb-1.5 pt-1.5 transition-colors active:bg-neutral-50 ${
-                          timeOffDates.has(dateKey) ? "bg-paper" : "bg-surface"
-                        } ${
-                          isSelected ? "z-10 shadow-[inset_0_0_0_2px_#0a0a0a]" : ""
+                          timeOffDates.has(dateKey) ? "bg-ink/[0.025]" : ""
+                        } rounded-xl ${
+                          isSelected ? "bg-ink/[0.06]" : "hover:bg-ink/[0.03]"
                         }`}
                       >
                         <span
@@ -1182,8 +1162,8 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
             </div>
 
             <DayZoomArea renderLens={renderDayLens} lensWidth={320} className="mt-4">
-              <div className="overflow-hidden rounded-2xl border border-hairline bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.04),0_28px_56px_-36px_rgba(0,0,0,0.3)]">
-                <div className="grid grid-cols-7 border-b border-hairline bg-paper/50">
+              <div className="overflow-hidden rounded-2xl bg-surface ring-1 ring-ink/[0.06]">
+                <div className="grid grid-cols-7 px-1.5 pt-2">
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                     <div key={day} className="px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-500">
                       {day}
@@ -1191,9 +1171,8 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                   ))}
                 </div>
 
-                <div key={formatMonthYear(currentMonth)} className="lu-fade-in grid grid-cols-7 gap-px bg-hairline">
+                <div key={formatMonthYear(currentMonth)} className="lu-fade-in grid grid-cols-7 gap-1 p-1.5">
                   {monthCells.map((cell, index) => {
-                    const isWeekend = index % 7 === 0 || index % 7 === 6;
                     if (!cell.date) {
                       return <div key={cell.key} className="min-h-[118px] bg-paper/70" />;
                     }
@@ -1213,8 +1192,8 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                         aria-label={`${formatDateLabel(dateKey)}, ${dayBookings.length} booking${dayBookings.length === 1 ? "" : "s"}`}
                         onClick={() => setSelectedDate(dateKey)}
                         className={`relative flex min-h-[118px] flex-col items-stretch gap-1 p-2 text-left transition-colors duration-150 hover:bg-neutral-50 ${
-                          timeOffDates.has(dateKey) ? "bg-paper" : isWeekend ? "bg-paper/40" : "bg-surface"
-                        } ${isSelected ? "z-10 shadow-[inset_0_0_0_2px_#0a0a0a]" : ""}`}
+                          timeOffDates.has(dateKey) ? "bg-ink/[0.025]" : ""
+                        } rounded-xl ${isSelected ? "bg-ink/[0.06]" : "hover:bg-ink/[0.03]"}`}
                       >
                         <span
                           className={`flex h-7 w-7 items-center justify-center self-start rounded-full text-sm tabular-nums ${
