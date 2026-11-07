@@ -116,7 +116,10 @@ async function loadShop(slug: string) {
             priceLabel: Number.isFinite(n) && n > 0 ? `$${n % 1 ? n.toFixed(2) : n}` : null,
             minutes: Math.max(Number(s.duration_minutes) || 30, 15),
           };
-        });
+        })
+        // Online booking charges or holds against the price, so a service
+        // with no price can't be booked here; don't offer it.
+        .filter((s) => s.priceLabel !== null);
       return {
         id: p.id,
         href: getProfileHref(p),
