@@ -83,7 +83,7 @@ export default function TodayView() {
   const upNext = live.filter((i) => i.status !== "completed" && toMinutes(i.end) > now);
   const doneCount = live.length - upNext.length;
   const walkIns = live.filter((i) => i.kind !== "online").length;
-  const toCollect = live.filter((i) => i.kind !== "online" || i.payAtShop).reduce((s, i) => s + (i.priceCents || 0), 0);
+  const toCollect = live.filter((i) => (i.kind !== "online" || i.payAtShop) && i.status !== "completed").reduce((s, i) => s + (i.priceCents || 0), 0);
   const waitingRequests = (requests || []).filter((r) => !r.offers.some((o) => o.status === "pending" || o.status === "accepted"));
 
   const canBook = studio.live;

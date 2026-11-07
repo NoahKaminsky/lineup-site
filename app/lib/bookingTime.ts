@@ -55,7 +55,9 @@ export function formatCancellationDeadline(date: string, startTime: string | nul
     month: "short",
     day: "numeric",
   });
-  const time = cutoff.toLocaleTimeString("en-CA", { timeZone: BOOKING_TIME_ZONE, hour: "numeric", minute: "2-digit" });
+  // en-US gives "9:30 AM" (matching the booking times shown elsewhere);
+  // en-CA's "9:30 a.m." ended sentences with a double period.
+  const time = cutoff.toLocaleTimeString("en-US", { timeZone: BOOKING_TIME_ZONE, hour: "numeric", minute: "2-digit" });
   return `${day} at ${time}`;
 }
 

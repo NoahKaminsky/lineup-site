@@ -137,8 +137,9 @@ export default function ScheduleView({ data, busy, run, setNotice }: SectionProp
       : fromDateKey(date).toLocaleDateString("en-CA", { month: "long", year: "numeric" });
 
   const active = dayItems.filter((i) => i.status !== "no_show");
+  // Finished ones are already paid, so they're not still to collect.
   const atShopCents = active
-    .filter((i) => i.kind !== "online" || i.payAtShop)
+    .filter((i) => (i.kind !== "online" || i.payAtShop) && i.status !== "completed")
     .reduce((sum, i) => sum + (i.priceCents || 0), 0);
   const walkIns = active.filter((i) => i.kind !== "online").length;
 

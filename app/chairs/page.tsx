@@ -60,6 +60,12 @@ export default function ChairsPage() {
       router.push("/login?next=/chairs");
       return;
     }
+    // Clients have no business here: send them to their dashboard rather
+    // than showing a page that isn't for them.
+    if (res.status === 403) {
+      router.replace("/requests");
+      return;
+    }
     if (!res.ok) setError(res.data.error || "Could not load chair openings.");
     else {
       setOpenings(res.data.openings || []);

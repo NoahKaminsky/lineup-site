@@ -34,13 +34,16 @@ export async function GET(req: Request) {
 
     const supabase = getServiceSupabase();
 
-    const { data: myProfile } = await supabase
-      .from("profiles")
-      .select("id, role, email, full_name, professional_types")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    const ctx = await getStudioForUser(supabase, user.id);
+    // Independent lookups run side by side: this route feeds every /studio
+    // page, and one-after-another queries made those pages slow to open.
+    const [{ data: myProfile }, ctx] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, role, email, full_name, professional_types")
+        .eq("id", user.id)
+        .maybeSingle(),
+      getStudioForUser(supabase, user.id),
+    ]);
 
     if (!ctx) {
       // Not on a team yet: show any invites waiting for their email.
@@ -69,6 +72,29 @@ export async function GET(req: Request) {
     }
 
     const { studio, member: me, canManage, isOwner } = ctx;
+
+    // These don't depend on anything below, so start them now.
+    const placePromise = getStudioPlace(supabase, studio.id);
+    // Separate query: errors just mean the pay-at-shop migration hasn't run.
+    const payAtShopPromise = supabase
+      .from("studios")
+      .select("pay_at_shop_enabled, no_show_fee_percent")
+      .eq("id", studio.id)
+      .maybeSingle();
+    const payoutsPromise: Promise<{ connected: boolean; ready: boolean } | null> = isOwner
+      ? (async () => {
+          const result = { connected: !!studio.stripe_account_id, ready: false };
+          if (studio.stripe_account_id) {
+            try {
+              const account = await stripe.accounts.retrieve(studio.stripe_account_id);
+              result.ready = Boolean(account.payouts_enabled && account.details_submitted);
+            } catch (error) {
+              console.error("Studio payout account lookup failed:", error);
+            }
+          }
+          return result;
+        })()
+      : Promise.resolve(null);
 
     const { data: memberRows } = await supabase
       .from("studio_members")
@@ -123,6 +149,55 @@ export async function GET(req: Request) {
           joinedAt: m.joined_at,
         };
       });
+
+    // This month's numbers for managers: runs alongside the schedule below.
+    const earningsPromise: Promise<unknown> =
+      canManage && activeIds.length
+        ? (async () => {
+          // This month's numbers, per member: online bookings plus front desk.
+          const today = new Date();
+          const monthStart = dateKey(new Date(today.getFullYear(), today.getMonth(), 1));
+          const [{ data: monthBookings }, { data: monthFrontDesk }] = await Promise.all([
+            supabase
+              .from("bookings")
+              .select("professional_id, status, service_price, studio_cut_cents, stripe_studio_transfer_id")
+              .eq("studio_id", studio.id)
+              .gte("booking_date", monthStart)
+              .in("status", ["confirmed", "completion_requested", "completed"]),
+            supabase
+              .from("shop_appointments")
+              .select("professional_id, price_cents, shop_cut_cents")
+              .eq("studio_id", studio.id)
+              .gte("appointment_date", monthStart)
+              .eq("status", "completed"),
+          ]);
+
+          type MemberStats = { bookings: number; salesCents: number; shopCutCents: number; inShopSalesCents: number; inShopCutCents: number };
+          const byMember: Record<string, MemberStats> = {};
+          const blank = (): MemberStats => ({ bookings: 0, salesCents: 0, shopCutCents: 0, inShopSalesCents: 0, inShopCutCents: 0 });
+          let paidCents = 0;
+          let owedCents = 0;
+          let inShopCutCents = 0;
+          for (const b of monthBookings || []) {
+            const row = (byMember[b.professional_id] ||= blank());
+            row.bookings += 1;
+            row.salesCents += Math.round(Number(b.service_price || 0) * 100);
+            row.shopCutCents += Number(b.studio_cut_cents || 0);
+            if (b.status === "completed" && Number(b.studio_cut_cents) > 0) {
+              if (b.stripe_studio_transfer_id) paidCents += Number(b.studio_cut_cents);
+              else owedCents += Number(b.studio_cut_cents);
+            }
+          }
+          for (const a of monthFrontDesk || []) {
+            const row = (byMember[a.professional_id] ||= blank());
+            row.bookings += 1;
+            row.inShopSalesCents += Number(a.price_cents || 0);
+            row.inShopCutCents += Number(a.shop_cut_cents || 0);
+            inShopCutCents += Number(a.shop_cut_cents || 0);
+          }
+          return { byMember, paidCents, owedCents, inShopCutCents };
+          })()
+        : Promise.resolve(null);
 
     let schedule: unknown[] = [];
     let services: Record<string, { id: string; name: string; durationMinutes: number; priceCents: number | null }[]> = {};
@@ -214,71 +289,10 @@ export async function GET(req: Request) {
       services = {};
     }
 
-    if (canManage && activeIds.length) {
-      // This month's numbers, per member: online bookings plus front desk.
-      const today = new Date();
-      const monthStart = dateKey(new Date(today.getFullYear(), today.getMonth(), 1));
-      const [{ data: monthBookings }, { data: monthFrontDesk }] = await Promise.all([
-        supabase
-          .from("bookings")
-          .select("professional_id, status, service_price, studio_cut_cents, stripe_studio_transfer_id")
-          .eq("studio_id", studio.id)
-          .gte("booking_date", monthStart)
-          .in("status", ["confirmed", "completion_requested", "completed"]),
-        supabase
-          .from("shop_appointments")
-          .select("professional_id, price_cents, shop_cut_cents")
-          .eq("studio_id", studio.id)
-          .gte("appointment_date", monthStart)
-          .eq("status", "completed"),
-      ]);
+    earnings = await earningsPromise;
 
-      type MemberStats = { bookings: number; salesCents: number; shopCutCents: number; inShopSalesCents: number; inShopCutCents: number };
-      const byMember: Record<string, MemberStats> = {};
-      const blank = (): MemberStats => ({ bookings: 0, salesCents: 0, shopCutCents: 0, inShopSalesCents: 0, inShopCutCents: 0 });
-      let paidCents = 0;
-      let owedCents = 0;
-      let inShopCutCents = 0;
-      for (const b of monthBookings || []) {
-        const row = (byMember[b.professional_id] ||= blank());
-        row.bookings += 1;
-        row.salesCents += Math.round(Number(b.service_price || 0) * 100);
-        row.shopCutCents += Number(b.studio_cut_cents || 0);
-        if (b.status === "completed" && Number(b.studio_cut_cents) > 0) {
-          if (b.stripe_studio_transfer_id) paidCents += Number(b.studio_cut_cents);
-          else owedCents += Number(b.studio_cut_cents);
-        }
-      }
-      for (const a of monthFrontDesk || []) {
-        const row = (byMember[a.professional_id] ||= blank());
-        row.bookings += 1;
-        row.inShopSalesCents += Number(a.price_cents || 0);
-        row.inShopCutCents += Number(a.shop_cut_cents || 0);
-        inShopCutCents += Number(a.shop_cut_cents || 0);
-      }
-      earnings = { byMember, paidCents, owedCents, inShopCutCents };
-    }
-
-    const place = await getStudioPlace(supabase, studio.id);
-
-    // Separate query: errors just mean the pay-at-shop migration hasn't run.
-    const { data: payAtShop } = await supabase
-      .from("studios")
-      .select("pay_at_shop_enabled, no_show_fee_percent")
-      .eq("id", studio.id)
-      .maybeSingle();
-
-    if (isOwner) {
-      payouts = { connected: !!studio.stripe_account_id, ready: false };
-      if (studio.stripe_account_id) {
-        try {
-          const account = await stripe.accounts.retrieve(studio.stripe_account_id);
-          payouts.ready = Boolean(account.payouts_enabled && account.details_submitted);
-        } catch (error) {
-          console.error("Studio payout account lookup failed:", error);
-        }
-      }
-    }
+    const [place, { data: payAtShop }, payoutsResult] = await Promise.all([placePromise, payAtShopPromise, payoutsPromise]);
+    payouts = payoutsResult;
 
     return NextResponse.json({
       role: myProfile?.role || null,

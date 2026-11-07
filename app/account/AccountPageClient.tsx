@@ -169,6 +169,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
   const [deleting, setDeleting] = useState(false);
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeRequirementsDue, setStripeRequirementsDue] = useState<string[]>([]);
+  // Stripe's own answer, kept apart from `profile` so a slower profile reload
+  // (read from the database before the status check saved) can't overwrite it.
+  const [stripeLivePayouts, setStripeLivePayouts] = useState<boolean | null>(null);
   const [stripeStatusError, setStripeStatusError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [showBannerPreview, setShowBannerPreview] = useState(false);
@@ -710,6 +713,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       }
 
       setStripeStatusError("");
+      setStripeLivePayouts(Boolean(data.payoutsEnabled));
       setStripeRequirementsDue(Array.isArray(data.requirementsDue) ? data.requirementsDue : []);
 
       setProfile((prev) =>
@@ -753,7 +757,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
       // Already fully onboarded — send them to Stripe's real account
       // management dashboard instead of back through first-time onboarding.
-      if (profile.stripe_payouts_enabled) {
+      if ((stripeLivePayouts ?? !!profile.stripe_payouts_enabled)) {
         const dashboardResponse = await fetch("/api/stripe/connect/dashboard-link", {
           method: "POST",
           headers: {
@@ -1926,23 +1930,23 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         key: "payouts",
                         id: "payouts",
                         label: "Payouts",
-                        value: profile.stripe_payouts_enabled
+                        value: (stripeLivePayouts ?? !!profile.stripe_payouts_enabled)
                           ? "Enabled"
                           : profile.stripe_account_id
                           ? "Setup incomplete"
                           : "Not connected",
                         note: stripeStatusError
                           ? `Couldn't confirm your Stripe status: ${stripeStatusError}`
-                          : !profile.stripe_payouts_enabled && stripeRequirementsDue.length > 0
+                          : !(stripeLivePayouts ?? !!profile.stripe_payouts_enabled) && stripeRequirementsDue.length > 0
                           ? `Stripe needs: ${stripeRequirementsDue.map(formatStripeRequirement).join(", ")}`
-                          : profile.stripe_payouts_enabled
+                          : (stripeLivePayouts ?? !!profile.stripe_payouts_enabled)
                           ? "Paid to your bank through Stripe"
                           : "Connect Stripe to get paid for bookings",
-                        noteTone: profile.stripe_payouts_enabled ? "muted" : "alert",
+                        noteTone: (stripeLivePayouts ?? !!profile.stripe_payouts_enabled) ? "muted" : "alert",
                         action: {
                           label: stripeLoading
                             ? "Opening…"
-                            : profile.stripe_payouts_enabled
+                            : (stripeLivePayouts ?? !!profile.stripe_payouts_enabled)
                             ? "Manage"
                             : profile.stripe_account_id
                             ? "Finish"

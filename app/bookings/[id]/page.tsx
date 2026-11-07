@@ -991,7 +991,9 @@ export default function BookingDetailPage() {
 
         {isViewerCustomer && booking.status === "confirmed" && !isServiceOver(booking.booking_date, booking.end_time) ? (
           <p className="mt-4 px-2 text-sm leading-6 text-neutral-500">
-            Once the appointment is over, you&apos;ll confirm it here so your professional gets paid.
+            {booking.payment_status === "pay_at_shop"
+              ? "You'll pay at the shop. Your saved card is only charged if you miss the appointment."
+              : <>Once the appointment is over, you&apos;ll confirm it here so your professional gets paid.</>}
           </p>
         ) : null}
 

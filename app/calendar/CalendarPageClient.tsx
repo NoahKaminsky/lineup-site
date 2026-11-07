@@ -44,6 +44,8 @@ type BookingRow = {
   location_lat: number | null;
   location_lng: number | null;
   location_place_id: string | null;
+  // "pay_at_shop" when the client saved a card and pays in person.
+  payment_status?: string | null;
 };
 
 type CalendarBooking = BookingRow & {
@@ -267,7 +269,7 @@ function BookingCard({
             {booking.client_name || "Unknown client"} · {formatShortDateLabel(booking.booking_date)} · {formatTime(booking.start_time)}–{formatTime(booking.end_time)}
             {metaParts.length > 0 ? ` · ${metaParts.join(" · ")}` : ""}
             {booking.front_desk?.clientPhone ? ` · ${booking.front_desk.clientPhone}` : ""}
-            {booking.front_desk ? " · paid at the shop" : ""}
+            {booking.front_desk ? " · paid at the shop" : booking.payment_status === "pay_at_shop" ? " · client pays at the shop" : ""}
           </p>
 
           {displayAddress ? (
@@ -396,7 +398,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
         supabase
           .from("bookings")
           .select(
-            "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
+            "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, payment_status"
           )
           .eq("professional_id", user.id)
           .or(calendarStatusFilter())
