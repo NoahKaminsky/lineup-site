@@ -245,7 +245,6 @@ function BookingCard({
   const mapsUrl = atShop ? null : getGoogleMapsUrl(booking);
   const distance = formatDistance(getDistanceKm(userLat, userLng, booking.location_lat, booking.location_lng));
 
-  const when = `${showDate ? `${formatShortDateLabel(booking.booking_date)}, ` : ""}${formatTime(booking.start_time)}–${formatTime(booking.end_time)}`;
   const what = [booking.service_name || "Booked service", booking.duration_minutes ? `${booking.duration_minutes} min` : null]
     .filter(Boolean)
     .join(", ");
@@ -271,12 +270,23 @@ function BookingCard({
   return (
     <Link
       href={booking.front_desk ? "/studio" : `/bookings/${booking.id}`}
-      className={`group block rounded-2xl bg-surface ring-1 ring-ink/[0.06] transition-[box-shadow] duration-200 hover:ring-ink/15 ${
+      className={`group block rounded-[22px] bg-white ring-1 ring-ink/[0.06] transition duration-200 hover:-translate-y-px hover:shadow-[0_12px_28px_-18px_rgba(0,0,0,0.35)] hover:ring-ink/[0.1] ${
         compact ? "p-4" : "p-5"
       } ${booking.status === "completed" ? "opacity-70" : ""}`}
     >
       <div className="flex items-start gap-3.5">
-        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-ink/[0.05]">
+        {showTime ? (
+          // Time leads, like a ticket stub: the thing a pro scans for.
+          <div className="flex w-14 shrink-0 flex-col items-start border-r border-ink/[0.06] pr-3">
+            <span className="text-[17px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-ink">
+              {formatTime(booking.start_time).replace(/\s?[AP]M$/i, "")}
+            </span>
+            <span className="mt-1 text-[11px] font-medium text-neutral-400">
+              {/PM$/i.test(formatTime(booking.start_time)) ? "PM" : "AM"}
+            </span>
+          </div>
+        ) : null}
+        <div className={`h-10 w-10 shrink-0 overflow-hidden rounded-full bg-ink/[0.05] ${showTime ? "hidden sm:block" : ""}`}>
           {booking.client_avatar_url ? (
             <img loading="lazy" src={booking.client_avatar_url} alt="" className="h-full w-full object-cover" />
           ) : (
@@ -291,10 +301,11 @@ function BookingCard({
             <p className={`truncate ${compact ? "text-[15px]" : "text-base"} font-semibold tracking-[-0.01em] text-ink`}>
               {booking.client_name || "Client"}
             </p>
-            {showTime ? <p className="shrink-0 text-[13px] tabular-nums text-neutral-500">{when}</p> : null}
+            {showTime && showDate ? <p className="shrink-0 text-[13px] tabular-nums text-neutral-500">{formatShortDateLabel(booking.booking_date)}</p> : null}
           </div>
           <p className="mt-0.5 truncate text-[13px] text-neutral-500">
             {what}
+            {showTime ? `, until ${formatTime(booking.end_time)}` : ""}
             {booking.front_desk?.clientPhone ? `, ${booking.front_desk.clientPhone}` : ""}
           </p>
 
