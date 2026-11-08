@@ -135,7 +135,7 @@ export default function ArchivePage() {
         {loading ? (
           <div className="mt-10 space-y-3" aria-busy="true">
             {[1, 2, 3, 4].map((item) => (
-              <div key={item} className="flex items-center gap-3 rounded-2xl border border-hairline bg-surface px-4 py-4">
+              <div key={item} className="flex items-center gap-3 rounded-2xl bg-surface ring-1 ring-ink/[0.06] px-4 py-4">
                 <div className="h-10 w-10 animate-pulse rounded-full bg-neutral-200" />
                 <div className="flex-1 space-y-2">
                   <div className="h-3.5 w-1/2 animate-pulse rounded-full bg-neutral-200" />
@@ -149,7 +149,7 @@ export default function ArchivePage() {
             {message}
           </div>
         ) : bookings.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-dashed border-neutral-300 px-6 py-14 text-center">
+          <div className="mt-10 rounded-2xl bg-ink/[0.03] px-6 py-14 text-center">
             <p className="font-medium text-ink">Nothing archived yet</p>
             <p className="mx-auto mt-1.5 max-w-sm text-sm text-neutral-500">
               Completed services move here 24 hours after they&apos;re finished.
@@ -180,7 +180,7 @@ export default function ArchivePage() {
                 {groups.map(([month, items]) => (
                   <section key={month} aria-label={month}>
                     <h2 className="text-[13px] font-medium text-neutral-500">{month}</h2>
-                    <ul className="lu-lineup mt-3 divide-y divide-hairline overflow-hidden rounded-2xl border border-hairline bg-surface">
+                    <ul className="lu-lineup mt-3 divide-y divide-hairline overflow-hidden rounded-2xl bg-surface ring-1 ring-ink/[0.06]">
                       {items.map((booking) => {
                         const iAmPro = booking.professional_id === userId;
                         const other = people[iAmPro ? booking.customer_id : booking.professional_id];

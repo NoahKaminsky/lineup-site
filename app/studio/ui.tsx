@@ -223,7 +223,7 @@ export function Section({
 }
 
 export const panelClass =
-  "rounded-2xl bg-surface shadow-[0_0_0_1px_rgba(10,10,10,0.07),0_1px_2px_rgba(0,0,0,0.04)]";
+  "rounded-2xl bg-surface ring-1 ring-ink/[0.06]";
 
 export function EmptyState({ title, body, action }: { title: string; body?: ReactNode; action?: ReactNode }) {
   return (

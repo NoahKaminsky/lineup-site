@@ -98,7 +98,7 @@ function JoinStudio() {
       </header>
 
       <div className="mx-auto max-w-lg px-6 py-16 md:py-24">
-        <div className="rounded-2xl border border-hairline bg-surface p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-9">
+        <div className="rounded-2xl bg-surface ring-1 ring-ink/[0.06] p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-9">
           {preview ? (
             <>
               <h1 className="text-3xl font-semibold tracking-[-0.03em]">Join {preview.studioName}</h1>

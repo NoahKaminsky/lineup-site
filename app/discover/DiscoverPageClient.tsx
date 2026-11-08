@@ -1135,7 +1135,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         ) : null}
 
         {sortedCards.length === 0 ? (
-          <div className="mt-10 rounded-panel border border-dashed border-neutral-300 px-6 py-16 text-center">
+          <div className="mt-10 rounded-panel bg-ink/[0.03] px-6 py-16 text-center">
             <p className="font-medium text-ink">
               {isSearching ? `No professionals match “${search.trim()}”` : "No professionals match those filters"}
             </p>

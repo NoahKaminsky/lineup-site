@@ -2023,7 +2023,7 @@ return (
           ) : null}
 
           {!message && isCustomer && requests.length === 0 && bookings.length === 0 ? (
-            <div className="mt-10 rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+            <div className="mt-10 rounded-panel bg-ink/[0.03] px-6 py-12 text-center">
               <div className="mx-auto flex h-8 w-8 items-center justify-center">
                 <svg viewBox="0 0 20 20" className="h-6 w-6 text-neutral-400" fill="none">
                   <path d="M10 2C6.686 2 4 4.686 4 8c0 4 6 10 6 10s6-6 6-10c0-3.314-2.686-6-6-6z" stroke="currentColor" strokeWidth="1.5"/>
@@ -2049,7 +2049,7 @@ return (
           professionalOpenRequests.length === 0 &&
           unifiedProfessionalUpcomingWork.length === 0 &&
           unifiedProfessionalCompletedWork.length === 0 ? (
-            <div className="mt-10 rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+            <div className="mt-10 rounded-panel bg-ink/[0.03] px-6 py-12 text-center">
               <div className="mx-auto flex h-8 w-8 items-center justify-center">
                 <svg viewBox="0 0 20 20" className="h-6 w-6 text-neutral-400" fill="none">
                   <path d="M10 2l2 5h5l-4 3 1.5 5L10 12l-4.5 3L7 10 3 7h5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -2078,7 +2078,7 @@ return (
                 </h2>
 
                 {activeBookings.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-dashed border-neutral-300 px-6 py-10 text-center">
+                  <div className="mt-6 rounded-2xl bg-ink/[0.03] px-6 py-10 text-center">
                     <div className="mx-auto flex h-8 w-8 items-center justify-center">
                       <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                         <path d="M6 2v2M14 2v2M3 8h14M4 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -2096,7 +2096,7 @@ return (
                       return (
                         <div
                           key={booking.id}
-                          className="rounded-2xl border border-hairline bg-surface p-5 sm:p-6"
+                          className="rounded-2xl bg-surface ring-1 ring-ink/[0.06] p-5 sm:p-6"
                         >
                           <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                             <div className="flex min-w-0 flex-1 gap-4">
@@ -2259,7 +2259,7 @@ return (
                       <Link
                         key={request.id}
                         href={`/requests/${request.id}`}
-                        className="block rounded-2xl border border-hairline bg-surface p-5 transition-[border-color,box-shadow] duration-200 hover:border-neutral-300 hover:shadow-[0_12px_32px_-18px_rgba(0,0,0,0.25)] sm:p-6"
+                        className="block rounded-2xl bg-surface ring-1 ring-ink/[0.06] p-5 transition-[box-shadow] duration-200 hover:ring-ink/15 sm:p-6"
                       >
                         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                           <div className="flex min-w-0 flex-1 gap-4">
@@ -2365,7 +2365,7 @@ return (
                   <div className="flex items-baseline justify-between gap-4">
                     <h2 className="text-xl font-semibold tracking-[-0.02em]">Recently completed</h2>
                     <Link href="/archive" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
-                      View archive →
+                      View archive
                     </Link>
                   </div>
 
@@ -2373,7 +2373,7 @@ return (
                     {recentCompletedBookings.map((booking) => (
                       <div
                         key={booking.id}
-                        className="rounded-2xl border border-hairline bg-surface/60 p-5 sm:p-6"
+                        className="rounded-2xl bg-surface ring-1 ring-ink/[0.06]/60 p-5 sm:p-6"
                       >
                         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                           <div className="flex min-w-0 flex-1 gap-4">
@@ -2492,7 +2492,7 @@ return (
                   <div className="flex items-baseline justify-between gap-4">
                     <h2 className="text-xl font-semibold tracking-[-0.02em]">Recently completed requests</h2>
                     <Link href="/archive" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
-                      View archive →
+                      View archive
                     </Link>
                   </div>
 
@@ -2500,7 +2500,7 @@ return (
                     {recentCompletedRequests.map((request) => (
                       <div
                         key={request.id}
-                        className="rounded-2xl border border-hairline bg-surface/60 p-5 transition-colors hover:bg-surface sm:p-6"
+                        className="rounded-2xl bg-surface ring-1 ring-ink/[0.06]/60 p-5 transition-colors hover:bg-surface sm:p-6"
                       >
                         <Link href={`/requests/${request.id}`}>
                           <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
@@ -2605,22 +2605,6 @@ return (
 
           {isProfessional ? (
             <div className="mt-10 space-y-12">
-              {/* This month — the numbers a pro checks first. */}
-              <section aria-label="This month">
-                <p className="text-[13px] font-medium text-neutral-500">This month</p>
-                <dl className="lu-slots mt-3 grid grid-cols-3 overflow-hidden rounded-2xl border border-hairline bg-surface">
-                  {[
-                    { label: "Completed", value: monthlyCompletedJobsCount },
-                    { label: "Upcoming", value: monthlyUpcomingCount },
-                    { label: "Opportunities", value: monthlyOpportunitiesCount },
-                  ].map((stat, index) => (
-                    <div key={stat.label} className={`px-4 py-4 sm:px-6 sm:py-5 ${index > 0 ? "border-l border-hairline" : ""}`}>
-                      <dt className="text-xs text-neutral-500 sm:text-sm">{stat.label}</dt>
-                      <dd className="mt-1 text-2xl font-semibold tabular-nums tracking-[-0.02em] sm:text-3xl">{stat.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
 
               <div className="grid gap-12 lg:grid-cols-12 lg:gap-10">
                 {/* Main column: work to win. */}
@@ -2637,7 +2621,7 @@ return (
                   </div>
 
                   {professionalOpenRequests.length === 0 ? (
-                    <div className="mt-5 rounded-2xl border border-dashed border-neutral-300 px-6 py-10 text-center">
+                    <div className="mt-5 rounded-2xl bg-ink/[0.03] px-6 py-10 text-center">
                       <p className="font-medium text-ink">No matching requests right now</p>
                       <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-500">
                         New requests matching your services will appear here automatically.
@@ -2680,7 +2664,7 @@ return (
                           ) : null}
                           <Link
                             href={`/requests/${request.id}`}
-                            className="group block rounded-2xl border border-hairline bg-surface p-5 pr-12 transition-[border-color,box-shadow] duration-200 hover:border-neutral-300 hover:shadow-[0_12px_32px_-18px_rgba(0,0,0,0.25)] sm:p-6 sm:pr-12"
+                            className="group block rounded-2xl bg-surface ring-1 ring-ink/[0.06] p-5 pr-12 transition-[box-shadow] duration-200 hover:ring-ink/15 sm:p-6 sm:pr-12"
                           >
                             <div className="flex items-center gap-2">
                               <span className="truncate text-[13px] font-medium text-neutral-500">
@@ -2689,12 +2673,12 @@ return (
  cleanServiceLabel(request.service_detail).toLowerCase() !== formatCategory(request.category).toLowerCase() ? ` · ${cleanServiceLabel(request.service_detail)}` : ""}
                               </span>
                               {request.is_direct_rebook ? (
-                                <span className="shrink-0 rounded-md bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink">
+                                <span className="shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-ink">
                                   {request.original_request_id ? "Rebook" : "Direct request"}
                                 </span>
                               ) : null}
                               {isNew ? (
-                                <span className="animate-notification-pop shrink-0 rounded-md bg-ink px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                <span className="animate-notification-pop shrink-0 rounded-full bg-ink px-2 py-0.5 text-[11px] font-medium text-white">
                                   New
                                 </span>
                               ) : null}
@@ -2738,16 +2722,15 @@ return (
                               userLng={userLocation?.lng}
                             />
 
-                            <div className="mt-4 flex items-center justify-between border-t border-hairline pt-4">
+                            <div className="mt-4 flex items-center justify-between">
                               {responded ? (
                                 <span className="text-sm font-medium text-neutral-500">Offer sent</span>
                               ) : (
                                 <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink">
                                   Respond
-                                  <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+
                                 </span>
                               )}
-                              <span className="text-xs text-neutral-400">View request</span>
                             </div>
                           </Link>
                           </div>
@@ -2757,35 +2740,29 @@ return (
                   )}
                 </section>
 
-                {/* Side column: your schedule and track record, at a glance. */}
-                <aside className="space-y-10 lg:col-span-4">
-                  <section aria-labelledby="week-heading">
+                {/* Side column: just what's next. The full schedule and history
+                    live on the Calendar, so they aren't repeated here. */}
+                <aside className="lg:col-span-4">
+                  <section aria-labelledby="next-heading">
                     <div className="flex items-baseline justify-between gap-4">
-                      <h2 id="week-heading" className="text-base font-semibold tracking-[-0.01em]">This week</h2>
+                      <h2 id="next-heading" className="text-base font-semibold tracking-[-0.01em]">Up next</h2>
                       <Link href="/calendar" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
-                        Calendar →
+                        Calendar
                       </Link>
                     </div>
-
                     {professionalWeekAtGlanceWork.length === 0 ? (
-                      <p className="mt-3 rounded-xl border border-dashed border-neutral-300 px-4 py-4 text-sm text-neutral-500">
-                        Clear week ahead — no work scheduled yet.
-                      </p>
+                      <p className="mt-3 text-sm leading-6 text-neutral-500">Nothing booked this week yet.</p>
                     ) : (
-                      <ul className="lu-lineup mt-3 divide-y divide-hairline rounded-2xl border border-hairline bg-surface">
-                        {professionalWeekAtGlanceWork.map((item) => (
+                      <ul className="mt-3 space-y-2">
+                        {professionalWeekAtGlanceWork.slice(0, 3).map((item) => (
                           <li key={`${item.source}-${item.id}`}>
-                            <Link href={item.href} className="block px-4 py-3.5 transition-colors hover:bg-neutral-50">
-                              <div className="flex items-start justify-between gap-3">
-                                <p className="truncate text-sm font-semibold text-ink">{item.title}</p>
-                                <span className="shrink-0 rounded-md bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-700">
-                                  {item.status === "completion_requested" ? "Awaiting confirmation" : item.status}
-                                </span>
-                              </div>
-                              {item.subtitle ? <p className="mt-0.5 truncate text-xs text-neutral-500">{item.subtitle}</p> : null}
-                              <p className="mt-1 truncate text-xs text-neutral-500">
-                                {[item.client_name, item.location].filter(Boolean).join(" · ") ||
-                                  (item.source === "booking" ? "Booking" : "Request")}
+                            <Link
+                              href={item.href}
+                              className="block rounded-2xl bg-surface px-4 py-3.5 ring-1 ring-ink/[0.06] transition-[box-shadow] hover:ring-ink/15"
+                            >
+                              <p className="truncate text-sm font-semibold text-ink">{item.client_name || item.title}</p>
+                              <p className="mt-0.5 truncate text-[13px] text-neutral-500">
+                                {[item.title, item.subtitle].filter(Boolean).join(", ")}
                               </p>
                             </Link>
                           </li>
@@ -2793,68 +2770,6 @@ return (
                       </ul>
                     )}
                   </section>
-
-                  <section aria-labelledby="completed-heading">
-                    <div className="flex items-baseline justify-between gap-4">
-                      <h2 id="completed-heading" className="text-base font-semibold tracking-[-0.01em]">Recently completed</h2>
-                      <Link href="/archive" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
-                        Archive →
-                      </Link>
-                    </div>
-                    {recentProfessionalCompletedWork.length === 0 ? (
-                      <p className="mt-3 rounded-xl border border-dashed border-neutral-300 px-4 py-4 text-sm text-neutral-500">
-                        Jobs you finish show here for 24 hours, then move to your archive.
-                      </p>
-                    ) : (
-                      <ul className="lu-lineup mt-3 divide-y divide-hairline rounded-2xl border border-hairline bg-surface">
-                        {recentProfessionalCompletedWork.slice(0, 4).map((item) => (
-                          <li key={`${item.source}-${item.id}`}>
-                            <Link href={item.href} className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-neutral-50">
-                              <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-neutral-100">
-                                {item.source === "booking" && item.client_avatar_url ? (
-                                  <img loading="lazy" src={item.client_avatar_url} alt="" className="h-full w-full object-cover" />
-                                ) : item.source === "request" &&
-                                  item.rawRequest.reference_photos &&
-                                  item.rawRequest.reference_photos.length > 0 ? (
-                                  <img loading="lazy" src={item.rawRequest.reference_photos[0]} alt="" className="h-full w-full object-cover" />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
-                                    {item.client_name?.charAt(0).toUpperCase() || "C"}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold text-ink">{item.title}</p>
-                                <p className="truncate text-xs text-neutral-500">
-                                  {item.client_name ? `${item.client_name} · ` : ""}
-                                  {item.completed_at ? formatDateTime(item.completed_at) : formatDateTime(item.created_at)}
-                                </p>
-                              </div>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-
-                  {cancelledProfessionalBookings.length > 0 ? (
-                    <section aria-labelledby="cancelled-heading">
-                      <h2 id="cancelled-heading" className="text-base font-semibold tracking-[-0.01em]">Cancelled</h2>
-                      <ul className="mt-3 divide-y divide-hairline rounded-2xl border border-hairline bg-surface">
-                        {cancelledProfessionalBookings.map((booking) => (
-                          <li key={booking.id}>
-                            <Link href={`/bookings/${booking.id}`} className="block px-4 py-3.5 transition-colors hover:bg-neutral-50">
-                              <p className="truncate text-sm font-semibold text-ink">{cleanServiceLabel(booking.service_name) || "Booked service"}</p>
-                              <p className="mt-0.5 text-xs text-neutral-500">
-                                {formatBookingDate(booking.booking_date)}
-                                {booking.refund_status === "refunded" ? " · Client refunded" : ""}
-                              </p>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  ) : null}
                 </aside>
               </div>
             </div>

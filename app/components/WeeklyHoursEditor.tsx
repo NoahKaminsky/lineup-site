@@ -181,7 +181,7 @@ export default function WeeklyHoursEditor({
         ) : null}
       </div>
 
-      <ul className="mt-3 overflow-hidden rounded-2xl border border-hairline bg-surface">
+      <ul className="mt-3 overflow-hidden rounded-2xl bg-surface ring-1 ring-ink/[0.06]">
         {DAY_ORDER.map((day, index) => {
           const list = byDay(day);
           const isOpen = list.length > 0;

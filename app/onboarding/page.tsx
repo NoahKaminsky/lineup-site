@@ -315,7 +315,7 @@ export default function OnboardingPage() {
         </div>
 
         {/* Right: form */}
-        <div className="rounded-2xl border border-hairline bg-surface p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-8">
+        <div className="rounded-2xl bg-surface ring-1 ring-ink/[0.06] p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-8">
           {/* Mobile-only heading — desktop heading lives in the left column */}
           <div className="mb-6 md:hidden">
             <p className="text-[13px] font-medium text-neutral-500">Account setup</p>

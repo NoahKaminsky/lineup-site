@@ -280,7 +280,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-hairline bg-surface p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-9">
+        <div className="rounded-2xl bg-surface ring-1 ring-ink/[0.06] p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-9">
           <form onSubmit={handleAuth} className="space-y-5" aria-busy={loading}>
             <div>
               <label htmlFor="auth-email" className="mb-2 block text-sm font-medium text-neutral-800">

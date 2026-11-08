@@ -115,7 +115,7 @@ export default function ShopMemberships({ slug, shopName }: { slug: string; shop
         {plans
           .filter((p) => !minePlanIds.has(p.id))
           .map((p) => (
-            <li key={p.id} className="flex flex-col rounded-panel border border-hairline bg-surface p-5">
+            <li key={p.id} className="flex flex-col rounded-panel bg-surface ring-1 ring-ink/[0.06] p-5">
               <div className="flex items-baseline justify-between gap-3">
                 <p className="font-semibold text-ink">{p.name}</p>
                 <p className="shrink-0 text-sm text-neutral-500">

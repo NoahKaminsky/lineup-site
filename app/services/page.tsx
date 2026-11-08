@@ -500,7 +500,7 @@ function AccordionSection({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-32 rounded-2xl border border-hairline bg-surface lg:scroll-mt-24">
+    <section id={id} className="scroll-mt-32 rounded-2xl bg-surface ring-1 ring-ink/[0.06] lg:scroll-mt-24">
       <div className="border-b border-hairline px-5 py-4 sm:px-6">
         {subtitle ? (
           <p className="text-[13px] font-medium text-neutral-500">{subtitle}</p>
@@ -1544,7 +1544,7 @@ export default function ServicesPage() {
           }
         >
           {!isSubscribed ? (
-            <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-center">
+            <div className="rounded-2xl bg-ink/[0.03]-50 p-6 text-center">
               <p className="text-sm font-semibold text-neutral-900">
                 The weekly availability schedule is a paid feature
               </p>
@@ -1639,7 +1639,7 @@ export default function ServicesPage() {
             </div>
           </AccordionSection>
         ) : (
-          <div id="booking" className="scroll-mt-32 overflow-hidden rounded-2xl border border-hairline bg-surface lg:scroll-mt-24">
+          <div id="booking" className="scroll-mt-32 overflow-hidden rounded-2xl bg-surface ring-1 ring-ink/[0.06] lg:scroll-mt-24">
             <div className="px-5 py-5 sm:px-6">
               <p className="text-[13px] font-medium text-neutral-500">
                 Direct booking
@@ -1952,7 +1952,7 @@ export default function ServicesPage() {
         {/* One save bar for location, booking settings and availability. */}
         {isSettingsDirty || saving || justSaved ? (
           <div className="lu-fade-in fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 sm:inset-x-auto sm:bottom-6 sm:left-1/2 sm:w-[min(36rem,calc(100%-3rem))] sm:-translate-x-1/2">
-            <div role="status" className="flex items-center justify-between gap-4 rounded-2xl border border-hairline bg-surface/95 px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.06),0_20px_44px_-16px_rgba(0,0,0,0.3)] backdrop-blur">
+            <div role="status" className="flex items-center justify-between gap-4 rounded-2xl bg-surface ring-1 ring-ink/[0.06]/95 px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.06),0_20px_44px_-16px_rgba(0,0,0,0.3)] backdrop-blur">
               <p className="text-sm text-neutral-700">
                 {justSaved && !isSettingsDirty ? "All changes saved." : "You have unsaved changes."}
               </p>

@@ -7,9 +7,9 @@
 @theme inline {
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --color-ink: #0a0a0a;
-  --color-paper: #f7f7f5;
+  --color-paper: #f5f5f3;
   --color-surface: #ffffff;
-  --color-hairline: rgb(10 10 10 / 0.08);
+  --color-hairline: rgb(10 10 10 / 0.06);
   /* Radius scale: panel (page-level surfaces) > 2xl card > xl control. */
   --radius-panel: 1.25rem;
   --ease-premium: cubic-bezier(0.2, 0.8, 0.2, 1);

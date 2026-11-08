@@ -818,7 +818,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
                 onClick={() => setConfirmSkip(true)}
                 className="text-sm font-medium text-neutral-500 hover:text-neutral-800"
               >
-                I&apos;ll do this later →
+                I&apos;ll do this later
               </button>
             )}
           </div>

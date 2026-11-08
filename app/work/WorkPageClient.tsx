@@ -1371,7 +1371,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
         <div key={activeTab} role="tabpanel" className="lu-fade-in mt-6 min-h-[60vh]">
           {activeTab === "requests" ? (
             openRequestItems.length === 0 && offerItems.length === 0 ? (
-              <div className="rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+              <div className="rounded-panel bg-ink/[0.03] px-6 py-12 text-center">
                 <div className="mx-auto flex h-8 w-8 items-center justify-center">
                   <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                     <path d="M6 2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5"/>
@@ -1451,7 +1451,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
           {activeTab === "booked" ? (
             activeBookedItems.length === 0 ? (
-              <div className="rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+              <div className="rounded-panel bg-ink/[0.03] px-6 py-12 text-center">
                 <div className="mx-auto flex h-8 w-8 items-center justify-center">
                   <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                     <path d="M6 2v2M14 2v2M3 8h14M4 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -1482,7 +1482,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
           {activeTab === "completed" ? (
             completedItems.length === 0 && cancelledItems.length === 0 && cancelledRequestItems.length === 0 && resolvedOfferItems.length === 0 ? (
-              <div className="rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+              <div className="rounded-panel bg-ink/[0.03] px-6 py-12 text-center">
                 <div className="mx-auto flex h-8 w-8 items-center justify-center">
                   <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                     <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5"/>

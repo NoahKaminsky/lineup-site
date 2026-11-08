@@ -645,9 +645,11 @@ function NavbarComponent() {
 
     if (isProfessional) {
       return [
-        { href: "/requests", label: "Dashboard", shortLabel: "Home", icon: "dashboard" },
-        { href: "/work", label: "Work", shortLabel: "Work", icon: "work" },
-        { href: "/calendar", label: "Calendar", shortLabel: "Cal", icon: "calendar" },
+        // Four places, no overlap: Calendar holds every booking (upcoming and
+        // past), so there's no separate Work tab. Offers and history live in
+        // the account menu.
+        { href: "/requests", label: "Home", shortLabel: "Home", icon: "dashboard" },
+        { href: "/calendar", label: "Calendar", shortLabel: "Calendar", icon: "calendar" },
         // On a shop's team, the shop takes Browse's spot.
         onStudio
           ? { href: "/studio", label: "Shop", shortLabel: "Shop", icon: "shop" }
@@ -670,20 +672,8 @@ function NavbarComponent() {
       items.splice(4, 0, { href: "/studio/memberships", label: "Memberships", shortLabel: "Members", icon: "account" });
       return items;
     }
-    if (!isProfessional) return navItems;
-    if (onStudio) {
-      return [
-        ...navItems.slice(0, 3),
-        { href: "/studio", label: "Shop", shortLabel: "Shop", icon: "shop" },
-        { href: "/discover", label: "Browse", shortLabel: "Browse", icon: "browse" },
-        ...navItems.slice(4),
-        { href: "/analytics", label: "Analytics", shortLabel: "Stats", icon: "browse" },
-      ];
-    }
-    return [
-      ...navItems,
-      { href: "/analytics", label: "Analytics", shortLabel: "Stats", icon: "browse" },
-    ];
+    // Pros get the same four places on desktop as on the phone.
+    return navItems;
   }, [navItems, isProfessional, isShop, onStudio]);
 
   // A section stays highlighted on its sub-pages too (a request detail page is
@@ -692,7 +682,8 @@ function NavbarComponent() {
     // A shop account's "Today" is /studio itself; its sections are siblings.
     if (isShop && path === "/studio") return pathname === "/studio";
     if (pathname === path || pathname.startsWith(`${path}/`)) return true;
-    return path === "/work" && pathname.startsWith("/bookings/");
+    // A booking's page belongs to Calendar for pros, Bookings for clients.
+    return path === (isProfessional ? "/calendar" : "/work") && pathname.startsWith("/bookings/");
   }
 
   const userInitials =
@@ -721,7 +712,7 @@ function NavbarComponent() {
       ].filter((link) => link.show)
     : [
     { href: "/account", label: "Profile", show: true },
-    { href: "/work", label: isProfessional ? "Work" : "Bookings", show: true },
+    { href: "/work", label: isProfessional ? "Offers and history" : "Bookings", show: true },
     { href: "/archive", label: "Archived services", show: true },
     { href: "/services", label: "Services & availability", show: isProfessional },
     { href: "/studio", label: onStudio ? "Your shop" : "Open a shop", show: isProfessional },
@@ -789,7 +780,7 @@ function NavbarComponent() {
                 </button>
 
                 {notifPanelOpen ? (
-                  <div className="lu-pop-in fixed inset-x-3 top-[4.25rem] z-50 overflow-hidden rounded-xl border border-hairline bg-surface shadow-[0_2px_6px_rgba(0,0,0,0.04),0_16px_40px_-12px_rgba(0,0,0,0.22)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:w-96">
+                  <div className="lu-pop-in fixed inset-x-3 top-[4.25rem] z-50 overflow-hidden rounded-xl bg-surface ring-1 ring-ink/[0.06] shadow-[0_2px_6px_rgba(0,0,0,0.04),0_16px_40px_-12px_rgba(0,0,0,0.22)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:w-96">
                     <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
                       <p className="text-sm font-semibold text-ink">Notifications</p>
                       {unreadNotifItems.length > 0 ? (
@@ -915,7 +906,7 @@ function NavbarComponent() {
                 </button>
 
                 {accountMenuOpen ? (
-                  <div className="lu-pop-in absolute right-0 top-[calc(100%+0.5rem)] z-50 w-64 overflow-hidden rounded-xl border border-hairline bg-surface shadow-[0_2px_6px_rgba(0,0,0,0.04),0_16px_40px_-12px_rgba(0,0,0,0.22)]">
+                  <div className="lu-pop-in absolute right-0 top-[calc(100%+0.5rem)] z-50 w-64 overflow-hidden rounded-xl bg-surface ring-1 ring-ink/[0.06] shadow-[0_2px_6px_rgba(0,0,0,0.04),0_16px_40px_-12px_rgba(0,0,0,0.22)]">
                     <div className="border-b border-hairline px-4 py-3.5">
                       <p className="truncate text-sm font-semibold text-ink">
                         {profile?.full_name || "Your account"}

@@ -436,7 +436,7 @@ export default function AnalyticsPage() {
             Performance insights
           </h1>
 
-          <div className="mt-10 rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+          <div className="mt-10 rounded-panel bg-ink/[0.03] px-6 py-12 text-center">
             <div className="mx-auto flex h-8 w-8 items-center justify-center">
               <svg viewBox="0 0 24 24" className="h-6 w-6 text-neutral-400" fill="none">
                 <path d="M4 20V14M8 20V10M12 20V6M16 20V12M20 20V8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />

@@ -397,7 +397,7 @@ export default function SubscriptionPage() {
         </div>
 
         {coveredByStudio ? (
-          <div className="mb-10 rounded-panel border border-hairline bg-surface p-6 sm:p-8">
+          <div className="mb-10 rounded-panel bg-surface ring-1 ring-ink/[0.06] p-6 sm:p-8">
             <p className="text-[13px] font-medium text-neutral-500">Covered by your studio</p>
             <p className="mt-3 text-lg font-semibold tracking-[-0.02em] text-ink">
               Your studio pays for your plan. You don&apos;t need one of your own.
@@ -413,7 +413,7 @@ export default function SubscriptionPage() {
             </Link>
           </div>
         ) : onStudio ? (
-          <div className="mb-10 rounded-panel border border-hairline bg-surface p-6 sm:p-8">
+          <div className="mb-10 rounded-panel bg-surface ring-1 ring-ink/[0.06] p-6 sm:p-8">
             <p className="text-lg font-semibold tracking-[-0.02em] text-ink">Your shop&apos;s plan can cover you</p>
             <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-600">
               Once your shop is on a studio plan with 2 or more pros taking clients, you get Pro features from it and don&apos;t
@@ -598,7 +598,7 @@ export default function SubscriptionPage() {
                     {/* CTA */}
                     <div className="mt-6">
                       {isCurrent && plan.isBasic ? (
-                        <p className="rounded-full border border-dashed border-neutral-300 px-5 py-3 text-center text-sm font-medium text-neutral-400">
+                        <p className="rounded-full bg-ink/[0.03] px-5 py-3 text-center text-sm font-medium text-neutral-400">
                           Your current plan
                         </p>
                       ) : isCurrent ? (
@@ -667,7 +667,7 @@ export default function SubscriptionPage() {
         ) : null}
 
         {/* Paid boost: a week at the top of Browse. */}
-        <div className="mt-10 flex flex-col gap-4 rounded-panel border border-hairline bg-surface p-6 sm:flex-row sm:items-center sm:p-8">
+        <div className="mt-10 flex flex-col gap-4 rounded-panel bg-surface ring-1 ring-ink/[0.06] p-6 sm:flex-row sm:items-center sm:p-8">
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-neutral-500">Boost</p>
             <p className="mt-2 text-lg font-semibold tracking-[-0.02em] text-ink">

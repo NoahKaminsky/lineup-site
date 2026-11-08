@@ -18,6 +18,7 @@ import {
 import type { CalendarInitialData } from "./getInitialData";
 
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { BOOKING_TIME_ZONE } from "@/app/lib/bookingTime";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -665,6 +666,8 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
 
   const selectedDateBookings = useMemo(() => bookingsByDate[selectedDate]?.slice() || [], [bookingsByDate, selectedDate]);
 
+
+
   const upcomingBookings = useMemo(() => {
     const now = new Date();
     return bookings
@@ -699,6 +702,17 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
 
   const selectedDateLabel = useMemo(() => formatDateLabel(selectedDate), [selectedDate]);
   const todayKey = getTodayKey();
+
+  // Today only: the appointment in progress, or else the next one still to come.
+  const nowOrNextId = useMemo(() => {
+    if (selectedDate !== todayKey) return null;
+    // Booking times are shop-local (Winnipeg), so compare against that clock.
+    const hhmm = new Date().toLocaleTimeString("en-GB", { timeZone: BOOKING_TIME_ZONE, hour: "2-digit", minute: "2-digit", hour12: false });
+    const live = selectedDateBookings.find(
+      (b) => b.status !== "completed" && String(b.end_time).slice(0, 5) > hhmm
+    );
+    return live?.id ?? null;
+  }, [selectedDate, todayKey, selectedDateBookings]);
 
   useEffect(() => {
     mobileDayRefs.current[selectedDate]?.scrollIntoView({
@@ -886,25 +900,32 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   // Day agenda as a timeline: time on the left, the booking on the rail.
   const dayAgenda =
     selectedDateBookings.length === 0 ? (
-      <p className="mt-4 rounded-xl border border-dashed border-neutral-300 px-4 py-6 text-center text-sm text-neutral-500">
+      <p className="mt-4 rounded-xl bg-ink/[0.03] px-4 py-6 text-center text-sm text-neutral-500">
         {timeOffDates.has(selectedDate)
           ? "Time off. Clients can't book this day."
           : `Nothing booked${selectedDate === todayKey ? " today" : " this day"}.`}
       </p>
     ) : (
       <ol className="lu-lineup mt-4 space-y-3">
-        {selectedDateBookings.map((booking) => (
+        {selectedDateBookings.map((booking) => {
+          // Today, the appointment happening now or next gets the one red mark.
+          const isNow = booking.id === nowOrNextId;
+          return (
           <li key={booking.id} className="grid grid-cols-[52px_1fr] gap-3">
             <div className="pt-3 text-right tabular-nums">
               <p className="text-[13px] font-semibold text-ink">{formatTime(booking.start_time)}</p>
               <p className="text-[11px] text-neutral-400">{formatTime(booking.end_time)}</p>
             </div>
             <div className="relative min-w-0 border-l border-hairline pl-3">
-              <span aria-hidden="true" className="absolute -left-[4.5px] top-4 h-2 w-2 rounded-full bg-ink" />
+              <span
+                aria-hidden="true"
+                className={`absolute -left-[4.5px] top-4 h-2 w-2 rounded-full ${isNow ? "bg-[#C8102E] ring-4 ring-[#C8102E]/15" : "bg-ink/25"}`}
+              />
               <BookingCard booking={booking} compact userLat={userLocation?.lat} userLng={userLocation?.lng} showWhere={onTeam} showDate={false} showTime={false} />
             </div>
           </li>
-        ))}
+          );
+        })}
       </ol>
     );
 
@@ -961,7 +982,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
         ) : null}
 
         {bookingUsage && bookingUsage.cap !== null ? (
-          <div className="mt-6 rounded-2xl border border-hairline bg-surface px-5 py-4">
+          <div className="mt-6 rounded-2xl bg-surface ring-1 ring-ink/[0.06] px-5 py-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-medium tabular-nums text-ink">
                 {bookingUsage.count} of {bookingUsage.cap} requests used this month

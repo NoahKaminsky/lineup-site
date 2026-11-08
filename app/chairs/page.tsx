@@ -169,13 +169,13 @@ export default function ChairsPage() {
         ) : null}
 
         {openings.length === 0 && !error ? (
-          <div className="mt-8 rounded-panel border border-hairline bg-surface p-6 text-sm leading-6 text-neutral-600">
+          <div className="mt-8 rounded-panel bg-surface ring-1 ring-ink/[0.06] p-6 text-sm leading-6 text-neutral-600">
             No chairs open in your trade right now. When a shop near you posts one, you&apos;ll get a notification.
           </div>
         ) : (
           <ul className="lu-lineup mt-8 space-y-4">
             {openings.map((o) => (
-              <li key={o.id} className="rounded-panel border border-hairline bg-surface p-5 sm:p-6">
+              <li key={o.id} className="rounded-panel bg-surface ring-1 ring-ink/[0.06] p-5 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     {o.featured ? (
@@ -296,7 +296,7 @@ export default function ChairsPage() {
                           Resume{" "}
                           <span className="font-normal text-neutral-500">{o.resumeRequired ? "(required)" : "(optional)"}</span>
                         </span>
-                        <span className="mt-1.5 flex items-center gap-3 rounded-xl border border-dashed border-neutral-300 px-4 py-3">
+                        <span className="mt-1.5 flex items-center gap-3 rounded-xl bg-ink/[0.03] px-4 py-3">
                           <FileText className="h-4 w-4 shrink-0 text-neutral-500" aria-hidden="true" />
                           <span className="min-w-0 flex-1 truncate text-neutral-600">{resume ? resume.name : "PDF or Word, up to 5 MB"}</span>
                           <span className="shrink-0 font-medium text-ink underline underline-offset-4">{resume ? "Change" : "Choose file"}</span>

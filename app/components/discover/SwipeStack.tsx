@@ -64,7 +64,7 @@ export default function SwipeStack({ cards }: { cards: SwipeCardData[] }) {
 
   if (index >= cards.length) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-panel border border-dashed border-neutral-300 bg-neutral-50 px-6 py-16 text-center">
+      <div className="flex flex-col items-center justify-center rounded-panel bg-ink/[0.03]-50 px-6 py-16 text-center">
         <p className="text-lg font-semibold text-neutral-900">You&apos;ve seen everyone</p>
         <p className="mt-1 text-sm text-neutral-500">Check back later, or start over to browse again.</p>
         <button
