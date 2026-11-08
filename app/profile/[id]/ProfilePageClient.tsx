@@ -1205,11 +1205,17 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
+  // A plain "2026-11-09" is a calendar day, not an instant: read it at noon
+  // UTC so it never slides to the day before west of Greenwich.
   function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString("en-CA", {
-      year: "numeric",
+    const plain = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
+    const d = plain ? new Date(`${dateString}T12:00:00Z`) : new Date(dateString);
+    return d.toLocaleDateString("en-US", {
+      weekday: plain ? "short" : undefined,
       month: "short",
       day: "numeric",
+      ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" as const } : {}),
+      ...(plain ? { timeZone: "UTC" } : {}),
     });
   }
 
