@@ -487,7 +487,6 @@ function LocationAutocomplete({
 // page can be scanned top to bottom and jumped around from the section nav.
 function AccordionSection({
   title,
-  subtitle,
   summary,
   id,
   children,
@@ -502,10 +501,8 @@ function AccordionSection({
   return (
     <section id={id} className="scroll-mt-32 rounded-2xl bg-surface ring-1 ring-ink/[0.06] lg:scroll-mt-24">
       <div className="border-b border-hairline px-5 py-4 sm:px-6">
-        {subtitle ? (
-          <p className="text-[13px] font-medium text-neutral-500">{subtitle}</p>
-        ) : null}
-        <h2 className="mt-1.5 text-lg font-semibold tracking-[-0.02em] text-ink">{title}</h2>
+        {/* `subtitle` is kept for callers but not shown: it repeated the title. */}
+        <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">{title}</h2>
         {summary ? <p className="mt-0.5 text-sm leading-6 text-neutral-500">{summary}</p> : null}
       </div>
       <div className="p-5 sm:p-6">{children}</div>
@@ -558,6 +555,8 @@ export default function ServicesPage() {
   const [newServicePrice, setNewServicePrice] = useState("");
   const [newServiceDescription, setNewServiceDescription] = useState("");
   const [serviceDrafts, setServiceDrafts] = useState<Record<string, ServiceDraft>>({});
+  // One service's details open at a time; the rest stay a clean list.
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
   const normalizedType = normalizeProfessionalType(profile?.professional_type);
   const presetServices = suggestedServiceTemplatesByType[normalizedType] || [];
@@ -1296,15 +1295,15 @@ export default function ServicesPage() {
                 return (
                   <div
                     key={service.id}
-                    className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                    className="rounded-2xl bg-surface p-4 ring-1 ring-ink/[0.06] sm:p-5"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
                         <p className="text-base font-semibold text-neutral-900">
                           {service.service_name}
                         </p>
-                        <p className="mt-1 text-sm text-neutral-500">
-                          {service.duration_minutes} minutes · {formatPrice(service.price)}
+                        <p className="mt-1 text-sm tabular-nums text-neutral-500">
+                          {formatPrice(service.price)}, {service.duration_minutes} min
                         </p>
                         {service.description ? (
                           <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-600">
@@ -1314,6 +1313,14 @@ export default function ServicesPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          aria-expanded={editingServiceId === service.id}
+                          onClick={() => setEditingServiceId(editingServiceId === service.id ? null : service.id)}
+                          className="rounded-full px-4 py-2 text-xs font-medium text-ink ring-1 ring-inset ring-ink/15 transition hover:ring-ink/30"
+                        >
+                          {editingServiceId === service.id ? "Done" : "Edit"}
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleToggleBookable(service.id, !service.is_bookable)}
@@ -1329,19 +1336,16 @@ export default function ServicesPage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteService(service.id)}
-                          className="rounded-full border border-red-200 bg-white px-4 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                          className="rounded-full px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
                         >
                           Delete
                         </button>
                       </div>
                     </div>
 
-                    <div className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4">
-                      <p className="text-[13px] font-medium text-neutral-500">
-                        Edit details
-                      </p>
-
-                      <div className="mt-4 grid gap-4 md:grid-cols-[1.25fr_0.65fr_0.65fr_auto]">
+                    {editingServiceId === service.id ? (
+                    <div className="mt-4 border-t border-hairline pt-4">
+                      <div className="grid gap-4 md:grid-cols-[1.25fr_0.65fr_0.65fr_auto]">
                         <div>
                           <label className="mb-2 block text-sm font-medium text-neutral-700">
                             Service name
@@ -1420,6 +1424,7 @@ export default function ServicesPage() {
                         />
                       </div>
                     </div>
+                    ) : null}
                   </div>
                 );
               })}
@@ -1428,10 +1433,32 @@ export default function ServicesPage() {
         </AccordionSection>
         <AccordionSection
           id="add-service"
-          title="Add a custom service"
-          subtitle="Add service"
-          summary="Create a new bookable service with duration and price"
+          title="Add a service"
+          summary={presetServices.length > 0 ? "Tap a common one, or make your own below." : "Name it, set how long it takes and what it costs."}
         >
+          {presetServices.length > 0 ? (
+            <div className="mb-6">
+            <div className="flex flex-wrap gap-3">
+                {presetServicesWithExistingState.map((template) => (
+                  <button
+                    key={template.name}
+                    type="button"
+                    disabled={serviceSaving || template.exists}
+                    onClick={() => handleAddPresetService(template)}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      template.exists
+                        ? "cursor-not-allowed border border-neutral-200 bg-white text-neutral-400"
+                        : "border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-100"
+                    }`}
+                  >
+                    {template.exists
+                      ? `${template.name} added`
+                      : `${template.name}, ${template.duration} min`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="grid gap-4 md:grid-cols-[1.2fr_0.55fr_0.55fr_auto]">
             <div>
               <label className="mb-2 block text-sm font-medium text-neutral-700">
@@ -1503,34 +1530,6 @@ export default function ServicesPage() {
             />
           </div>
         </AccordionSection>
-        {presetServices.length > 0 ? (
-          <AccordionSection
-            id="quick-add"
-            title="Common services"
-            subtitle="Quick add"
-            summary="Add popular services for your category"
-          >
-            <div className="flex flex-wrap gap-3">
-              {presetServicesWithExistingState.map((template) => (
-                <button
-                  key={template.name}
-                  type="button"
-                  disabled={serviceSaving || template.exists}
-                  onClick={() => handleAddPresetService(template)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                    template.exists
-                      ? "cursor-not-allowed border border-neutral-200 bg-white text-neutral-400"
-                      : "border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-100"
-                  }`}
-                >
-                  {template.exists
-                    ? `${template.name} added`
-                    : `${template.name} • ${template.duration} min`}
-                </button>
-              ))}
-            </div>
-          </AccordionSection>
-        ) : null}
         <AccordionSection
           id="availability"
           title="Weekly availability"
