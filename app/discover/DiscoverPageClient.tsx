@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { getProfileHref } from "@/app/lib/profileLink";
+import { shopNow } from "@/app/lib/bookingTime";
 import type { DiscoverCard as InitialDiscoverCard } from "./getInitialData";
 import { BadgeCheck, MapPin, Search, SlidersHorizontal, Star, X } from "lucide-react";
 
@@ -178,7 +179,8 @@ type ProCardProps = {
   badge: { label: string; tone: "ink" | "light" } | null;
   rating: string | null;
   reviewCount: number;
-  openThisWeek: boolean;
+  open: string | null;
+  openSoon: boolean;
   verified: boolean;
   size?: "feature" | "grid";
 };
@@ -194,17 +196,16 @@ function getShortLocation(profile: ProfileRow) {
 
 // The single card used everywhere on Browse: the work leads, then a tight,
 // three-line typographic summary. No box, no stacked pills.
-function ProCard({ href, name, role, place, services, image, badge, rating, reviewCount, openThisWeek, verified, size = "grid" }: ProCardProps) {
+function ProCard({ href, name, role, place, image, badge, rating, reviewCount, open, openSoon, verified }: ProCardProps) {
   const initial = name.charAt(0).toUpperCase() || "P";
   const ratingText = rating ? `rated ${rating} from ${reviewCount} review${reviewCount === 1 ? "" : "s"}` : "no reviews yet";
-  const feature = size === "feature";
   return (
     <Link
       href={href}
-      aria-label={`${name}, ${role}${place ? `, ${place}` : ""}, ${ratingText}`}
-      className="group block rounded-[22px] outline-offset-4"
+      aria-label={`${name}, ${role}${place ? `, ${place}` : ""}, ${ratingText}${open ? `, ${open.toLowerCase()}` : ""}`}
+      className="group block rounded-[24px] outline-offset-4"
     >
-      <div className={`relative overflow-hidden rounded-[22px] bg-neutral-200 ${feature ? "aspect-[4/5]" : "aspect-square sm:aspect-[4/5]"}`}>
+      <div className="relative aspect-[4/5] overflow-hidden rounded-[24px] bg-neutral-200">
         {image ? (
           <img
             loading="lazy"
@@ -213,68 +214,49 @@ function ProCard({ href, name, role, place, services, image, badge, rating, revi
             className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.04]"
           />
         ) : (
-          // No photo yet: a deliberate monogram tile, not an empty box.
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-neutral-800 to-ink">
-            <span className="text-5xl font-semibold tracking-[-0.06em] text-white/90">{initial}</span>
+          <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-ink">
+            <div aria-hidden="true" className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[#C8102E]/30 blur-2xl" />
+            <span className="relative text-6xl font-semibold tracking-[-0.06em] text-white">{initial}</span>
           </div>
         )}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[24px] ring-1 ring-inset ring-black/[0.06]" />
 
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[22px] ring-1 ring-inset ring-black/[0.06]" />
-
-        {badge ? (
-          <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-ink backdrop-blur">
+        {badge && (badge.label === "LineUp Pick" || badge.label === "Promoted") ? (
+          <span className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-ink backdrop-blur">
             {badge.label}
           </span>
         ) : null}
 
-        {feature ? (
-          // Feature cards carry their name on the photo, like a cover.
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent p-4 pt-16 text-white">
-            <p className="flex items-center gap-1 text-lg font-semibold tracking-[-0.02em]">
-              <span className="truncate">{name}</span>
-              {verified ? <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0 fill-white text-ink" strokeWidth={2} /> : null}
-            </p>
-            <p className="mt-0.5 flex items-center gap-1.5 truncate text-[13px] text-white/75">
-              {rating ? (
-                <span className="inline-flex items-center gap-1 text-white">
-                  <Star className="h-3 w-3 fill-current" strokeWidth={0} aria-hidden="true" />
-                  {rating}
-                </span>
-              ) : null}
-              {rating ? <span aria-hidden="true">·</span> : null}
-              <span className="truncate">{role}{place ? `, ${place}` : ""}</span>
-            </p>
-          </div>
+        {open ? (
+          <span
+            className={`absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium backdrop-blur ${
+              openSoon ? "bg-ink/85 text-white" : "bg-white/90 text-ink"
+            }`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${openSoon ? "bg-[#ff4d63]" : "bg-neutral-400"}`} />
+            {open}
+          </span>
         ) : null}
       </div>
 
-      {!feature ? (
-        <div className="mt-3 px-0.5">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="flex min-w-0 items-center gap-1 text-[15px] font-semibold tracking-[-0.01em] text-ink">
-              <span className="truncate">{name}</span>
-              {verified ? <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0 fill-ink text-paper" strokeWidth={2} /> : null}
-            </p>
-            {rating ? (
-              <span className="flex shrink-0 items-center gap-1 text-[13px] tabular-nums text-ink" aria-hidden="true">
-                <Star className="h-3 w-3 fill-current" strokeWidth={0} />
-                {rating}
-              </span>
-            ) : (
-              <span className="shrink-0 text-xs text-neutral-400" aria-hidden="true">New</span>
-            )}
-          </div>
-          <p className="mt-0.5 truncate text-[13px] text-neutral-500">
-            {role}
-            {place ? `, ${place}` : ""}
+      <div className="mt-3 px-0.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="flex min-w-0 items-center gap-1 text-[15px] font-semibold tracking-[-0.015em] text-ink">
+            <span className="truncate">{name}</span>
+            {verified ? <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0 fill-ink text-paper" strokeWidth={2} /> : null}
           </p>
-          {openThisWeek ? (
-            <p className="mt-1 text-[13px] font-medium text-ink">Open this week</p>
-          ) : services ? (
-            <p className="mt-1 truncate text-[13px] text-neutral-400">{services}</p>
+          {rating ? (
+            <span className="flex shrink-0 items-center gap-1 text-[13px] font-medium tabular-nums text-ink" aria-hidden="true">
+              <Star className="h-3 w-3 fill-current" strokeWidth={0} />
+              {rating}
+            </span>
           ) : null}
         </div>
-      ) : null}
+        <p className="mt-0.5 truncate text-[13px] text-neutral-500">
+          {role}
+          {place ? (place.endsWith("away") ? `, ${place}` : ` in ${place}`) : ""}
+        </p>
+      </div>
     </Link>
   );
 }
@@ -330,6 +312,46 @@ function busyDateKey(offsetDays: number) {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+// Days from today (0 = today) until this pro has a free half hour, on the
+// shop's clock, looking two weeks out. Day-level on purpose: the exact time
+// depends on the service, which the profile page works out.
+function nextOpenDay(profile: ProfileRow, availability: AvailabilityRow[], bookings: BookingRow[]): number | null {
+  if (!profile.direct_booking_enabled || !profile.public_availability_enabled) return null;
+  const active = availability.filter((row) => row.is_active);
+  if (active.length === 0) return null;
+  const now = shopNow();
+  for (let offset = 0; offset < 14; offset += 1) {
+    const day = new Date(`${now.dateKey}T12:00:00Z`);
+    day.setUTCDate(day.getUTCDate() + offset);
+    const dateKey = day.toISOString().slice(0, 10);
+    const taken = bookings
+      .filter((b) => b.booking_date === dateKey && b.status !== "cancelled")
+      .map((b) => ({ start: timeToMinutes(b.start_time), end: timeToMinutes(b.end_time) }))
+      .sort((a, b) => a.start - b.start);
+    for (const window of active.filter((row) => Number(row.day_of_week) === day.getUTCDay())) {
+      const start = Math.max(timeToMinutes(window.start_time), offset === 0 ? now.minutes + 30 : 0);
+      const end = timeToMinutes(window.end_time);
+      let cursor = start;
+      for (const b of taken) {
+        if (b.end <= cursor) continue;
+        if (b.start - cursor >= 30) return offset;
+        cursor = Math.max(cursor, b.end);
+      }
+      if (end - cursor >= 30) return offset;
+    }
+  }
+  return null;
+}
+
+function openLabel(offset: number | null) {
+  if (offset === null) return null;
+  if (offset === 0) return "Open today";
+  if (offset === 1) return "Open tomorrow";
+  const day = new Date(`${shopNow().dateKey}T12:00:00Z`);
+  day.setUTCDate(day.getUTCDate() + offset);
+  return `Open ${day.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })}`;
 }
 
 function hasOpenThisWeek(profile: ProfileRow, availability: AvailabilityRow[], bookings: BookingRow[]) {
@@ -797,27 +819,6 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   const featuredScore = (card: DiscoverCard) =>
     (card.profile.is_featured ? 1000 : 0) + ((card.profile as ProfileRow).is_promoted ? 500 : 0);
 
-  // Spotlight: featured first, then Master tier, then Pro — sorted within each by score
-  const spotlightCards = useMemo(() => {
-    const isSubscribed = (card: DiscoverCard) =>
-      (card.profile.subscription_plan === "master" || card.profile.subscription_plan === "pro") &&
-      (card.profile.subscription_status === "active" || card.profile.subscription_status === "trialing");
-
-    return [...filteredCards]
-      .filter((card) => isSubscribed(card) || card.profile.is_featured || (card.profile as ProfileRow).is_promoted)
-      // A featured spot without a photo looks empty; those pros still show in the main list.
-      .filter((card) => Boolean(card.portfolioPreview?.image_url || card.profile.banner_url || card.profile.avatar_url))
-      .sort((a, b) => {
-        const score = (card: DiscoverCard) => {
-          const ratingScore = card.averageRatingNumber ? card.averageRatingNumber * 8 : 0;
-          const reviewScore = Math.min(card.reviewCount, 15);
-          const imageScore = card.portfolioPreview?.image_url || card.profile.banner_url ? 5 : 0;
-          const activeScore = card.isActive ? 10 : 0;
-          return featuredScore(card) + tierScore(card) + ratingScore + reviewScore + imageScore + activeScore;
-        };
-        return score(b) - score(a);
-      });
-  }, [filteredCards]);
 
 
 
@@ -903,11 +904,23 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
       badge: getPrimaryBadge(card.profile),
       rating: card.averageRating,
       reviewCount: card.reviewCount,
-      openThisWeek: hasOpenThisWeek(card.profile, card.availability, card.bookings),
+      open: openLabel(nextOpenDay(card.profile, card.availability, card.bookings)),
+      openSoon: (nextOpenDay(card.profile, card.availability, card.bookings) ?? 99) <= 1,
       verified: isVerifiedNow(card.profile),
     };
   }
 
+
+  // The hero strip: who has room today (or, failing that, this week).
+  const freeSoon = useMemo(() => {
+    const withDay = cardsWithPromotion
+      .map((card) => ({ card, offset: nextOpenDay(card.profile, card.availability, card.bookings) }))
+      .filter((entry): entry is { card: DiscoverCard; offset: number } => entry.offset !== null && entry.offset < 7)
+      .sort((a, b) => a.offset - b.offset);
+    const today = withDay.filter((entry) => entry.offset === 0);
+    const pick = (today.length > 0 ? today : withDay).slice(0, 12);
+    return { today, list: pick.map(({ card, offset }) => ({ card, label: (() => { const w = openLabel(offset)!.replace("Open ", ""); return w.charAt(0).toUpperCase() + w.slice(1); })() })) };
+  }, [cardsWithPromotion]);
 
   if (loading) {
     return (
@@ -937,54 +950,92 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   }
 
   const isSearching = search.trim() !== "";
-  const showFeatured =
-    spotlightCards.length > 0 && !isSearching && selectedCategory === "all" && !openThisWeekOnly && maxDistanceKm === null;
   const categoryLabel = categoryOptions.find((c) => c.value === selectedCategory)?.label;
 
   return (
     <>
     <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl py-6 sm:py-8">
-        {/* Hero: one line of intent, then search. Pros start right after. */}
-        <h1 className="text-[2rem] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-5xl">
-          Find your next
-          <br className="sm:hidden" /> appointment.
-        </h1>
+        {/* Hero: who you could actually sit down with soon. The strip is the
+            page's one moment of motion; everything below stays still. */}
+        <section className="relative overflow-hidden rounded-[32px] bg-ink px-5 pb-5 pt-7 text-white shadow-[0_30px_80px_-40px_rgba(0,0,0,0.6)] sm:px-8 sm:pb-7 sm:pt-10">
+          <div aria-hidden="true" className="lu-glow pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-[#C8102E]/30 blur-3xl" />
+          <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -left-20 h-72 w-72 rounded-full bg-white/[0.05] blur-3xl" />
 
-        <div className="relative mt-6">
-          <label htmlFor="browse-search" className="sr-only">
-            Search professionals by name, service, or area
-          </label>
-          <Search aria-hidden="true" className="pointer-events-none absolute left-5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-neutral-400" strokeWidth={2} />
-          <input
-            id="browse-search"
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape" && search) {
-                e.preventDefault();
-                setSearch("");
-              }
-            }}
-            placeholder="Barber, lashes, a name…"
-            autoComplete="off"
-            className="h-14 w-full rounded-full bg-white pl-[3.25rem] pr-12 text-[15px] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.12)] outline-none ring-1 ring-inset ring-ink/[0.06] transition-shadow placeholder:text-neutral-400 focus:ring-ink [&::-webkit-search-cancel-button]:hidden"
-          />
-          {search ? (
-            <button
-              type="button"
-              onClick={() => setSearch("")}
-              aria-label="Clear search"
-              className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
-            >
-              <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
-            </button>
-          ) : null}
-        </div>
+          <div className="relative">
+            <h1 className="max-w-xl text-[2.25rem] font-semibold leading-[1.02] tracking-[-0.045em] sm:text-[3.5rem]">
+              {freeSoon.today.length > 0 ? "Who\u2019s free today?" : "Who\u2019s free this week?"}
+            </h1>
+
+            {freeSoon.list.length > 0 ? (
+              <div className="-mx-5 mt-6 flex snap-x gap-3 overflow-x-auto px-5 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:-mx-8 sm:px-8 [&::-webkit-scrollbar]:hidden">
+                {freeSoon.list.map(({ card, label }, index) => {
+                  const photo = card.profile.avatar_url || card.portfolioPreview?.image_url || null;
+                  const name = card.profile.full_name || "Professional";
+                  return (
+                    <Link
+                      key={card.profile.id}
+                      href={getProfileHref(card.profile)}
+                      style={{ "--lu-delay": `${120 + index * 70}ms` } as React.CSSProperties}
+                      className="lu-rise group flex w-[9.5rem] shrink-0 snap-start flex-col rounded-[22px] bg-white/[0.07] p-3 ring-1 ring-white/10 transition hover:bg-white/[0.12]"
+                    >
+                      <span className="relative h-12 w-12 overflow-hidden rounded-full bg-white/10 ring-2 ring-white/15">
+                        {photo ? (
+                          <img src={photo} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-base font-semibold">{name.charAt(0)}</span>
+                        )}
+                      </span>
+                      <span className="mt-3 truncate text-sm font-semibold tracking-[-0.01em]">{name}</span>
+                      <span className="mt-0.5 truncate text-xs text-white/50">
+                        {getProfessionalTypes(card.profile).slice(0, 1).map(formatLabel)[0] || "Professional"}
+                      </span>
+                      <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium">
+                        <span className="lu-pulse-dot h-1.5 w-1.5 rounded-full bg-[#ff4d63]" />
+                        {label}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            <div className="relative mt-6">
+              <label htmlFor="browse-search" className="sr-only">
+                Search professionals by name, service, or area
+              </label>
+              <Search aria-hidden="true" className="pointer-events-none absolute left-5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-neutral-400" strokeWidth={2} />
+              <input
+                id="browse-search"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" && search) {
+                    e.preventDefault();
+                    setSearch("");
+                  }
+                }}
+                placeholder="Search a name, a service, an area"
+                autoComplete="off"
+                className="h-14 w-full rounded-full bg-white pl-[3.25rem] pr-12 text-[15px] text-ink outline-none transition-shadow placeholder:text-neutral-400 focus:ring-4 focus:ring-white/20 [&::-webkit-search-cancel-button]:hidden"
+              />
+              {search ? (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
+                >
+                  <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </section>
 
         {/* One row: filters, then categories. Everything else lives behind Filters. */}
-        <div className="-mx-4 mt-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+        <div className="-mx-4 mt-5 flex items-center gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
           <button
             type="button"
             aria-expanded={filtersOpen}
@@ -1136,25 +1187,9 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           </div>
         ) : (
           <>
-            {showFeatured ? (
-              <section aria-labelledby="featured-heading" className="mt-10">
-                <h2 id="featured-heading" className="text-xl font-semibold tracking-[-0.03em] text-ink">
-                  Featured
-                </h2>
-                <div className="-mx-4 mt-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-5 sm:overflow-visible sm:px-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
-                  {spotlightCards.slice(0, 8).map((card, index) => (
-                    <div
-                      key={`featured-${card.profile.id}`}
-                      className={`w-[78vw] max-w-[19rem] shrink-0 snap-start sm:w-auto sm:max-w-none ${index >= 3 ? "sm:hidden lg:block" : ""} ${index >= 4 ? "lg:hidden" : ""}`}
-                    >
-                      <ProCard {...getCardProps(card)} size="feature" />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : null}
 
-            <section aria-labelledby="all-heading" className={showFeatured ? "mt-12" : "mt-8"}>
+
+            <section aria-labelledby="all-heading" className="mt-8">
               <div className="flex items-baseline justify-between gap-3">
                 <h2 id="all-heading" className="text-xl font-semibold tracking-[-0.03em] text-ink" aria-live="polite">
                   {isSearching || hasActiveFilters

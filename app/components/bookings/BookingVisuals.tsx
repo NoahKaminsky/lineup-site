@@ -5,7 +5,7 @@
 // Times are always read on the shop's clock (see app/lib/bookingTime.ts).
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ChevronRight, MapPin, MessageCircle, Navigation } from "lucide-react";
 import { appointmentInstant, shopNow } from "@/app/lib/bookingTime";
 
@@ -130,6 +130,14 @@ export function NextUpCard({
 }) {
   const address = shortAddress(item.location);
   const price = money(item.price);
+  // Ticks every 30s so "In 12 min" stays true while the page is open.
+  const [until, setUntil] = useState(() => countdown(item.date, item.startTime));
+  useEffect(() => {
+    const tick = () => setUntil(countdown(item.date, item.startTime));
+    tick();
+    const id = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(id);
+  }, [item.date, item.startTime]);
   const mapsHref = item.location
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}`
     : null;
@@ -137,20 +145,20 @@ export function NextUpCard({
   return (
     <div className="lu-rise relative overflow-hidden rounded-[28px] bg-ink text-white shadow-[0_24px_60px_-28px_rgba(0,0,0,0.55)]">
       {/* Soft glow so the card has depth instead of reading as a flat black box. */}
-      <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#C8102E]/25 blur-3xl" />
+      <div aria-hidden="true" className="lu-glow pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#C8102E]/25 blur-3xl" />
       <div aria-hidden="true" className="pointer-events-none absolute -bottom-32 -left-16 h-64 w-64 rounded-full bg-white/[0.06] blur-3xl" />
 
       <Link href={item.href} className="relative block p-6 sm:p-7">
         <div className="flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white/90 ring-1 ring-white/10">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#ff4d63]" />
-            Next up · {countdown(item.date, item.startTime)}
+          <span className="lu-sheen inline-flex items-center gap-2 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white/90 ring-1 ring-white/10">
+            <span className="lu-pulse-dot h-1.5 w-1.5 rounded-full bg-[#ff4d63]" />
+            Next up <span className="text-white/50">{until}</span>
           </span>
           {price ? <span className="text-sm font-medium tabular-nums text-white/70">{price}</span> : null}
         </div>
 
         <p className="mt-6 text-sm font-medium text-white/60">{dayWord(item.date)}</p>
-        <p className="mt-1 text-[2.75rem] font-semibold leading-none tracking-[-0.05em] tabular-nums sm:text-[3.25rem]">
+        <p className="lu-time-in mt-1 text-[2.75rem] font-semibold leading-none tracking-[-0.05em] tabular-nums sm:text-[3.25rem]">
           {time12(item.startTime)}
         </p>
 

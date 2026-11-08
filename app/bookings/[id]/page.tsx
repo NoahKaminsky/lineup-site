@@ -833,7 +833,7 @@ export default function BookingDetailPage() {
         <section className="lu-dialog-in mt-4 rounded-[28px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-36px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.07] sm:p-8">
           {isLive && countdown(booking.booking_date, booking.start_time) !== "Now" ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 text-xs font-medium text-white">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#ff4d63]" />
+              <span className="lu-pulse-dot h-1.5 w-1.5 rounded-full bg-[#ff4d63]" />
               {countdown(booking.booking_date, booking.start_time)}
             </span>
           ) : null}
