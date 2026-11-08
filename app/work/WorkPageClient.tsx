@@ -1525,17 +1525,19 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                         updateBookedItemStatus={updateBookedItemStatus}
                       />
                     ) : null}
-                    {next && next.date ? <NextUpCard item={{ ...toAppointment(next), date: next.date }} /> : null}
-                    {later.length > 0 ? (
-                      <section>
-                        <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Coming up</h2>
-                        <div className="mt-3 space-y-2.5">
-                          {later.map((item) => (
-                            <BookingRow key={`${item.source}-${item.id}`} item={toAppointment(item)} />
-                          ))}
-                        </div>
-                      </section>
-                    ) : null}
+                    <div className="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start lg:gap-8">
+                      {next && next.date ? <NextUpCard item={{ ...toAppointment(next), date: next.date }} /> : null}
+                      {later.length > 0 ? (
+                        <section>
+                          <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink lg:sr-only">Coming up</h2>
+                          <div className="mt-3 space-y-2.5 lg:mt-0">
+                            {later.map((item) => (
+                              <BookingRow key={`${item.source}-${item.id}`} item={toAppointment(item)} />
+                            ))}
+                          </div>
+                        </section>
+                      ) : null}
+                    </div>
                   </div>
                 );
               })()
