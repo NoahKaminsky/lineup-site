@@ -14,6 +14,8 @@ import {
   ChevronRight,
   Search,
   Sun,
+  Check,
+  X,
   Moon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
@@ -2383,182 +2385,175 @@ if (loading) {
                       </div>
                     ) : (
                       <>
-                        <div className="mt-4 rounded-2xl border border-ink bg-surface p-5 text-ink">
-                          <p className="text-xs font-medium text-neutral-500">
-                            Selected time
-                          </p>
-                          <h3 className="mt-2 text-xl font-semibold">
-                            {selectedSlot.dayLabel} {selectedSlot.dateLabel}
-                          </h3>
-                          <p className="mt-2 text-sm text-neutral-600">
-                            {chosenRange && activeChosenService
-                              ? `${formatTime(selectedSlot.start_time)} – ${formatTime(minutesToTime(chosenRange.end))} · ${activeChosenService.service_name} (${activeChosenService.duration_minutes} min)`
-                              : `Starts ${formatTime(selectedSlot.start_time)}. Pick a service to see when it ends.`}
-                          </p>
+                        {/* The appointment as a ticket: when, what, where. */}
+                        <div className="relative overflow-hidden rounded-[24px] bg-ink text-white">
+                          <div aria-hidden="true" className="lu-glow pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#C8102E]/30 blur-3xl" />
+                          <div className="relative p-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="text-sm text-white/60">
+                                {selectedSlot.dayLabel} {selectedSlot.dateLabel}
+                              </p>
+                              <button
+                                type="button"
+                                aria-label="Clear this time"
+                                onClick={() => {
+                                  setSelectedSlot(null);
+                                  setSelectedServiceMode(null);
+                                  setLocationInput("");
+                                  setLocationPlaceId("");
+                                  setLocationLat(null);
+                                  setLocationLng(null);
+                                }}
+                                className="-mr-1 -mt-1 rounded-full p-1.5 text-white/50 transition hover:bg-white/10 hover:text-white"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <p key={`${selectedSlot.key}-${activeChosenService?.id ?? "none"}`} className="lu-time-in mt-1 text-[2.4rem] font-semibold leading-none tracking-[-0.05em] tabular-nums">
+                              {formatTime(selectedSlot.start_time)}
+                              {chosenRange && activeChosenService ? (
+                                <span className="text-[1.1rem] font-medium tracking-[-0.02em] text-white/50">
+                                  {" "}to {formatTime(minutesToTime(chosenRange.end))}
+                                </span>
+                              ) : null}
+                            </p>
+                            <p className="mt-3 text-[15px] font-medium">
+                              {activeChosenService ? (
+                                <>
+                                  {activeChosenService.service_name}
+                                  <span className="font-normal text-white/60"> with {(profile.full_name || "your pro").split(" ")[0]}</span>
+                                </>
+                              ) : (
+                                <span className="text-white/60">Pick a service below</span>
+                              )}
+                            </p>
+                          </div>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedSlot(null);
-                              setSelectedServiceMode(null);
-                              setLocationInput("");
-                              setLocationPlaceId("");
-                              setLocationLat(null);
-                              setLocationLng(null);
-                            }}
-                            className="mt-4 rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium text-ink transition hover:bg-neutral-50"
-                          >
-                            Clear
-                          </button>
+                          {/* Perforation, like a tear-off stub. */}
+                          <div aria-hidden="true" className="relative h-4">
+                            <span className="absolute -left-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white" />
+                            <span className="absolute -right-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white" />
+                            <span className="absolute inset-x-4 top-1/2 border-t border-dashed border-white/20" />
+                          </div>
+
+                          <div className="relative flex items-center justify-between gap-3 px-5 pb-5 pt-2 text-[13px] text-white/70">
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                              <span className="truncate">
+                                {selectedServiceMode && professionalBookingAddress
+                                  ? formatDisplayAddress(professionalBookingAddress)
+                                  : selectedServiceMode
+                                    ? formatModeLabel(selectedServiceMode)
+                                    : "Pick where"}
+                              </span>
+                            </span>
+                            {activeChosenService && formatPrice(activeChosenService.price) ? (
+                              <span className="shrink-0 text-base font-semibold tabular-nums text-white">
+                                {formatPrice(activeChosenService.price)}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
 
                         {servicesThatFitSelectedSlot.length === 0 ? (
-                          <div className="mt-4 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
-                            No services fit inside this time block.
-                          </div>
+                          <p className="mt-4 rounded-2xl bg-neutral-50 p-4 text-sm text-neutral-600">
+                            No service fits in this gap. Try an earlier time or another day.
+                          </p>
                         ) : (
-                          <div className="mt-4 space-y-4">
-                            <div>
-                              <p className="text-sm font-medium text-neutral-900">
-                                Where it happens
+                          <div className="mt-5 space-y-5">
+                            {directBookingModes.length === 0 ? (
+                              <p className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+                                This pro hasn&apos;t turned on bookings at their shop or studio yet. Send them a request instead.
                               </p>
-                              <p className="mt-1 text-xs leading-5 text-neutral-500">
-                                Direct bookings are for appointments at the professional’s shop or studio. For a mobile appointment at your place, post a request instead.
-                              </p>
-
-                              {directBookingModes.length > 0 ? (
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                  {directBookingModes.map((mode) => (
-                                    <button
-                                      key={mode}
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedServiceMode(mode);
-                                        setLocationInput("");
-                                        setLocationPlaceId("");
-                                        setLocationLat(null);
-                                        setLocationLng(null);
-                                        setMessage("");
-                                      }}
-                                      className={`rounded-full border px-4 py-2 text-sm transition ${
-                                        selectedServiceMode === mode
-                                          ? "border-ink bg-ink text-white"
-                                          : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
-                                      }`}
-                                    >
-                                      {formatModeLabel(mode)}
-                                    </button>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                                  This professional has not enabled in-shop or home-studio direct booking yet.
-                                </div>
-                              )}
-                            </div>
-
-                            {selectedServiceMode === "in_shop" || selectedServiceMode === "home_studio" ? (
-                              <div className="rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm leading-6 text-neutral-600">
-                                <p className="font-medium text-neutral-900">
-                                  {formatModeLabel(selectedServiceMode)}
-                                </p>
-                                <p className="mt-1">
-                                  This booking will use the professional’s saved business location.
-                                </p>
-
-                                {professionalBookingAddress ? (
-                                  <div className="mt-3 rounded-xl border border-neutral-200 bg-white p-3">
-                                    <p className="font-medium text-neutral-900">
-                                      <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{formatDisplayAddress(professionalBookingAddress)}
-                                    </p>
-                                    {profileDistanceLabel ? (
-                                      <p className="mt-1 text-xs font-medium text-neutral-500">
-                                        {profileDistanceLabel}
-                                      </p>
-                                    ) : null}
-
-                                    {professionalMapsUrl ? (
-                                      <a
-                                        href={professionalMapsUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="mt-3 inline-flex rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-800 transition hover:bg-neutral-50"
-                                      >
-                                        Open in Maps
-                                      </a>
-                                    ) : null}
-                                  </div>
-                                ) : (
-                                  <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
-                                    This professional still needs to add a shop/studio address in Services.
-                                  </p>
-                                )}
-                              </div>
-                            ) : directBookingModes.length > 0 ? (
-                              <div className="rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-500">
-                                Select where you want to book the appointment.
+                            ) : directBookingModes.length > 1 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {directBookingModes.map((mode) => (
+                                  <button
+                                    key={mode}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedServiceMode(mode);
+                                      setLocationInput("");
+                                      setLocationPlaceId("");
+                                      setLocationLat(null);
+                                      setLocationLng(null);
+                                      setMessage("");
+                                    }}
+                                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                                      selectedServiceMode === mode
+                                        ? "bg-ink text-white"
+                                        : "bg-neutral-100 text-neutral-800 hover:bg-neutral-200"
+                                    }`}
+                                  >
+                                    {formatModeLabel(mode)}
+                                  </button>
+                                ))}
                               </div>
                             ) : null}
 
-                            <div>
-                              <p className="text-sm font-medium text-neutral-900">
-                                Choose your service
+                            {(selectedServiceMode === "in_shop" || selectedServiceMode === "home_studio") && !professionalBookingAddress ? (
+                              <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">
+                                This pro still needs to add their address.
                               </p>
+                            ) : null}
 
-                              <div className="mt-2 space-y-3">
-                                {servicesThatFitSelectedSlot.map((service) => (
+                            <div role="radiogroup" aria-label="Service" className="space-y-2">
+                              {servicesThatFitSelectedSlot.map((service) => {
+                                const picked = service.id === activeChosenService?.id;
+                                return (
                                   <button
                                     key={service.id}
                                     type="button"
+                                    role="radio"
+                                    aria-checked={picked}
                                     onClick={() => {
-                                      // Pick it first: its length fills in on the times.
                                       setMessage("");
                                       setChosenService({ slotKey: selectedSlot.key, serviceId: service.id });
                                     }}
                                     disabled={bookingSlotKey === selectedSlot.key}
-                                    className={`w-full rounded-2xl bg-white p-4 text-left transition hover:border-ink hover:bg-neutral-50 disabled:opacity-60 ${
-                                      service.id === activeChosenService?.id ? "ring-2 ring-ink" : "ring-1 ring-ink/[0.06]"
+                                    className={`flex w-full items-center gap-3 rounded-2xl p-4 text-left transition disabled:opacity-60 ${
+                                      picked ? "bg-white ring-2 ring-ink" : "bg-neutral-50 ring-1 ring-inset ring-ink/[0.06] hover:bg-white hover:ring-ink/20"
                                     }`}
                                   >
-                                    <p className="font-semibold text-neutral-900">
-                                      {service.service_name}
-                                      {service.id === activeChosenService?.id ? (
-                                        <span className="ml-2 align-middle text-xs font-medium text-neutral-500">Your pick</span>
-                                      ) : null}
-                                    </p>
-                                    <p className="mt-1 text-sm text-neutral-500">
-                                      {service.duration_minutes} min
-                                      {formatPrice(service.price) ? ` · ${formatPrice(service.price)}` : ""}
-                                    </p>
-                                    {service.description ? (
-                                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-600">
-                                        {service.description}
-                                      </p>
+                                    <span
+                                      aria-hidden="true"
+                                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition ${
+                                        picked ? "bg-ink text-white" : "ring-1 ring-inset ring-ink/20"
+                                      }`}
+                                    >
+                                      {picked ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                      <span className="block truncate font-semibold text-ink">{service.service_name}</span>
+                                      <span className="mt-0.5 block text-[13px] text-neutral-500">{service.duration_minutes} min</span>
+                                    </span>
+                                    {formatPrice(service.price) ? (
+                                      <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">{formatPrice(service.price)}</span>
                                     ) : null}
                                   </button>
-                                ))}
-                              </div>
-
-                              {activeChosenService ? (
-                                <button
-                                  type="button"
-                                  disabled={bookingSlotKey === selectedSlot.key}
-                                  onClick={() => {
-                                    if (!selectedServiceMode) {
-                                      setMessage("Pick where it happens first.");
-                                      return;
-                                    }
-                                    handleStartBookingConfirmation(activeChosenService);
-                                  }}
-                                  className="mt-4 w-full rounded-full bg-ink px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60"
-                                >
-                                  Book {activeChosenService.service_name}
-                                  {formatPrice(activeChosenService.price) ? ` · ${formatPrice(activeChosenService.price)}` : ""}
-                                </button>
-                              ) : (
-                                <p className="mt-3 text-xs text-neutral-500">Pick a service to see how long it takes on the calendar.</p>
-                              )}
+                                );
+                              })}
                             </div>
+
+                            <button
+                              type="button"
+                              disabled={!activeChosenService || bookingSlotKey === selectedSlot.key}
+                              onClick={() => {
+                                if (!activeChosenService) return;
+                                if (!selectedServiceMode) {
+                                  setMessage("Pick where it happens first.");
+                                  return;
+                                }
+                                handleStartBookingConfirmation(activeChosenService);
+                              }}
+                              className="flex w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-4 text-[15px] font-semibold text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,0.6)] transition hover:bg-neutral-800 active:scale-[0.99] disabled:bg-neutral-300 disabled:shadow-none"
+                            >
+                              {bookingSlotKey === selectedSlot.key
+                                ? "Booking…"
+                                : activeChosenService
+                                  ? `Book for ${formatTime(selectedSlot.start_time)}`
+                                  : "Pick a service to book"}
+                            </button>
                           </div>
                         )}
                       </>
@@ -2874,69 +2869,31 @@ if (loading) {
       ) : null}
 
       {pendingBookingChoice ? (
-        <div className="lu-fade-in fixed inset-0 z-[70] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
-          <div className="lu-dialog-in w-full max-w-md rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-neutral-100 text-ink">
-              <CalendarDays aria-hidden="true" className="h-5 w-5" strokeWidth={1.8} />
-            </div>
-
-            <h2 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
-              Confirm booking
+        <div className="lu-fade-in fixed inset-0 z-[70] flex items-end justify-center bg-ink/50 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="lu-sheet-in w-full max-w-md rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-7">
+            <h2 className="text-[1.6rem] font-semibold leading-[1.1] tracking-[-0.035em] text-ink">
+              {pendingBookingChoice.service.service_name}
+              <span className="text-neutral-400"> with {(profile.full_name || "your pro").split(" ")[0]}</span>
             </h2>
-            <p className="mt-2 text-sm leading-6 text-neutral-600">
-              Make sure the service, time, and location are right before confirming.
+            <p className="mt-2 text-[15px] text-neutral-600">
+              {formatDate(pendingBookingChoice.slot.date)}, {formatTime(pendingBookingChoice.slot.start_time)} to{" "}
+              {formatTime(pendingBookingChoice.slot.end_time)}
             </p>
 
-            <div className="mt-4 space-y-3 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-700">
-              <div>
-                <p className="text-xs font-medium text-neutral-500">
-                  Service
-                </p>
-                <p className="mt-1 font-semibold text-neutral-900">
-                  {pendingBookingChoice.service.service_name}
-                </p>
+            <dl className="mt-5 divide-y divide-ink/[0.06] border-y border-ink/[0.06]">
+              <div className="flex items-baseline justify-between gap-6 py-3">
+                <dt className="text-[13px] text-neutral-500">Where</dt>
+                <dd className="min-w-0 text-right text-sm font-medium text-ink">
+                  {pendingBookingChoice.address ? formatDisplayAddress(pendingBookingChoice.address) : formatModeLabel(pendingBookingChoice.mode)}
+                </dd>
               </div>
-
               {formatPrice(pendingBookingChoice.service.price) ? (
-                <div>
-                  <p className="text-xs font-medium text-neutral-500">
-                    Price
-                  </p>
-                  <p className="mt-1 font-semibold text-neutral-900">
-                    {formatPrice(pendingBookingChoice.service.price)}
-                  </p>
+                <div className="flex items-baseline justify-between gap-6 py-3">
+                  <dt className="text-[13px] text-neutral-500">Total</dt>
+                  <dd className="text-lg font-semibold tabular-nums text-ink">{formatPrice(pendingBookingChoice.service.price)}</dd>
                 </div>
               ) : null}
-
-              <div>
-                <p className="text-xs font-medium text-neutral-500">
-                  Date & time
-                </p>
-                <p className="mt-1 font-semibold text-neutral-900">
-                  {formatDate(pendingBookingChoice.slot.date)} · {formatTime(pendingBookingChoice.slot.start_time)} - {formatTime(pendingBookingChoice.slot.end_time)}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-neutral-500">
-                  Where
-                </p>
-                <p className="mt-1 font-semibold text-neutral-900">
-                  {formatModeLabel(pendingBookingChoice.mode)}
-                </p>
-              </div>
-
-              {pendingBookingChoice.address ? (
-                <div>
-                  <p className="text-xs font-medium text-neutral-500">
-                    Location
-                  </p>
-                  <p className="mt-1 font-semibold text-neutral-900">
-                    <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{formatDisplayAddress(pendingBookingChoice.address)}
-                  </p>
-                </div>
-              ) : null}
-            </div>
+            </dl>
 
             {payAtShopTerms && pendingBookingChoice.mode === "in_shop" ? (
               <div className="mt-5 grid grid-cols-2 gap-2" role="radiogroup" aria-label="When to pay">
@@ -2966,7 +2923,7 @@ if (loading) {
             ) : null}
 
             {/* The cancellation policy, stated before anyone pays. */}
-            <p className="mt-5 rounded-2xl bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-600 ring-1 ring-ink/[0.05]">
+            <p className="mt-4 text-xs leading-5 text-neutral-500">
               {payAtShopTerms && payAtShopChoice && pendingBookingChoice.mode === "in_shop" ? (
                 <>
                   <span className="font-semibold text-neutral-900">No-show policy:</span> nothing is charged today. Cancel
@@ -2983,7 +2940,7 @@ if (loading) {
               )}
             </p>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -2997,17 +2954,21 @@ if (loading) {
                   );
                 }}
                 disabled={bookingSlotKey === pendingBookingChoice.slot.key}
-                className="inline-flex flex-1 items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-4 text-[15px] font-semibold text-white transition hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60"
               >
-                {bookingSlotKey === pendingBookingChoice.slot.key ? "Booking…" : "Confirm booking"}
+                {bookingSlotKey === pendingBookingChoice.slot.key
+                  ? "Booking…"
+                  : payAtShopTerms && payAtShopChoice && pendingBookingChoice.mode === "in_shop"
+                    ? "Hold my spot"
+                    : "Continue to payment"}
               </button>
               <button
                 type="button"
                 onClick={() => setPendingBookingChoice(null)}
                 disabled={bookingSlotKey === pendingBookingChoice.slot.key}
-                className="inline-flex flex-1 items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium text-neutral-500 transition hover:text-ink disabled:opacity-60"
               >
-                Cancel
+                Back
               </button>
             </div>
           </div>
@@ -3098,14 +3059,19 @@ if (loading) {
       {confirmedBooking ? (
         <BookedSheet
           subtitle={profile.full_name ? `With ${profile.full_name}.` : undefined}
-          body="Full details, location and directions are on the booking page."
+          ticket={{
+            day: new Date(`${confirmedBooking.booking_date}T12:00:00Z`).toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+              timeZone: "UTC",
+            }),
+            time: formatTime(confirmedBooking.start_time),
+            line: `${confirmedBooking.service_name || "Appointment"} with ${(profile.full_name || "your pro").split(" ")[0]}`,
+          }}
           note={`Free cancellation until ${formatCancellationDeadline(confirmedBooking.booking_date, confirmedBooking.start_time)}. Within 24 hours of the appointment it can't be cancelled.`}
           rows={[
-            { label: "Service", value: confirmedBooking.service_name || "Appointment" },
-            {
-              label: "When",
-              value: `${formatDate(confirmedBooking.booking_date)} · ${formatTime(confirmedBooking.start_time)} - ${formatTime(confirmedBooking.end_time)}`,
-            },
+            { label: "Ends", value: formatTime(confirmedBooking.end_time) },
             ...(confirmedBooking.formatted_address
               ? [
                   {
@@ -3145,9 +3111,9 @@ if (loading) {
           <button
             type="button"
             onClick={() => setConfirmedBooking(null)}
-            className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+            className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium text-neutral-500 transition hover:text-ink"
           >
-            Stay here
+            Done
           </button>
         </BookedSheet>
       ) : null}
