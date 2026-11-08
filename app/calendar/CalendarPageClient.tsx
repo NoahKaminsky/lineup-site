@@ -388,10 +388,12 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   }, []);
 
   // Phone layout: a swipeable day strip, or the whole month on one screen.
-  const [mobileView, setMobileView] = useState<"days" | "month">("days");
+  // Opens on the month (the calendar people expect), today selected with its
+  // bookings below; the day strip is a tap away and is remembered if chosen.
+  const [mobileView, setMobileView] = useState<"days" | "month">("month");
   useEffect(() => {
     try {
-      if (localStorage.getItem("lu-calendar-mobile-view") === "month") setMobileView("month");
+      if (localStorage.getItem("lu-calendar-mobile-view") === "days") setMobileView("days");
     } catch {}
   }, []);
   function chooseMobileView(view: "days" | "month") {
