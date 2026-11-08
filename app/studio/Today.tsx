@@ -129,9 +129,8 @@ export default function TodayView() {
             <h3 id="up-next" className="text-[15px] font-semibold text-ink">
               Up next
             </h3>
-            <Link href={me.canManage ? "/studio/calendar" : "/calendar"} className="inline-flex items-center gap-1 text-[13px] font-medium text-neutral-500 hover:text-ink">
+            <Link href={me.canManage ? "/studio/calendar" : "/calendar"} className="text-[13px] font-medium text-neutral-500 hover:text-ink">
               Calendar
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </Link>
           </div>
           {items === null ? (
@@ -211,34 +210,26 @@ export default function TodayView() {
         </section>
       </div>
 
-      {/* Requests */}
-      <section aria-labelledby="today-requests" className={`${panelClass} mt-6`}>
-        <div className="flex items-center justify-between px-5 pb-1 pt-4">
-          <div>
+      {/* Requests: only when some are waiting. The Requests tab is always one
+          tap away, so an empty box here would just repeat it. */}
+      {requests && waitingRequests.length > 0 ? (
+        <section aria-labelledby="today-requests" className={`${panelClass} mt-6`}>
+          <div className="flex items-baseline justify-between gap-4 px-5 pb-1 pt-4">
             <h3 id="today-requests" className="text-[15px] font-semibold text-ink">
-              Requests near you
+              Requests near you{" "}
+              <span className="font-normal tabular-nums text-neutral-400">{waitingRequests.length}</span>
             </h3>
-            <p className="mt-0.5 text-[13px] text-neutral-500">Clients asking for what your team does. Send an offer to win them.</p>
+            <Link href="/studio/requests" className="shrink-0 text-[13px] font-medium text-neutral-500 hover:text-ink">
+              See all
+            </Link>
           </div>
-          <Link href="/studio/requests" className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-neutral-500 hover:text-ink">
-            {waitingRequests.length > 3 ? `All ${waitingRequests.length}` : "All requests"}
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-          </Link>
-        </div>
-        {requests === null ? (
-          <p className="px-5 pb-5 pt-3 text-sm text-neutral-500">Loading…</p>
-        ) : waitingRequests.length === 0 ? (
-          <p className="px-5 pb-5 pt-3 text-sm text-neutral-500">
-            None waiting right now. Your pros get a notification the moment one comes in.
-          </p>
-        ) : (
           <div className="divide-y divide-hairline">
             {waitingRequests.slice(0, 3).map((r) => (
               <RequestRow key={r.id} request={r} onChanged={refreshRequests} compact />
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      ) : null}
 
       <AppointmentSheet
         item={open}

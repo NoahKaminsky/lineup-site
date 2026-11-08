@@ -45,6 +45,8 @@ type BookingRow = {
   payment_status?: string | null;
   cancelled_by: string | null;
   cancelled_at: string | null;
+  // Set when the pro marked a no-show (fee charged or declined).
+  no_show_status?: string | null;
   completion_requested_at: string | null;
   completed_at: string | null;
   formatted_address: string | null;
@@ -355,7 +357,7 @@ export default function BookingDetailPage() {
       const { data: bookingData, error: bookingError } = await supabase
         .from("bookings")
         .select(
-          "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, service_price, payment_status, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
+          "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, service_price, payment_status, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, no_show_status"
         )
         .eq("id", bookingId)
         .single();
@@ -791,8 +793,9 @@ export default function BookingDetailPage() {
     if (mode === "at_home") return isViewerProfessional ? "At the client's place" : "At your place";
     return formatServiceMode(mode);
   })();
-  const statusLine =
-    booking.status === "confirmed"
+  const statusLine = booking.no_show_status
+    ? "No-show"
+    : booking.status === "confirmed"
       ? "Booked"
       : booking.status === "completion_requested"
       ? "Waiting for confirmation"
