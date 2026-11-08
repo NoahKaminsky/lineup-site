@@ -2,6 +2,7 @@
 
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
+import BrowseCardNudge from "@/app/components/BrowseCardNudge";
 import { BOOKING_TIME_ZONE, shopNow } from "@/app/lib/bookingTime";
 import { BookingRow, NextUpCard } from "@/app/components/bookings/BookingVisuals";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1851,6 +1852,7 @@ return (
                 finalCtaHref="/subscription"
               />
               <VerificationBanner />
+              <BrowseCardNudge userId={userId} />
               <OnboardingChecklist userId={userId} />
             </>
           ) : null}

@@ -40,12 +40,12 @@ const ESSENTIALS: Step[] = [
   { key: "bio", label: "Write a short bio", why: "A few lines on your experience and style.", href: "/account#bio", cta: "Write bio" },
   { key: "where", label: "Set where you work", why: "Your area, and whether you travel, host or work from a shop.", href: "/services#modes", cta: "Set location" },
   { key: "service", label: "Add your services", why: "What you offer, with prices and how long each takes.", href: "/services#add-service", cta: "Add service" },
-  { key: "portfolio", label: "Post 3 photos of your work", why: "Your work sells you better than anything you write.", href: "/account#portfolio", cta: "Add photos" },
+  { key: "portfolio", label: "Post 3 photos of your work", why: "Your first photo is your card in Browse. Pros with real photos get picked first.", href: "/account#portfolio", cta: "Add photos" },
+  { key: "cover", label: "Add a cover photo", why: "The big photo across the top of your profile. Your shop, your chair, your work.", href: "/account#cover", cta: "Add cover" },
   { key: "payouts", label: "Connect payouts", why: "Set up Stripe so you get paid for completed jobs.", href: "/account#payouts", cta: "Connect" },
 ];
 
 const STAND_OUT: Step[] = [
-  { key: "cover", label: "Add a cover photo", why: "The banner across the top of your profile.", href: "/account#cover", cta: "Add cover" },
   { key: "instagram", label: "Link your Instagram", why: "Let clients see more of your work.", href: "/account#instagram", cta: "Link" },
 ];
 

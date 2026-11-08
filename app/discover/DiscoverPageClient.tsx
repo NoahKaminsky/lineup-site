@@ -846,7 +846,8 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         const activeScore = card.isActive ? 50 : 0;
         const ratingScore = card.averageRatingNumber ? card.averageRatingNumber * 8 : 0;
         const reviewScore = Math.min(card.reviewCount, 20);
-        const imageScore = card.portfolioPreview?.image_url || card.profile.banner_url ? 6 : 0;
+        // Real photos of the work lead Browse; a letter tile sinks below them.
+        const imageScore = card.portfolioPreview?.image_url ? 40 : card.profile.banner_url ? 25 : card.profile.avatar_url ? 10 : 0;
         const openScore = hasOpenThisWeek(card.profile, card.availability, card.bookings) ? 4 : 0;
         return featuredScore(card) + tierScore(card) + activeScore + ratingScore + reviewScore + imageScore + openScore;
       };
