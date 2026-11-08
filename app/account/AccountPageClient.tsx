@@ -1220,8 +1220,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
               own card, right under the profile; it opens their calendar. */}
           {isProfessional && !hasPaidPlan ? (
             <section id="booking-link" className="relative mb-8 scroll-mt-28 overflow-hidden rounded-[28px] bg-ink p-6 text-white sm:p-8">
-              <p className="text-xs font-medium text-white/50">Booking link</p>
-              <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
+              <h2 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
                 Get your own link clients book from.
               </h2>
               <p className="mt-2 max-w-md text-sm text-white/55">
@@ -2030,34 +2029,24 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
             <div id="portfolio" className="mt-10 scroll-mt-28 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
               <div className="flex items-end justify-between gap-4">
                 <div>
-                  <p className="text-xs font-medium text-neutral-500">
-                    Portfolio
-                  </p>
-                  <h2 className="mt-3 text-[1.6rem] font-semibold tracking-[-0.03em]">Past work</h2>
+                  <h2 className="text-[1.6rem] font-semibold tracking-[-0.03em]">Portfolio</h2>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowUpload(true)}
-                  className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
-                >
-                  Add work
-                </button>
               </div>
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <button
                   type="button"
                   onClick={() => setShowUpload(true)}
-                  className="flex aspect-square items-center justify-center rounded-2xl border-2 border-dashed border-neutral-300 bg-white text-sm font-medium text-neutral-500 transition hover:bg-neutral-50"
+                  className="flex aspect-square items-center justify-center rounded-2xl bg-ink/[0.03] text-sm font-medium text-neutral-600 transition hover:bg-ink/[0.06] hover:text-ink"
                 >
-                  + Add work
+                  Add work
                 </button>
 
                 {portfolioItems.map((item) => (
                   <div
                     key={item.id}
-                    className="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100"
+                    className="group relative overflow-hidden rounded-2xl bg-neutral-100"
                   >
                     {item.media_type === "video" ? (
                       <video
@@ -2106,12 +2095,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
             <div className="mt-10 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <p className="text-xs font-medium text-neutral-500">
-                    Reviews
-                  </p>
-                  <h2 className="mt-3 text-[1.6rem] font-semibold tracking-[-0.03em]">
-                    Client feedback
-                  </h2>
+                  <h2 className="text-[1.6rem] font-semibold tracking-[-0.03em]">Reviews</h2>
                 </div>
 
                 {reviews.length > 3 ? (
@@ -2188,12 +2172,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       {showUpload ? (
         <div className="lu-fade-in fixed inset-0 z-[100] flex items-center justify-center bg-ink/45 px-6">
           <div className="lu-dialog-in w-full max-w-lg rounded-panel border border-neutral-200 bg-white p-8 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
-            <p className="text-xs font-medium text-neutral-500">
-              Portfolio
-            </p>
-            <h3 className="mt-3 text-[1.6rem] font-semibold tracking-[-0.03em] text-neutral-900">
-              Add work
-            </h3>
+            <h3 className="text-[1.6rem] font-semibold tracking-[-0.03em] text-neutral-900">Add work</h3>
             <p className="mt-1 text-sm text-neutral-500">
               Add a photo or a short video of your work.
             </p>
