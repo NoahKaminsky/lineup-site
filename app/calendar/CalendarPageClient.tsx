@@ -837,7 +837,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       <div className="overflow-hidden rounded-2xl bg-surface shadow-[0_2px_8px_rgba(0,0,0,0.06),0_28px_64px_-20px_rgba(0,0,0,0.35)] ring-1 ring-black/5">
         <div className="flex items-end justify-between gap-3 border-b border-hairline px-4 pb-3 pt-4">
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+            <p className="text-xs text-neutral-500">
               {date.toLocaleDateString("en-CA", { weekday: "long" })}
               {dateKey === todayKey ? " · Today" : ""}
             </p>
@@ -1050,7 +1050,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               <div className="overflow-hidden rounded-2xl bg-surface ring-1 ring-ink/[0.06]">
                 <div className="grid grid-cols-7 px-1.5 pt-2">
                   {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
-                    <div key={index} className="py-2 text-center font-mono text-[10px] uppercase tracking-[0.1em] text-neutral-500">
+                    <div key={index} className="py-2 text-center text-xs font-medium text-neutral-500">
                       {day}
                     </div>
                   ))}
@@ -1188,7 +1188,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               <div className="overflow-hidden rounded-2xl bg-surface ring-1 ring-ink/[0.06]">
                 <div className="grid grid-cols-7 px-1.5 pt-2">
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                    <div key={day} className="px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.14em] text-neutral-500">
+                    <div key={day} className="px-3 py-2.5 text-xs font-medium text-neutral-500">
                       {day}
                     </div>
                   ))}

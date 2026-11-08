@@ -911,7 +911,7 @@ function NavbarComponent() {
                       <p className="truncate text-sm font-semibold text-ink">
                         {profile?.full_name || "Your account"}
                       </p>
-                      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-500">
+                      <p className="mt-1 text-xs text-neutral-500">
                         {isProfessional ? "Professional account" : "Client account"}
                       </p>
                     </div>

@@ -337,7 +337,7 @@ export default function OnboardingPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your full name"
-                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
+                className="w-full rounded-xl bg-neutral-50 px-4 py-3 text-sm outline-none ring-1 ring-inset ring-ink/[0.07] transition focus:bg-white focus:ring-ink"
               />
             </div>
 
@@ -481,7 +481,7 @@ export default function OnboardingPage() {
                 notifications (free, no account needed); code kept so this
                 can come back if SMS is ever worth turning on. */}
             {SMS_SIGNUP_UI_ENABLED ? (
-              <div className="space-y-3 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
+              <div className="space-y-3 rounded-2xl bg-neutral-50 p-4">
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-neutral-700">
                     Phone number <span className="font-normal text-neutral-400">(optional)</span>
@@ -494,7 +494,7 @@ export default function OnboardingPage() {
                       setPhoneError("");
                     }}
                     placeholder="+12045551234"
-                    className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-ink"
+                    className="w-full rounded-xl bg-white px-4 py-3 text-sm outline-none ring-1 ring-inset ring-ink/[0.08] transition focus:ring-ink"
                   />
                   {phoneError ? (
                     <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>
@@ -531,7 +531,7 @@ export default function OnboardingPage() {
             ) : null}
 
             {/* Legal */}
-            <div className="space-y-3 rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
+            <div className="space-y-3 rounded-2xl bg-neutral-50 p-4">
               <label className="flex cursor-pointer items-start gap-3">
                 <input
                   type="checkbox"
