@@ -2,6 +2,7 @@
 
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
+import { BookingRow, NextUpCard } from "@/app/components/bookings/BookingVisuals";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Inbox, Briefcase, Wand2, UserCircle, Images, Star, ClipboardList, Handshake, MapPin } from "lucide-react";
@@ -2088,10 +2089,27 @@ return (
                     <p className="mt-1 text-sm text-neutral-500">Confirmed upcoming services will appear here.</p>
                   </div>
                 ) : (
-                  <ul className="lu-lineup mt-5 grid gap-3">
-                    {[...activeBookings]
-                      .sort((x, y) => `${x.booking_date}${x.start_time}`.localeCompare(`${y.booking_date}${y.start_time}`))
-                      .map((booking) => {
+                  (() => {
+                    const sorted = [...activeBookings].sort((x, y) =>
+                      `${x.booking_date}${x.start_time}`.localeCompare(`${y.booking_date}${y.start_time}`)
+                    );
+                    const needsYou = sorted.filter((b) => b.status === "completion_requested");
+                    const ahead = sorted.filter((b) => b.status !== "completion_requested");
+                    const [next, ...later] = ahead;
+                    const toAppt = (booking: (typeof sorted)[number]) => ({
+                      href: `/bookings/${booking.id}`,
+                      title: cleanServiceLabel(booking.service_name) || "Booked service",
+                      date: booking.booking_date,
+                      startTime: booking.start_time,
+                      withName: booking.professional_name,
+                      withAvatarUrl: booking.professional_avatar_url,
+                      location: booking.formatted_address ?? null,
+                    });
+                    return (
+                      <div className="mt-5 space-y-3">
+                        {needsYou.length > 0 ? (
+                  <ul className="lu-lineup grid gap-3">
+                    {needsYou.map((booking) => {
                       const isLoadingAction = bookingActionLoadingId === booking.id;
                       const needsConfirm = booking.status === "completion_requested";
                       // The whole card opens the booking; details, directions
@@ -2140,6 +2158,14 @@ return (
                       );
                     })}
                   </ul>
+                        ) : null}
+                        {next ? <NextUpCard item={toAppt(next)} /> : null}
+                        {later.map((booking) => (
+                          <BookingRow key={booking.id} item={toAppt(booking)} />
+                        ))}
+                      </div>
+                    );
+                  })()
                 )}
               </div>
 

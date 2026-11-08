@@ -14,6 +14,7 @@ import VerificationBanner from "@/app/components/VerificationBanner";
 import BidCountBlip from "@/app/components/BidCountBlip";
 import { burstOrigin, fireBurst } from "@/app/components/moments/Burst";
 import { useBidCounts } from "@/app/lib/useBidCounts";
+import { BookingRow, NextUpCard, type AppointmentLike } from "@/app/components/bookings/BookingVisuals";
 
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { useDismissedRequests } from "@/app/lib/requestDismissals";
@@ -1180,6 +1181,21 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
     };
   }
 
+  function toAppointment(item: BookedItem): AppointmentLike {
+    const other = getOtherPerson(item);
+    return {
+      href: item.href,
+      title: item.title,
+      date: item.date,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      withName: other.name,
+      withAvatarUrl: other.avatarUrl,
+      location: item.location,
+      price: item.price,
+    };
+  }
+
   function getEmptyMessage() {
     if (activeTab === "booked") return "No booked services right now.";
     if (activeTab === "requests") {
@@ -1467,6 +1483,45 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                     : "Once you accept an offer or make a direct booking, it'll show up here."}
                 </p>
               </div>
+            ) : isCustomer ? (
+              (() => {
+                // Anything waiting on the client goes first, with its confirm strip.
+                const needsYou = activeBookedItems.filter(
+                  (item) =>
+                    item.status === "completion_requested" ||
+                    ((item.status === "accepted" || item.status === "confirmed") && isServiceOver(item.date, item.endTime))
+                );
+                const ahead = activeBookedItems.filter((item) => !needsYou.includes(item));
+                const next = ahead.find((item) => item.date);
+                const later = ahead.filter((item) => item !== next);
+                return (
+                  <div className="space-y-10">
+                    {needsYou.length > 0 ? (
+                      <BookedList
+                        items={needsYou}
+                        isProfessional={isProfessional}
+                        isCustomer={isCustomer}
+                        actionLoadingId={actionLoadingId}
+                        cancelConfirmId={cancelConfirmId}
+                        setCancelConfirmId={setCancelConfirmId}
+                        getOtherPerson={getOtherPerson}
+                        updateBookedItemStatus={updateBookedItemStatus}
+                      />
+                    ) : null}
+                    {next && next.date ? <NextUpCard item={{ ...toAppointment(next), date: next.date }} /> : null}
+                    {later.length > 0 ? (
+                      <section>
+                        <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Coming up</h2>
+                        <div className="mt-3 space-y-2.5">
+                          {later.map((item) => (
+                            <BookingRow key={`${item.source}-${item.id}`} item={toAppointment(item)} />
+                          ))}
+                        </div>
+                      </section>
+                    ) : null}
+                  </div>
+                );
+              })()
             ) : (
               <BookedList
                 items={activeBookedItems}
@@ -1509,6 +1564,13 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                       <span className="tabular-nums text-neutral-400">{group.items.length}</span>
                     </summary>
 
+                    {isCustomer ? (
+                      <div className="space-y-2.5">
+                        {group.items.map((item) => (
+                          <BookingRow key={`${item.source}-${item.id}`} item={toAppointment(item)} muted />
+                        ))}
+                      </div>
+                    ) : (
                     <BookedList
                       items={group.items}
                       isProfessional={isProfessional}
@@ -1522,6 +1584,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                       ratingSubmittingId={ratingSubmittingId}
                       onRateCustomer={handleRateCustomer}
                     />
+                    )}
                   </details>
                 ))}
 
@@ -1530,6 +1593,22 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                     <p className="mb-3 text-[13px] font-medium text-neutral-500">
                       Cancelled bookings
                     </p>
+                    {isCustomer ? (
+                      <div className="space-y-2.5">
+                        {cancelledItems.map((item) => (
+                          <BookingRow
+                            key={`${item.source}-${item.id}`}
+                            item={toAppointment(item)}
+                            muted
+                            note={
+                              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-500">
+                                {item.refundStatus === "refunded" ? "Cancelled, refunded" : "Cancelled"}
+                              </span>
+                            }
+                          />
+                        ))}
+                      </div>
+                    ) : (
                     <BookedList
                       items={cancelledItems}
                       isProfessional={isProfessional}
@@ -1540,6 +1619,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                       getOtherPerson={getOtherPerson}
                       updateBookedItemStatus={updateBookedItemStatus}
                     />
+                    )}
                   </div>
                 ) : null}
 
