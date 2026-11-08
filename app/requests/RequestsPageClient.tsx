@@ -2513,10 +2513,62 @@ return (
 
           {isProfessional ? (
             <div className="mt-10 space-y-12">
+              {/* What's next, as a ticket; the full week lives on the Calendar. */}
+              {(() => {
+                const toAppt = (item: (typeof professionalWeekAtGlanceWork)[number]) =>
+                  item.source === "booking"
+                    ? {
+                        href: item.href,
+                        title: item.title,
+                        date: item.rawBooking.booking_date,
+                        startTime: item.rawBooking.start_time,
+                        withName: item.client_name,
+                        withAvatarUrl: item.client_avatar_url,
+                        location: item.rawBooking.formatted_address ?? item.location,
+                      }
+                    : {
+                        href: item.href,
+                        title: item.title,
+                        date: item.rawRequest.scheduled_date ?? null,
+                        startTime: item.rawRequest.scheduled_start_time ?? null,
+                        withName: item.client_name,
+                        withAvatarUrl: item.client_avatar_url,
+                        location: item.formatted_address ?? item.location,
+                      };
+                const items = professionalWeekAtGlanceWork.map(toAppt);
+                const next = items.find((i) => i.date);
+                const rest = items.filter((i) => i !== next).slice(0, 4);
+                return (
+                  <section aria-labelledby="next-heading">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <h2 id="next-heading" className="text-xl font-semibold tracking-[-0.02em]">Up next</h2>
+                      <Link href="/calendar" className="rounded text-sm font-medium text-neutral-500 transition-colors hover:text-ink">
+                        Full calendar
+                      </Link>
+                    </div>
+                    {!next ? (
+                      <p className="mt-3 rounded-[22px] bg-white px-5 py-6 text-sm text-neutral-500 ring-1 ring-ink/[0.06]">
+                        Nothing booked this week yet. Share your booking link or answer a request below.
+                      </p>
+                    ) : (
+                      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                        <NextUpCard item={{ ...next, date: next.date as string }} />
+                        {rest.length > 0 ? (
+                          <div className="space-y-2.5">
+                            {rest.map((item) => (
+                              <BookingRow key={item.href} item={item} />
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </section>
+                );
+              })()}
 
               <div className="grid gap-12 lg:grid-cols-12 lg:gap-10">
                 {/* Main column: work to win. */}
-                <section aria-labelledby="opportunities-heading" className="lg:col-span-8">
+                <section aria-labelledby="opportunities-heading" className="lg:col-span-12">
                   <div className="flex items-baseline justify-between gap-4">
                     <h2 id="opportunities-heading" className="text-xl font-semibold tracking-[-0.02em]">
                       Recommended opportunities
@@ -2648,37 +2700,6 @@ return (
                   )}
                 </section>
 
-                {/* Side column: just what's next. The full schedule and history
-                    live on the Calendar, so they aren't repeated here. */}
-                <aside className="lg:col-span-4">
-                  <section aria-labelledby="next-heading">
-                    <div className="flex items-baseline justify-between gap-4">
-                      <h2 id="next-heading" className="text-base font-semibold tracking-[-0.01em]">Up next</h2>
-                      <Link href="/calendar" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
-                        Calendar
-                      </Link>
-                    </div>
-                    {professionalWeekAtGlanceWork.length === 0 ? (
-                      <p className="mt-3 text-sm leading-6 text-neutral-500">Nothing booked this week yet.</p>
-                    ) : (
-                      <ul className="mt-3 space-y-2">
-                        {professionalWeekAtGlanceWork.slice(0, 3).map((item) => (
-                          <li key={`${item.source}-${item.id}`}>
-                            <Link
-                              href={item.href}
-                              className="block rounded-2xl bg-surface px-4 py-3.5 ring-1 ring-ink/[0.06] transition-[box-shadow] hover:ring-ink/15"
-                            >
-                              <p className="truncate text-sm font-semibold text-ink">{item.client_name || item.title}</p>
-                              <p className="mt-0.5 truncate text-[13px] text-neutral-500">
-                                {[item.title, item.subtitle].filter(Boolean).join(", ")}
-                              </p>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-                </aside>
               </div>
             </div>
           ) : null}
