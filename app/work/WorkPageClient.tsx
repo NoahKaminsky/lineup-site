@@ -220,7 +220,8 @@ function formatDate(dateString: string | null | undefined) {
     weekday: "short",
     month: "short",
     day: "numeric",
-    year: "numeric",
+    // The year only when it isn't this year.
+    ...(date.getFullYear() !== new Date().getFullYear() ? { year: "numeric" as const } : {}),
   });
 }
 
@@ -1819,7 +1820,9 @@ function BookedList({
                 <p className="mt-0.5 text-[13px] text-neutral-500">{timeLabel}</p>
 
                 {item.location ? (
-                  <p className="mt-0.5 truncate text-[13px] text-neutral-400">{item.location}</p>
+                  <p className="mt-0.5 truncate text-[13px] text-neutral-400">
+                    {item.location.replace(/,\s*Canada$/i, "").replace(/\s+[A-Z]\d[A-Z]\s?\d[A-Z]\d$/, "")}
+                  </p>
                 ) : formatMode(item.serviceMode) ? (
                   <p className="mt-0.5 text-[13px] text-neutral-400">{formatMode(item.serviceMode)}</p>
                 ) : null}
