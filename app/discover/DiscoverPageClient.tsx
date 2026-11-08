@@ -9,8 +9,7 @@ import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { getProfileHref } from "@/app/lib/profileLink";
 import type { DiscoverCard as InitialDiscoverCard } from "./getInitialData";
-import SwipeStack, { type SwipeCardData } from "@/app/components/discover/SwipeStack";
-import { BadgeCheck, LayoutGrid, Layers, MapPin, Search, Star, X } from "lucide-react";
+import { BadgeCheck, MapPin, Search, SlidersHorizontal, Star, X } from "lucide-react";
 
 type ProfileRow = {
   id: string;
@@ -158,32 +157,6 @@ function formatDistanceLabel(distanceKm: number | null) {
   return `${distanceKm.toFixed(1)} km away`;
 }
 
-function getBadges(profile: ProfileRow): { label: string; className: string }[] {
-  const badges: { label: string; className: string }[] = [];
-
-  if (profile.verification_track === "student") {
-    badges.push({ label: "Student", className: "border border-sky-200 bg-sky-100 text-sky-800" });
-  }
-
-  if (profile.is_founding_artist) {
-    badges.push({ label: "Founding Artist", className: "border border-neutral-300 bg-white text-ink" });
-  }
-
-  if (profile.is_featured) {
-    badges.push({ label: "LineUp Pick", className: "border border-ink bg-ink text-white" });
-  }
-
-  if (profile.subscription_plan === "master") {
-    badges.push({ label: "Master", className: "border border-neutral-900 bg-neutral-900 text-white" });
-  } else if (profile.subscription_plan === "pro") {
-    badges.push({ label: "Pro", className: "border border-neutral-300 bg-white text-neutral-700" });
-  }
-
-  return badges;
-}
-
-// Cards carry at most one badge on the photo — the one that matters most —
-// so the work itself stays the focus. Full badges still show on the profile.
 function getPrimaryBadge(profile: ProfileRow): { label: string; tone: "ink" | "light" } | null {
   if (profile.is_featured) return { label: "LineUp Pick", tone: "ink" };
   // Paid placement is always labelled as such.
@@ -207,7 +180,7 @@ type ProCardProps = {
   reviewCount: number;
   openThisWeek: boolean;
   verified: boolean;
-  size?: "rail" | "grid";
+  size?: "feature" | "grid";
 };
 
 // A short, human location for cards: the profile's own location text, or the
@@ -224,78 +197,84 @@ function getShortLocation(profile: ProfileRow) {
 function ProCard({ href, name, role, place, services, image, badge, rating, reviewCount, openThisWeek, verified, size = "grid" }: ProCardProps) {
   const initial = name.charAt(0).toUpperCase() || "P";
   const ratingText = rating ? `rated ${rating} from ${reviewCount} review${reviewCount === 1 ? "" : "s"}` : "no reviews yet";
+  const feature = size === "feature";
   return (
     <Link
       href={href}
       aria-label={`${name}, ${role}${place ? `, ${place}` : ""}, ${ratingText}`}
-      className={`group block rounded-2xl outline-offset-4 ${size === "rail" ? "w-[70vw] max-w-[16rem] shrink-0 snap-start" : ""}`}
+      className="group block rounded-[22px] outline-offset-4"
     >
-      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-[#ecebe7]">
+      <div className={`relative overflow-hidden rounded-[22px] bg-neutral-200 ${feature ? "aspect-[4/5]" : "aspect-square sm:aspect-[4/5]"}`}>
         {image ? (
           <img
             loading="lazy"
             src={image}
             alt=""
-            className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.035]"
+            className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.04]"
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2">
-            <span className="text-6xl font-semibold tracking-[-0.05em] text-neutral-300">{initial}</span>
-            <span className="text-xs text-neutral-400">{role}</span>
+          // No photo yet: a deliberate monogram tile, not an empty box.
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-neutral-800 to-ink">
+            <span className="text-5xl font-semibold tracking-[-0.06em] text-white/90">{initial}</span>
           </div>
         )}
 
-        {/* Hairline inner edge keeps light photos from bleeding into the page. */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/[0.06]" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[22px] ring-1 ring-inset ring-black/[0.06]" />
 
         {badge ? (
-          <span
-            className={`absolute left-3 top-3 rounded-md px-2 py-1 text-[10px] font-semibold tracking-[0.02em] ${
-              badge.tone === "ink" ? "bg-ink text-white" : "bg-white/90 text-ink backdrop-blur"
-            }`}
-          >
+          <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-ink backdrop-blur">
             {badge.label}
           </span>
         ) : null}
-      </div>
 
-      <div className="mt-3.5 px-0.5">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="flex min-w-0 items-center gap-1 text-[15px] font-semibold tracking-[-0.01em] text-ink">
-            <span className="truncate underline-offset-4 decoration-ink/30 group-hover:underline">{name}</span>
-            {verified ? (
-              <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0 fill-ink text-paper" strokeWidth={2} />
-            ) : null}
-          </p>
-          {rating ? (
-            <span className="flex shrink-0 items-center gap-1 text-[13px] tabular-nums text-ink" aria-hidden="true">
-              <Star className="h-3 w-3 fill-current" strokeWidth={0} />
-              {rating}
-              <span className="hidden text-neutral-400 sm:inline">({reviewCount})</span>
-            </span>
-          ) : (
-            <span className="hidden shrink-0 text-[12px] text-neutral-400 sm:inline" aria-hidden="true">New</span>
-          )}
-        </div>
-
-        <p className="mt-0.5 truncate text-sm text-neutral-600">
-          {role}
-          {place ? <span className="text-neutral-400"> · {place}</span> : null}
-        </p>
-
-        {openThisWeek || services ? (
-          <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-neutral-500">
-            {openThisWeek ? (
-              <span className="inline-flex shrink-0 items-center gap-1.5 font-medium text-ink">
-                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ink" />
-                Open this week
-              </span>
-            ) : null}
-            {openThisWeek && services ? <span aria-hidden="true" className="text-neutral-300">·</span> : null}
-            {services ? <span className="truncate">{services}</span> : null}
-          </p>
+        {feature ? (
+          // Feature cards carry their name on the photo, like a cover.
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent p-4 pt-16 text-white">
+            <p className="flex items-center gap-1 text-lg font-semibold tracking-[-0.02em]">
+              <span className="truncate">{name}</span>
+              {verified ? <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0 fill-white text-ink" strokeWidth={2} /> : null}
+            </p>
+            <p className="mt-0.5 flex items-center gap-1.5 truncate text-[13px] text-white/75">
+              {rating ? (
+                <span className="inline-flex items-center gap-1 text-white">
+                  <Star className="h-3 w-3 fill-current" strokeWidth={0} aria-hidden="true" />
+                  {rating}
+                </span>
+              ) : null}
+              {rating ? <span aria-hidden="true">·</span> : null}
+              <span className="truncate">{role}{place ? `, ${place}` : ""}</span>
+            </p>
+          </div>
         ) : null}
       </div>
+
+      {!feature ? (
+        <div className="mt-3 px-0.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="flex min-w-0 items-center gap-1 text-[15px] font-semibold tracking-[-0.01em] text-ink">
+              <span className="truncate">{name}</span>
+              {verified ? <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0 fill-ink text-paper" strokeWidth={2} /> : null}
+            </p>
+            {rating ? (
+              <span className="flex shrink-0 items-center gap-1 text-[13px] tabular-nums text-ink" aria-hidden="true">
+                <Star className="h-3 w-3 fill-current" strokeWidth={0} />
+                {rating}
+              </span>
+            ) : (
+              <span className="shrink-0 text-xs text-neutral-400" aria-hidden="true">New</span>
+            )}
+          </div>
+          <p className="mt-0.5 truncate text-[13px] text-neutral-500">
+            {role}
+            {place ? `, ${place}` : ""}
+          </p>
+          {openThisWeek ? (
+            <p className="mt-1 text-[13px] font-medium text-ink">Open this week</p>
+          ) : services ? (
+            <p className="mt-1 truncate text-[13px] text-neutral-400">{services}</p>
+          ) : null}
+        </div>
+      ) : null}
     </Link>
   );
 }
@@ -447,7 +426,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   const [selectedModes, setSelectedModes] = useState<string[]>([]);
   const [openThisWeekOnly, setOpenThisWeekOnly] = useState(false);
   const [sortBy, setSortBy] = useState<"recommended" | "nearest" | "rating">("recommended");
-  const [mobileView, setMobileView] = useState<"grid" | "swipe">("grid");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<
     "idle" | "allowed" | "denied" | "unsupported"
@@ -826,6 +805,8 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
 
     return [...filteredCards]
       .filter((card) => isSubscribed(card) || card.profile.is_featured || (card.profile as ProfileRow).is_promoted)
+      // A featured spot without a photo looks empty; those pros still show in the main list.
+      .filter((card) => Boolean(card.portfolioPreview?.image_url || card.profile.banner_url || card.profile.avatar_url))
       .sort((a, b) => {
         const score = (card: DiscoverCard) => {
           const ratingScore = card.averageRatingNumber ? card.averageRatingNumber * 8 : 0;
@@ -879,12 +860,16 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
     openThisWeekOnly ||
     maxDistanceKm !== null;
 
+  const activeFilterCount =
+    selectedModes.length + (openThisWeekOnly ? 1 : 0) + (maxDistanceKm !== null ? 1 : 0) + (sortBy !== "recommended" ? 1 : 0);
+
   function clearFilters() {
     setSearch("");
     setSelectedCategory("all");
     setSelectedModes([]);
     setOpenThisWeekOnly(false);
     setMaxDistanceKm(null);
+    setSortBy("recommended");
   }
 
   function toggleMode(mode: string) {
@@ -923,39 +908,16 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
     };
   }
 
-  const swipeCards = useMemo<SwipeCardData[]>(() => {
-    return sortedCards.map((card) => {
-      const roles = getProfessionalTypes(card.profile);
-      const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
-      const distanceKm = getCardDistanceKm(card, userLocation);
-
-      return {
-        key: card.profile.id,
-        href: getProfileHref(card.profile),
-        image: getCardImage(card),
-        name: card.profile.full_name || "Professional",
-        primaryRole,
-        badges: getBadges(card.profile),
-        rating: card.averageRating,
-        distanceLabel: formatDistanceLabel(distanceKm),
-      };
-    });
-  }, [sortedCards, userLocation]);
-
-  const sectionLabel = "text-[13px] font-medium text-neutral-500";
 
   if (loading) {
     return (
       <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8" aria-busy="true">
         <div className="mx-auto max-w-6xl py-8">
-          <div className="h-3 w-16 animate-pulse rounded-full bg-neutral-200" />
-          <div className="mt-4 h-9 w-72 animate-pulse rounded-lg bg-neutral-200" />
-          <div className="mt-4 h-4 w-full max-w-md animate-pulse rounded-full bg-neutral-200/70" />
-
-          <div className="mt-10 h-12 w-full animate-pulse rounded-full bg-neutral-200/70" />
-          <div className="mt-5 flex gap-7 border-b border-hairline pb-3.5">
+          <div className="h-10 w-72 animate-pulse rounded-lg bg-neutral-200" />
+          <div className="mt-6 h-14 w-full animate-pulse rounded-full bg-neutral-200/70" />
+          <div className="mt-4 flex gap-2">
             {[1, 2, 3, 4, 5, 6].map((item) => (
-              <div key={item} className="h-4 w-14 shrink-0 animate-pulse rounded-full bg-neutral-200/70" />
+              <div key={item} className="h-9 w-20 shrink-0 animate-pulse rounded-full bg-neutral-200/70" />
             ))}
           </div>
 
@@ -963,7 +925,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => (
               <div key={item}>
-                <div className="aspect-[4/5] animate-pulse rounded-2xl bg-neutral-200/60" />
+                <div className="aspect-square animate-pulse rounded-[22px] sm:aspect-[4/5] bg-neutral-200/60" />
                 <div className="mt-3 h-4 w-2/3 animate-pulse rounded-full bg-neutral-200/70" />
                 <div className="mt-2 h-3 w-1/2 animate-pulse rounded-full bg-neutral-200/50" />
               </div>
@@ -983,174 +945,190 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
     <>
     <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl py-6 sm:py-8">
-        {/* Intro — compact, so real professionals start above the fold. */}
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-              Find your professional.
-            </h1>
-            <p className="mt-2 max-w-xl text-base leading-7 text-neutral-500">
-              See their work, then book in a few taps.
-            </p>
-          </div>
+        {/* Hero: one line of intent, then search. Pros start right after. */}
+        <h1 className="text-[2rem] font-semibold leading-[1.05] tracking-[-0.04em] text-ink sm:text-5xl">
+          Find your next
+          <br className="sm:hidden" /> appointment.
+        </h1>
 
-          <Link
-            href="/requests/new"
-            className="inline-flex w-fit shrink-0 items-center rounded-full bg-surface px-5 py-2.5 text-sm font-medium text-ink ring-1 ring-inset ring-ink/10 transition hover:ring-ink/30"
-          >
-            Post a request instead
-          </Link>
+        <div className="relative mt-6">
+          <label htmlFor="browse-search" className="sr-only">
+            Search professionals by name, service, or area
+          </label>
+          <Search aria-hidden="true" className="pointer-events-none absolute left-5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-neutral-400" strokeWidth={2} />
+          <input
+            id="browse-search"
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && search) {
+                e.preventDefault();
+                setSearch("");
+              }
+            }}
+            placeholder="Barber, lashes, a name…"
+            autoComplete="off"
+            className="h-14 w-full rounded-full bg-white pl-[3.25rem] pr-12 text-[15px] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.12)] outline-none ring-1 ring-inset ring-ink/[0.06] transition-shadow placeholder:text-neutral-400 focus:ring-ink [&::-webkit-search-cancel-button]:hidden"
+          />
+          {search ? (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+              className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
+            >
+              <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+            </button>
+          ) : null}
         </div>
 
-        {/* Search + filters. Kept in normal flow on phones — pinning all of this
-            would eat a third of a small screen. */}
-        <div className="mt-7 sm:mt-8">
-          <div className="relative">
-            <label htmlFor="browse-search" className="sr-only">
-              Search professionals by name, service, or area
-            </label>
-            <Search aria-hidden="true" className="pointer-events-none absolute left-5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-neutral-400" strokeWidth={2} />
-            <input
-              id="browse-search"
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape" && search) {
-                  e.preventDefault();
-                  setSearch("");
-                }
-              }}
-              placeholder="Search name, service, or area"
-              autoComplete="off"
-              className="h-14 w-full rounded-full bg-surface pl-[3.25rem] pr-12 text-[15px] outline-none ring-1 ring-inset ring-ink/[0.08] transition-shadow placeholder:text-neutral-400 focus:ring-ink [&::-webkit-search-cancel-button]:hidden"
-            />
-            {search ? (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                aria-label="Clear search"
-                className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
-              >
-                <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
-              </button>
-            ) : null}
-          </div>
-
-          <div
-            role="group"
-            aria-label="Category"
-            className="-mx-4 mt-5 flex gap-6 overflow-x-auto border-b border-hairline px-4 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:gap-7 sm:px-0 [&::-webkit-scrollbar]:hidden"
+        {/* One row: filters, then categories. Everything else lives behind Filters. */}
+        <div className="-mx-4 mt-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+          <button
+            type="button"
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen((open) => !open)}
+            className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium transition ${
+              filtersOpen || activeFilterCount > 0 ? "bg-ink text-white" : "bg-white text-ink ring-1 ring-inset ring-ink/10 hover:ring-ink/25"
+            }`}
           >
-            {categoryOptions.map((category) => {
-              const selected = selectedCategory === category.value;
-              return (
-                <button
-                  key={category.value}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setSelectedCategory(category.value)}
-                  className={`relative shrink-0 pb-3.5 pt-1 text-sm transition-colors ${
-                    selected ? "font-medium text-ink" : "text-neutral-500 hover:text-ink"
-                  }`}
-                >
-                  {category.label}
-                  <span
-                    aria-hidden="true"
-                    className={`absolute inset-x-0 bottom-0 h-[1.5px] bg-ink transition-transform duration-300 ease-premium ${
-                      selected ? "scale-x-100" : "scale-x-0"
+            <SlidersHorizontal aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
+            Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ""}
+          </button>
+          <span aria-hidden="true" className="h-5 w-px shrink-0 bg-ink/10" />
+          {categoryOptions.map((category) => {
+            const selected = selectedCategory === category.value;
+            return (
+              <button
+                key={category.value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setSelectedCategory(category.value)}
+                className={`h-9 shrink-0 rounded-full px-3.5 text-[13px] font-medium transition ${
+                  selected ? "bg-ink text-white" : "text-neutral-600 hover:bg-white hover:text-ink"
+                }`}
+              >
+                {category.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {filtersOpen ? (
+          <div className="lu-fade-in mt-3 rounded-[22px] bg-white p-4 ring-1 ring-ink/[0.06] sm:p-5">
+            <div className="grid gap-5 sm:grid-cols-3">
+              <div>
+                <p className="text-[13px] font-medium text-neutral-500">Where</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {serviceModeOptions.map((mode) => {
+                    const selected = selectedModes.includes(mode.value);
+                    return (
+                      <button
+                        key={mode.value}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => toggleMode(mode.value)}
+                        className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition ${
+                          selected ? "bg-ink text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                        }`}
+                      >
+                        {mode.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-neutral-500">When</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    aria-pressed={openThisWeekOnly}
+                    onClick={() => setOpenThisWeekOnly((prev) => !prev)}
+                    className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition ${
+                      openThisWeekOnly ? "bg-ink text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
                     }`}
-                  />
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Refinements: where it happens, availability, ordering. */}
-          <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
-            {serviceModeOptions.map((mode) => {
-              const selected = selectedModes.includes(mode.value);
-              return (
-                <button
-                  key={mode.value}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => toggleMode(mode.value)}
-                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
-                    selected ? "bg-ink text-white" : "bg-surface text-neutral-700 ring-1 ring-inset ring-ink/10 hover:ring-ink/30"
-                  }`}
-                >
-                  {mode.label}
-                </button>
-              );
-            })}
-
-            <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-ink/10" />
-
-            <button
-              type="button"
-              aria-pressed={openThisWeekOnly}
-              onClick={() => setOpenThisWeekOnly((prev) => !prev)}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
-                openThisWeekOnly ? "bg-ink text-white" : "bg-surface text-neutral-700 ring-1 ring-inset ring-ink/10 hover:ring-ink/30"
-              }`}
-            >
-              <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${openThisWeekOnly ? "bg-white" : "bg-ink"}`} />
-              Open this week
-            </button>
-
-            <button
-              type="button"
-              aria-pressed={maxDistanceKm !== null}
-              onClick={() => {
-                setNearbyRadiusKm(maxDistanceKm ?? nearbyRadiusKm);
-                setNearbyPanelOpen(true);
-              }}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
-                maxDistanceKm !== null ? "bg-ink text-white" : "bg-surface text-neutral-700 ring-1 ring-inset ring-ink/10 hover:ring-ink/30"
-              }`}
-            >
-              <MapPin aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
-              {maxDistanceKm !== null ? `Within ${maxDistanceKm} km` : "Distance"}
-            </button>
-
+                  >
+                    Open this week
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={maxDistanceKm !== null}
+                    onClick={() => {
+                      setNearbyRadiusKm(maxDistanceKm ?? nearbyRadiusKm);
+                      setNearbyPanelOpen(true);
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition ${
+                      maxDistanceKm !== null ? "bg-ink text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                    }`}
+                  >
+                    <MapPin aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
+                    {maxDistanceKm !== null ? `Within ${maxDistanceKm} km` : "Near me"}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-neutral-500">Sort</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {([
+                    { value: "recommended", label: "Recommended" },
+                    { value: "rating", label: "Top rated" },
+                    { value: "nearest", label: "Nearest" },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={sortBy === option.value}
+                      disabled={option.value === "nearest" && !userLocation}
+                      onClick={() => setSortBy(option.value)}
+                      className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition disabled:opacity-40 ${
+                        sortBy === option.value ? "bg-ink text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
             {hasActiveFilters ? (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="shrink-0 rounded px-2 py-1.5 text-[13px] text-neutral-500 underline decoration-neutral-300 underline-offset-4 transition-colors hover:text-ink hover:decoration-ink"
+                className="mt-4 text-[13px] font-medium text-neutral-500 transition hover:text-ink"
               >
                 Clear all
               </button>
             ) : null}
           </div>
-        </div>
+        ) : null}
 
         {message ? (
-          <div role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div role="alert" className="mt-6 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
             {message}
           </div>
         ) : null}
 
         {sortedCards.length === 0 ? (
-          <div className="mt-10 rounded-panel bg-ink/[0.03] px-6 py-16 text-center">
-            <p className="font-medium text-ink">
-              {isSearching ? `No professionals match “${search.trim()}”` : "No professionals match those filters"}
+          <div className="mt-10 rounded-[28px] bg-white px-6 py-16 text-center ring-1 ring-ink/[0.06]">
+            <p className="text-lg font-semibold tracking-[-0.02em] text-ink">
+              {isSearching ? `No one matches “${search.trim()}”` : "No one matches those filters"}
             </p>
             <p className="mx-auto mt-1.5 max-w-sm text-sm leading-6 text-neutral-500">
-              Try another category or a broader search — or post a request and let nearby professionals send you offers.
+              Try a broader search, or post a request and let nearby pros come to you.
             </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
               <button
                 type="button"
                 onClick={clearFilters}
-                className="rounded-full bg-surface px-4 py-2 text-sm font-medium text-ink ring-1 ring-inset ring-ink/10 transition hover:ring-ink/30"
+                className="rounded-full bg-neutral-100 px-4 py-2 text-sm font-medium text-ink transition hover:bg-neutral-200"
               >
                 Clear filters
               </button>
               <Link
                 href="/requests/new"
-                className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+                className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
               >
                 Post a request
               </Link>
@@ -1158,120 +1136,58 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           </div>
         ) : (
           <>
-            {/* Featured: LineUp Picks first, then Master and Pro members.
-                Hidden while searching/filtering so results come first. */}
             {showFeatured ? (
-              <section aria-labelledby="featured-heading" className="mt-8">
-                <div className="flex items-baseline justify-between gap-4">
-                  <h2 id="featured-heading" className="text-lg font-semibold tracking-[-0.02em]">
-                    Featured on LineUp
-                  </h2>
-                </div>
-
-                {/* Phones: a swipeable rail. Tablet/desktop: one aligned row on the same
-                    grid as the results, so a short list never leaves a ragged gap. */}
-                <div className="-mx-4 mt-4 flex snap-x snap-proximity scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
-                  {spotlightCards.map((card) => (
-                    <ProCard key={`featured-${card.profile.id}`} {...getCardProps(card)} size="rail" />
-                  ))}
-                </div>
-                <div className="mt-5 hidden gap-x-5 gap-y-10 sm:grid sm:grid-cols-3 lg:grid-cols-4">
-                  {spotlightCards.slice(0, 4).map((card, index) => (
-                    <div key={`featured-grid-${card.profile.id}`} className={index === 3 ? "hidden lg:block" : undefined}>
-                      <ProCard {...getCardProps(card)} />
+              <section aria-labelledby="featured-heading" className="mt-10">
+                <h2 id="featured-heading" className="text-xl font-semibold tracking-[-0.03em] text-ink">
+                  Featured
+                </h2>
+                <div className="-mx-4 mt-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-5 sm:overflow-visible sm:px-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
+                  {spotlightCards.slice(0, 8).map((card, index) => (
+                    <div
+                      key={`featured-${card.profile.id}`}
+                      className={`w-[78vw] max-w-[19rem] shrink-0 snap-start sm:w-auto sm:max-w-none ${index >= 3 ? "sm:hidden lg:block" : ""} ${index >= 4 ? "lg:hidden" : ""}`}
+                    >
+                      <ProCard {...getCardProps(card)} size="feature" />
                     </div>
                   ))}
                 </div>
               </section>
             ) : null}
 
-            <section aria-labelledby="all-heading" className={showFeatured ? "mt-12 border-t border-hairline pt-8" : "mt-6"}>
-              {/* Results toolbar: count on the left, ordering (and view on phones) on the right. */}
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 id="all-heading" className="text-lg font-semibold tracking-[-0.02em]" aria-live="polite">
-                  {sortedCards.length} {sortedCards.length === 1 ? "professional" : "professionals"}
-                  {categoryLabel && selectedCategory !== "all" ? (
-                    <span className="text-neutral-400"> · {categoryLabel}</span>
-                  ) : null}
+            <section aria-labelledby="all-heading" className={showFeatured ? "mt-12" : "mt-8"}>
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 id="all-heading" className="text-xl font-semibold tracking-[-0.03em] text-ink" aria-live="polite">
+                  {isSearching || hasActiveFilters
+                    ? `${sortedCards.length} ${sortedCards.length === 1 ? "result" : "results"}`
+                    : categoryLabel && selectedCategory !== "all"
+                      ? categoryLabel
+                      : "Everyone"}
                 </h2>
-
-                <div className="flex items-center gap-2">
-                  <label className="relative flex items-center">
-                    <span className="sr-only">Sort professionals</span>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                      className="h-9 appearance-none rounded-full bg-surface pl-3.5 pr-8 text-[13px] font-medium text-ink outline-none ring-1 ring-inset ring-ink/10 transition-shadow hover:ring-ink/30 focus:ring-ink"
-                    >
-                      <option value="recommended">Recommended</option>
-                      <option value="rating">Top rated</option>
-                      <option value="nearest" disabled={!userLocation}>
-                        {userLocation ? "Nearest" : "Nearest (allow location)"}
-                      </option>
-                    </select>
-                    <svg aria-hidden="true" viewBox="0 0 12 12" className="pointer-events-none absolute right-3 h-3 w-3 text-neutral-500" fill="none">
-                      <path d="M3 4.5 6 7.5 9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </label>
-
-                  <div role="group" aria-label="View" className="flex rounded-full bg-surface p-0.5 ring-1 ring-inset ring-ink/10 sm:hidden">
-                    {[
-                      { value: "grid" as const, label: "Grid view", Icon: LayoutGrid },
-                      { value: "swipe" as const, label: "Swipe view", Icon: Layers },
-                    ].map(({ value, label, Icon }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        aria-label={label}
-                        aria-pressed={mobileView === value}
-                        onClick={() => setMobileView(value)}
-                        className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-                          mobileView === value ? "bg-ink text-white" : "text-neutral-500"
-                        }`}
-                      >
-                        <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={1.8} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {!userLocation && locationPermissionStatus !== "unsupported" ? (
+                  <span className="text-xs text-neutral-400">Allow location to see distances</span>
+                ) : null}
               </div>
 
-              <p className="mt-1.5 flex items-center gap-1.5 text-xs text-neutral-500">
-                {userLocation ? (
-                  <>
-                    Distances are from your current location.
-                    <button
-                      type="button"
-                      onClick={() => setNearbyPanelOpen(true)}
-                      className="inline-flex items-center gap-1 rounded font-medium text-ink underline decoration-ink/20 underline-offset-4 transition-colors hover:decoration-ink"
-                    >
-                      <MapPin aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
-                      {nearbyCount === null ? "See who's nearby" : `${nearbyCount} nearby`}
-                    </button>
-                  </>
-                ) : locationPermissionStatus === "unsupported" ? (
-                  "Location isn't available in this browser."
-                ) : (
-                  "Allow location access to see distances and sort by nearest."
-                )}
-              </p>
-
-              {mobileView === "swipe" ? (
-                <div className="mt-6 sm:hidden">
-                  <SwipeStack cards={swipeCards} />
-                </div>
-              ) : null}
-
-              <div
-                className={`mt-6 grid-cols-2 gap-x-3 gap-y-8 sm:grid sm:grid-cols-3 sm:gap-x-5 sm:gap-y-10 lg:grid-cols-4 ${
-                  mobileView === "swipe" ? "hidden" : "grid"
-                }`}
-              >
+              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-5 sm:gap-y-10 lg:grid-cols-4">
                 {sortedCards.map((card) => (
                   <ProCard key={card.profile.id} {...getCardProps(card)} />
                 ))}
               </div>
             </section>
+
+            {/* The other way in, once you've seen who's here. */}
+            <Link
+              href="/requests/new"
+              className="group mt-14 flex items-center justify-between gap-4 rounded-[28px] bg-ink p-6 text-white transition hover:bg-neutral-900 sm:p-8"
+            >
+              <div>
+                <p className="text-lg font-semibold tracking-[-0.02em] sm:text-xl">Not sure who to book?</p>
+                <p className="mt-1 text-sm text-white/60">Post what you want and pros nearby send you offers.</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-medium text-ink transition group-hover:bg-neutral-200">
+                Post a request
+              </span>
+            </Link>
           </>
         )}
       </div>
