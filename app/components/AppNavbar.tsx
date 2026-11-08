@@ -758,14 +758,14 @@ function NavbarComponent() {
                     <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 14.158V11a6.002 6.002 0 0 0-4-5.659V5a2 2 0 1 0-4 0v.341A6.002 6.002 0 0 0 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                   {unreadCount > 0 ? (
-                    <span key={`badge-${bellPulse}`} className="animate-notification-pop absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[10px] font-semibold tabular-nums leading-none text-white">
+                    <span key={`badge-${bellPulse}`} className="animate-notification-pop absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#C8102E] px-1 text-[10px] font-semibold tabular-nums leading-none text-white">
                       {unreadCount > 99 ? "99+" : unreadCount}
                     </span>
                   ) : null}
                 </button>
 
                 {notifPanelOpen ? (
-                  <div className="lu-pop-in fixed inset-x-3 top-[4.25rem] z-50 overflow-hidden rounded-xl bg-surface ring-1 ring-ink/[0.06] shadow-[0_2px_6px_rgba(0,0,0,0.04),0_16px_40px_-12px_rgba(0,0,0,0.22)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:w-96">
+                  <div className="lu-pop-in fixed inset-x-3 top-[4.25rem] z-50 overflow-hidden rounded-[24px] bg-surface ring-1 ring-ink/[0.06] shadow-[0_2px_6px_rgba(0,0,0,0.04),0_16px_40px_-12px_rgba(0,0,0,0.22)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:w-96">
                     <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
                       <p className="text-sm font-semibold text-ink">Notifications</p>
                       {unreadNotifItems.length > 0 ? (
@@ -806,7 +806,7 @@ function NavbarComponent() {
                               setNotifPanelOpen(false);
                               router.push(isProfessional ? "/services" : "/requests/new");
                             }}
-                            className="mt-5 rounded-full border border-neutral-300 px-4 py-2 text-xs font-medium text-ink transition-colors hover:border-ink"
+                            className="mt-5 rounded-full bg-neutral-100 px-4 py-2 text-xs font-medium text-ink transition-colors hover:bg-neutral-200"
                           >
                             {isProfessional ? "Set up your services" : "Post a request"}
                           </button>
@@ -833,14 +833,46 @@ function NavbarComponent() {
 
                                   router.push(item.href);
                                 }}
-                                className="flex w-full items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors hover:bg-neutral-50"
+                                className="flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-neutral-50"
                               >
-                                <span
-                                  aria-hidden="true"
-                                  className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full transition-colors ${
-                                    item.isRead ? "bg-transparent" : "bg-ink"
-                                  }`}
-                                />
+                                {(() => {
+                                  const text = item.label.toLowerCase();
+                                  const kind = /no-show|missed|declined|cancel/.test(text)
+                                    ? "alert"
+                                    : /how was|review|rate/.test(text)
+                                    ? "star"
+                                    : /offer/.test(text)
+                                    ? "offer"
+                                    : /confirmed|booked|reminder/.test(text)
+                                    ? "booked"
+                                    : /done|complete/.test(text)
+                                    ? "done"
+                                    : "bell";
+                                  const paths: Record<string, React.ReactNode> = {
+                                    alert: <path d="M12 8v5m0 3h.01M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z" />,
+                                    star: <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" />,
+                                    offer: <path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8ZM7.5 7.5h.01" />,
+                                    booked: <path d="M8 2v3m8-3v3M3.5 9h17M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 19 20.5H5A1.5 1.5 0 0 1 3.5 19V6A1.5 1.5 0 0 1 5 4.5Zm4 10 2 2 4-4" />,
+                                    done: <path d="M20 6 9 17l-5-5" />,
+                                    bell: <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9m4.3 13a1.9 1.9 0 0 0 3.4 0" />,
+                                  };
+                                  return (
+                                    <span
+                                      aria-hidden="true"
+                                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                                        kind === "alert"
+                                          ? "bg-[#C8102E]/[0.08] text-[#C8102E]"
+                                          : item.isRead
+                                          ? "bg-neutral-100 text-neutral-400"
+                                          : "bg-ink text-white"
+                                      }`}
+                                    >
+                                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                        {paths[kind]}
+                                      </svg>
+                                    </span>
+                                  );
+                                })()}
                                 <span className="min-w-0 flex-1">
                                   <span className={`block text-sm leading-snug ${item.isRead ? "text-neutral-500" : "font-medium text-ink"}`}>
                                     {item.label}
@@ -850,7 +882,12 @@ function NavbarComponent() {
                                   ) : null}
                                   <span className="mt-1 block text-xs tabular-nums text-neutral-400">{timeAgo(item.createdAt)}</span>
                                 </span>
-                                {!item.isRead ? <span className="sr-only">Unread</span> : null}
+                                {!item.isRead ? (
+                                  <>
+                                    <span aria-hidden="true" className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#C8102E]" />
+                                    <span className="sr-only">Unread</span>
+                                  </>
+                                ) : null}
                               </button>
                             </li>
                           ))}
