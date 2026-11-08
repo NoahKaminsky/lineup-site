@@ -1345,7 +1345,7 @@ export default function ServicesPage() {
 
                     {editingServiceId === service.id ? (
                     <div className="mt-4 border-t border-hairline pt-4">
-                      <div className="grid gap-4 md:grid-cols-[1.25fr_0.65fr_0.65fr_auto]">
+                      <div className="grid gap-4 md:grid-cols-[1.25fr_0.65fr_0.65fr]">
                         <div>
                           <label className="mb-2 block text-sm font-medium text-neutral-700">
                             Service name
@@ -1398,15 +1398,6 @@ export default function ServicesPage() {
                           />
                         </div>
 
-                        <div className="flex items-end">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateService(service.id)}
-                            className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
-                          >
-                            Save
-                          </button>
-                        </div>
                       </div>
 
                       <div className="mt-4">
@@ -1423,6 +1414,17 @@ export default function ServicesPage() {
                           className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
                         />
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleUpdateService(service.id);
+                          setEditingServiceId(null);
+                        }}
+                        className="mt-4 w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 sm:w-auto sm:px-8"
+                      >
+                        Save changes
+                      </button>
                     </div>
                     ) : null}
                   </div>
@@ -1459,7 +1461,7 @@ export default function ServicesPage() {
               </div>
             </div>
           ) : null}
-          <div className="grid gap-4 md:grid-cols-[1.2fr_0.55fr_0.55fr_auto]">
+          <div className="grid gap-4 md:grid-cols-[1.2fr_0.55fr_0.55fr]">
             <div>
               <label className="mb-2 block text-sm font-medium text-neutral-700">
                 Service name
@@ -1505,16 +1507,6 @@ export default function ServicesPage() {
               />
             </div>
 
-            <div className="flex items-end">
-              <button
-                type="button"
-                onClick={handleAddService}
-                disabled={serviceSaving}
-                className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
-              >
-                {serviceSaving ? "Adding…" : "Add service"}
-              </button>
-            </div>
           </div>
 
           <div className="mt-4">
@@ -1529,6 +1521,15 @@ export default function ServicesPage() {
               className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
             />
           </div>
+
+          <button
+            type="button"
+            onClick={handleAddService}
+            disabled={serviceSaving}
+            className="mt-5 w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60 sm:w-auto sm:px-8"
+          >
+            {serviceSaving ? "Adding…" : "Add service"}
+          </button>
         </AccordionSection>
         <AccordionSection
           id="availability"

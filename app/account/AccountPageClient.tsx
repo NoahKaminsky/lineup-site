@@ -2038,7 +2038,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 <button
                   type="button"
                   onClick={() => setShowUpload(true)}
-                  className="flex aspect-square items-center justify-center rounded-2xl bg-ink/[0.03] text-sm font-medium text-neutral-600 transition hover:bg-ink/[0.06] hover:text-ink"
+                  className="flex h-24 items-center justify-center rounded-2xl bg-ink/[0.03] text-sm font-medium text-neutral-600 transition hover:bg-ink/[0.06] hover:text-ink sm:aspect-square sm:h-auto"
                 >
                   Add work
                 </button>
