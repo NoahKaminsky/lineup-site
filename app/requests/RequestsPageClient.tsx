@@ -2074,7 +2074,7 @@ return (
             <div className="lg:max-w-3xl">
               <div className="mt-10">
                 <h2 className="text-xl font-semibold tracking-[-0.02em]">
-                  Active bookings
+                  Upcoming
                 </h2>
 
                 {activeBookings.length === 0 ? (
@@ -2088,163 +2088,58 @@ return (
                     <p className="mt-1 text-sm text-neutral-500">Confirmed upcoming services will appear here.</p>
                   </div>
                 ) : (
-                  <div className="lu-lineup mt-5 grid gap-4">
-                    {activeBookings.map((booking) => {
-                      const isLoadingAction =
-                        bookingActionLoadingId === booking.id;
-
+                  <ul className="lu-lineup mt-5 grid gap-3">
+                    {[...activeBookings]
+                      .sort((x, y) => `${x.booking_date}${x.start_time}`.localeCompare(`${y.booking_date}${y.start_time}`))
+                      .map((booking) => {
+                      const isLoadingAction = bookingActionLoadingId === booking.id;
+                      const needsConfirm = booking.status === "completion_requested";
+                      // The whole card opens the booking; details, directions
+                      // and cancelling live there, so they aren't repeated here.
                       return (
-                        <div
-                          key={booking.id}
-                          className="rounded-2xl bg-surface ring-1 ring-ink/[0.06] p-5 sm:p-6"
-                        >
-                          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                            <div className="flex min-w-0 flex-1 gap-4">
-                              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
-                                {booking.professional_avatar_url ? (
-                                  <img loading="lazy"
-                                    src={booking.professional_avatar_url}
-                                    alt={booking.professional_name || "Professional"}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
-                                    {booking.professional_name
-                                      ?.charAt(0)
-                                      .toUpperCase() || "P"}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="min-w-0 max-w-3xl">
-                                <div className="flex flex-wrap items-center gap-3">
-
-                                  <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
-                                    {booking.status === "completion_requested"
-                                      ? "Awaiting confirmation"
-                                      : booking.status}
-                                  </span>
-
-                                  {booking.professional_type ? (
-                                    <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
-                                      {formatProfessionalType(
-                                        booking.professional_type
-                                      )}
-                                    </span>
-                                  ) : null}
+                        <li key={booking.id} className="rounded-2xl bg-surface ring-1 ring-ink/[0.06] transition-[box-shadow] hover:ring-ink/15">
+                          <Link href={`/bookings/${booking.id}`} className="flex items-center gap-4 p-4 sm:p-5">
+                            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-ink/[0.05]">
+                              {booking.professional_avatar_url ? (
+                                <img loading="lazy" src={booking.professional_avatar_url} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">
+                                  {booking.professional_name?.charAt(0).toUpperCase() || "P"}
                                 </div>
-
-                                <h2 className="mt-3 text-lg font-semibold tracking-[-0.015em]">
-                                  {cleanServiceLabel(booking.service_name) || "Booked service"}
-                                </h2>
-
-                                <p className="mt-3 text-neutral-600">
-                                  {formatBookingDate(booking.booking_date)} •{" "}
-                                  {formatTime(booking.start_time)} -{" "}
-                                  {formatTime(booking.end_time)}
-                                </p>
-
-                                <p className="mt-2 text-neutral-600">
-                                  With {booking.professional_name || "Professional"}
-                                </p>
-
-                                <UberLocationCard
-                                  address={booking.formatted_address}
-                                  lat={booking.location_lat}
-                                  lng={booking.location_lng}
-                                  compact
-                              userLat={userLocation?.lat}
-                              userLng={userLocation?.lng}
-                                />
-                              </div>
+                              )}
                             </div>
-
-                            <p className="shrink-0 text-sm text-neutral-500">
-                              Created {formatDateTime(booking.created_at)}
-                            </p>
-                          </div>
-
-                          <div className="mt-5 flex flex-wrap gap-2">
-                            {booking.duration_minutes ? (
-                              <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700">
-                                {booking.duration_minutes} min
-                              </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[15px] font-semibold tracking-[-0.01em] text-ink">
+                                {cleanServiceLabel(booking.service_name) || "Booked service"}
+                                <span className="font-normal text-neutral-500"> with {booking.professional_name?.split(" ")[0] || "your pro"}</span>
+                              </p>
+                              <p className="mt-0.5 truncate text-[13px] tabular-nums text-neutral-500">
+                                {formatBookingDate(booking.booking_date)}, {formatTime(booking.start_time)}
+                              </p>
+                            </div>
+                            {needsConfirm ? (
+                              <span className="shrink-0 rounded-full bg-ink px-2.5 py-1 text-[11px] font-medium text-white">Confirm</span>
                             ) : null}
-                          </div>
-
-                          <div className="mt-4 flex flex-wrap gap-3">
-                            <Link
-                              href={`/bookings/${booking.id}`}
-                              className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
-                            >
-                              View booking
-                            </Link>
-
-                            {booking.status === "completion_requested" ? (
+                          </Link>
+                          {needsConfirm ? (
+                            <div className="flex items-center justify-between gap-3 border-t border-hairline px-4 py-3 sm:px-5">
+                              <p className="text-[13px] text-neutral-600">
+                                {booking.professional_name?.split(" ")[0] || "Your pro"} marked this done.
+                              </p>
                               <button
                                 type="button"
-                                onClick={() =>
-                                  handleConfirmBookingCompletion(booking.id)
-                                }
+                                onClick={() => handleConfirmBookingCompletion(booking.id)}
                                 disabled={isLoadingAction}
-                                className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                                className="shrink-0 rounded-full bg-ink px-4 py-2 text-[13px] font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                               >
-                                {isLoadingAction
-                                  ? "Confirming…"
-                                  : "Confirm service completed"}
+                                {isLoadingAction ? "Confirming…" : "Confirm it's done"}
                               </button>
-                            ) : null}
-
-                            {(booking.status === "confirmed" ||
-                              booking.status === "completion_requested") ? (
-                              !canCancelForRefund(booking.booking_date, booking.start_time) ? (
-                                // Inside 24h: say so instead of offering a button the
-                                // server will refuse.
-                                <p className="text-xs leading-5 text-neutral-500">
-                                  Within 24 hours of the appointment, so it can no longer be cancelled. Message the
-                                  professional if something&apos;s come up.
-                                </p>
-                              ) : cancelBookingConfirmId === booking.id ? (
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-sm text-neutral-600">Cancel and get a full refund?</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCancelBooking(booking.id)}
-                                    disabled={isLoadingAction}
-                                    className="inline-flex rounded-full border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
-                                  >
-                                    Yes, cancel
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setCancelBookingConfirmId(null)}
-                                    className="inline-flex rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-900 transition hover:bg-neutral-50"
-                                  >
-                                    Keep
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setCancelBookingConfirmId(booking.id)}
-                                  disabled={isLoadingAction}
-                                  className="inline-flex rounded-full border border-red-300 px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
-                                >
-                                  Cancel booking
-                                </button>
-                              )
-                            ) : null}
-                            {(booking.status === "confirmed" || booking.status === "completion_requested") &&
-                            canCancelForRefund(booking.booking_date, booking.start_time) ? (
-                              <p className="text-xs text-neutral-400">
-                                Free cancellation until {formatCancellationDeadline(booking.booking_date, booking.start_time)}.
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
+                            </div>
+                          ) : null}
+                        </li>
                       );
                     })}
-                  </div>
+                  </ul>
                 )}
               </div>
 
