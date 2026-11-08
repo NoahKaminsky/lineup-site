@@ -15,7 +15,6 @@ import BidCountBlip from "@/app/components/BidCountBlip";
 import { burstOrigin, fireBurst } from "@/app/components/moments/Burst";
 import { useBidCounts } from "@/app/lib/useBidCounts";
 
-import { MapPin } from "lucide-react";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { useDismissedRequests } from "@/app/lib/requestDismissals";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
@@ -1305,21 +1304,24 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
     <main className="min-h-dvh bg-paper px-4 py-6 text-neutral-900 sm:px-6 sm:py-8 lg:px-8">
 
       <div className="mx-auto max-w-6xl py-4 sm:py-6">
-        <div>
+        <div className="flex items-end justify-between gap-4">
           <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-            {isProfessional ? "Your work" : "Your bookings"}
+            {isProfessional ? "Your work" : "Bookings"}
           </h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
-            {isProfessional
-              ? "Track your upcoming jobs, offers, and completed work."
-              : "Track your bookings, requests, and service history."}
-          </p>
+          {!isProfessional ? (
+            <Link
+              href="/requests/new"
+              className="shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
+            >
+              New request
+            </Link>
+          ) : null}
         </div>
 
         <VerificationBanner />
 
         <div role="tablist" aria-label={isProfessional ? "Work" : "Bookings"} className="mt-8 flex gap-7 overflow-x-auto border-b border-hairline [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {(["requests", "booked", "completed"] as TabKey[]).map((tab) => {
+          {(["booked", "requests", "completed"] as TabKey[]).map((tab) => {
             const labels: Record<TabKey, string> = {
               booked: "Upcoming",
               requests: isProfessional ? "Activity" : "Requests",
@@ -1398,7 +1400,6 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                   <div>
                     <p className="mb-3 text-[13px] font-medium text-neutral-500">
                       {isProfessional ? "Open requests" : "Your requests"}
-                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{openRequestItems.length}</span>
                     </p>
                     <div className="grid gap-2.5 lg:grid-cols-2">
                       {openRequestItems.map((item) => (
@@ -1422,7 +1423,6 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                     ) : null}
                     <p className="mb-3 text-[13px] font-medium text-neutral-500">
                       {isProfessional ? "Offers sent" : "Offers received"}
-                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{offerItems.length}</span>
                     </p>
                     <div className="grid gap-2.5 lg:grid-cols-2">
                       {offerItems.map((item) => (
@@ -1496,7 +1496,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
               <div className="lu-lineup space-y-6">
                 {completedGroups.map((group) => (
                   <details key={group.key} open={group.defaultOpen} className="group/period">
-                    <summary className="mb-3 flex cursor-pointer list-none items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+                    <summary className="mb-3 flex cursor-pointer list-none items-center gap-2 text-[13px] font-medium text-neutral-500">
                       <svg
                         viewBox="0 0 20 20"
                         className="h-3.5 w-3.5 shrink-0 text-neutral-400 transition-transform group-open/period:rotate-90"
@@ -1505,7 +1505,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                         <path d="M7 4l6 6-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                       {group.label}
-                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{group.items.length}</span>
+                      <span className="tabular-nums text-neutral-400">{group.items.length}</span>
                     </summary>
 
                     <BookedList
@@ -1528,7 +1528,6 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                   <div>
                     <p className="mb-3 text-[13px] font-medium text-neutral-500">
                       Cancelled bookings
-                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{cancelledItems.length}</span>
                     </p>
                     <BookedList
                       items={cancelledItems}
@@ -1547,7 +1546,6 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                   <div>
                     <p className="mb-3 text-[13px] font-medium text-neutral-500">
                       Cancelled requests
-                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{cancelledRequestItems.length}</span>
                     </p>
                     <div className="grid gap-2.5 lg:grid-cols-2">
                       {cancelledRequestItems.map((item) => (
@@ -1561,7 +1559,6 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                   <div>
                     <p className="mb-3 text-[13px] font-medium text-neutral-500">
                       Past offers
-                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 font-bold text-neutral-500">{resolvedOfferItems.length}</span>
                     </p>
                     <div className="grid gap-2.5 lg:grid-cols-2">
                       {resolvedOfferItems.map((item) => (
@@ -1657,8 +1654,6 @@ function ActivityCard({
   bidCount?: number;
   leaving?: boolean;
 }) {
-  const isOffer = item.kind === "offer_sent" || item.kind === "offer_received";
-
   const metaParts = [
     item.personName
       ? item.kind === "open_request" && item.personRating
@@ -1671,7 +1666,7 @@ function ActivityCard({
   const card = (
     <Link
       href={`/requests/${item.requestId}`}
-      className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-3.5 transition hover:border-neutral-300 hover:bg-neutral-50"
+      className="flex items-center gap-3 rounded-2xl bg-white p-3.5 ring-1 ring-ink/[0.06] transition hover:ring-ink/[0.12]"
     >
       {item.personName ? (
         <Avatar name={item.personName} url={item.personAvatarUrl} />
@@ -1680,29 +1675,22 @@ function ActivityCard({
       )}
 
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-            isOffer
-              ? "bg-neutral-100 text-neutral-600"
-              : "bg-neutral-900 text-white"
-          }`}>
-            {item.kind === "open_request"
-              ? "New request"
-              : item.kind === "posted_request"
-              ? "Your request"
-              : item.kind === "offer_sent"
-              ? "Offer sent"
-              : "Offer received"}
-          </span>
-          <span className="text-[11px] text-neutral-400">{item.status}</span>
-        </div>
-
-        <h2 className="mt-1 line-clamp-1 text-sm font-semibold tracking-tight text-neutral-900">
+        <h2 className="line-clamp-1 text-sm font-semibold tracking-tight text-neutral-900">
           {item.title}
         </h2>
+        <p className="mt-0.5 text-xs text-neutral-500">
+          {item.kind === "open_request"
+            ? "New request"
+            : item.kind === "posted_request"
+            ? "Your request"
+            : item.kind === "offer_sent"
+            ? "Offer sent"
+            : "Offer received"}
+          {item.status ? <span className="text-neutral-400">, {item.status.toLowerCase()}</span> : null}
+        </p>
 
         {metaParts.length > 0 ? (
-          <p className="mt-0.5 line-clamp-1 text-xs text-neutral-500">
+          <p className="mt-0.5 line-clamp-1 text-xs text-neutral-400">
             {metaParts.join(" · ")}
           </p>
         ) : null}
@@ -1799,74 +1787,61 @@ function BookedList({
           ? `${formatDate(item.date)}${item.startTime ? ` · ${formatTime(item.startTime)}` : ""}${item.endTime ? `–${formatTime(item.endTime)}` : ""}`
           : "Time not set";
 
-        const metaLine = [
-          `${otherPerson.label}: ${otherPerson.name || "Unknown"}`,
-          timeLabel,
-          formatMode(item.serviceMode),
-        ]
-          .filter(Boolean)
-          .join(" · ");
+        // One status chip, only when it tells you something the section
+        // doesn't already (upcoming = confirmed, so no chip there).
+        const chip =
+          item.status === "completion_requested"
+            ? isProfessional
+              ? { label: "Marked done", strong: false }
+              : null // the "Was your … done?" strip below asks instead
+            : item.status === "cancelled"
+              ? { label: item.refundStatus === "refunded" ? "Cancelled, refunded" : "Cancelled", strong: false }
+              : null;
 
         return (
-          <div
-            key={actionKey}
-            className="rounded-2xl border border-neutral-200 bg-white p-4"
-          >
-            <div className="flex items-start gap-3">
+          <div key={actionKey} className="rounded-2xl bg-white p-4 ring-1 ring-ink/[0.06]">
+            <Link href={item.href} className="-m-1 flex items-start gap-3 rounded-xl p-1 transition hover:bg-neutral-50">
               <Avatar name={otherPerson.name} url={otherPerson.avatarUrl} />
 
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                      item.status === "completed" || (item.status === "completion_requested" && isProfessional)
-                        ? "bg-neutral-100 text-neutral-600"
-                        : "bg-neutral-900 text-white"
-                    }`}>
-                      {item.status === "completion_requested"
-                        ? isProfessional
-                          ? "Marked done"
-                          : "Confirm now"
-                        : statusLabel(item.status)}
-                    </span>
-                    <span className="text-[11px] text-neutral-400">
-                      {item.source === "request" || item.originRequestId ? "Accepted request" : "Direct booking"}
-                    </span>
-                    {item.status === "cancelled" && item.refundStatus === "refunded" ? (
-                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink">
-                        Refunded
-                      </span>
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="line-clamp-1 text-base font-semibold tracking-tight text-neutral-900">
+                    {item.title}
+                    {otherPerson.name ? (
+                      <span className="font-normal text-neutral-500"> with {otherPerson.name.split(" ")[0]}</span>
                     ) : null}
-                  </div>
-
+                  </h2>
                   {formatPrice(item.price) ? (
-                    <span className="shrink-0 text-sm font-semibold text-neutral-900">
-                      {formatPrice(item.price)}
-                    </span>
+                    <span className="shrink-0 text-sm font-medium tabular-nums text-neutral-900">{formatPrice(item.price)}</span>
                   ) : null}
                 </div>
 
-                <h2 className="mt-1 line-clamp-1 text-base font-semibold tracking-tight text-neutral-900">
-                  {item.title}
-                </h2>
-
-                <p className="mt-1 line-clamp-1 text-xs text-neutral-500">
-                  {metaLine}
-                </p>
+                <p className="mt-0.5 text-[13px] text-neutral-500">{timeLabel}</p>
 
                 {item.location ? (
-                  <p className="mt-1 truncate text-xs text-neutral-400">
-                    <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{item.location}
-                  </p>
+                  <p className="mt-0.5 truncate text-[13px] text-neutral-400">{item.location}</p>
+                ) : formatMode(item.serviceMode) ? (
+                  <p className="mt-0.5 text-[13px] text-neutral-400">{formatMode(item.serviceMode)}</p>
                 ) : null}
 
-                {item.status === "completed" && item.completedAt ? (
-                  <p className="mt-1 text-xs text-neutral-400">
-                    Completed {formatDateTime(item.completedAt)}
-                  </p>
+                {chip || (item.status === "completed" && item.completedAt) ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {chip ? (
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                          chip.strong ? "bg-ink text-white" : "bg-neutral-100 text-neutral-600"
+                        }`}
+                      >
+                        {chip.label}
+                      </span>
+                    ) : null}
+                    {item.status === "completed" && item.completedAt ? (
+                      <span className="text-xs text-neutral-400">Completed {formatDateTime(item.completedAt)}</span>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
-            </div>
+            </Link>
 
             {/* Completion: the step that pays the pro, so it gets a real
                 strip on the card rather than a small button in the row. */}
@@ -1922,31 +1897,18 @@ function BookedList({
               </div>
             ) : null}
 
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3">
-              <Link
-                href={item.href}
-                className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800"
-              >
-                View details
-              </Link>
+            {(item.href.startsWith("/bookings/") && ["accepted", "confirmed", "completion_requested"].includes(item.status)) ||
+            ((item.status === "accepted" || item.status === "confirmed") && canCancelForRefund(item.date, item.startTime)) ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-ink/[0.05] pt-3">
 
               {/* Chat is one tap from the list once something is booked. */}
               {item.href.startsWith("/bookings/") &&
               ["accepted", "confirmed", "completion_requested"].includes(item.status) ? (
                 <Link
                   href={`${item.href}#booking-chat`}
-                  className="rounded-full border border-neutral-300 px-4 py-2 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50"
+                  className="rounded-full bg-neutral-100 px-4 py-2 text-xs font-medium text-neutral-900 transition hover:bg-neutral-200"
                 >
                   Message
-                </Link>
-              ) : null}
-
-              {otherPerson.profileId ? (
-                <Link
-                  href={`/profile/${otherPerson.profileId}`}
-                  className="rounded-full border border-neutral-300 px-4 py-2 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50"
-                >
-                  {otherPerson.buttonText}
                 </Link>
               ) : null}
 
@@ -1986,13 +1948,14 @@ function BookedList({
                     type="button"
                     onClick={() => setCancelConfirmId(actionKey)}
                     disabled={isLoadingAction}
-                    className="ml-auto rounded-full border border-red-200 px-4 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50 disabled:opacity-60"
+                    className="ml-auto rounded-full px-3 py-2 text-xs font-medium text-neutral-500 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
                   >
-                    Cancel
+                    Cancel booking
                   </button>
                 )
               ) : null}
             </div>
+            ) : null}
 
             {item.status === "completed" && isProfessional && onRateCustomer ? (
               <div className="mt-3 flex items-center gap-2 border-t border-neutral-100 pt-3">

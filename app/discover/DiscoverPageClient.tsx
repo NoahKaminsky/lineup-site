@@ -241,7 +241,7 @@ function ProCard({ href, name, role, place, services, image, badge, rating, revi
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2">
             <span className="text-6xl font-semibold tracking-[-0.05em] text-neutral-300">{initial}</span>
-            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">{role}</span>
+            <span className="text-xs text-neutral-400">{role}</span>
           </div>
         )}
 
@@ -986,19 +986,17 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         {/* Intro — compact, so real professionals start above the fold. */}
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className={sectionLabel}>Browse</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+            <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
               Find your professional.
             </h1>
-            <p className="mt-2.5 max-w-xl text-base leading-7 text-neutral-600">
-              Discover independent beauty and personal-care professionals, see their work, and book directly
-              — or post a request and let offers come to you.
+            <p className="mt-2 max-w-xl text-base leading-7 text-neutral-500">
+              See their work, then book in a few taps.
             </p>
           </div>
 
           <Link
             href="/requests/new"
-            className="inline-flex w-fit shrink-0 items-center rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-ink transition-colors hover:border-ink"
+            className="inline-flex w-fit shrink-0 items-center rounded-full bg-surface px-5 py-2.5 text-sm font-medium text-ink ring-1 ring-inset ring-ink/10 transition hover:ring-ink/30"
           >
             Post a request instead
           </Link>
@@ -1025,7 +1023,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
               }}
               placeholder="Search name, service, or area"
               autoComplete="off"
-              className="h-14 w-full rounded-full border border-neutral-200 bg-surface pl-[3.25rem] pr-12 text-[15px] outline-none transition-colors placeholder:text-neutral-400 focus:border-ink [&::-webkit-search-cancel-button]:hidden"
+              className="h-14 w-full rounded-full bg-surface pl-[3.25rem] pr-12 text-[15px] outline-none ring-1 ring-inset ring-ink/[0.08] transition-shadow placeholder:text-neutral-400 focus:ring-ink [&::-webkit-search-cancel-button]:hidden"
             />
             {search ? (
               <button
@@ -1146,7 +1144,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
               <button
                 type="button"
                 onClick={clearFilters}
-                className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-ink"
+                className="rounded-full bg-surface px-4 py-2 text-sm font-medium text-ink ring-1 ring-inset ring-ink/10 transition hover:ring-ink/30"
               >
                 Clear filters
               </button>
@@ -1168,7 +1166,6 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                   <h2 id="featured-heading" className="text-lg font-semibold tracking-[-0.02em]">
                     Featured on LineUp
                   </h2>
-                  <p className="hidden text-xs text-neutral-500 sm:block">Hand-picked and top-tier members</p>
                 </div>
 
                 {/* Phones: a swipeable rail. Tablet/desktop: one aligned row on the same
