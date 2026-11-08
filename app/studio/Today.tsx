@@ -142,8 +142,49 @@ export default function TodayView() {
               </p>
             </div>
           ) : (
+            <>
+            {(() => {
+              // The very next chair, as a ticket.
+              const i = upNext[0];
+              const pro = team.find((m) => m.profileId === i.professionalId) || null;
+              const inProgress = toMinutes(i.start) <= now;
+              return (
+                <div className="px-3 pb-2">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(i)}
+                    className="relative block w-full overflow-hidden rounded-[22px] bg-ink p-5 text-left text-white transition active:scale-[0.995]"
+                  >
+                    <span aria-hidden="true" className="lu-glow pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#C8102E]/30 blur-3xl" />
+                    <span className="relative flex items-center justify-between gap-3">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium ring-1 ring-white/10">
+                        <span className="lu-pulse-dot h-1.5 w-1.5 rounded-full bg-[#ff4d63]" />
+                        {inProgress ? `In the chair until ${time12(i.end)}` : "Next in the chair"}
+                      </span>
+                      {i.kind !== "online" ? (
+                        <span className="text-xs text-white/60">{i.kind === "phone" ? "Phone-in" : "Walk-in"}</span>
+                      ) : i.memberPlan ? (
+                        <span className="text-xs text-white/60">Member</span>
+                      ) : i.payAtShop ? (
+                        <span className="text-xs text-white/60">Pays here</span>
+                      ) : null}
+                    </span>
+                    <span className="lu-time-in relative mt-4 block text-[2.4rem] font-semibold leading-none tracking-[-0.05em] tabular-nums">
+                      {inProgress ? "Now" : time12(i.start)}
+                    </span>
+                    <span className="relative mt-3 block truncate text-[15px] font-medium">
+                      {i.service || "Appointment"}
+                      <span className="font-normal text-white/60">
+                        {" "}for {i.clientName || "a client"}
+                        {me.canManage && pro ? `, with ${firstName(pro.name)}` : ""}
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              );
+            })()}
             <ul className="divide-y divide-hairline">
-              {upNext.slice(0, 8).map((i) => {
+              {upNext.slice(1, 8).map((i) => {
                 const pro = team.find((m) => m.profileId === i.professionalId) || null;
                 const inProgress = toMinutes(i.start) <= now;
                 return (
@@ -169,6 +210,7 @@ export default function TodayView() {
                 );
               })}
             </ul>
+            </>
           )}
           {doneCount > 0 ? (
             <p className="border-t border-hairline px-5 py-3 text-[13px] text-neutral-500">
