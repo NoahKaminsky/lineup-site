@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DateTile, countdown, dayWord } from "@/app/components/bookings/BookingVisuals";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -830,12 +831,23 @@ export default function BookingDetailPage() {
 
         {/* The booking at a glance: what, when, with whom, where. */}
         <section className="lu-dialog-in mt-4 rounded-[28px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-36px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.07] sm:p-8">
-          <h1 className="text-[1.9rem] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-4xl">
-            {cleanServiceLabel(booking.service_name) || "Booked service"}
-          </h1>
-          <p className="mt-2 text-lg text-neutral-600">
-            {formatBookingDate(booking.booking_date)} · {formatTime(booking.start_time)} – {formatTime(booking.end_time)}
-          </p>
+          {isLive && countdown(booking.booking_date, booking.start_time) !== "Now" ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 text-xs font-medium text-white">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#ff4d63]" />
+              {countdown(booking.booking_date, booking.start_time)}
+            </span>
+          ) : null}
+          <div className={`flex items-center gap-4 ${isLive && countdown(booking.booking_date, booking.start_time) !== "Now" ? "mt-5" : ""}`}>
+            <DateTile date={booking.booking_date} muted={!isLive} />
+            <div className="min-w-0">
+              <h1 className="text-[1.9rem] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-4xl">
+                {cleanServiceLabel(booking.service_name) || "Booked service"}
+              </h1>
+              <p className="mt-1.5 text-[15px] text-neutral-600">
+                {dayWord(booking.booking_date)} · {formatTime(booking.start_time)} – {formatTime(booking.end_time)}
+              </p>
+            </div>
+          </div>
 
           <div className="mt-6 flex items-center gap-3">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-neutral-100 ring-1 ring-ink/[0.06]">
@@ -880,7 +892,7 @@ export default function BookingDetailPage() {
                   href={mapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`inline-flex items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-ink transition hover:bg-neutral-50 ${isLive ? "" : "col-span-2"}`}
+                  className={`inline-flex items-center justify-center rounded-full bg-neutral-100 px-5 py-3 text-sm font-medium text-ink transition hover:bg-neutral-200 ${isLive ? "" : "col-span-2"}`}
                 >
                   Directions
                 </a>
