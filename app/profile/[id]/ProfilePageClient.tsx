@@ -364,8 +364,7 @@ function ProfileSection({
 }) {
   const heading = (
     <div className="min-w-0">
-      {subtitle ? <p className="text-xs font-medium text-neutral-500">{subtitle}</p> : null}
-      <h2 className="mt-1.5 text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink md:text-[2rem]">
+      <h2 className="text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink md:text-[2rem]">
         {title}
       </h2>
       {summary ? <p className="mt-2 text-sm leading-6 text-neutral-500">{summary}</p> : null}
@@ -1360,6 +1359,16 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     return `${first.dayLabel} ${first.dateLabel} • ${formatTime(first.start_time)}`;
   }
 
+  // "Today 5:30 PM", "Tomorrow 9:00 AM", "Wed Nov 11, 9:00 AM" for the main button.
+  function getNextOpeningShort() {
+    if (generatedSlots.length === 0) return null;
+    const first = generatedSlots[0];
+    const relative = first.dayLabel === "Today" || first.dayLabel === "Tomorrow";
+    return relative
+      ? `${first.dayLabel} ${formatTime(first.start_time)}`
+      : `${first.dayLabel} ${first.dateLabel}, ${formatTime(first.start_time)}`;
+  }
+
   function handleStartBookingConfirmation(service: ProfessionalService) {
     setMessage("");
 
@@ -1812,6 +1821,7 @@ if (loading) {
             const subline = [
               isProfessional ? formatProfessionalTypes(profile) : "LineUp Client",
               isProfessional ? profile.business_name?.trim() : null,
+              isProfessional && averageRating ? `★ ${averageRating} (${reviews.length})` : null,
             ]
               .filter(Boolean)
               .join(" · ");
@@ -1930,18 +1940,7 @@ if (loading) {
                 </p>
               ) : null}
 
-              {profileTags.filter((tag) => !tag.startsWith("Verified")).length > 0 ? (
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {profileTags
-                    .filter((tag) => !tag.startsWith("Verified"))
-                    .slice(0, 4)
-                    .map((tag) => (
-                      <span key={tag} className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 ring-1 ring-ink/[0.07]">
-                        {tag}
-                      </span>
-                    ))}
-                </div>
-              ) : null}
+
             </div>
 
             <div className="lg:w-[300px]">
@@ -1959,7 +1958,7 @@ if (loading) {
                       className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-7 py-4 text-[15px] font-semibold text-white transition duration-300 ease-premium hover:bg-neutral-800 active:scale-[0.98]"
                     >
                       <CalendarDays className="h-4 w-4" />
-                      Book a time
+                      {getNextOpeningShort() ? `Book · ${getNextOpeningShort()}` : "Book a time"}
                     </a>
                   ) : null}
                   <Link
@@ -1968,17 +1967,18 @@ if (loading) {
                         ? `/requests/new?rebook=1&pro=${profile.id}`
                         : loginHref(`/requests/new?rebook=1&pro=${profile.id}`)
                     }
-                    className={`inline-flex items-center justify-center rounded-full px-7 py-4 text-[15px] font-semibold transition duration-300 ease-premium active:scale-[0.98] ${
+                    className={
                       canDirectBook
-                        ? "bg-white text-ink ring-1 ring-ink/15 hover:ring-ink/30"
-                        : "bg-ink text-white hover:bg-neutral-800"
-                    }`}
+                        ? "text-center text-sm font-medium text-neutral-500 transition hover:text-ink"
+                        : "inline-flex items-center justify-center rounded-full bg-ink px-7 py-4 text-[15px] font-semibold text-white transition duration-300 ease-premium hover:bg-neutral-800 active:scale-[0.98]"
+                    }
                   >
-                    {hasBookedBefore ? "Request again" : "Request service"}
+                    {canDirectBook
+                      ? "or send a request"
+                      : hasBookedBefore
+                        ? "Request again"
+                        : "Request service"}
                   </Link>
-                  {canDirectBook && getNextOpeningText() ? (
-                    <p className="mt-1 text-center text-xs text-neutral-500">Next opening {getNextOpeningText()}</p>
-                  ) : null}
                 </div>
               ) : null}
 
@@ -2018,60 +2018,7 @@ if (loading) {
             </dl>
           ) : null}
 
-          {isProfessional ? (
-            <dl
-              style={{ "--lu-delay": profile.banner_url ? "720ms" : "460ms" } as React.CSSProperties}
-              className={`lu-rise mt-8 grid ${portfolioItems.length > 0 ? "grid-cols-4" : "grid-cols-3"} divide-x divide-ink/[0.08] rounded-2xl bg-white py-4 ring-1 ring-ink/[0.07] md:py-5`}>
-              {[
-                {
-                  label: "Rating",
-                  value: averageRating || "New",
-                  star: !!averageRating,
-                  href: reviews.length > 0 ? "#reviews" : null,
-                },
-                {
-                  label: reviews.length === 1 ? "Review" : "Reviews",
-                  value: String(reviews.length),
-                  href: reviews.length > 0 ? "#reviews" : null,
-                },
-                {
-                  label: services.length === 1 ? "Service" : "Services",
-                  value: String(services.length),
-                  href: services.length > 0 ? "#services" : null,
-                },
-                portfolioItems.length > 0
-                  ? { label: "Portfolio", value: String(portfolioItems.length), href: "#work" }
-                  : null,
-              ]
-                .filter((stat): stat is NonNullable<typeof stat> => !!stat)
-                .map((stat) => {
-                const body = (
-                  <>
-                    <dt className="mt-1.5 truncate text-[11px] text-neutral-500 md:text-xs">{stat.label}</dt>
-                    <dd className="flex items-center justify-center gap-1 text-[1.15rem] font-semibold leading-none tracking-[-0.02em] text-ink md:text-[1.5rem]">
-                      {"star" in stat && stat.star ? (
-                        <span aria-hidden="true" className="text-[0.7em] leading-none">★</span>
-                      ) : null}
-                      {stat.value}
-                    </dd>
-                  </>
-                );
-                return stat.href ? (
-                  <a
-                    key={stat.label}
-                    href={stat.href}
-                    className="flex min-w-0 flex-col-reverse items-center px-2 text-center transition hover:opacity-70"
-                  >
-                    {body}
-                  </a>
-                ) : (
-                  <div key={stat.label} className="flex min-w-0 flex-col-reverse items-center px-2 text-center">
-                    {body}
-                  </div>
-                );
-              })}
-            </dl>
-          ) : null}
+          {/* Rating sits in the name line; sections are one tap away in the tab bar. */}
 
           {message ? (
             <div className="mt-6 rounded-2xl bg-white p-4 text-sm text-neutral-700 ring-1 ring-ink/[0.07]">{message}</div>
@@ -2156,24 +2103,13 @@ if (loading) {
               id="availability"
               wide
               title="Book a time"
-              subtitle="Availability"
-              summary={getNextOpeningText() ? `Next opening: ${getNextOpeningText()}` : "View available times"}
+              summary={
+                directBookingModes.length > 0
+                  ? `Pick a time and it's booked. ${directBookingModes.map((m) => formatModeLabel(m)).join(" or ")}.`
+                  : "Pick a time and it's booked."
+              }
             >
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm ring-1 ring-ink/[0.07]">
-                <p className="text-neutral-600">
-                  Pick an open time below and book instantly
-                  {directBookingModes.length > 0
-                    ? ` (${directBookingModes.map((m) => formatModeLabel(m).toLowerCase()).join(" or ")})`
-                    : ""}
-                  .
-                </p>
-                <Link
-                  href={`/requests/new?rebook=1&pro=${profile.id}`}
-                  className="font-medium text-ink underline decoration-ink/25 underline-offset-4 transition hover:decoration-ink"
-                >
-                  Make a direct service request instead
-                </Link>
-              </div>
+
 
               {preferredService ? (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink bg-surface px-4 py-3 text-sm">
@@ -2325,22 +2261,14 @@ if (loading) {
                     <div className="min-w-0 rounded-3xl bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="text-xs font-medium text-neutral-500">
-                            Selected day
-                          </p>
-                          <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
+                          <h3 className="text-xl font-semibold tracking-[-0.02em] text-neutral-900">
                             {selectedBookingDay
                               ? `${selectedBookingDay.dayLabel} ${selectedBookingDay.dateLabel}`
                               : "Choose a day"}
                           </h3>
                         </div>
 
-                        {selectedBookingDay ? (
-                          <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm ring-1 ring-neutral-200">
-                            {selectedBookingDay.slots.length} open{" "}
-                            {selectedBookingDay.slots.length === 1 ? "time" : "times"}
-                          </span>
-                        ) : null}
+
                       </div>
 
                       {!selectedBookingDay || selectedBookingDay.slots.length === 0 ? (
@@ -2417,30 +2345,26 @@ if (loading) {
                                       setLocationLng(null);
                                       setMessage("");
                                     }}
-                                    className={`min-w-0 rounded-2xl border px-3 py-3 text-left transition-all duration-150 ${
+                                    className={`min-w-0 rounded-2xl px-3 py-3 text-left transition-all duration-150 ${
                                       isSelected
-                                        ? "border-ink bg-ink text-white shadow-md"
+                                        ? "bg-ink text-white shadow-md"
                                         : isCovered
-                                        ? "cursor-default border-ink/70 bg-ink/75 text-white"
-                                        : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                                        ? "cursor-default bg-ink/75 text-white"
+                                        : "bg-neutral-50 text-neutral-900 ring-1 ring-inset ring-ink/[0.06] hover:bg-white hover:ring-ink/20 disabled:cursor-not-allowed disabled:opacity-50"
                                     }`}
                                   >
                                     <p className={`text-base font-semibold ${isCovered ? "text-white/70" : ""}`}>
                                       {bookingSlotKey === slot.key ? "Booking…" : formatTime(slot.start_time)}
                                     </p>
-                                    <p
-                                      className={`mt-1 text-xs ${
-                                        isSelected || isCovered ? "text-white/70" : "text-neutral-500"
-                                      }`}
-                                    >
-                                      {isSelected
-                                        ? chosenRange
-                                          ? `until ${formatTime(minutesToTime(chosenRange.end))}`
-                                          : "Pick a service"
-                                        : isCovered
-                                        ? "Your appointment"
-                                        : "Open"}
-                                    </p>
+                                    {isSelected || isCovered ? (
+                                      <p className="mt-1 text-xs text-white/70">
+                                        {isSelected
+                                          ? chosenRange
+                                            ? `until ${formatTime(minutesToTime(chosenRange.end))}`
+                                            : "Pick a service"
+                                          : "Your appointment"}
+                                      </p>
+                                    ) : null}
                                   </button>
                                   );
                                 })}
@@ -2452,13 +2376,9 @@ if (loading) {
                     </div>
                   </div>
 
-                  <div className="h-fit rounded-3xl bg-white p-5 ring-1 ring-ink/[0.07] xl:sticky xl:top-[calc(var(--profile-offset,8rem)+1rem)]">
-                    <p className="text-xs font-medium text-neutral-500">
-                      Booking summary
-                    </p>
-
+                  <div className={`h-fit rounded-3xl bg-white p-5 ring-1 ring-ink/[0.07] xl:sticky xl:top-[calc(var(--profile-offset,8rem)+1rem)] ${selectedSlot ? "" : "hidden xl:block"}`}>
                     {!selectedSlot ? (
-                      <div className="mt-4 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
+                      <div className="rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
                         Select a day and time to see which services fit and complete your booking.
                       </div>
                     ) : (
@@ -2825,7 +2745,7 @@ if (loading) {
           {isProfessional ? (
             <ProfileSection
               id="reviews"
-              title="Client feedback"
+              title="Reviews"
               subtitle="Reviews"
             >
               {reviews.length === 0 ? (
