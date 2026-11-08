@@ -481,12 +481,29 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       }, 250);
     };
 
-    const channel = supabase
-      .channel("work-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "service_requests" }, queueSilentReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "request_offers" }, queueSilentReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, queueSilentReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, queueSilentReload)
+    // Only this person's rows. Unfiltered, every change anyone made anywhere
+    // on LineUp re-ran all of this page's queries for every open tab.
+    const uid = profile.id;
+    const pro = isProfessionalRole(profile.role);
+    let channel = supabase
+      .channel(`work-live-${uid}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${uid}` }, queueSilentReload)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings", filter: `${pro ? "professional_id" : "customer_id"}=eq.${uid}` },
+        queueSilentReload
+      );
+    channel = pro
+      ? channel
+          .on("postgres_changes", { event: "*", schema: "public", table: "request_offers", filter: `professional_id=eq.${uid}` }, queueSilentReload)
+          // New requests nearby still show up live; edits to other people's don't wake this page.
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "service_requests" }, queueSilentReload)
+      : channel.on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "service_requests", filter: `client_id=eq.${uid}` },
+          queueSilentReload
+        );
+    channel
       .subscribe();
 
     return () => {

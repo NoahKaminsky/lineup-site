@@ -1036,44 +1036,27 @@ if (profileError || !profile) {
       }, 250);
     };
 
-    const channel = supabase
-      .channel("requests-live")
+    if (!userId) return;
+    // Only this person's rows (see app/work/WorkPageClient.tsx).
+    const pro = !isCustomerRole(role);
+    let channel = supabase
+      .channel(`requests-live-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` }, queueSilentReload)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "service_requests",
-        },
+        { event: "*", schema: "public", table: "bookings", filter: `${pro ? "professional_id" : "customer_id"}=eq.${userId}` },
         queueSilentReload
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "request_offers",
-        },
-        queueSilentReload
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-        },
-        queueSilentReload
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bookings",
-        },
-        queueSilentReload
-      )
+      );
+    channel = pro
+      ? channel
+          .on("postgres_changes", { event: "*", schema: "public", table: "request_offers", filter: `professional_id=eq.${userId}` }, queueSilentReload)
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "service_requests" }, queueSilentReload)
+      : channel.on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "service_requests", filter: `client_id=eq.${userId}` },
+          queueSilentReload
+        );
+    channel
       .subscribe();
 
     return () => {
@@ -1082,7 +1065,7 @@ if (profileError || !profile) {
       }
       supabase.removeChannel(channel);
     };
-  }, [role, loadRequestsLive]);
+  }, [role, userId, loadRequestsLive]);
 
   // Pro marks an ended appointment done; the client is then pushed to confirm.
   async function handleMarkBookingComplete(bookingId: string) {
