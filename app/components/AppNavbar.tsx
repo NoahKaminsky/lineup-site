@@ -446,15 +446,22 @@ function NavbarComponent() {
   // the app first loaded, so a plan changed in Supabase or /admin didn't
   // show until a hard reload. Re-read just the plan fields on navigation and
   // whenever the tab comes back into focus.
+  // One small read covers the plan badge and the "on a studio" check, at most
+  // once a minute (plus on tab focus), instead of two reads on every tap.
+  const [onStudio, setOnStudio] = useState(false);
+  const lastPlanRead = useRef(0);
   const profileId = profile?.id;
-  const refreshPlan = useCallback(async () => {
+  const refreshPlan = useCallback(async (force = false) => {
     if (!profileId) return;
+    if (!force && Date.now() - lastPlanRead.current < 60_000) return;
+    lastPlanRead.current = Date.now();
     const { data } = await supabase
       .from("profiles")
-      .select("subscription_plan, subscription_status")
+      .select("subscription_plan, subscription_status, studio_id")
       .eq("id", profileId)
       .maybeSingle();
     if (!data) return;
+    setOnStudio(!!(data as { studio_id?: string | null }).studio_id);
     setProfile((prev) =>
       prev &&
       (prev.subscription_plan !== data.subscription_plan || prev.subscription_status !== data.subscription_status)
@@ -469,7 +476,7 @@ function NavbarComponent() {
 
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === "visible") refreshPlan();
+      if (document.visibilityState === "visible") refreshPlan(true);
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
@@ -567,28 +574,6 @@ function NavbarComponent() {
       role === "I am a professional" ||
       (!!role && role !== "customer" && role !== "I am a customer"));
 
-  // On a studio's team? Then the header reads "LineUp Studio" whatever their
-  // own plan. Separate query so it's harmless before the studio migration.
-  const [onStudio, setOnStudio] = useState(false);
-  useEffect(() => {
-    const id = profile?.id;
-    if (!id || (!isProfessional && !isShop)) {
-      setOnStudio(false);
-      return;
-    }
-    let cancelled = false;
-    supabase
-      .from("profiles")
-      .select("studio_id")
-      .eq("id", id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled) setOnStudio(!!(data as { studio_id?: string | null } | null)?.studio_id);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [profile?.id, isProfessional, isShop, pathname]);
 
   // Header badge: "Studio" for pros on a studio's team; otherwise a pro's
   // current tier (Apprentice / Pro / Master) while the subscription is live,
