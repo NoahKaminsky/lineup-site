@@ -713,3 +713,14 @@ main {
   .lu-glow, .lu-pulse-dot, .lu-time-in { animation: none; }
   .lu-sheen::after { animation: none; display: none; }
 }
+
+/* Page change: a short settle, the same on every screen. */
+/* Opacity only: a transform here would trap fixed sheets and bars inside it. */
+@keyframes lu-page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.lu-page-in { animation: lu-page-in 220ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .lu-page-in { animation: none; }
+}

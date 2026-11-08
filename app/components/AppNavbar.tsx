@@ -2,6 +2,7 @@
 
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import Link from "next/link";
+import { LuMarkPaths } from "@/app/components/LuMark";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -718,8 +719,11 @@ function NavbarComponent() {
             href={hasUser ? (isShop ? "/studio" : "/requests") : "/"}
             prefetch
             onClick={handleNavClick}
-            className="order-1 flex h-16 shrink-0 items-center gap-2 rounded text-xl font-semibold tracking-tight text-ink"
+            className="order-1 flex h-16 shrink-0 items-center gap-2 rounded text-xl font-semibold tracking-[-0.03em] text-ink"
           >
+            <svg viewBox="215 245 545 410" aria-hidden="true" className="h-[18px] w-auto text-ink">
+              <LuMarkPaths />
+            </svg>
             LineUp
             {hasUser && !loading && planBadge ? (
               <span
