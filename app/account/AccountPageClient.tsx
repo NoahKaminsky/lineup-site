@@ -1072,6 +1072,13 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       className="h-full w-full object-cover transition group-hover:brightness-90"
                     />
                   ) : (
+                    !isProfessional ? (
+                      // Clients don't need a cover: a quiet brand band instead of a chore.
+                      <div className="relative h-full w-full overflow-hidden bg-ink">
+                        <div aria-hidden="true" className="lu-glow absolute -right-16 -top-24 h-72 w-72 rounded-full bg-[#C8102E]/35 blur-3xl" />
+                        <div aria-hidden="true" className="absolute -bottom-32 -left-10 h-64 w-64 rounded-full bg-white/[0.06] blur-3xl" />
+                      </div>
+                    ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[linear-gradient(135deg,#f4f4f2,#e9e9e6)] text-sm font-medium text-neutral-500">
                       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
@@ -1079,6 +1086,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       </svg>
                       Add a cover photo
                     </div>
+                    )
                   )}
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100 group-active:opacity-100">
@@ -1144,7 +1152,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   </h1>
 
                   <p className="mt-2 text-base text-neutral-600">
-                    {isProfessional ? formatProfessionalTypes(getProfessionalTypes(profile)) : "Customer"}
+                    {isProfessional
+                      ? formatProfessionalTypes(getProfessionalTypes(profile))
+                      : "LineUp client"}
                     {profile.username ? <span className="text-neutral-400"> · @{profile.username}</span> : null}
                   </p>
 
@@ -1177,9 +1187,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     ) : (
                       <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-[13px] text-neutral-700">
                         {customerRating
-                          ? `${customerRating.average.toFixed(1)} / 5 · ${customerRating.count} rating${
-                              customerRating.count === 1 ? "" : "s"
-                            } from pros`
+                          ? `★ ${customerRating.average.toFixed(1)} from ${customerRating.count} pro${customerRating.count === 1 ? "" : "s"}`
                           : "No ratings yet"}
                       </span>
                     )}
@@ -1448,7 +1456,8 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       About
                     </p>
                     <p className="mt-4 max-w-3xl text-lg leading-8 text-neutral-600">
-                      {profile.bio?.trim() || "No bio added yet."}
+                      {profile.bio?.trim() ||
+                        (isProfessional ? "No bio added yet." : "Add a line about yourself so pros know who's coming.")}
                     </p>
                   </div>
 
@@ -1866,7 +1875,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
               {/* Your account: the things that decide whether you get booked and
                   paid, each with the one action it needs. */}
-              <div className="rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+              <div className={`rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] ${isProfessional ? "" : "hidden"}`}>
                 <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Your account</h2>
                 <ul className="mt-2 divide-y divide-ink/[0.06]">
                   {(() => {
@@ -2001,7 +2010,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                           row.action.href ? (
                             <Link
                               href={row.action.href}
-                              className="shrink-0 rounded-full border border-neutral-300 px-4 py-2 text-xs font-semibold text-ink transition hover:bg-neutral-50"
+                              className="shrink-0 rounded-full bg-neutral-100 px-4 py-2 text-xs font-semibold text-ink transition hover:bg-neutral-200"
                             >
                               {row.action.label}
                             </Link>
