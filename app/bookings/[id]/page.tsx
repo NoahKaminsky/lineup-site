@@ -341,11 +341,27 @@ export default function BookingDetailPage() {
 
       setViewerId(user.id);
 
-      const { data: viewerProfile, error: viewerProfileError } = await supabase
-        .from("profiles")
-        .select("id, role")
-        .eq("id", user.id)
-        .single();
+      // Round 1: who's looking and the booking itself, together.
+      const bookingColumns =
+        "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, service_price, payment_status, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, no_show_status";
+      const [viewerRes, bookingRes] = await Promise.all([
+        supabase.from("profiles").select("id, role").eq("id", user.id).single(),
+        // membership_id rides along when the column exists; fall back without it.
+        supabase
+          .from("bookings")
+          .select(`${bookingColumns}, membership_id`)
+          .eq("id", bookingId)
+          .single()
+          .then(async (res) =>
+            res.error && /membership_id/.test(res.error.message)
+              ? await supabase.from("bookings").select(bookingColumns).eq("id", bookingId).single()
+              : res
+          ),
+      ]);
+      const viewerProfile = viewerRes.data;
+      const viewerProfileError = viewerRes.error;
+      const bookingData = bookingRes.data as (Record<string, unknown> & { membership_id?: string | null }) | null;
+      const bookingError = bookingRes.error;
 
       if (viewerProfileError || !viewerProfile) {
         setMessage("Could not load your profile.");
@@ -355,26 +371,13 @@ export default function BookingDetailPage() {
 
       setViewerRole(viewerProfile.role);
 
-      const { data: bookingData, error: bookingError } = await supabase
-        .from("bookings")
-        .select(
-          "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, service_price, payment_status, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, no_show_status"
-        )
-        .eq("id", bookingId)
-        .single();
-
       if (bookingError || !bookingData) {
         setMessage("Booking not found.");
         setLoading(false);
         return;
       }
 
-      // A member's visit, covered by their membership (best-effort: the column
-      // arrives with 20261107_member_bookings.sql).
-      if (bookingData.payment_status === "pay_at_shop") {
-        const { data: tag } = await supabase.from("bookings").select("membership_id").eq("id", bookingId).maybeSingle();
-        setCoveredByMembership(!!(tag as { membership_id?: string | null } | null)?.membership_id);
-      }
+      setCoveredByMembership(bookingData.payment_status === "pay_at_shop" && !!bookingData.membership_id);
 
       const normalizedBooking = {
         ...bookingData,
