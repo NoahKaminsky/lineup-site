@@ -13,11 +13,12 @@
 // clashes at payment, and the database refuses two bookings that overlap.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, ShieldCheck } from "lucide-react";
+import { ChevronDown, ShieldCheck } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 import PaymentModal from "@/app/components/payments/PaymentModal";
 import CardSetupModal from "@/app/components/payments/CardSetupModal";
+import { BookedSheet } from "@/app/components/moments/Moments";
 import type { ShopPro } from "./page";
 import { shopNow } from "@/app/lib/bookingTime";
 
@@ -529,6 +530,7 @@ function BookingBar({
   const [paymentSecret, setPaymentSecret] = useState<string | null>(null);
   const [cardSetup, setCardSetup] = useState<{ clientSecret: string; priceCents: number; noShowFeeCents: number } | null>(null);
   const [booked, setBooked] = useState<{ id: string | null; when: string } | null>(null);
+  const [bookedSeen, setBookedSeen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -685,78 +687,117 @@ function BookingBar({
 
   if (booked) {
     return (
-      <div className="mt-6 rounded-2xl bg-ink p-5 text-white">
-        <p className="flex items-center gap-2 text-[15px] font-semibold">
-          <Check className="h-4 w-4" aria-hidden="true" />
-          You&apos;re booked with {pro.name.split(" ")[0]}
-        </p>
-        <p className="mt-1 text-sm text-white/70">
-          {booked.when}
-          {service ? `, ${service.name}` : ""}. It&apos;s in your bookings.
-        </p>
-        <a
-          href={booked.id ? `/bookings/${booked.id}` : "/work"}
-          className="mt-4 inline-flex h-10 items-center rounded-full bg-white px-5 text-sm font-medium text-ink"
-        >
-          View booking
-        </a>
-      </div>
+      <>
+        <div className="mt-6 rounded-2xl bg-ink/[0.04] p-4 text-sm text-neutral-600">
+          Booked for {booked.when}.{" "}
+          <a href={booked.id ? `/bookings/${booked.id}` : "/work"} className="font-medium text-ink underline underline-offset-4">
+            View booking
+          </a>
+        </div>
+        {!bookedSeen ? (
+          <BookedSheet
+            ticket={{
+              day: day ? dayName(day, today) : "",
+              time: time ? time12(time) : "",
+              line: `${service?.name || "Appointment"} with ${pro.name.split(" ")[0]}`,
+            }}
+            rows={covered && payLater ? [{ label: "Paid by", value: membership!.planName }] : []}
+            note="It's in your Bookings. Cancel free until 24 hours before."
+          >
+            <a
+              href={booked.id ? `/bookings/${booked.id}` : "/work"}
+              className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+            >
+              View booking
+            </a>
+            <button
+              type="button"
+              onClick={() => setBookedSeen(true)}
+              className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium text-neutral-500 transition hover:text-ink"
+            >
+              Done
+            </button>
+          </BookedSheet>
+        ) : null}
+      </>
     );
   }
 
   const price = service?.priceLabel || "";
 
   return (
-    <div className="mt-6 rounded-2xl bg-ink/[0.04] p-3 pl-4">
-      {ready && payAtShop ? (
-        <div role="radiogroup" aria-label="When to pay" className="mb-3 grid grid-cols-2 gap-2 pr-1 pt-1">
-          {[
-            { v: false, t: "Pay now", d: "Card, secure checkout" },
-            covered
-              ? { v: true, t: "Covered by your membership", d: `${membership!.planName}. Card held for no-shows only` }
-              : { v: true, t: "Pay at the shop", d: `Card saved for no-shows (${payAtShop.feePercent}% fee)` },
-          ].map((o) => (
-            <button
-              key={String(o.v)}
-              type="button"
-              role="radio"
-              aria-checked={payLater === o.v}
-              onClick={() => setPayLater(o.v)}
-              className={`rounded-xl px-3 py-2.5 text-left transition-colors ${
-                payLater === o.v ? "bg-ink text-white" : "bg-surface text-ink shadow-[inset_0_0_0_1px_rgba(10,10,10,0.1)]"
-              }`}
-            >
-              <span className="block text-sm font-medium">{o.t}</span>
-              <span className={`block text-xs ${payLater === o.v ? "text-white/70" : "text-neutral-500"}`}>{o.d}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="min-w-0 text-sm">
-          {ready ? (
-            <>
-              <span className="font-semibold">{when}</span>
-              <span className="text-neutral-500">
-                {" "}
-                with {pro.name.split(" ")[0]}, {service!.name}
-              </span>
-            </>
-          ) : (
-            <span className="text-neutral-500">{!service ? "Pick a service and a time" : "Pick a time"}</span>
-          )}
-        </p>
-        <button
-          type="button"
-          onClick={book}
-          disabled={!ready || working}
-          className="inline-flex h-10 shrink-0 items-center rounded-full bg-ink px-5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:bg-ink/10 disabled:text-neutral-400"
-        >
-          {working ? "One moment…" : !ready ? "Book" : payAtShop && payLater ? "Book" : `Book${price ? ` and pay ${price}` : ""}`}
-        </button>
-      </div>
+    <div
+      className={`relative mt-6 overflow-hidden rounded-[24px] transition-colors duration-300 ${
+        ready ? "bg-ink p-5 text-white" : "bg-ink/[0.04] p-4"
+      }`}
+    >
+      {ready ? (
+        <>
+          <div aria-hidden="true" className="lu-glow pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#C8102E]/30 blur-3xl" />
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm text-white/60">{dayName(day!, today)}</p>
+              <p key={`${day}-${time}`} className="lu-time-in mt-1 text-[2.25rem] font-semibold leading-none tracking-[-0.05em] tabular-nums">
+                {time12(time!)}
+              </p>
+              <p className="mt-3 truncate text-[15px] font-medium">
+                {service!.name}
+                <span className="font-normal text-white/60"> with {pro.name.split(" ")[0]}</span>
+              </p>
+            </div>
+            {price && !(covered && payLater) ? <span className="shrink-0 text-lg font-semibold tabular-nums">{price}</span> : null}
+          </div>
+
+          {payAtShop ? (
+            <div role="radiogroup" aria-label="When to pay" className="relative mt-5 grid grid-cols-2 gap-2">
+              {[
+                { v: false, t: "Pay now", d: "Secure checkout" },
+                covered
+                  ? { v: true, t: "Membership", d: membership!.planName }
+                  : { v: true, t: "Pay at the shop", d: `Card held for no-shows` },
+              ].map((o) => (
+                <button
+                  key={String(o.v)}
+                  type="button"
+                  role="radio"
+                  aria-checked={payLater === o.v}
+                  onClick={() => setPayLater(o.v)}
+                  className={`rounded-2xl px-3 py-2.5 text-left transition ${
+                    payLater === o.v ? "bg-white text-ink" : "bg-white/[0.08] text-white ring-1 ring-inset ring-white/10 hover:bg-white/[0.12]"
+                  }`}
+                >
+                  <span className="block text-sm font-semibold">{o.t}</span>
+                  <span className={`block truncate text-xs ${payLater === o.v ? "text-neutral-500" : "text-white/55"}`}>{o.d}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={book}
+            disabled={working}
+            className="relative mt-4 flex h-12 w-full items-center justify-center rounded-full bg-white text-[15px] font-semibold text-ink transition hover:bg-neutral-200 active:scale-[0.99] disabled:opacity-60"
+          >
+            {working
+              ? "One moment…"
+              : covered && payLater
+                ? "Book with membership"
+                : payAtShop && payLater
+                  ? "Hold my spot"
+                  : `Book${price ? ` and pay ${price}` : ""}`}
+          </button>
+          {payAtShop && payLater && !covered ? (
+            <p className="relative mt-2.5 text-center text-xs text-white/50">
+              Nothing charged today. {payAtShop.feePercent}% fee only if you don&apos;t show.
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <p className="text-sm text-neutral-500">{!service ? "Pick a service and a time." : "Pick a time."}</p>
+      )}
       {message ? (
-        <p role="alert" className="mt-2 pr-1 text-[13px] text-[#A30D25]">
+        <p role="alert" className={`relative mt-2 text-[13px] ${ready ? "text-[#ff8a9a]" : "text-[#A30D25]"}`}>
           {message}
         </p>
       ) : null}
