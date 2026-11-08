@@ -23,6 +23,7 @@ import {
   type ServiceOption,
   type TeamMember,
 } from "./types";
+import { shopNow } from "@/app/lib/bookingTime";
 
 type View = "day" | "month";
 type Hours = Record<string, Record<number, [string, string][]>>;
@@ -342,8 +343,8 @@ function DayGrid({
   }, [columns, hours, items, date]);
 
   const height = (endMin - startMin) * PX_PER_MIN;
-  const isToday = date === localDateKey(now);
-  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const isToday = date === shopNow(now).dateKey;
+  const nowMin = shopNow(now).minutes;
   const showNow = isToday && nowMin >= startMin && nowMin <= endMin;
 
   // Open on the part of the day that matters: an hour before now, or the

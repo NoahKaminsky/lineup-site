@@ -19,6 +19,7 @@ import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 import PaymentModal from "@/app/components/payments/PaymentModal";
 import CardSetupModal from "@/app/components/payments/CardSetupModal";
 import type { ShopPro } from "./page";
+import { shopNow } from "@/app/lib/bookingTime";
 
 type Busy = { professional_id: string; booking_date: string; start_time: string; end_time: string };
 
@@ -74,8 +75,7 @@ function openTimes(pro: ShopPro, busy: Busy[], day: string, minutes: number, tod
   const taken = busy
     .filter((b) => b.professional_id === pro.id && b.booking_date === day)
     .map((b) => [toMin(b.start_time), b.end_time.startsWith("24") ? 24 * 60 : toMin(b.end_time)] as const);
-  const now = new Date();
-  const earliest = day === today ? now.getHours() * 60 + now.getMinutes() + LEAD_MIN : -1;
+  const earliest = day === today ? shopNow().minutes + LEAD_MIN : -1;
   const out: string[] = [];
   for (const [ws, we] of windows) {
     const start = toMin(ws);
@@ -96,7 +96,7 @@ function openTimes(pro: ShopPro, busy: Busy[], day: string, minutes: number, tod
 
 export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: string }) {
   const bookable = useMemo(() => pros.filter((p) => p.canBookOnline), [pros]);
-  const [today, setToday] = useState(() => dateKey(new Date()));
+  const [today, setToday] = useState(() => shopNow().dateKey);
   const [busy, setBusy] = useState<Busy[] | null>(bookable.length ? null : []);
   const [openId, setOpenId] = useState<string | null>(null);
   const [pick, setPick] = useState<{ day: string | null; time: string | null; serviceId: string | null }>({
@@ -107,7 +107,7 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
 
   const load = useCallback(async () => {
     if (!bookable.length) return;
-    const from = dateKey(new Date());
+    const from = shopNow().dateKey;
     setToday(from);
     try {
       const res = await fetch(

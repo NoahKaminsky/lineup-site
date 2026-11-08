@@ -22,7 +22,7 @@ function todayLine() {
     month: "long",
     day: "numeric",
     year: "numeric",
-    timeZone: "America/Winnipeg",
+    timeZone: "Etc/GMT+5", // Manitoba, UTC-5 year-round
   });
 }
 

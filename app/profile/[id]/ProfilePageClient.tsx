@@ -28,6 +28,7 @@ import { useHashTarget } from "@/app/lib/useHashTarget";
 import { fetchBookingSchedule } from "@/app/lib/fetchBusyTimes";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
+import { shopNow } from "@/app/lib/bookingTime";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -898,8 +899,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
           // Today: never offer a time that has already started (15 min buffer).
           if (offset === 0) {
-            const now = new Date();
-            if (slotStart <= now.getHours() * 60 + now.getMinutes() + 15) continue;
+            if (slotStart <= shopNow().minutes + 15) continue;
           }
 
           const dateKey = formatDateKey(currentDate);

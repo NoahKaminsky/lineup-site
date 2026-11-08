@@ -625,7 +625,7 @@ export default function BookingDetailPage() {
         setMessage(data?.error || "Could not mark the no-show.");
         return;
       }
-      setBooking((prev) => (prev ? { ...prev, status: "cancelled", cancelled_by: viewerId || null } : prev));
+      setBooking((prev) => (prev ? { ...prev, status: "cancelled", cancelled_by: viewerId || null, no_show_status: prev.no_show_status || "marked" } : prev));
       setMessage(data.message || "Marked as a no-show.");
     } catch (error) {
       console.error(error);

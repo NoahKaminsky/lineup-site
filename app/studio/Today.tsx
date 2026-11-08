@@ -23,13 +23,13 @@ import {
   type ScheduleItem,
   type TeamMember,
 } from "./types";
+import { shopNow } from "@/app/lib/bookingTime";
 
 type Hours = Record<string, Record<number, [string, string][]>>;
 type TimeOff = Record<string, { start: string; end: string }[]>;
 
 function nowMinutes() {
-  const d = new Date();
-  return d.getHours() * 60 + d.getMinutes();
+  return shopNow().minutes;
 }
 
 export default function TodayView() {
