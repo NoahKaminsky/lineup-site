@@ -46,7 +46,7 @@ export const STUDIO_PLANS: Record<
 > = {
   studio: {
     label: "Studio",
-    priceLabel: "$39",
+    priceLabel: "$79",
     features: [
       "One calendar for the whole shop, with online booking",
       "Client requests near your shop, passed to the right pro",
@@ -59,7 +59,7 @@ export const STUDIO_PLANS: Record<
   },
   studio_plus: {
     label: "Studio Plus",
-    priceLabel: "$99",
+    priceLabel: "$149",
     features: [
       "Everything in Studio",
       "Set the shop's commission, for the whole team or per pro",
