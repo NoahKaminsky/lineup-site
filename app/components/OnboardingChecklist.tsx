@@ -167,7 +167,14 @@ export function ProfileCompleteSheet({ userId, onClose }: { userId: string; onCl
   );
 }
 
-export default function OnboardingChecklist({ userId }: { userId: string }) {
+export default function OnboardingChecklist({
+  userId,
+  onVisibleChange,
+}: {
+  userId: string;
+  // Lets Home hide other setup nudges while this list is on screen.
+  onVisibleChange?: (visible: boolean) => void;
+}) {
   const [dismissed, setDismissed] = useState(true); // start hidden to avoid flash
   const [steps, setSteps] = useState<StepState | null>(null);
   const [verificationPending, setVerificationPending] = useState(false);
@@ -267,6 +274,11 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+  const visible = !celebrate && !dismissed && !!steps;
+  useEffect(() => {
+    onVisibleChange?.(visible);
+  }, [visible, onVisibleChange]);
+
   if (celebrate) return <ProfileCompleteSheet userId={userId} onClose={() => setCelebrate(false)} />;
 
   if (dismissed || !steps) return null;
@@ -339,7 +351,7 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
       {/* Up next */}
       {nextStep ? (
         <div className="mx-4 mt-6 rounded-2xl bg-ink p-5 text-white sm:mx-6">
-          <p className="text-xs font-medium text-white/60">Up next</p>
+          <p className="text-xs font-medium text-white/60">Next step</p>
           <div className="mt-1.5 flex flex-wrap items-end justify-between gap-4">
             <div className="min-w-0">
               <p className="text-lg font-semibold tracking-[-0.02em]">{nextStep.label}</p>

@@ -599,6 +599,7 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
   const seed: RequestsCache | null =
     getCached<RequestsCache>("requests-page") ?? (initialData as unknown as RequestsCache | null);
 
+  const [checklistShowing, setChecklistShowing] = useState(false);
   const [loading, setLoading] = useState(() => !seed);
   const [role, setRole] = useState<string | null>(() => seed?.role ?? null);
   const [userId, setUserId] = useState<string | null>(() => seed?.userId ?? null);
@@ -1852,8 +1853,9 @@ return (
                 finalCtaHref="/subscription"
               />
               <VerificationBanner />
-              <BrowseCardNudge userId={userId} />
-              <OnboardingChecklist userId={userId} />
+              {/* One setup prompt at a time: the checklist already asks for photos. */}
+              {!checklistShowing ? <BrowseCardNudge userId={userId} /> : null}
+              <OnboardingChecklist userId={userId} onVisibleChange={setChecklistShowing} />
             </>
           ) : null}
 
