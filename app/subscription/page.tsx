@@ -2,6 +2,7 @@
 
 import { PLAN_FEATURES } from "@/app/lib/plans";
 import { BOOSTS, formatBoostPrice } from "@/app/lib/boosts";
+import SpotlightStats from "@/app/components/SpotlightStats";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -666,11 +667,27 @@ export default function SubscriptionPage() {
           </div>
         ) : null}
 
+        {profile?.role === "professional" ? (
+          <SpotlightStats
+            inRotation={
+              !!boostedUntil ||
+              ((profile?.subscription_status === "active" || profile?.subscription_status === "trialing") &&
+                (profile?.subscription_plan === "pro" || profile?.subscription_plan === "master"))
+            }
+            share={
+              boostedUntil
+                ? "a boost running (4x share)"
+                : profile?.subscription_plan === "master"
+                  ? "Master (2x share)"
+                  : "Pro"
+            }
+          />
+        ) : null}
+
         {/* Paid boost: a week at the top of Explore. */}
-        <div className="mt-10 flex flex-col gap-4 rounded-panel bg-surface ring-1 ring-ink/[0.06] p-6 sm:flex-row sm:items-center sm:p-8">
+        <div className="mt-4 flex flex-col gap-4 rounded-[28px] bg-surface ring-1 ring-ink/[0.06] p-6 sm:flex-row sm:items-center sm:p-8">
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-medium text-neutral-500">Boost</p>
-            <p className="mt-2 text-lg font-semibold tracking-[-0.02em] text-ink">
+            <p className="text-lg font-semibold tracking-[-0.02em] text-ink">
               {BOOSTS.profile.label}: {formatBoostPrice("profile")} for {BOOSTS.profile.days} days
             </p>
             <p className="mt-1 text-sm leading-6 text-neutral-600">{BOOSTS.profile.description}</p>

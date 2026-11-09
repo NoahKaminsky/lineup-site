@@ -196,6 +196,59 @@ function getShortLocation(profile: ProfileRow) {
 
 // The single card used everywhere on Browse: the work leads, then a tight,
 // three-line typographic summary. No box, no stacked pills.
+// The Spotlight: one pro, big, inside the dark hero. Labelled plainly so
+// clients know it's a paid placement.
+function SpotlightCard({ props, onTap }: { props: ProCardProps; onTap: () => void }) {
+  const { href, name, role, place, image, rating, open, openSoon, verified } = props;
+  return (
+    <Link
+      href={href}
+      onClick={onTap}
+      className="lu-rise group relative block overflow-hidden rounded-[24px] bg-white/[0.06] ring-1 ring-white/10"
+      style={{ "--lu-delay": "200ms" } as React.CSSProperties}
+    >
+      <div className="relative aspect-[16/11] lg:aspect-[4/5]">
+        {image ? (
+          <img src={image} alt="" className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.04]" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-neutral-800 to-black">
+            <span className="text-7xl font-semibold tracking-[-0.06em] text-white">{name.charAt(0).toUpperCase()}</span>
+          </div>
+        )}
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-ink">
+          <Star className="h-3 w-3 fill-[#C8102E] text-[#C8102E]" strokeWidth={0} aria-hidden="true" />
+          Spotlight
+        </span>
+        <div className="absolute inset-x-0 bottom-0 p-4">
+          <p className="flex items-center gap-1.5 text-xl font-semibold tracking-[-0.03em]">
+            <span className="truncate">{name}</span>
+            {verified ? <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0 fill-white text-ink" strokeWidth={2} /> : null}
+          </p>
+          <p className="mt-0.5 truncate text-[13px] text-white/70">
+            {role}
+            {place ? (place.endsWith("away") ? `, ${place}` : ` in ${place}`) : ""}
+            {rating ? `, ★ ${rating}` : ""}
+          </p>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            {open ? (
+              <span className="inline-flex items-center gap-1.5 text-[13px] font-medium">
+                <span className={`h-1.5 w-1.5 rounded-full ${openSoon ? "lu-pulse-dot bg-[#ff4d63]" : "bg-white/50"}`} />
+                {open}
+              </span>
+            ) : (
+              <span />
+            )}
+            <span className="rounded-full bg-white px-3.5 py-1.5 text-[13px] font-semibold text-ink transition group-hover:bg-neutral-200">
+              Book
+            </span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 function ProCard({ href, name, role, place, image, badge, rating, reviewCount, open, openSoon, verified }: ProCardProps) {
   const initial = name.charAt(0).toUpperCase() || "P";
   const ratingText = rating ? `rated ${rating} from ${reviewCount} review${reviewCount === 1 ? "" : "s"}` : "no reviews yet";
@@ -912,6 +965,59 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   }
 
 
+  // Spotlight: the paid slot at the top of Explore. Everyone who has paid for
+  // it shares it, picked fresh on each visit, weighted by what they pay:
+  // a running boost counts 4, Master 2, Pro 1. When a category or search is
+  // on, it's picked from that slice so the spotlight always fits the ask.
+  const spotlightPool = useMemo(() => {
+    const narrowed = search.trim() || selectedCategory !== "all" ? filteredCards : cardsWithPromotion;
+    return narrowed
+      .map((card) => {
+        const live = card.profile.subscription_status === "active" || card.profile.subscription_status === "trialing";
+        const weight = (card.profile as ProfileRow).is_promoted
+          ? 4
+          : live && card.profile.subscription_plan === "master"
+            ? 2
+            : live && card.profile.subscription_plan === "pro"
+              ? 1
+              : 0;
+        return { card, weight };
+      })
+      .filter((entry) => entry.weight > 0);
+  }, [cardsWithPromotion, filteredCards, search, selectedCategory]);
+  const spotlightKey = spotlightPool.map((e) => `${e.card.profile.id}:${e.weight}`).join(",");
+  const [spotlightId, setSpotlightId] = useState<string | null>(null);
+  useEffect(() => {
+    if (spotlightPool.length === 0) {
+      setSpotlightId(null);
+      return;
+    }
+    const total = spotlightPool.reduce((sum, e) => sum + e.weight, 0);
+    let roll = Math.random() * total;
+    const picked = spotlightPool.find((e) => (roll -= e.weight) < 0) ?? spotlightPool[0];
+    setSpotlightId(picked.card.profile.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spotlightKey]);
+  const spotlight = spotlightPool.find((e) => e.card.profile.id === spotlightId)?.card ?? null;
+
+  // One view per pro per visit, so the numbers pros see are honest.
+  useEffect(() => {
+    if (!spotlight) return;
+    const key = `lu-spot-${spotlight.profile.id}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      /* private mode: still count it */
+    }
+    fetch("/api/spotlight", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ professionalId: spotlight.profile.id, kind: "view" }),
+      keepalive: true,
+    }).catch(() => {});
+  }, [spotlight]);
+
   // The hero strip: who has room today (or, failing that, this week).
   const freeSoon = useMemo(() => {
     const withDay = cardsWithPromotion
@@ -963,7 +1069,8 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           <div aria-hidden="true" className="lu-glow pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-[#C8102E]/30 blur-3xl" />
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -left-20 h-72 w-72 rounded-full bg-white/[0.05] blur-3xl" />
 
-          <div className="relative">
+          <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-end">
+          <div className="min-w-0">
             <h1 className="max-w-xl text-[2.25rem] font-semibold leading-[1.02] tracking-[-0.045em] sm:text-[3.5rem]">
               {freeSoon.today.length > 0 ? "Who\u2019s free today?" : "Who\u2019s free this week?"}
             </h1>
@@ -1032,6 +1139,22 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                 </button>
               ) : null}
             </div>
+          </div>
+
+          {spotlight ? (
+            <SpotlightCard
+              key={spotlight.profile.id}
+              props={getCardProps(spotlight)}
+              onTap={() =>
+                fetch("/api/spotlight", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ professionalId: spotlight.profile.id, kind: "tap" }),
+                  keepalive: true,
+                }).catch(() => {})
+              }
+            />
+          ) : null}
           </div>
         </section>
 
