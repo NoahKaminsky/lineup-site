@@ -231,10 +231,10 @@ function ProCard({ href, name, role, place, image, badge, rating, reviewCount, o
         {open ? (
           <span
             className={`absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium backdrop-blur ${
-              openSoon ? "bg-ink/85 text-white" : "bg-white/90 text-ink"
+              openSoon ? "bg-white text-ink" : "bg-white/80 text-neutral-600"
             }`}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${openSoon ? "bg-[#ff4d63]" : "bg-neutral-400"}`} />
+            <span className={`h-1.5 w-1.5 rounded-full ${openSoon ? "bg-emerald-500" : "bg-neutral-300"}`} />
             {open}
           </span>
         ) : null}
