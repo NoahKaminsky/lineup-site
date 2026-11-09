@@ -96,25 +96,39 @@ export async function GET(req: Request) {
         })()
       : Promise.resolve(null);
 
-    const { data: memberRows } = await supabase
+    // Members with their profiles in one round trip (falls back to two).
+    type MemberProfile = { id: string; full_name: string | null; avatar_url: string | null; verification_status: string | null; professional_types: string[] | null };
+    const PROFILE_COLS = "id, full_name, avatar_url, verification_status, professional_types";
+    const joined = await supabase
       .from("studio_members")
-      .select("*")
+      .select(`*, profile:profiles!studio_members_profile_id_fkey(${PROFILE_COLS})`)
       .eq("studio_id", studio.id)
       .order("created_at", { ascending: true });
 
-    const members = (memberRows as StudioMemberRow[]) || [];
+    let members: StudioMemberRow[];
+    let profiles: MemberProfile[];
+    if (!joined.error) {
+      const rows = (joined.data || []) as (StudioMemberRow & { profile: MemberProfile | null })[];
+      members = rows.map(({ profile: _profile, ...m }) => m as StudioMemberRow);
+      profiles = rows
+        .filter((r) => r.status === "active" && r.profile)
+        .map((r) => r.profile as MemberProfile);
+    } else {
+      const { data: memberRows } = await supabase
+        .from("studio_members")
+        .select("*")
+        .eq("studio_id", studio.id)
+        .order("created_at", { ascending: true });
+      members = (memberRows as StudioMemberRow[]) || [];
+      const ids = members.filter((m) => m.status === "active" && m.profile_id).map((m) => m.profile_id!);
+      const { data } = ids.length ? await supabase.from("profiles").select(PROFILE_COLS).in("id", ids) : { data: [] };
+      profiles = (data || []) as MemberProfile[];
+    }
     const activeIds = members.filter((m) => m.status === "active" && m.profile_id).map((m) => m.profile_id!);
     // People with a column on the calendar: active and taking clients.
     const bookableIds = members
       .filter((m) => m.status === "active" && m.profile_id && takesClients(m))
       .map((m) => m.profile_id!);
-
-    const { data: profiles } = activeIds.length
-      ? await supabase
-          .from("profiles")
-          .select("id, full_name, avatar_url, verification_status, professional_types")
-          .in("id", activeIds)
-      : { data: [] };
     const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
 
     const team = members
