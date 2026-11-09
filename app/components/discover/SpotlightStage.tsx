@@ -103,7 +103,7 @@ export default function SpotlightStage({ href, name, role, place, image, rating,
 
   // The lit circle: radius grows with --open.
   const lightMask =
-    "radial-gradient(circle at var(--x) var(--y), #000 calc(var(--open) * 26%), rgba(0,0,0,0.55) calc(var(--open) * 34%), transparent calc(var(--open) * 46% + 2%))";
+    "radial-gradient(circle at var(--x) var(--y), #000 calc(var(--open) * 15%), rgba(0,0,0,0.6) calc(var(--open) * 21%), rgba(0,0,0,0.15) calc(var(--open) * 28%), transparent calc(var(--open) * 34% + 1%))";
 
   return (
     <Link
@@ -115,7 +115,7 @@ export default function SpotlightStage({ href, name, role, place, image, rating,
       style={{ ["--open" as string]: 0, ["--x" as string]: "50%", ["--y" as string]: "46%" }}
     >
       {/* The room: the same picture, almost in the dark. */}
-      <div aria-hidden="true" className="absolute inset-0 opacity-[0.22] grayscale">
+      <div aria-hidden="true" className="absolute inset-0 opacity-[0.13] grayscale">
         {subject}
       </div>
 
@@ -131,10 +131,10 @@ export default function SpotlightStage({ href, name, role, place, image, rating,
         style={{
           opacity: "calc(var(--open) * 0.9)",
           background:
-            "conic-gradient(from 180deg at var(--x) -12%, transparent 0deg, transparent calc(180deg - var(--open) * 15deg), rgba(255,255,255,0.18) 180deg, transparent calc(180deg + var(--open) * 15deg), transparent 360deg)",
+            "conic-gradient(from 180deg at var(--x) -12%, transparent 0deg, transparent calc(180deg - var(--open) * 11deg), rgba(255,255,255,0.32) 180deg, transparent calc(180deg + var(--open) * 11deg), transparent 360deg)",
           WebkitMaskImage: "linear-gradient(to bottom, #000 0%, #000 45%, transparent 85%)",
           maskImage: "linear-gradient(to bottom, #000 0%, #000 45%, transparent 85%)",
-          filter: "blur(10px)",
+          filter: "blur(6px)",
         }}
       />
 
