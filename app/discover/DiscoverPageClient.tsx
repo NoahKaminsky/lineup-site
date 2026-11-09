@@ -9,6 +9,7 @@ import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { getProfileHref } from "@/app/lib/profileLink";
 import { shopNow } from "@/app/lib/bookingTime";
+import SpotlightStage from "@/app/components/discover/SpotlightStage";
 import type { DiscoverCard as InitialDiscoverCard } from "./getInitialData";
 import { BadgeCheck, MapPin, Search, SlidersHorizontal, Star, X } from "lucide-react";
 
@@ -196,59 +197,6 @@ function getShortLocation(profile: ProfileRow) {
 
 // The single card used everywhere on Browse: the work leads, then a tight,
 // three-line typographic summary. No box, no stacked pills.
-// The Spotlight: one pro, big, inside the dark hero. Labelled plainly so
-// clients know it's a paid placement.
-function SpotlightCard({ props, onTap }: { props: ProCardProps; onTap: () => void }) {
-  const { href, name, role, place, image, rating, open, openSoon, verified } = props;
-  return (
-    <Link
-      href={href}
-      onClick={onTap}
-      className="lu-rise group relative block overflow-hidden rounded-[24px] bg-white/[0.06] ring-1 ring-white/10"
-      style={{ "--lu-delay": "200ms" } as React.CSSProperties}
-    >
-      <div className="relative aspect-[16/11] lg:aspect-[4/5]">
-        {image ? (
-          <img src={image} alt="" className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.04]" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-neutral-800 to-black">
-            <span className="text-7xl font-semibold tracking-[-0.06em] text-white">{name.charAt(0).toUpperCase()}</span>
-          </div>
-        )}
-        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-ink">
-          <Star className="h-3 w-3 fill-[#C8102E] text-[#C8102E]" strokeWidth={0} aria-hidden="true" />
-          Spotlight
-        </span>
-        <div className="absolute inset-x-0 bottom-0 p-4">
-          <p className="flex items-center gap-1.5 text-xl font-semibold tracking-[-0.03em]">
-            <span className="truncate">{name}</span>
-            {verified ? <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0 fill-white text-ink" strokeWidth={2} /> : null}
-          </p>
-          <p className="mt-0.5 truncate text-[13px] text-white/70">
-            {role}
-            {place ? (place.endsWith("away") ? `, ${place}` : ` in ${place}`) : ""}
-            {rating ? `, ★ ${rating}` : ""}
-          </p>
-          <div className="mt-3 flex items-center justify-between gap-3">
-            {open ? (
-              <span className="inline-flex items-center gap-1.5 text-[13px] font-medium">
-                <span className={`h-1.5 w-1.5 rounded-full ${openSoon ? "lu-pulse-dot bg-[#ff4d63]" : "bg-white/50"}`} />
-                {open}
-              </span>
-            ) : (
-              <span />
-            )}
-            <span className="rounded-full bg-white px-3.5 py-1.5 text-[13px] font-semibold text-ink transition group-hover:bg-neutral-200">
-              Book
-            </span>
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 function ProCard({ href, name, role, place, image, badge, rating, reviewCount, open, openSoon, verified }: ProCardProps) {
   const initial = name.charAt(0).toUpperCase() || "P";
   const ratingText = rating ? `rated ${rating} from ${reviewCount} review${reviewCount === 1 ? "" : "s"}` : "no reviews yet";
@@ -1063,19 +1011,13 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
     <>
     <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl py-6 sm:py-8">
-        {/* Hero: who you could actually sit down with soon. The strip is the
-            page's one moment of motion; everything below stays still. */}
-        <section className="relative overflow-hidden rounded-[32px] bg-ink px-5 pb-5 pt-7 text-white shadow-[0_30px_80px_-40px_rgba(0,0,0,0.6)] sm:px-8 sm:pb-7 sm:pt-10">
-          <div aria-hidden="true" className="lu-glow pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-[#C8102E]/30 blur-3xl" />
-          <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -left-20 h-72 w-72 rounded-full bg-white/[0.05] blur-3xl" />
+        {/* Explore: ask first (search), then the one paid stage, then who's
+            free. The Spotlight is the only dark, lit thing on the page. */}
+        <h1 className="text-[2.4rem] font-semibold leading-[1] tracking-[-0.05em] text-ink sm:text-[3.75rem]">
+          {freeSoon.today.length > 0 ? "Who\u2019s free today?" : "Who\u2019s free this week?"}
+        </h1>
 
-          <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-end">
-          <div className="min-w-0">
-            <h1 className="max-w-xl text-[2.25rem] font-semibold leading-[1.02] tracking-[-0.045em] sm:text-[3.5rem]">
-              {freeSoon.today.length > 0 ? "Who\u2019s free today?" : "Who\u2019s free this week?"}
-            </h1>
-
-            <div className="relative mt-6">
+        <div className="relative mt-6">
               <label htmlFor="browse-search" className="sr-only">
                 Search professionals by name, service, or area
               </label>
@@ -1093,7 +1035,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                 }}
                 placeholder="Search a name, a service, an area"
                 autoComplete="off"
-                className="h-14 w-full rounded-full bg-white pl-[3.25rem] pr-12 text-[15px] text-ink outline-none transition-shadow placeholder:text-neutral-400 focus:ring-4 focus:ring-white/20 [&::-webkit-search-cancel-button]:hidden"
+                className="h-14 w-full rounded-full bg-white pl-[3.25rem] pr-12 text-[15px] text-ink shadow-[0_1px_2px_rgba(0,0,0,0.04),0_10px_30px_-14px_rgba(0,0,0,0.2)] outline-none ring-1 ring-inset ring-ink/[0.06] transition-shadow placeholder:text-neutral-400 focus:ring-ink [&::-webkit-search-cancel-button]:hidden"
               />
               {search ? (
                 <button
@@ -1106,11 +1048,12 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                 </button>
               ) : null}
             </div>
-            {spotlight ? (
-            <div className="mt-5 lg:hidden">
-            <SpotlightCard
+
+        {spotlight ? (
+          <div className="mt-6">
+            <SpotlightStage
               key={spotlight.profile.id}
-              props={getCardProps(spotlight)}
+              {...getCardProps(spotlight)}
               onTap={() =>
                 fetch("/api/spotlight", {
                   method: "POST",
@@ -1120,10 +1063,16 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                 }).catch(() => {})
               }
             />
-            </div>
-          ) : null}
+          </div>
+        ) : null}
+
+        {freeSoon.list.length > 0 ? (
+          <p className="mt-7 text-sm font-medium text-neutral-500">
+            {freeSoon.today.length > 0 ? "Free today" : "Free this week"}
+          </p>
+        ) : null}
             {freeSoon.list.length > 0 ? (
-              <div className="-mx-5 mt-6 flex snap-x gap-3 overflow-x-auto px-5 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:-mx-8 sm:px-8 [&::-webkit-scrollbar]:hidden">
+              <div className="-mx-4 mt-3 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
                 {freeSoon.list.map(({ card, label }, index) => {
                   const photo = card.profile.avatar_url || card.portfolioPreview?.image_url || null;
                   const name = card.profile.full_name || "Professional";
@@ -1132,49 +1081,26 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                       key={card.profile.id}
                       href={getProfileHref(card.profile)}
                       style={{ "--lu-delay": `${120 + index * 70}ms` } as React.CSSProperties}
-                      className="lu-rise group flex w-[9.5rem] shrink-0 snap-start flex-col rounded-[22px] bg-white/[0.07] p-3 ring-1 ring-white/10 transition hover:bg-white/[0.12]"
+                      className="lu-rise group flex shrink-0 snap-start items-center gap-3 rounded-full bg-white py-1.5 pl-1.5 pr-4 ring-1 ring-ink/[0.06] transition hover:ring-ink/20"
                     >
-                      <span className="relative h-12 w-12 overflow-hidden rounded-full bg-white/10 ring-2 ring-white/15">
+                      <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-100">
                         {photo ? (
                           <img src={photo} alt="" className="h-full w-full object-cover" />
                         ) : (
-                          <span className="flex h-full w-full items-center justify-center text-base font-semibold">{name.charAt(0)}</span>
+                          <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">{name.charAt(0)}</span>
                         )}
                       </span>
-                      <span className="mt-3 truncate text-sm font-semibold tracking-[-0.01em]">{name}</span>
-                      <span className="mt-0.5 truncate text-xs text-white/50">
-                        {getProfessionalTypes(card.profile).slice(0, 1).map(formatLabel)[0] || "Professional"}
-                      </span>
-                      <span className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium">
-                        <span className="lu-pulse-dot h-1.5 w-1.5 rounded-full bg-[#ff4d63]" />
-                        {label}
+                      <span className="min-w-0 leading-tight">
+                        <span className="block max-w-[9rem] truncate text-sm font-semibold tracking-[-0.01em] text-ink">{name}</span>
+                        <span className="block text-xs text-neutral-500">
+                          {getProfessionalTypes(card.profile).slice(0, 1).map(formatLabel)[0] || "Professional"}, {label.toLowerCase()}
+                        </span>
                       </span>
                     </Link>
                   );
                 })}
               </div>
             ) : null}
-
-          </div>
-
-          {spotlight ? (
-            <div className="hidden lg:block">
-            <SpotlightCard
-              key={spotlight.profile.id}
-              props={getCardProps(spotlight)}
-              onTap={() =>
-                fetch("/api/spotlight", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ professionalId: spotlight.profile.id, kind: "tap" }),
-                  keepalive: true,
-                }).catch(() => {})
-              }
-            />
-            </div>
-          ) : null}
-          </div>
-        </section>
 
         {/* One row: filters, then categories. Everything else lives behind Filters. */}
         <div className="-mx-4 mt-5 flex items-center gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
