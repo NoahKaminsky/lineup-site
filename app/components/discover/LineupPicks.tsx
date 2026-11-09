@@ -115,7 +115,7 @@ export default function LineupPicks({ picks }: { picks: PickCard[] }) {
         </h2>
         <p className="max-w-[14rem] text-right text-xs leading-5 text-neutral-500">Chosen by our team for their work. Nobody pays to be here.</p>
       </div>
-      <div className={`-mx-4 mt-6 flex snap-x snap-mandatory gap-6 overflow-x-auto px-4 pb-4 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:grid sm:overflow-visible sm:px-0 ${picks.length === 1 ? "sm:grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3"} [&::-webkit-scrollbar]:hidden`}>
+      <div className={`-mx-4 mt-6 flex snap-x snap-mandatory gap-6 overflow-x-auto px-4 pb-8 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:grid sm:overflow-visible sm:px-0 ${picks.length === 1 ? "sm:grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3"} [&::-webkit-scrollbar]:hidden`}>
         {picks.slice(0, 3).map((pick, index) => (
           <PickCardView key={pick.id} pick={pick} index={index} solo={picks.length === 1} />
         ))}
