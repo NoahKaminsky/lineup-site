@@ -1232,9 +1232,6 @@ export default function ServicesPage() {
             <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
               Services & availability
             </h1>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
-              What you offer, when you&apos;re open, and where clients find you.
-            </p>
           </div>
 
         </div>
