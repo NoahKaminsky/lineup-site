@@ -1075,6 +1075,53 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
               {freeSoon.today.length > 0 ? "Who\u2019s free today?" : "Who\u2019s free this week?"}
             </h1>
 
+            <div className="relative mt-6">
+              <label htmlFor="browse-search" className="sr-only">
+                Search professionals by name, service, or area
+              </label>
+              <Search aria-hidden="true" className="pointer-events-none absolute left-5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-neutral-400" strokeWidth={2} />
+              <input
+                id="browse-search"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" && search) {
+                    e.preventDefault();
+                    setSearch("");
+                  }
+                }}
+                placeholder="Search a name, a service, an area"
+                autoComplete="off"
+                className="h-14 w-full rounded-full bg-white pl-[3.25rem] pr-12 text-[15px] text-ink outline-none transition-shadow placeholder:text-neutral-400 focus:ring-4 focus:ring-white/20 [&::-webkit-search-cancel-button]:hidden"
+              />
+              {search ? (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
+                >
+                  <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+                </button>
+              ) : null}
+            </div>
+            {spotlight ? (
+            <div className="mt-5 lg:hidden">
+            <SpotlightCard
+              key={spotlight.profile.id}
+              props={getCardProps(spotlight)}
+              onTap={() =>
+                fetch("/api/spotlight", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ professionalId: spotlight.profile.id, kind: "tap" }),
+                  keepalive: true,
+                }).catch(() => {})
+              }
+            />
+            </div>
+          ) : null}
             {freeSoon.list.length > 0 ? (
               <div className="-mx-5 mt-6 flex snap-x gap-3 overflow-x-auto px-5 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:-mx-8 sm:px-8 [&::-webkit-scrollbar]:hidden">
                 {freeSoon.list.map(({ card, label }, index) => {
@@ -1108,40 +1155,10 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
               </div>
             ) : null}
 
-            <div className="relative mt-6">
-              <label htmlFor="browse-search" className="sr-only">
-                Search professionals by name, service, or area
-              </label>
-              <Search aria-hidden="true" className="pointer-events-none absolute left-5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-neutral-400" strokeWidth={2} />
-              <input
-                id="browse-search"
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape" && search) {
-                    e.preventDefault();
-                    setSearch("");
-                  }
-                }}
-                placeholder="Search a name, a service, an area"
-                autoComplete="off"
-                className="h-14 w-full rounded-full bg-white pl-[3.25rem] pr-12 text-[15px] text-ink outline-none transition-shadow placeholder:text-neutral-400 focus:ring-4 focus:ring-white/20 [&::-webkit-search-cancel-button]:hidden"
-              />
-              {search ? (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  aria-label="Clear search"
-                  className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
-                >
-                  <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
-                </button>
-              ) : null}
-            </div>
           </div>
 
           {spotlight ? (
+            <div className="hidden lg:block">
             <SpotlightCard
               key={spotlight.profile.id}
               props={getCardProps(spotlight)}
@@ -1154,6 +1171,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                 }).catch(() => {})
               }
             />
+            </div>
           ) : null}
           </div>
         </section>
