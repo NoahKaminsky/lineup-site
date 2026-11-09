@@ -10,7 +10,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { BadgeCheck } from "lucide-react";
-import { LuMarkPaths } from "@/app/components/LuMark";
 
 export type PickCard = {
   id: string;
@@ -25,27 +24,24 @@ export type PickCard = {
   why: string;
 };
 
-function Seal({ city }: { city: string }) {
-  const ring = `LineUp Pick · Handpicked in ${city} · `;
+// A paper tag pinned over the photo's corner, like a gallery label: the
+// month it was picked, set in the same serif as the section.
+function PickTag() {
+  const month = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
   return (
-    <span className="lu-seal pointer-events-none absolute -right-3 -top-3 z-10 block h-[5.5rem] w-[5.5rem] sm:h-24 sm:w-24" aria-hidden="true">
-      <span className="absolute inset-0 rounded-full bg-[#C8102E] shadow-[0_8px_20px_-8px_rgba(200,16,46,0.7)]" />
-      <svg viewBox="0 0 100 100" className="lu-seal-ring absolute inset-0 h-full w-full text-white">
-        <defs>
-          <path id="lu-seal-path" d="M50,50 m-37,0 a37,37 0 1,1 74,0 a37,37 0 1,1 -74,0" />
-        </defs>
-        <text fontSize="8.6" fontWeight="600" letterSpacing="0.6" fill="currentColor">
-          <textPath href="#lu-seal-path">{ring + ring}</textPath>
-        </text>
-      </svg>
-      <svg viewBox="215 245 545 410" className="absolute left-1/2 top-1/2 h-[30%] w-auto -translate-x-1/2 -translate-y-1/2 text-white">
-        <LuMarkPaths />
-      </svg>
+    <span
+      aria-hidden="true"
+      className="lu-seal pointer-events-none absolute -bottom-4 left-4 z-10 block rounded-[3px] bg-[#fbfaf6] px-3.5 py-2 shadow-[0_1px_1px_rgba(0,0,0,0.08),0_10px_24px_-10px_rgba(0,0,0,0.45)]"
+    >
+      {/* the bit of tape holding it on */}
+      <span className="absolute -top-2 left-1/2 h-4 w-10 -translate-x-1/2 rotate-[-4deg] bg-white/70 shadow-[0_0_0_1px_rgba(0,0,0,0.04)] backdrop-blur-[1px]" />
+      <span className="block font-serif text-[17px] italic leading-none text-ink">LineUp Pick</span>
+      <span className="mt-1 block text-[10px] leading-none text-neutral-500">{month}</span>
     </span>
   );
 }
 
-function PickCardView({ pick, index }: { pick: PickCard; index: number }) {
+function PickCardView({ pick, index, solo }: { pick: PickCard; index: number; solo: boolean }) {
   const ref = useRef<HTMLAnchorElement | null>(null);
   const [inView, setInView] = useState(false);
 
@@ -65,15 +61,15 @@ function PickCardView({ pick, index }: { pick: PickCard; index: number }) {
     return () => io.disconnect();
   }, []);
 
-  const city = (pick.place && !pick.place.endsWith("away") ? pick.place : "Winnipeg").split(",")[0];
-
   return (
     <Link
       ref={ref}
       href={pick.href}
       data-in={inView ? "true" : "false"}
       style={{ ["--pick-delay" as string]: `${index * 120}ms` }}
-      className="lu-pick group relative block w-[80vw] max-w-[22rem] shrink-0 snap-start sm:w-auto sm:max-w-none"
+      className={`lu-pick group relative block w-[80vw] max-w-[22rem] shrink-0 snap-start sm:w-auto sm:max-w-none ${
+        solo ? "sm:grid sm:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] sm:items-end sm:gap-12" : ""
+      }`}
     >
       <div className="relative">
         <div className="lu-pick-photo relative aspect-[4/5] overflow-hidden rounded-[6px] bg-neutral-200">
@@ -86,11 +82,11 @@ function PickCardView({ pick, index }: { pick: PickCard; index: number }) {
             </span>
           )}
         </div>
-        <Seal city={city} />
+        <PickTag />
       </div>
 
-      <div className="mt-4">
-        <p className="flex items-center gap-1.5 text-[1.35rem] font-semibold leading-tight tracking-[-0.03em] text-ink">
+      <div className={solo ? "mt-8 sm:mt-0 sm:pb-2" : "mt-8"}>
+        <p className={`flex items-center gap-1.5 font-semibold leading-tight tracking-[-0.03em] text-ink ${solo ? "text-[1.35rem] sm:text-[2.6rem]" : "text-[1.35rem]"}`}>
           <span className="truncate">{pick.name}</span>
           {pick.verified ? <BadgeCheck aria-hidden="true" className="h-[18px] w-[18px] shrink-0 fill-ink text-paper" strokeWidth={2} /> : null}
         </p>
@@ -100,7 +96,7 @@ function PickCardView({ pick, index }: { pick: PickCard; index: number }) {
           {pick.rating ? `, ★ ${pick.rating}` : ""}
         </p>
         {/* Why we picked them, set like a pull quote. */}
-        <p className="mt-3 border-l-2 border-[#C8102E] pl-3 font-serif text-[15px] italic leading-6 text-neutral-700 line-clamp-3">
+        <p className={`mt-3 border-l-2 border-[#C8102E] pl-3 font-serif italic text-neutral-700 line-clamp-3 ${solo ? "text-[15px] leading-6 sm:mt-6 sm:max-w-xl sm:pl-5 sm:text-[1.6rem] sm:leading-[1.35]" : "text-[15px] leading-6"}`}>
           {pick.why}
         </p>
         {pick.open ? <p className="mt-3 text-[13px] font-medium text-ink">{pick.open}</p> : null}
@@ -119,9 +115,9 @@ export default function LineupPicks({ picks }: { picks: PickCard[] }) {
         </h2>
         <p className="max-w-[14rem] text-right text-xs leading-5 text-neutral-500">Chosen by our team for their work. Nobody pays to be here.</p>
       </div>
-      <div className="-mx-4 mt-6 flex snap-x snap-mandatory gap-6 overflow-x-auto px-4 pb-4 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-3 [&::-webkit-scrollbar]:hidden">
+      <div className={`-mx-4 mt-6 flex snap-x snap-mandatory gap-6 overflow-x-auto px-4 pb-4 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:grid sm:overflow-visible sm:px-0 ${picks.length === 1 ? "sm:grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3"} [&::-webkit-scrollbar]:hidden`}>
         {picks.slice(0, 3).map((pick, index) => (
-          <PickCardView key={pick.id} pick={pick} index={index} />
+          <PickCardView key={pick.id} pick={pick} index={index} solo={picks.length === 1} />
         ))}
       </div>
     </section>
