@@ -2035,6 +2035,7 @@ return (
 
           {!message &&
           isProfessional &&
+          !checklistShowing &&
           setupComplete === false &&
           professionalOpenRequests.length === 0 &&
           unifiedProfessionalUpcomingWork.length === 0 &&
@@ -2549,8 +2550,8 @@ return (
                       </Link>
                     </div>
                     {!next ? (
-                      <p className="mt-3 rounded-[22px] bg-white px-5 py-6 text-sm text-neutral-500 ring-1 ring-ink/[0.06]">
-                        Nothing booked this week yet. Share your booking link or answer a request below.
+                      <p className="mt-2 text-sm text-neutral-500">
+                        Nothing booked this week yet.
                       </p>
                     ) : (
                       <div className="mt-4 grid gap-3 lg:grid-cols-2">
@@ -2583,7 +2584,7 @@ return (
                   </div>
 
                   {professionalOpenRequests.length === 0 ? (
-                    <div className="mt-5 rounded-2xl bg-ink/[0.03] px-6 py-10 text-center">
+                    <div className="mt-4 rounded-[22px] bg-white px-6 py-8 text-center ring-1 ring-ink/[0.06]">
                       <p className="font-medium text-ink">No matching requests right now</p>
                       <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-500">
                         New requests matching your services will appear here automatically.
