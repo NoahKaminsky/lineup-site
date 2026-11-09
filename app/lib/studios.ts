@@ -149,7 +149,23 @@ export function hashInviteToken(token: string) {
 
 // The studio a pro is an active member of, with their membership row.
 export async function getMembershipForProfile(supabase: ServiceClient, profileId: string) {
-  // select("*") so takes_clients comes along once the migration has run.
+  // One round trip: the membership with its studio embedded. Every studio
+  // API call starts here, so this is on the hot path. select("*") so
+  // takes_clients comes along once the migration has run.
+  const joined = await supabase
+    .from("studio_members")
+    .select(`*, studio:studios(${STUDIO_COLUMNS})`)
+    .eq("profile_id", profileId)
+    .eq("status", "active")
+    .maybeSingle<StudioMemberRow & { studio: StudioRow | null }>();
+
+  if (!joined.error) {
+    if (!joined.data?.studio) return null;
+    const { studio, ...member } = joined.data;
+    return { studio, member: member as StudioMemberRow };
+  }
+
+  // Fallback (e.g. the relationship isn't visible to the API): two reads.
   const { data: member } = await supabase
     .from("studio_members")
     .select("*")
