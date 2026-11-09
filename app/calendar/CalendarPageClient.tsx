@@ -950,7 +950,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
 
   const listsSection = (
     <div className="space-y-8">
-      {bookingLists.map((list) => (
+      {/* Only lists with something in them; Upcoming always, so an empty
+          week still says so once. */}
+      {bookingLists.filter((list) => list.key === "upcoming" || list.items.length > 0).map((list) => (
         <section key={list.key} aria-labelledby={`list-${list.key}`}>
           <div className="flex items-baseline justify-between gap-3">
             <h2 id={`list-${list.key}`} className="text-base font-semibold tracking-[-0.01em]">
@@ -978,18 +980,13 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
     <main className="min-h-screen overflow-x-hidden bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl py-6 sm:py-8">
         <div>
-          <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Your schedule</h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
-            {onTeam
-              ? "Everything you're booked for, at the shop and with your own clients."
-              : "Everything you're booked for, and what you've finished."}
-          </p>
+          <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Calendar</h1>
         </div>
 
         <VerificationBanner />
 
         {message ? (
-          <div role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div role="alert" className="mt-6 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
             {message}
           </div>
         ) : null}
