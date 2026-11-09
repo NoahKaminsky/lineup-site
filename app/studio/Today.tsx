@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Plus } from "lucide-react";
-import { formatCad, studioFetch } from "./studioApi";
+import { formatCad, peekStudio, studioFetch } from "./studioApi";
 import { useStudio } from "./StudioContext";
 import { AppointmentSheet, NewAppointmentSheet } from "./Schedule";
 import { RequestRow, useShopRequests } from "./Requests";
@@ -16,7 +16,6 @@ import {
   firstName,
   fromDateKey,
   isBookable,
-  localDateKey,
   nextQuarterHour,
   time12,
   toMinutes,
@@ -40,10 +39,12 @@ export default function TodayView() {
   const myProfileId = me.profileId || null;
   const visibleTeam = me.canManage ? team : team.filter((m) => m.profileId === myProfileId);
 
-  const today = localDateKey(new Date());
-  const [items, setItems] = useState<ScheduleItem[] | null>(null);
-  const [hours, setHours] = useState<Hours>({});
-  const [timeOff, setTimeOff] = useState<TimeOff>({});
+  const today = shopNow().dateKey;
+  // Last answer for today paints first (see studioApi); the fresh one replaces it.
+  const [cachedDay] = useState(() => peekStudio<{ items: ScheduleItem[]; hours: Hours; timeOff: TimeOff }>(`/api/studio/schedule?from=${today}&to=${today}`));
+  const [items, setItems] = useState<ScheduleItem[] | null>(cachedDay?.items ?? null);
+  const [hours, setHours] = useState<Hours>(cachedDay?.hours ?? {});
+  const [timeOff, setTimeOff] = useState<TimeOff>(cachedDay?.timeOff ?? {});
   const [refreshKey, setRefreshKey] = useState(0);
   const [open, setOpen] = useState<ScheduleItem | null>(null);
   const [draft, setDraft] = useState<{ pro: string; date: string; start: string } | null>(null);

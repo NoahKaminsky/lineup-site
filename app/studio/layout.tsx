@@ -4,14 +4,14 @@
 // Today, Calendar, Requests, Team, Memberships, Chairs and Settings, so
 // switching sections is instant. No studio yet: the setup flow instead.
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Check, Copy, ExternalLink, Link2, Settings as SettingsIcon } from "lucide-react";
 import LuLoader from "@/app/components/LuLoader";
-import { getSignedInUser } from "@/lib/getSignedInUser";
 import { STUDIO_PLANS } from "@/app/lib/plans";
-import { studioFetch } from "./studioApi";
+import { peekStudio, studioFetch } from "./studioApi";
+import { shopNow } from "@/app/lib/bookingTime";
 import { Button, Notice, Sheet, Tag } from "./ui";
 import { PlanPicker } from "./Plans";
 import ShopSetup from "./Setup";
@@ -40,8 +40,17 @@ export default function StudioLayout({ children }: { children: ReactNode }) {
 function StudioShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  // Paint from this tab's last answer straight away; refresh behind it.
   const [data, setData] = useState<StudioData | null>(null);
   const [loading, setLoading] = useState(true);
+  // Before first paint (after hydration, so server and client agree).
+  useLayoutEffect(() => {
+    const cached = peekStudio<StudioData>("/api/studio");
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+    }
+  }, []);
   const [notice, setNotice] = useState<NoticeValue>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [plansOpen, setPlansOpen] = useState(false);
@@ -58,14 +67,12 @@ function StudioShell({ children }: { children: ReactNode }) {
   }, [router]);
 
   useEffect(() => {
-    (async () => {
-      const user = await getSignedInUser();
-      if (!user) {
-        router.push("/login?next=/studio");
-        return;
-      }
-      await load();
-    })();
+    // /api/studio answers 401 when signed out, and load() sends them to
+    // login, so no separate sign-in check (one less round trip). Today's
+    // schedule starts loading now too, instead of after the shop arrives.
+    void load();
+    const day = shopNow().dateKey;
+    void studioFetch(`/api/studio/schedule?from=${day}&to=${day}`);
 
     // Links from before sections had their own pages, and Stripe returns.
     const params = new URLSearchParams(window.location.search);
