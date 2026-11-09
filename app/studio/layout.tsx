@@ -15,6 +15,7 @@ import { studioFetch } from "./studioApi";
 import { Button, Notice, Sheet, Tag } from "./ui";
 import { PlanPicker } from "./Plans";
 import ShopSetup from "./Setup";
+import StudioTabs from "./StudioTabs";
 import { STUDIO_SECTIONS, StudioContext, studioHref, type StudioContextValue } from "./StudioContext";
 import type { NoticeValue, StudioData } from "./types";
 
@@ -167,35 +168,15 @@ function StudioShell({ children }: { children: ReactNode }) {
         </div>
 
         {navInHeader ? (
-          <nav aria-label="Shop" className="sticky top-16 z-30 mt-5 border-b border-hairline bg-paper/90 backdrop-blur-md">
+          <nav aria-label="Shop" className="sticky top-16 z-30 mt-5 bg-paper/85 py-2 backdrop-blur-md supports-[backdrop-filter]:bg-paper/70">
             <div className="px-4 sm:px-6 lg:px-8">
-              <div className="mx-auto flex max-w-6xl gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {sections.map((s) => {
-                  const active = section === s.slug;
-                  return (
-                    <Link
-                      key={s.slug || "today"}
-                      href={studioHref(s.slug)}
-                      aria-current={active ? "page" : undefined}
-                      className={`relative shrink-0 py-3 text-sm font-medium transition-colors ${
-                        active ? "text-ink" : "text-neutral-500 hover:text-ink"
-                      }`}
-                    >
-                      {s.label}
-                      <span
-                        aria-hidden="true"
-                        className={`absolute inset-x-0 -bottom-px h-[2px] rounded-full bg-ink transition-transform duration-200 ${
-                          active ? "scale-x-100" : "scale-x-0"
-                        }`}
-                      />
-                    </Link>
-                  );
-                })}
+              <div className="mx-auto max-w-6xl">
+                <StudioTabs sections={sections} active={section} />
               </div>
             </div>
           </nav>
         ) : (
-          <div className="mt-5 border-b border-hairline" />
+          <div className="mt-5" />
         )}
 
         {/* One line, until the plan is on. Today has the full checklist. */}
