@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   const service = getServiceSupabase();
 
   // Look up any professional by name, username or email and say plainly why
-  // they are or aren't showing in Browse. Built for checking from a phone.
+  // they are or aren't showing in Explore. Built for checking from a phone.
   const lookup = new URL(req.url).searchParams.get("lookup");
   if (lookup !== null) {
     const term = lookup.replace(/[^\p{L}\p{N}@._\- ]/gu, "").trim().slice(0, 60);

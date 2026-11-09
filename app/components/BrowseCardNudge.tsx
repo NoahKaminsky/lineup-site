@@ -1,6 +1,6 @@
 "use client";
 
-// "This is you in Browse." Shown on a pro's Home until they have three photos
+// "This is you in Explore." Shown on a pro's Home until they have three photos
 // of their work: a live preview of their Browse card next to the one step that
 // changes it most.
 
@@ -70,7 +70,7 @@ export default function BrowseCardNudge({ userId }: { userId: string }) {
         )}
       </div>
       <div className="min-w-0">
-        <p className="text-lg font-semibold tracking-[-0.02em] text-ink">This is you in Browse.</p>
+        <p className="text-lg font-semibold tracking-[-0.02em] text-ink">This is you in Explore.</p>
         <p className="mt-1 text-sm leading-6 text-neutral-500">
           Pros with photos of their work show up first. Add {left} more {left === 1 ? "photo" : "photos"} to get there.
         </p>

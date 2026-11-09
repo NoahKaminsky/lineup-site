@@ -8,7 +8,7 @@ export const BOOSTS: Record<BoostKind, { label: string; cents: number; days: num
     label: "Boost your profile",
     cents: 1500,
     days: 7,
-    description: "Shown near the top of Browse and in the Spotlight row for a week, marked Promoted.",
+    description: "Shown near the top of Explore for a week, marked Promoted.",
   },
   chair_opening: {
     label: "Feature this opening",

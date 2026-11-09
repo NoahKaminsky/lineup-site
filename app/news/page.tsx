@@ -128,7 +128,7 @@ export default function NewsPage() {
                     {[
                       { href: "/about", title: "Meet the founders", note: "Why we built LineUp" },
                       { href: "/faq", title: "How it all works", note: "Booking, payments, plans" },
-                      { href: "/discover", title: "Browse pros", note: "Find someone near you" },
+                      { href: "/discover", title: "Explore pros", note: "Find someone near you" },
                     ].map((item) => (
                       <li key={item.href}>
                         <Link href={item.href} className="group block py-3.5">

@@ -666,7 +666,7 @@ export default function SubscriptionPage() {
           </div>
         ) : null}
 
-        {/* Paid boost: a week at the top of Browse. */}
+        {/* Paid boost: a week at the top of Explore. */}
         <div className="mt-10 flex flex-col gap-4 rounded-panel bg-surface ring-1 ring-ink/[0.06] p-6 sm:flex-row sm:items-center sm:p-8">
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-medium text-neutral-500">Boost</p>

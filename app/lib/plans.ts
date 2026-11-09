@@ -6,7 +6,7 @@ import { MASTER_COMMISSION_PERCENT, STANDARD_COMMISSION_PERCENT } from "./commis
 export const PLAN_FEATURES: Record<"basic" | "apprentice" | "pro" | "master", string[]> = {
   basic: [
     "Profile, portfolio and reviews",
-    "Show up in Browse once verified",
+    "Show up in Explore once verified",
     "Get requests and send offers",
     "Up to 15 request bookings per month",
     `${STANDARD_COMMISSION_PERCENT}% LineUp commission`,
@@ -17,20 +17,20 @@ export const PLAN_FEATURES: Record<"basic" | "apprentice" | "pro" | "master", st
     "Weekly hours, time off and booking window",
     "Up to 25 request bookings per month",
     "Basic analytics",
-    "Apprentice badge and a boost in Browse",
+    "Apprentice badge and a boost in Explore",
   ],
   pro: [
     "Unlimited request bookings",
     "Full analytics",
     "10 Explore Page promotions per month",
     "Pro badge",
-    "Higher placement in Browse and the Spotlight row",
+    "Higher placement in Explore",
   ],
   master: [
     `Reduced ${MASTER_COMMISSION_PERCENT}% LineUp commission (instead of ${STANDARD_COMMISSION_PERCENT}%)`,
     "Unlimited Explore Page promotions",
     "Master badge",
-    "Top placement in Browse and first in the Spotlight row",
+    "Top placement in Explore",
   ],
 };
 

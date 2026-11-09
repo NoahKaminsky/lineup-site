@@ -212,7 +212,7 @@ export default function OnboardingPage() {
     }
 
     // Professionals verify their credentials as part of signing up — until
-    // approved they're hidden from Browse and can't send offers.
+    // approved they're hidden from Explore and can't send offers.
     // Customers who came from a booking link go straight back to it.
     // A short "you're in" before moving on — the same hold the moment's
     // hairline fills over.

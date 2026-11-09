@@ -525,7 +525,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         }
 
         // Only credential-verified professionals are listed — anyone unverified,
-        // pending, rejected, or past their expiry stays out of Browse.
+        // pending, rejected, or past their expiry stays out of Explore.
         const professionals = ((profilesData || []) as ProfileRow[]).filter(
           (profile) => isProfessionalRole(profile.role) && isVerifiedNow(profile)
         );
@@ -1264,7 +1264,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
             <div className="mt-6 rounded-2xl bg-paper p-5 text-sm leading-6 text-neutral-600 ring-1 ring-ink/[0.05]">
               {locationPermissionStatus === "unsupported"
                 ? "Location isn't available in this browser, so distances can't be measured."
-                : "Allow location access for this site in your browser settings, then reopen Browse to filter by distance."}
+                : "Allow location access for this site in your browser settings, then reopen Explore to filter by distance."}
             </div>
           ) : (
             <>

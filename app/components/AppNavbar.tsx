@@ -639,7 +639,7 @@ function NavbarComponent() {
         // On a shop's team, the shop takes Browse's spot.
         onStudio
           ? { href: "/studio", label: "Shop", shortLabel: "Shop", icon: "shop" }
-          : { href: "/discover", label: "Browse", shortLabel: "Browse", icon: "browse" },
+          : { href: "/discover", label: "Explore", shortLabel: "Explore", icon: "browse" },
         { href: "/services", label: "Services", shortLabel: "Services", icon: "services" },
       ];
     }
@@ -647,7 +647,7 @@ function NavbarComponent() {
     return [
       { href: "/requests", label: "Dashboard", shortLabel: "Home", icon: "dashboard" },
       { href: "/work", label: "Bookings", shortLabel: "Bookings", icon: "calendar" },
-      { href: "/discover", label: "Browse", shortLabel: "Browse", icon: "browse" },
+      { href: "/discover", label: "Explore", shortLabel: "Explore", icon: "browse" },
       { href: "/account", label: "Account", shortLabel: "You", icon: "account" },
     ];
   }, [loading, hasUser, profile, isProfessional, isShop, onStudio]);

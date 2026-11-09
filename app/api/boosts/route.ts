@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     if (kind === "profile") {
       if (me.role !== "professional") return NextResponse.json({ error: "Profile boosts are for professionals." }, { status: 403 });
       if (me.verification_status !== "verified") {
-        return NextResponse.json({ error: "Get verified first. Only verified pros show up in Browse." }, { status: 409 });
+        return NextResponse.json({ error: "Get verified first. Only verified pros show up in Explore." }, { status: 409 });
       }
     } else {
       const ctx = await getStudioForUser(supabase, user.id);

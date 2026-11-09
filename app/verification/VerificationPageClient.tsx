@@ -436,7 +436,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
         <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
           Clients book with confidence when they know a professional has been checked. Submit your
           licence or, if you&apos;re still studying, proof of enrollment — our team reviews it before
-          you appear in Browse or can send offers.
+          you appear in Explore or can send offers.
         </p>
 
         {/* Status */}
@@ -455,7 +455,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
                 <p className="mt-1 text-sm text-neutral-600">
                   {profile?.verified_until
                     ? `Valid until ${formatDate(profile.verified_until)}. Renew before then to stay visible.`
-                    : "You're visible in Browse and can send offers."}
+                    : "You're visible in Explore and can send offers."}
                 </p>
               </div>
             </div>
@@ -464,7 +464,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
               <p className="font-semibold">Under review</p>
               <p className="mt-1 text-sm text-neutral-600">
                 We&apos;ve got your credentials and will email you as soon as they&apos;re reviewed. Until
-                then you can set up your profile, but you won&apos;t appear in Browse or be able to send
+                then you can set up your profile, but you won&apos;t appear in Explore or be able to send
                 offers.
               </p>
             </div>
@@ -480,14 +480,14 @@ export default function VerificationPageClient({ initialData }: VerificationPage
             <div>
               <p className="font-semibold">Your verification has expired</p>
               <p className="mt-1 text-sm text-neutral-600">
-                Submit a current credential below to become visible in Browse again.
+                Submit a current credential below to become visible in Explore again.
               </p>
             </div>
           ) : (
             <div>
               <p className="font-semibold">Not verified yet</p>
               <p className="mt-1 text-sm text-neutral-600">
-                Until you&apos;re approved you won&apos;t appear in Browse and can&apos;t send offers or be
+                Until you&apos;re approved you won&apos;t appear in Explore and can&apos;t send offers or be
                 booked.
               </p>
             </div>
@@ -788,7 +788,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
               <div className="rounded-2xl border border-ink bg-surface p-5 text-ink">
                 <p className="text-lg font-semibold tracking-tight">You can&apos;t use LineUp until you&apos;re verified</p>
                 <p className="mt-2 text-sm leading-6 text-neutral-600">
-                  Without verification you won&apos;t appear in Browse, you can&apos;t send offers, and clients
+                  Without verification you won&apos;t appear in Explore, you can&apos;t send offers, and clients
                   can&apos;t book or pay you. You can still set up your profile, but nothing works for getting
                   clients until this is done — your dashboard will keep reminding you.
                 </p>

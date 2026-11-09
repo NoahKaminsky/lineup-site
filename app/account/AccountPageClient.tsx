@@ -1924,7 +1924,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                             ? `Until ${verifiedUntil}`
                             : vStatus === "verified" || vStatus === "pending"
                             ? null
-                            : "Only verified pros appear in Browse.",
+                            : "Only verified pros appear in Explore.",
                         noteTone: vStatus === "verified" || vStatus === "pending" ? "muted" : "alert",
                         action:
                           vStatus === "verified"

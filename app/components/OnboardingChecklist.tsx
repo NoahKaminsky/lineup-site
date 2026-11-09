@@ -34,13 +34,13 @@ type Step = {
 // Weekly hours are deliberately absent: they're a paid-plan feature, so they
 // can't be something every pro is asked to finish.
 const ESSENTIALS: Step[] = [
-  { key: "verified", label: "Get verified", why: "Only verified pros appear in Browse and can be booked.", href: "/verification#verification-form", cta: "Verify" },
+  { key: "verified", label: "Get verified", why: "Only verified pros appear in Explore and can be booked.", href: "/verification#verification-form", cta: "Verify" },
   { key: "photo", label: "Add a profile photo", why: "A clear photo of you is the first thing clients look for.", href: "/account#photo", cta: "Add photo" },
   { key: "link", label: "Choose your booking link", why: "lineup-aesthetics.ca/book/yourname: the clean link you share with clients.", href: "/account#booking-link", cta: "Choose link" },
   { key: "bio", label: "Write a short bio", why: "A few lines on your experience and style.", href: "/account#bio", cta: "Write bio" },
   { key: "where", label: "Set where you work", why: "Your area, and whether you travel, host or work from a shop.", href: "/services#modes", cta: "Set location" },
   { key: "service", label: "Add your services", why: "What you offer, with prices and how long each takes.", href: "/services#add-service", cta: "Add service" },
-  { key: "portfolio", label: "Post 3 photos of your work", why: "Your first photo is your card in Browse. Pros with real photos get picked first.", href: "/account#portfolio", cta: "Add photos" },
+  { key: "portfolio", label: "Post 3 photos of your work", why: "Your first photo is your card in Explore. Pros with real photos get picked first.", href: "/account#portfolio", cta: "Add photos" },
   { key: "cover", label: "Add a cover photo", why: "The big photo across the top of your profile. Your shop, your chair, your work.", href: "/account#cover", cta: "Add cover" },
   { key: "payouts", label: "Connect payouts", why: "Set up Stripe so you get paid for completed jobs.", href: "/account#payouts", cta: "Connect" },
 ];

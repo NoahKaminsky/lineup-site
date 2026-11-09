@@ -170,7 +170,7 @@ const GROUPS: FaqGroup[] = [
           <>
             Upload your credential (or proof you&apos;re enrolled in training) and a government photo ID on the{" "}
             <Link href="/verification" className={linkClass}>verification page</Link>. Once you&apos;re approved you show
-            up in Browse and clients can book you.
+            up in Explore and clients can book you.
           </>
         ),
       },
