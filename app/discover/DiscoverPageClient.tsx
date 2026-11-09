@@ -3,7 +3,7 @@
 import { fetchBusyTimes } from "@/app/lib/fetchBusyTimes";
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getCached, setCached } from "@/app/lib/pageCache";
@@ -934,37 +934,46 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
       .filter((entry) => entry.weight > 0);
   }, [cardsWithPromotion, filteredCards, search, selectedCategory]);
   const spotlightKey = spotlightPool.map((e) => `${e.card.profile.id}:${e.weight}`).join(",");
-  const [spotlightId, setSpotlightId] = useState<string | null>(null);
+  // Up to three on stage, drawn by weight without repeats.
+  const [spotlightIds, setSpotlightIds] = useState<string[]>([]);
   useEffect(() => {
-    if (spotlightPool.length === 0) {
-      setSpotlightId(null);
-      return;
+    const left = [...spotlightPool];
+    const picked: string[] = [];
+    while (left.length && picked.length < 3) {
+      const total = left.reduce((sum, e) => sum + e.weight, 0);
+      let roll = Math.random() * total;
+      const index = Math.max(0, left.findIndex((e) => (roll -= e.weight) < 0));
+      picked.push(left[index].card.profile.id);
+      left.splice(index, 1);
     }
-    const total = spotlightPool.reduce((sum, e) => sum + e.weight, 0);
-    let roll = Math.random() * total;
-    const picked = spotlightPool.find((e) => (roll -= e.weight) < 0) ?? spotlightPool[0];
-    setSpotlightId(picked.card.profile.id);
+    const id = window.setTimeout(() => setSpotlightIds(picked), 0);
+    return () => window.clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spotlightKey]);
-  const spotlight = spotlightPool.find((e) => e.card.profile.id === spotlightId)?.card ?? null;
+  const spotlightCards = spotlightIds
+    .map((id) => spotlightPool.find((e) => e.card.profile.id === id)?.card)
+    .filter((card): card is DiscoverCard => Boolean(card));
 
-  // One view per pro per visit, so the numbers pros see are honest.
-  useEffect(() => {
-    if (!spotlight) return;
-    const key = `lu-spot-${spotlight.profile.id}`;
-    try {
-      if (sessionStorage.getItem(key)) return;
-      sessionStorage.setItem(key, "1");
-    } catch {
-      /* private mode: still count it */
+  // A view is counted when the light lands on a pro, once per pro per visit.
+  const logSpotlight = useCallback((professionalId: string, kind: "view" | "tap") => {
+    if (kind === "view") {
+      const key = `lu-spot-${professionalId}`;
+      try {
+        if (sessionStorage.getItem(key)) return;
+        sessionStorage.setItem(key, "1");
+      } catch {
+        /* private mode: still count it */
+      }
     }
     fetch("/api/spotlight", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ professionalId: spotlight.profile.id, kind: "view" }),
+      body: JSON.stringify({ professionalId, kind }),
       keepalive: true,
     }).catch(() => {});
-  }, [spotlight]);
+  }, []);
+  const onSpotlightView = useCallback((id: string) => logSpotlight(id, "view"), [logSpotlight]);
+  const onSpotlightTap = useCallback((id: string) => logSpotlight(id, "tap"), [logSpotlight]);
 
   // LineUp Picks: chosen by the team (profiles.is_featured), never bought.
   const picks = useMemo<PickCard[]>(() => {
@@ -1082,19 +1091,25 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
               ) : null}
             </div>
 
-        {spotlight ? (
+        {spotlightCards.length > 0 ? (
           <div className="mt-6">
             <SpotlightStage
-              key={spotlight.profile.id}
-              {...getCardProps(spotlight)}
-              onTap={() =>
-                fetch("/api/spotlight", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ professionalId: spotlight.profile.id, kind: "tap" }),
-                  keepalive: true,
-                }).catch(() => {})
-              }
+              pros={spotlightCards.map((card) => {
+                const props = getCardProps(card);
+                return {
+                  id: card.profile.id,
+                  href: props.href,
+                  name: props.name,
+                  role: props.role,
+                  place: props.place,
+                  image: props.image,
+                  rating: props.rating,
+                  open: props.open,
+                  verified: props.verified,
+                };
+              })}
+              onView={onSpotlightView}
+              onTap={onSpotlightTap}
             />
           </div>
         ) : null}
