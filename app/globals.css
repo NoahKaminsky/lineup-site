@@ -744,3 +744,27 @@ main {
 @media (prefers-reduced-motion: reduce) {
   .lu-dust span { animation: none; opacity: 0.4; }
 }
+
+/* LineUp Picks: the photo is revealed with a wipe, then the seal stamps down. */
+.lu-pick .lu-pick-photo {
+  clip-path: inset(100% 0 0 0 round 6px);
+  transition: clip-path 1000ms cubic-bezier(0.7, 0, 0.2, 1) var(--pick-delay, 0ms);
+}
+.lu-pick[data-in="true"] .lu-pick-photo { clip-path: inset(0 0 0 0 round 6px); }
+.lu-pick .lu-seal { opacity: 0; transform: scale(1.9) rotate(-35deg); }
+.lu-pick[data-in="true"] .lu-seal {
+  animation: lu-stamp 520ms cubic-bezier(0.3, 1.6, 0.5, 1) calc(var(--pick-delay, 0ms) + 820ms) both;
+}
+@keyframes lu-stamp {
+  0% { opacity: 0; transform: scale(1.9) rotate(-35deg); }
+  55% { opacity: 1; transform: scale(0.92) rotate(-8deg); }
+  75% { transform: scale(1.04) rotate(-11deg); }
+  100% { opacity: 1; transform: scale(1) rotate(-10deg); }
+}
+.lu-seal-ring { animation: lu-seal-spin 28s linear infinite; transform-origin: 50% 50%; }
+@keyframes lu-seal-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .lu-pick .lu-pick-photo { clip-path: none; transition: none; }
+  .lu-pick .lu-seal, .lu-pick[data-in="true"] .lu-seal { animation: none; opacity: 1; transform: rotate(-10deg); }
+  .lu-seal-ring { animation: none; }
+}

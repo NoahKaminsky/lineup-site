@@ -10,6 +10,7 @@ import { getCached, setCached } from "@/app/lib/pageCache";
 import { getProfileHref } from "@/app/lib/profileLink";
 import { shopNow } from "@/app/lib/bookingTime";
 import SpotlightStage from "@/app/components/discover/SpotlightStage";
+import LineupPicks, { type PickCard } from "@/app/components/discover/LineupPicks";
 import type { DiscoverCard as InitialDiscoverCard } from "./getInitialData";
 import { BadgeCheck, MapPin, Search, SlidersHorizontal, Star, X } from "lucide-react";
 
@@ -966,6 +967,39 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
     }).catch(() => {});
   }, [spotlight]);
 
+  // LineUp Picks: chosen by the team (profiles.is_featured), never bought.
+  const picks = useMemo<PickCard[]>(() => {
+    return cardsWithPromotion
+      .filter((card) => card.profile.is_featured)
+      .slice(0, 3)
+      .map((card) => {
+        const props = getCardProps(card);
+        const bio = (card.profile.bio || "").replace(/\s+/g, " ").trim();
+        const firstSentence = bio.split(/(?<=[.!?])\s/)[0] || "";
+        const specialties = (card.profile.specialties || []).slice(0, 3).join(", ");
+        return {
+          id: card.profile.id,
+          href: props.href,
+          name: props.name,
+          role: props.role,
+          place: props.place,
+          image: props.image,
+          rating: props.rating,
+          open: props.open,
+          verified: props.verified,
+          why:
+            firstSentence.length >= 20
+              ? firstSentence.length > 140
+                ? `${firstSentence.slice(0, 137).trimEnd()}…`
+                : firstSentence
+              : specialties
+                ? `Known for ${specialties.toLowerCase()}.`
+                : "Clean work, booked solid, and the reviews to show it.",
+        };
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardsWithPromotion, userLocation]);
+
   // The hero strip: who has room today (or, failing that, this week).
   const freeSoon = useMemo(() => {
     const withDay = cardsWithPromotion
@@ -1101,6 +1135,8 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                 })}
               </div>
             ) : null}
+
+        {!isSearching && selectedCategory === "all" ? <LineupPicks picks={picks} /> : null}
 
         {/* One row: filters, then categories. Everything else lives behind Filters. */}
         <div className="-mx-4 mt-5 flex items-center gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
