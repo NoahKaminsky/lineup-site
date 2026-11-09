@@ -5,6 +5,7 @@ import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useScrollVar } from "@/app/lib/useScrollVar";
 import { useParams } from "next/navigation";
 import {
   BadgeCheck,
@@ -437,9 +438,11 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   // ids explicitly.
   const seed: ProfileDetailCache | null = cached ?? (initialData as unknown as ProfileDetailCache | null);
 
+  const heroRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(() => !seed);
   const [message, setMessage] = useState("");
   const [profile, setProfile] = useState<Profile | null>(() => seed?.profile ?? null);
+  useScrollVar(heroRef, 1, profile?.id);
   // Shared booking links end in #availability: land on the calendar once the
   // profile has loaded.
   useHashTarget(!loading && !!profile);
@@ -1884,21 +1887,45 @@ if (loading) {
               </div>
             );
 
+            // Scroll-driven: the cover drifts slower than the page and the
+            // name lifts away; without a cover, a giant initial does it.
             return profile.banner_url ? (
-              <div className="relative overflow-hidden rounded-[32px] bg-ink">
+              <div ref={heroRef} className="relative overflow-hidden rounded-[32px] bg-ink" style={{ ["--sp" as string]: 0 }}>
                 <button
                   type="button"
                   onClick={() => setShowBannerPreview(true)}
-                  className="block h-[400px] w-full cursor-zoom-in md:h-[500px]"
+                  className="block h-[400px] w-full cursor-zoom-in overflow-hidden md:h-[500px]"
                   aria-label="View cover photo"
                 >
-                  <img src={profile.banner_url} alt="Cover photo" className="lu-cover-in h-full w-full object-cover" />
+                  <img
+                    src={profile.banner_url}
+                    alt="Cover photo"
+                    className="lu-cover-in h-full w-full object-cover will-change-transform"
+                    style={{ transform: "translate3d(0, calc(var(--sp) * 90px), 0) scale(calc(1.04 + var(--sp) * 0.1))" }}
+                  />
                 </button>
-                <div className="lu-fade-in pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/0" />
-                <div className="absolute inset-x-0 bottom-0 p-6 md:p-10">{identity(true)}</div>
+                <div
+                  className="lu-fade-in pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/0"
+                  style={{ opacity: "calc(1 + var(--sp) * 0.4)" }}
+                />
+                <div
+                  className="absolute inset-x-0 bottom-0 p-6 md:p-10"
+                  style={{ transform: "translate3d(0, calc(var(--sp) * -40px), 0)", opacity: "calc(1 - var(--sp) * 1.4)" }}
+                >
+                  {identity(true)}
+                </div>
               </div>
             ) : (
-              <div className="pt-4 md:pt-10">{identity(false)}</div>
+              <div ref={heroRef} className="relative pt-4 md:pt-10" style={{ ["--sp" as string]: 0 }}>
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-4 -top-10 select-none text-[16rem] font-semibold leading-none tracking-[-0.08em] text-ink/[0.05] md:-top-20 md:text-[24rem]"
+                  style={{ transform: "translate3d(0, calc(var(--sp) * 120px), 0) rotate(calc(var(--sp) * -6deg))" }}
+                >
+                  {(profile.full_name || "L").charAt(0).toUpperCase()}
+                </span>
+                <div className="relative">{identity(false)}</div>
+              </div>
             );
           })()}
 
