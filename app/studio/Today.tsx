@@ -23,6 +23,7 @@ import {
   type TeamMember,
 } from "./types";
 import { shopNow } from "@/app/lib/bookingTime";
+import SplitFlap from "@/app/components/SplitFlap";
 
 type Hours = Record<string, Record<number, [string, string][]>>;
 type TimeOff = Record<string, { start: string; end: string }[]>;
@@ -154,12 +155,12 @@ export default function TodayView() {
                   <button
                     type="button"
                     onClick={() => setOpen(i)}
-                    className="relative block w-full overflow-hidden rounded-[22px] bg-ink p-5 text-left text-white transition active:scale-[0.995]"
+                    className="relative block w-full overflow-hidden rounded-[22px] bg-[#111113] p-5 text-left text-white transition active:scale-[0.995]"
                   >
-                    <span aria-hidden="true" className="lu-glow pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#C8102E]/30 blur-3xl" />
+                    {/* A departures board for the chair: matte, lined, no glow. */}
+                    <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_3px,rgba(255,255,255,0.025)_3px,rgba(255,255,255,0.025)_4px)]" />
                     <span className="relative flex items-center justify-between gap-3">
-                      <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium ring-1 ring-white/10">
-                        <span className="lu-pulse-dot h-1.5 w-1.5 rounded-full bg-[#ff4d63]" />
+                      <span className="text-xs font-medium text-white/60">
                         {inProgress ? `In the chair until ${time12(i.end)}` : "Next in the chair"}
                       </span>
                       {i.kind !== "online" ? (
@@ -170,8 +171,15 @@ export default function TodayView() {
                         <span className="text-xs text-white/60">Pays here</span>
                       ) : null}
                     </span>
-                    <span className="lu-time-in relative mt-4 block text-[2.4rem] font-semibold leading-none tracking-[-0.05em] tabular-nums">
-                      {inProgress ? "Now" : time12(i.start)}
+                    <span className="relative mt-4 flex items-end gap-1.5">
+                      <SplitFlap
+                        tone="dark"
+                        text={inProgress ? "NOW" : time12(i.start).replace(/\s?[ap]m$/i, "")}
+                        className="text-[2.1rem] font-semibold"
+                      />
+                      {!inProgress ? (
+                        <span className="mb-1 text-sm font-semibold text-white/50">{/pm$/i.test(time12(i.start)) ? "PM" : "AM"}</span>
+                      ) : null}
                     </span>
                     <span className="relative mt-3 block truncate text-[15px] font-medium">
                       {i.service || "Appointment"}

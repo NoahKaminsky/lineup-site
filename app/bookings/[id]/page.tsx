@@ -835,12 +835,11 @@ export default function BookingDetailPage() {
         {/* The booking at a glance: what, when, with whom, where. */}
         <section className="lu-dialog-in mt-4 rounded-[28px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-36px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.07] sm:p-8">
           {isLive && countdown(booking.booking_date, booking.start_time) !== "Now" ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-ink px-2.5 py-1 text-xs font-medium text-white">
-              <span className="lu-pulse-dot h-1.5 w-1.5 rounded-full bg-[#ff4d63]" />
+            <p className="text-[13px] font-medium tabular-nums text-neutral-500">
               {countdown(booking.booking_date, booking.start_time)}
-            </span>
+            </p>
           ) : null}
-          <div className={`flex items-center gap-4 ${isLive && countdown(booking.booking_date, booking.start_time) !== "Now" ? "mt-5" : ""}`}>
+          <div className={`flex items-center gap-4 ${isLive && countdown(booking.booking_date, booking.start_time) !== "Now" ? "mt-3" : ""}`}>
             <DateTile date={booking.booking_date} muted={!isLive} />
             <div className="min-w-0">
               <h1 className="text-[1.9rem] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-4xl">

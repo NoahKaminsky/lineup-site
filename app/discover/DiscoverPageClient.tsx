@@ -216,9 +216,8 @@ function ProCard({ href, name, role, place, image, badge, rating, reviewCount, o
             className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.04]"
           />
         ) : (
-          <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-ink">
-            <div aria-hidden="true" className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[#C8102E]/30 blur-2xl" />
-            <span className="relative text-6xl font-semibold tracking-[-0.06em] text-white">{initial}</span>
+          <div className="lu-pinstripe relative flex h-full w-full items-center justify-center overflow-hidden bg-[#efece6]">
+            <span className="relative text-7xl font-semibold tracking-[-0.06em] text-ink/80">{initial}</span>
           </div>
         )}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[24px] ring-1 ring-inset ring-black/[0.06]" />

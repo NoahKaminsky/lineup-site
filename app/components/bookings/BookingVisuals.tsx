@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChevronRight, MapPin, MessageCircle, Navigation } from "lucide-react";
 import { appointmentInstant, shopNow } from "@/app/lib/bookingTime";
+import SplitFlap from "@/app/components/SplitFlap";
 
 export type AppointmentLike = {
   href: string;
@@ -120,7 +121,9 @@ export function DateTile({ date, muted = false, dark = false }: { date: string; 
   );
 }
 
-// The very next appointment, presented like a ticket.
+// The very next appointment as a boarding pass: light paper, the time on a
+// split-flap board, a tear-off stub with the actions, and a thin bar that
+// fills as the appointment gets closer (over the last 24 hours).
 export function NextUpCard({
   item,
   footer,
@@ -130,10 +133,14 @@ export function NextUpCard({
 }) {
   const address = shortAddress(item.location);
   const price = money(item.price);
-  // Ticks every 30s so "In 12 min" stays true while the page is open.
   const [until, setUntil] = useState(() => countdown(item.date, item.startTime));
+  const [closeness, setCloseness] = useState(0);
   useEffect(() => {
-    const tick = () => setUntil(countdown(item.date, item.startTime));
+    const tick = () => {
+      setUntil(countdown(item.date, item.startTime));
+      const ms = appointmentInstant(item.date, item.startTime).getTime() - Date.now();
+      setCloseness(Math.min(1, Math.max(0, 1 - ms / 86_400_000)));
+    };
     tick();
     const id = window.setInterval(tick, 30_000);
     return () => window.clearInterval(id);
@@ -141,48 +148,55 @@ export function NextUpCard({
   const mapsHref = item.location
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}`
     : null;
+  const [clock, meridiem] = time12(item.startTime).split(" ");
 
   return (
-    <div className="lu-rise relative overflow-hidden rounded-[28px] bg-ink text-white shadow-[0_24px_60px_-28px_rgba(0,0,0,0.55)]">
-      {/* Soft glow so the card has depth instead of reading as a flat black box. */}
-      <div aria-hidden="true" className="lu-glow pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-[#C8102E]/25 blur-3xl" />
-      <div aria-hidden="true" className="pointer-events-none absolute -bottom-32 -left-16 h-64 w-64 rounded-full bg-white/[0.06] blur-3xl" />
+    <div className="lu-rise relative overflow-hidden rounded-[26px] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_22px_48px_-28px_rgba(0,0,0,0.35)] ring-1 ring-ink/[0.06]">
+      {/* how close it is: fills over the last day */}
+      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-1 bg-ink/[0.05]">
+        <div className="h-full bg-ink transition-[width] duration-1000 ease-out" style={{ width: `${closeness * 100}%` }} />
+      </div>
 
-      <Link href={item.href} className="relative block p-6 sm:p-7">
-        <div className="flex items-center justify-between gap-3">
-          <span className="lu-sheen inline-flex items-center gap-2 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white/90 ring-1 ring-white/10">
-            <span className="lu-pulse-dot h-1.5 w-1.5 rounded-full bg-[#ff4d63]" />
-            Next up <span className="text-white/50">{until}</span>
-          </span>
-          {price ? <span className="text-sm font-medium tabular-nums text-white/70">{price}</span> : null}
+      <Link href={item.href} className="block p-6 pt-7 sm:p-7 sm:pt-8">
+        <div className="flex items-baseline justify-between gap-3 text-[13px]">
+          <span className="font-medium text-ink">Next up</span>
+          <span className="tabular-nums text-neutral-500">{until}</span>
         </div>
 
-        <p className="mt-6 text-sm font-medium text-white/60">{dayWord(item.date)}</p>
-        <p className="lu-time-in mt-1 text-[2.75rem] font-semibold leading-none tracking-[-0.05em] tabular-nums sm:text-[3.25rem]">
-          {time12(item.startTime)}
-        </p>
+        <div className="mt-5 flex items-end gap-2">
+          <SplitFlap text={clock} className="text-[2.6rem] font-semibold sm:text-[3rem]" />
+          <span className="mb-1 text-sm font-semibold text-neutral-500">{meridiem}</span>
+        </div>
+        <p className="mt-2 text-sm text-neutral-500">{dayWord(item.date)}</p>
 
-        <div className="mt-6 flex items-center gap-3">
-          <Avatar name={item.withName} url={item.withAvatarUrl} size={44} dark />
-          <div className="min-w-0">
-            <p className="truncate text-base font-semibold tracking-[-0.01em]">
+        <div className="mt-5 flex items-center gap-3">
+          <Avatar name={item.withName} url={item.withAvatarUrl} size={40} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-semibold tracking-[-0.01em] text-ink">
               {item.title}
-              {item.withName ? <span className="font-normal text-white/60"> with {item.withName.split(" ")[0]}</span> : null}
+              {item.withName ? <span className="font-normal text-neutral-500"> with {item.withName.split(" ")[0]}</span> : null}
             </p>
             {address ? (
-              <p className="mt-0.5 flex items-center gap-1 truncate text-[13px] text-white/50">
+              <p className="mt-0.5 flex items-center gap-1 truncate text-[13px] text-neutral-500">
                 <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 {address}
               </p>
             ) : null}
           </div>
+          {price ? <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">{price}</span> : null}
         </div>
       </Link>
 
-      <div className="relative flex gap-2 border-t border-white/10 px-6 py-4 sm:px-7">
+      {/* perforation, then the stub */}
+      <div aria-hidden="true" className="relative h-5">
+        <span className="absolute -left-2.5 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-paper ring-1 ring-ink/[0.06]" />
+        <span className="absolute -right-2.5 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full bg-paper ring-1 ring-ink/[0.06]" />
+        <span className="absolute inset-x-5 top-1/2 border-t-2 border-dotted border-ink/10" />
+      </div>
+      <div className="flex gap-2 px-6 pb-5 pt-1 sm:px-7">
         <Link
           href={`${item.href}#booking-chat`}
-          className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[13px] font-medium text-ink transition hover:bg-neutral-200"
+          className="inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-[13px] font-medium text-white transition hover:bg-neutral-800"
         >
           <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
           Message
@@ -192,7 +206,7 @@ export function NextUpCard({
             href={mapsHref}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-[13px] font-medium text-white ring-1 ring-white/10 transition hover:bg-white/15"
+            className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-4 py-2 text-[13px] font-medium text-ink transition hover:bg-neutral-200"
           >
             <Navigation className="h-3.5 w-3.5" aria-hidden="true" />
             Directions

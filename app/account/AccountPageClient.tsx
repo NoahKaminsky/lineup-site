@@ -1074,10 +1074,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   ) : (
                     !isProfessional ? (
                       // Clients don't need a cover: a quiet brand band instead of a chore.
-                      <div className="relative h-full w-full overflow-hidden bg-ink">
-                        <div aria-hidden="true" className="lu-glow absolute -right-16 -top-24 h-72 w-72 rounded-full bg-[#C8102E]/35 blur-3xl" />
-                        <div aria-hidden="true" className="absolute -bottom-32 -left-10 h-64 w-64 rounded-full bg-white/[0.06] blur-3xl" />
-                      </div>
+                      <div className="lu-pinstripe relative h-full w-full overflow-hidden bg-[#f1efea]" />
                     ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[linear-gradient(135deg,#f4f4f2,#e9e9e6)] text-sm font-medium text-neutral-500">
                       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">

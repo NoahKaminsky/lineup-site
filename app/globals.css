@@ -765,3 +765,21 @@ main {
   .lu-pick .lu-pick-photo { clip-path: none; transition: none; }
   .lu-pick .lu-seal, .lu-pick[data-in="true"] .lu-seal { animation: none; opacity: 1; transform: rotate(-4deg); }
 }
+
+/* Split-flap: each change drops the new character in from the hinge. */
+@keyframes lu-flap {
+  from { transform: rotateX(-80deg); opacity: 0.4; }
+  to { transform: rotateX(0); opacity: 1; }
+}
+.lu-flap { animation: lu-flap 110ms ease-out both; transform-origin: 50% 0; }
+@media (prefers-reduced-motion: reduce) { .lu-flap { animation: none; } }
+
+/* Pinstripe: fine diagonal lines, the barbershop's own pattern, drifting
+   very slowly. Used where there's no photo yet. */
+.lu-pinstripe {
+  background-image: repeating-linear-gradient(-45deg, rgba(10, 10, 10, 0.045) 0 1px, transparent 1px 11px);
+  background-size: 200% 200%;
+  animation: lu-pinstripe-drift 40s linear infinite;
+}
+@keyframes lu-pinstripe-drift { to { background-position: 100% 100%; } }
+@media (prefers-reduced-motion: reduce) { .lu-pinstripe { animation: none; } }

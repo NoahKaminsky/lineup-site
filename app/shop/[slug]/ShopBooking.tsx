@@ -19,6 +19,7 @@ import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 import PaymentModal from "@/app/components/payments/PaymentModal";
 import CardSetupModal from "@/app/components/payments/CardSetupModal";
 import { BookedSheet } from "@/app/components/moments/Moments";
+import SplitFlap from "@/app/components/SplitFlap";
 import type { ShopPro } from "./page";
 import { shopNow } from "@/app/lib/bookingTime";
 
@@ -728,21 +729,21 @@ function BookingBar({
   return (
     <div
       className={`relative mt-6 overflow-hidden rounded-[24px] transition-colors duration-300 ${
-        ready ? "bg-ink p-5 text-white" : "bg-ink/[0.04] p-4"
+        ready ? "bg-white p-5 text-ink shadow-[0_18px_40px_-26px_rgba(0,0,0,0.4)] ring-1 ring-ink/[0.07]" : "bg-ink/[0.04] p-4"
       }`}
     >
       {ready ? (
         <>
-          <div aria-hidden="true" className="lu-glow pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#C8102E]/30 blur-3xl" />
           <div className="relative flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm text-white/60">{dayName(day!, today)}</p>
-              <p key={`${day}-${time}`} className="lu-time-in mt-1 text-[2.25rem] font-semibold leading-none tracking-[-0.05em] tabular-nums">
-                {time12(time!)}
-              </p>
+              <p className="text-sm text-neutral-500">{dayName(day!, today)}</p>
+              <div className="mt-2 flex items-end gap-1.5">
+                <SplitFlap text={time12(time!).replace(/(am|pm)$/i, "")} className="text-[2.1rem] font-semibold" />
+                <span className="mb-1 text-sm font-semibold text-neutral-500">{/pm$/i.test(time12(time!)) ? "PM" : "AM"}</span>
+              </div>
               <p className="mt-3 truncate text-[15px] font-medium">
                 {service!.name}
-                <span className="font-normal text-white/60"> with {pro.name.split(" ")[0]}</span>
+                <span className="font-normal text-neutral-500"> with {pro.name.split(" ")[0]}</span>
               </p>
             </div>
             {price && !(covered && payLater) ? <span className="shrink-0 text-lg font-semibold tabular-nums">{price}</span> : null}
@@ -763,11 +764,11 @@ function BookingBar({
                   aria-checked={payLater === o.v}
                   onClick={() => setPayLater(o.v)}
                   className={`rounded-2xl px-3 py-2.5 text-left transition ${
-                    payLater === o.v ? "bg-white text-ink" : "bg-white/[0.08] text-white ring-1 ring-inset ring-white/10 hover:bg-white/[0.12]"
+                    payLater === o.v ? "bg-ink text-white" : "bg-neutral-50 text-ink ring-1 ring-inset ring-ink/[0.07] hover:bg-neutral-100"
                   }`}
                 >
                   <span className="block text-sm font-semibold">{o.t}</span>
-                  <span className={`block truncate text-xs ${payLater === o.v ? "text-neutral-500" : "text-white/55"}`}>{o.d}</span>
+                  <span className={`block truncate text-xs ${payLater === o.v ? "text-white/60" : "text-neutral-500"}`}>{o.d}</span>
                 </button>
               ))}
             </div>
@@ -777,7 +778,7 @@ function BookingBar({
             type="button"
             onClick={book}
             disabled={working}
-            className="relative mt-4 flex h-12 w-full items-center justify-center rounded-full bg-white text-[15px] font-semibold text-ink transition hover:bg-neutral-200 active:scale-[0.99] disabled:opacity-60"
+            className="relative mt-4 flex h-12 w-full items-center justify-center rounded-full bg-ink text-[15px] font-semibold text-white transition hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60"
           >
             {working
               ? "One moment…"
@@ -788,7 +789,7 @@ function BookingBar({
                   : `Book${price ? ` and pay ${price}` : ""}`}
           </button>
           {payAtShop && payLater && !covered ? (
-            <p className="relative mt-2.5 text-center text-xs text-white/50">
+            <p className="relative mt-2.5 text-center text-xs text-neutral-500">
               Nothing charged today. {payAtShop.feePercent}% fee only if you don&apos;t show.
             </p>
           ) : null}
@@ -797,7 +798,7 @@ function BookingBar({
         <p className="text-sm text-neutral-500">{!service ? "Pick a service and a time." : "Pick a time."}</p>
       )}
       {message ? (
-        <p role="alert" className={`relative mt-2 text-[13px] ${ready ? "text-[#ff8a9a]" : "text-[#A30D25]"}`}>
+        <p role="alert" className="relative mt-2 text-[13px] text-[#A30D25]">
           {message}
         </p>
       ) : null}

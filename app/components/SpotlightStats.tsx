@@ -26,8 +26,17 @@ export default function SpotlightStats({ inRotation, share }: { inRotation: bool
   }, []);
 
   return (
-    <section className="relative mt-10 overflow-hidden rounded-[28px] bg-ink p-6 text-white sm:p-8">
-      <div aria-hidden="true" className="lu-glow pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-[#C8102E]/30 blur-3xl" />
+    <section className="relative mt-10 overflow-hidden rounded-[28px] bg-[#09090a] p-6 text-white sm:p-8">
+      {/* The same white beam as the Spotlight on Explore, aimed at the numbers. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 mix-blend-screen"
+        style={{
+          background:
+            "conic-gradient(from 180deg at 78% -20%, transparent 0deg, transparent 166deg, rgba(255,255,255,0.16) 180deg, transparent 194deg, transparent 360deg)",
+          filter: "blur(6px)",
+        }}
+      />
       <div className="relative">
         <h2 className="text-xl font-semibold tracking-[-0.02em]">Your Spotlight</h2>
         <p className="mt-1 max-w-md text-sm leading-6 text-white/60">

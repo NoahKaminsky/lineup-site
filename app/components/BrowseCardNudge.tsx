@@ -56,14 +56,13 @@ export default function BrowseCardNudge({ userId }: { userId: string }) {
   const left = 3 - preview.photos;
   return (
     <section className="lu-rise mt-8 flex items-center gap-5 overflow-hidden rounded-[28px] bg-white p-4 pr-5 ring-1 ring-ink/[0.06] sm:p-5">
-      <div className="relative aspect-[4/5] w-24 shrink-0 overflow-hidden rounded-[18px] bg-ink sm:w-28">
+      <div className="lu-pinstripe relative aspect-[4/5] w-24 shrink-0 overflow-hidden rounded-[18px] bg-[#efece6] sm:w-28">
         {preview.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={preview.image} alt="" className="h-full w-full object-cover" />
         ) : (
           <>
-            <div aria-hidden="true" className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#C8102E]/35 blur-2xl" />
-            <span className="relative flex h-full w-full items-center justify-center text-4xl font-semibold tracking-[-0.06em] text-white">
+            <span className="relative flex h-full w-full items-center justify-center text-4xl font-semibold tracking-[-0.06em] text-ink/80">
               {preview.name.charAt(0).toUpperCase()}
             </span>
           </>

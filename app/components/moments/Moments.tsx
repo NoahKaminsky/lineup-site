@@ -3,6 +3,7 @@
 import React from "react";
 import { LuMarkPaths } from "@/app/components/LuMark";
 import { fireBurst } from "@/app/components/moments/Burst";
+import SplitFlap from "@/app/components/SplitFlap";
 
 /* Shared confirmation "moments" for the app. They only render what the page
    already decided — every caller keeps its own state, handlers, polling and
@@ -322,11 +323,13 @@ export function BookedSheet({
         </div>
 
         {ticket ? (
-          <div className="lu-rise relative mt-6 overflow-hidden rounded-[22px] bg-ink p-5 text-white" style={{ "--lu-delay": "260ms" } as React.CSSProperties}>
-            <div aria-hidden="true" className="lu-glow pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#C8102E]/35 blur-3xl" />
-            <p className="relative text-sm text-white/60">{ticket.day}</p>
-            <p className="lu-time-in relative mt-1 text-[2.5rem] font-semibold leading-none tracking-[-0.05em] tabular-nums">{ticket.time}</p>
-            {ticket.line ? <p className="relative mt-3 text-[15px] font-medium">{ticket.line}</p> : null}
+          <div className="lu-rise relative mt-6 rounded-[22px] bg-neutral-50 p-5 ring-1 ring-inset ring-ink/[0.06]" style={{ "--lu-delay": "260ms" } as React.CSSProperties}>
+            <p className="text-sm text-neutral-500">{ticket.day}</p>
+            <div className="mt-2 flex items-end gap-2">
+              <SplitFlap text={ticket.time.split(" ")[0]} className="text-[2.4rem] font-semibold" />
+              <span className="mb-1 text-sm font-semibold text-neutral-500">{ticket.time.split(" ")[1] || ""}</span>
+            </div>
+            {ticket.line ? <p className="mt-3 text-[15px] font-medium text-ink">{ticket.line}</p> : null}
           </div>
         ) : null}
 

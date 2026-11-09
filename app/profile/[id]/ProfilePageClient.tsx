@@ -6,6 +6,7 @@ import Link from "next/link";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useScrollVar } from "@/app/lib/useScrollVar";
+import SplitFlap from "@/app/components/SplitFlap";
 import { useParams } from "next/navigation";
 import {
   BadgeCheck,
@@ -2419,11 +2420,10 @@ if (loading) {
                     ) : (
                       <>
                         {/* The appointment as a ticket: when, what, where. */}
-                        <div className="relative overflow-hidden rounded-[24px] bg-ink text-white">
-                          <div aria-hidden="true" className="lu-glow pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-[#C8102E]/30 blur-3xl" />
+                        <div className="relative overflow-hidden rounded-[24px] bg-white text-ink shadow-[0_18px_40px_-26px_rgba(0,0,0,0.4)] ring-1 ring-ink/[0.07]">
                           <div className="relative p-5">
                             <div className="flex items-start justify-between gap-3">
-                              <p className="text-sm text-white/60">
+                              <p className="text-sm text-neutral-500">
                                 {selectedSlot.dayLabel} {selectedSlot.dateLabel}
                               </p>
                               <button
@@ -2437,39 +2437,38 @@ if (loading) {
                                   setLocationLat(null);
                                   setLocationLng(null);
                                 }}
-                                className="-mr-1 -mt-1 rounded-full p-1.5 text-white/50 transition hover:bg-white/10 hover:text-white"
+                                className="-mr-1 -mt-1 rounded-full p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-ink"
                               >
                                 <X className="h-4 w-4" />
                               </button>
                             </div>
-                            <p key={`${selectedSlot.key}-${activeChosenService?.id ?? "none"}`} className="lu-time-in mt-1 text-[2.4rem] font-semibold leading-none tracking-[-0.05em] tabular-nums">
-                              {formatTime(selectedSlot.start_time)}
-                              {chosenRange && activeChosenService ? (
-                                <span className="text-[1.1rem] font-medium tracking-[-0.02em] text-white/50">
-                                  {" "}to {formatTime(minutesToTime(chosenRange.end))}
-                                </span>
-                              ) : null}
-                            </p>
+                            <div className="mt-2 flex flex-wrap items-end gap-x-2 gap-y-1">
+                              <SplitFlap text={formatTime(selectedSlot.start_time).split(" ")[0]} className="text-[2.2rem] font-semibold" />
+                              <span className="mb-1 text-sm font-semibold text-neutral-500">
+                                {formatTime(selectedSlot.start_time).split(" ")[1]}
+                                {chosenRange && activeChosenService ? ` to ${formatTime(minutesToTime(chosenRange.end))}` : ""}
+                              </span>
+                            </div>
                             <p className="mt-3 text-[15px] font-medium">
                               {activeChosenService ? (
                                 <>
                                   {activeChosenService.service_name}
-                                  <span className="font-normal text-white/60"> with {(profile.full_name || "your pro").split(" ")[0]}</span>
+                                  <span className="font-normal text-neutral-500"> with {(profile.full_name || "your pro").split(" ")[0]}</span>
                                 </>
                               ) : (
-                                <span className="text-white/60">Pick a service below</span>
+                                <span className="text-neutral-400">Pick a service below</span>
                               )}
                             </p>
                           </div>
 
                           {/* Perforation, like a tear-off stub. */}
                           <div aria-hidden="true" className="relative h-4">
-                            <span className="absolute -left-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white" />
-                            <span className="absolute -right-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white" />
-                            <span className="absolute inset-x-4 top-1/2 border-t border-dashed border-white/20" />
+                            <span className="absolute -left-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white ring-1 ring-ink/[0.07]" />
+                            <span className="absolute -right-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white ring-1 ring-ink/[0.07]" />
+                            <span className="absolute inset-x-4 top-1/2 border-t-2 border-dotted border-ink/10" />
                           </div>
 
-                          <div className="relative flex items-center justify-between gap-3 px-5 pb-5 pt-2 text-[13px] text-white/70">
+                          <div className="relative flex items-center justify-between gap-3 px-5 pb-5 pt-2 text-[13px] text-neutral-500">
                             <span className="flex min-w-0 items-center gap-1.5">
                               <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                               <span className="truncate">
@@ -2481,7 +2480,7 @@ if (loading) {
                               </span>
                             </span>
                             {activeChosenService && formatPrice(activeChosenService.price) ? (
-                              <span className="shrink-0 text-base font-semibold tabular-nums text-white">
+                              <span className="shrink-0 text-base font-semibold tabular-nums text-ink">
                                 {formatPrice(activeChosenService.price)}
                               </span>
                             ) : null}
