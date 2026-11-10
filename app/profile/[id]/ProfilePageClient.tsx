@@ -2397,8 +2397,12 @@ if (loading) {
 
                   <div className={`h-fit rounded-3xl bg-white p-5 ring-1 ring-ink/[0.07] xl:sticky xl:top-[calc(var(--profile-offset,8rem)+1rem)] ${selectedSlot ? "" : "hidden xl:block"}`}>
                     {!selectedSlot ? (
-                      <div className="rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
-                        Select a day and time to see which services fit and complete your booking.
+                      <div className="px-1 py-2">
+                        <p className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Your booking</p>
+                        <p className="mt-1 text-sm leading-6 text-neutral-500">
+                          Pick a time and it shows up here with the services that fit.
+                          {!viewerUserId ? " You'll sign in to confirm and come right back." : ""}
+                        </p>
                       </div>
                     ) : (
                       <>
@@ -2575,9 +2579,9 @@ if (loading) {
                     )}
 
                     {!viewerUserId ? (
-                      <div className="mt-4 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
-                        Pick a time and a service. You&apos;ll sign in to confirm and come right back here.
-                      </div>
+                      selectedSlot ? (
+                        <p className="mt-4 text-center text-xs text-neutral-500">You&apos;ll sign in to confirm and come right back here.</p>
+                      ) : null
                     ) : !viewerIsCustomer ? (
                       <div className="mt-4 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
                         Sign in as a customer to book a time.
