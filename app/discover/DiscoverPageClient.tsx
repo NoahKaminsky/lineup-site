@@ -1019,6 +1019,11 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
     return { today, list: pick.map(({ card, offset }) => ({ card, label: (() => { const w = openLabel(offset)!.replace("Open ", ""); return w.charAt(0).toUpperCase() + w.slice(1); })() })) };
   }, [cardsWithPromotion]);
 
+  // Nobody twice above the list: if the Spotlight or Picks already shows a
+  // pro, the "free" strip leaves them out.
+  const shownAbove = new Set([...spotlightIds, ...picks.map((pick) => pick.id)]);
+  const freeStrip = freeSoon.list.filter(({ card }) => !shownAbove.has(card.profile.id));
+
   if (loading) {
     return (
       <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8" aria-busy="true">
@@ -1114,14 +1119,14 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           </div>
         ) : null}
 
-        {freeSoon.list.length > 0 ? (
+        {freeStrip.length > 0 ? (
           <p className="mt-7 text-sm font-medium text-neutral-500">
             {freeSoon.today.length > 0 ? "Free today" : "Free this week"}
           </p>
         ) : null}
-            {freeSoon.list.length > 0 ? (
+            {freeStrip.length > 0 ? (
               <div className="-mx-4 mt-3 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
-                {freeSoon.list.map(({ card, label }, index) => {
+                {freeStrip.map(({ card, label }, index) => {
                   const photo = card.profile.avatar_url || card.portfolioPreview?.image_url || null;
                   const name = card.profile.full_name || "Professional";
                   return (
@@ -1150,7 +1155,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
               </div>
             ) : null}
 
-        {!isSearching && selectedCategory === "all" ? <LineupPicks picks={picks} /> : null}
+        {!isSearching && selectedCategory === "all" ? <LineupPicks picks={picks.filter((pick) => !spotlightIds.includes(pick.id))} /> : null}
 
         {/* One row: filters, then categories. Everything else lives behind Filters. */}
         <div className="-mx-4 mt-5 flex items-center gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">

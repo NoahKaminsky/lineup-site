@@ -2265,28 +2265,11 @@ if (loading) {
                                 {day.shortDayLabel}
                               </span>
 
-                              <span className="flex h-5 items-center justify-center gap-0.5 sm:gap-1">
-                                {symbols.length > 0 ? (
-                                  symbols.map((symbol) => (
-                                    <span
-                                      key={symbol}
-                                      className={`inline-flex h-4 w-4 items-center sm:h-5 sm:w-5 justify-center rounded-full ring-1 ${
-                                        isSelected
-                                          ? "bg-ink text-white ring-black"
-                                          : "bg-neutral-100 text-neutral-500 ring-neutral-200"
-                                      }`}
-                                    >
-                                      {symbol === "evening" ? (
-                                        <Moon className="h-3 w-3" strokeWidth={2.25} />
-                                      ) : (
-                                        <Sun className="h-3 w-3" strokeWidth={2.25} />
-                                      )}
-                                    </span>
-                                  ))
-                                ) : (
-                                  <span className="h-1.5 w-1.5 rounded-full bg-neutral-200" />
-                                )}
-                              </span>
+                              {/* one dot: open or not. Morning/evening is in the times below. */}
+                              <span
+                                aria-hidden="true"
+                                className={`h-1.5 w-1.5 rounded-full ${symbols.length > 0 ? "bg-emerald-500" : "bg-neutral-200"}`}
+                              />
                             </button>
                           );
                         })}

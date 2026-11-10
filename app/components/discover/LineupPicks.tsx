@@ -67,7 +67,7 @@ function PickCardView({ pick, index, solo }: { pick: PickCard; index: number; so
       href={pick.href}
       data-in={inView ? "true" : "false"}
       style={{ ["--pick-delay" as string]: `${index * 120}ms` }}
-      className={`lu-pick group relative block w-[80vw] max-w-[22rem] shrink-0 snap-start sm:w-auto sm:max-w-none ${
+      className={`lu-pick group relative block shrink-0 snap-start sm:w-auto sm:max-w-none ${solo ? "w-full" : "w-[80vw] max-w-[22rem]"} ${
         solo ? "sm:grid sm:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] sm:items-end sm:gap-12" : ""
       }`}
     >
@@ -109,11 +109,11 @@ export default function LineupPicks({ picks }: { picks: PickCard[] }) {
   if (picks.length === 0) return null;
   return (
     <section aria-labelledby="picks-heading" className="mt-12">
-      <div className="flex items-end justify-between gap-4 border-b border-ink/10 pb-3">
+      <div className="flex flex-col gap-2 border-b border-ink/10 pb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <h2 id="picks-heading" className="font-serif text-[1.9rem] italic leading-none tracking-[-0.02em] text-ink sm:text-[2.4rem]">
           LineUp Picks
         </h2>
-        <p className="max-w-[14rem] text-right text-xs leading-5 text-neutral-500">Chosen by our team for their work. Nobody pays to be here.</p>
+        <p className="text-xs leading-5 text-neutral-500 sm:max-w-[14rem] sm:text-right">Chosen by our team for their work. Nobody pays to be here.</p>
       </div>
       <div className={`-mx-4 mt-6 flex snap-x snap-mandatory gap-6 overflow-x-auto px-4 pb-8 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:grid sm:overflow-visible sm:px-0 ${picks.length === 1 ? "sm:grid-cols-1" : "sm:grid-cols-2 lg:grid-cols-3"} [&::-webkit-scrollbar]:hidden`}>
         {picks.slice(0, 3).map((pick, index) => (

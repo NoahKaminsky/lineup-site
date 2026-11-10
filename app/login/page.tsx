@@ -247,7 +247,10 @@ export default function LoginPage() {
     <main className="min-h-screen bg-paper text-neutral-900">
       <header className="border-b border-hairline">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="rounded text-xl font-semibold tracking-tight text-ink">
+          <Link href="/" className="flex items-center gap-2 rounded text-xl font-semibold tracking-[-0.03em] text-ink">
+            <svg viewBox="215 245 545 410" aria-hidden="true" className="h-[18px] w-auto">
+              <LuMarkPaths />
+            </svg>
             LineUp
           </Link>
 
@@ -257,27 +260,23 @@ export default function LoginPage() {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-2 md:items-center md:gap-16 md:py-24">
+      <div className="mx-auto grid max-w-6xl gap-8 px-6 py-12 md:gap-12 md:py-16 md:grid-cols-2 md:items-center md:gap-16 md:py-24">
         <div>
-          <p className="text-[13px] font-medium text-neutral-500">
-            {isForgot ? "Reset password" : isSignup ? "Create account" : "Sign in"}
-          </p>
-
-          <h1 className="mt-4 max-w-xl text-4xl font-semibold tracking-[-0.035em] md:text-5xl">
+          <h1 className="max-w-xl text-4xl font-semibold tracking-[-0.035em] md:text-5xl">
             {isForgot
               ? "Reset your LineUp password."
               : isSignup
               ? "Create your LineUp account."
-              : "Sign in to LineUp."}
+              : "Welcome back."}
           </h1>
 
-          <p className="mt-5 max-w-md text-lg leading-8 text-neutral-600">
-            {isForgot
-              ? "Enter your email and we’ll send you a secure password reset link."
-              : isSignup
-              ? "Create an account, confirm your email, then sign in to finish setup."
-              : "Access your LineUp account with your email and password."}
-          </p>
+          {isForgot || isSignup ? (
+            <p className="mt-5 max-w-md text-lg leading-8 text-neutral-600">
+              {isForgot
+                ? "Enter your email and we’ll send you a reset link."
+                : "Confirm your email, then sign in to finish setup."}
+            </p>
+          ) : null}
         </div>
 
         <div className="rounded-2xl bg-surface ring-1 ring-ink/[0.06] p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-28px_rgba(0,0,0,0.18)] sm:p-9">
