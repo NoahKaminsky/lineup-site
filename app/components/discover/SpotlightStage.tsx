@@ -91,10 +91,28 @@ export default function SpotlightStage({
   }, [currentId, onView]);
 
   const select = useCallback((i: number) => setActive(i), []);
-  if (!current) return null;
 
-  // Where the beam points, as a % of the stage width.
-  const beamX = pros.length === 1 ? 50 : ((active + 0.5) / pros.length) * 100;
+  // Where the beam points, as a % of the stage width: the lit card's centre.
+  const cardEls = useRef<(HTMLDivElement | null)[]>([]);
+  const [beamX, setBeamX] = useState(50);
+  useEffect(() => {
+    const measure = () => {
+      const stage = stageRef.current;
+      const card = cardEls.current[active];
+      if (!stage || !card || !stage.clientWidth) return;
+      const s = stage.getBoundingClientRect();
+      const c = card.getBoundingClientRect();
+      setBeamX(((c.left + c.width / 2 - s.left) / s.width) * 100);
+    };
+    const id = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("resize", measure);
+    };
+  }, [active, pros.length]);
+
+  if (!current) return null;
 
   return (
     <>
@@ -132,9 +150,17 @@ export default function SpotlightStage({
       </div>
 
       {/* desktop: everyone on stage, the light on one */}
-      <div className={`relative mt-6 grid gap-5 ${pros.length === 1 ? "grid-cols-1 justify-items-center" : pros.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+      <div className="relative mt-6 flex justify-center gap-6">
         {pros.map((pro, i) => (
-          <StageCard key={pro.id} pro={pro} lit={i === active} onFocus={() => select(i)} onTap={() => onTap(pro.id)} solo={pros.length === 1} />
+          <div
+            key={pro.id}
+            ref={(el) => {
+              cardEls.current[i] = el;
+            }}
+            className="w-full max-w-[17rem]"
+          >
+            <StageCard pro={pro} lit={i === active} onFocus={() => select(i)} onTap={() => onTap(pro.id)} />
+          </div>
         ))}
       </div>
 
@@ -313,13 +339,11 @@ function SpotlightMarquee({
 function StageCard({
   pro,
   lit,
-  solo,
   onFocus,
   onTap,
 }: {
   pro: SpotlightPro;
   lit: boolean;
-  solo: boolean;
   onFocus: () => void;
   onTap: () => void;
 }) {
@@ -329,9 +353,7 @@ function StageCard({
       onClick={onTap}
       onPointerEnter={onFocus}
       onFocus={onFocus}
-      className={`lu-stage-card group relative block w-full transition duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
-        solo ? "max-w-sm sm:max-w-[22rem]" : ""
-      } ${lit ? "opacity-100" : "opacity-45 hover:opacity-80"}`}
+      className={`lu-stage-card group relative block w-full max-w-[17rem] transition duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${lit ? "opacity-100" : "opacity-45 hover:opacity-80"}`}
       style={{ transform: lit ? "translateY(-6px) scale(1.02)" : "none" }}
     >
       <div className="relative aspect-[4/5] overflow-hidden rounded-[22px] bg-[#1a1a1c]">
