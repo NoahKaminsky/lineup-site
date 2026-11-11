@@ -3,11 +3,11 @@
 type Variant = "list" | "detail" | "profile" | "calendar" | "form";
 
 function Bar({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-full bg-neutral-200/80 ${className}`} />;
+  return <div className={`lu-skeleton rounded-full ${className}`} />;
 }
 
 function Block({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-2xl bg-neutral-100 ${className}`} />;
+  return <div className={`lu-skeleton rounded-2xl ${className}`} />;
 }
 
 export default function PageSkeleton({ variant = "list" }: { variant?: Variant }) {
@@ -22,10 +22,10 @@ export default function PageSkeleton({ variant = "list" }: { variant?: Variant }
           <>
             <Block className="h-40 w-full rounded-panel sm:h-56" />
             <div className="-mt-10 flex items-end gap-4 px-4">
-              <div className="h-20 w-20 animate-pulse rounded-full border-4 border-paper bg-neutral-200" />
+              <div className="h-20 w-20 lu-skeleton rounded-full border-4 border-paper" />
               <div className="flex-1 space-y-2 pb-2">
                 <Bar className="h-6 w-48" />
-                <Bar className="h-4 w-32 bg-neutral-100" />
+                <Bar className="h-4 w-32" />
               </div>
             </div>
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
@@ -38,7 +38,7 @@ export default function PageSkeleton({ variant = "list" }: { variant?: Variant }
           <>
             <Bar className="h-3 w-20" />
             <Bar className="mt-4 h-9 w-64 rounded-xl sm:w-80" />
-            <Bar className="mt-4 h-4 w-full max-w-md bg-neutral-100" />
+            <Bar className="mt-4 h-4 w-full max-w-md" />
 
             {variant === "calendar" ? (
               <div className="mt-8 grid grid-cols-7 gap-2">
@@ -62,15 +62,15 @@ export default function PageSkeleton({ variant = "list" }: { variant?: Variant }
               <>
                 <div className="mt-8 flex gap-6 border-b border-hairline pb-3">
                   <Bar className="h-4 w-16" />
-                  <Bar className="h-4 w-16 bg-neutral-100" />
-                  <Bar className="h-4 w-16 bg-neutral-100" />
+                  <Bar className="h-4 w-16" />
+                  <Bar className="h-4 w-16" />
                 </div>
                 <div className="mt-6 grid gap-2.5 lg:grid-cols-2">
                   {[0, 1, 2, 3].map((i) => (
                     <div key={i} className="flex items-center gap-3 rounded-2xl border border-neutral-200 bg-white p-3.5">
-                      <div className="h-12 w-12 shrink-0 animate-pulse rounded-2xl bg-neutral-100" />
+                      <div className="lu-skeleton h-12 w-12 shrink-0 rounded-2xl" />
                       <div className="flex-1 space-y-2">
-                        <Bar className="h-3 w-24 bg-neutral-100" />
+                        <Bar className="h-3 w-24" />
                         <Bar className="h-4 w-3/4" />
                       </div>
                     </div>

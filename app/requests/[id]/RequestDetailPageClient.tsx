@@ -5,7 +5,8 @@ import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { loadStripe } from "@stripe/stripe-js";
+import { loadStripe } from "@stripe/stripe-js/pure";
+import type { Stripe } from "@stripe/stripe-js";
 import {
   Elements,
   PaymentElement,
@@ -35,6 +36,7 @@ import { dismissRequestOnce } from "@/app/lib/requestDismissals";
 import { formatProfessions } from "@/app/lib/professions";
 import { useBidCounts } from "@/app/lib/useBidCounts";
 import BidCountBlip from "@/app/components/BidCountBlip";
+import Photo from "@/app/components/Photo";
 
 type ServiceRequest = {
   id: string;
@@ -122,9 +124,13 @@ type ChatParticipantProfile = {
   avatar_url: string | null;
 };
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
-);
+// Stripe.js is only fetched the first time a payment sheet opens, not on
+// every visit to a request.
+let stripePromise: Promise<Stripe | null> | null = null;
+function getStripe() {
+  stripePromise ??= loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+  return stripePromise;
+}
 
 function RequestOfferCheckoutForm({
   offer,
@@ -1958,7 +1964,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 <div className="mt-6 flex items-center gap-3">
                   <div className="h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-neutral-100">
                     {requestOwner.avatar_url ? (
-                      <img loading="lazy"
+                      <Photo w={48} loading="lazy"
                         src={requestOwner.avatar_url}
                         alt={requestOwner.full_name || "Customer"}
                         className="h-full w-full object-cover"
@@ -2169,7 +2175,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   >
                     <div className="h-16 w-16 overflow-hidden rounded-full border border-neutral-200 bg-white">
                       {acceptedOffer.professional_avatar_url ? (
-                        <img loading="lazy"
+                        <Photo w={64} loading="lazy"
                           src={acceptedOffer.professional_avatar_url}
                           alt={acceptedOffer.professional_name || "Professional"}
                           className="h-full w-full object-cover"
@@ -2235,7 +2241,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                           index === 0 ? "sm:col-span-2" : ""
                         }`}
                       >
-                        <img loading="lazy"
+                        <Photo sizes="(min-width: 640px) 50vw, 100vw" loading="lazy"
                           src={photoUrl}
                           alt={`Reference ${index + 1}`}
                           className={`w-full object-cover ${index === 0 ? "h-56" : "h-40"}`}
@@ -2305,7 +2311,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                                   }`}
                                 >
                                   {offer.professional_avatar_url ? (
-                                    <img loading="lazy"
+                                    <Photo w={56} loading="lazy"
                                       src={offer.professional_avatar_url}
                                       alt={offer.professional_name || "Professional"}
                                       className="h-full w-full object-cover"
@@ -2698,7 +2704,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                               >
                                 <div className="h-9 w-9 overflow-hidden rounded-full border border-neutral-200 bg-white">
                                   {sender?.avatar_url ? (
-                                    <img loading="lazy"
+                                    <Photo w={36} loading="lazy"
                                       src={sender.avatar_url}
                                       alt={sender.full_name || "User"}
                                       className="h-full w-full object-cover"
@@ -3087,7 +3093,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               Close
             </button>
 
-            <img loading="lazy"
+            <Photo sizes="100vw" loading="lazy"
               src={selectedPhoto}
               alt="Reference full size"
               className="max-h-[90vh] max-w-full rounded-2xl object-contain"
@@ -3134,7 +3140,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             </div>
 
             <Elements
-              stripe={stripePromise}
+              stripe={getStripe()}
               options={{
                 clientSecret: paymentClientSecret,
                 appearance: {

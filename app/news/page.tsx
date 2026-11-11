@@ -6,7 +6,7 @@ import NewsSignup from "./NewsSignup";
 import { newsSerif } from "./fonts";
 
 export const metadata: Metadata = {
-  title: "The LineUp | Weekly news",
+  title: { absolute: "The LineUp | Weekly news" },
   description: "The LineUp: weekly news from LineUp, plus every past issue.",
 };
 

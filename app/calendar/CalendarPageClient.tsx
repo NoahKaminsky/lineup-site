@@ -13,6 +13,7 @@ import { calendarStatusFilter } from "@/app/lib/calendarBookings";
 import type { CalendarInitialData } from "./getInitialData";
 
 import { ChevronLeft, ChevronRight, MapPin, Moon, Sun } from "lucide-react";
+import Photo from "@/app/components/Photo";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -220,7 +221,7 @@ function BookingCard({
       <div className="flex items-start gap-3">
         <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-100">
           {booking.client_avatar_url ? (
-            <img loading="lazy" src={booking.client_avatar_url} alt="" className="h-full w-full object-cover" />
+            <Photo w={40} loading="lazy" src={booking.client_avatar_url} alt="" className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">
               {booking.client_name?.charAt(0).toUpperCase() || "C"}

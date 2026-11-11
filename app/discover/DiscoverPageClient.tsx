@@ -11,6 +11,7 @@ import { getProfileHref } from "@/app/lib/profileLink";
 import type { DiscoverCard as InitialDiscoverCard } from "./getInitialData";
 import SwipeStack, { type SwipeCardData } from "@/app/components/discover/SwipeStack";
 import { BadgeCheck, LayoutGrid, Layers, MapPin, Search, Star, X } from "lucide-react";
+import Photo from "@/app/components/Photo";
 
 type ProfileRow = {
   id: string;
@@ -228,7 +229,7 @@ function ProCard({ href, name, role, place, services, image, badge, rating, revi
     >
       <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-[#ecebe7]">
         {image ? (
-          <img
+          <Photo sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
             loading="lazy"
             src={image}
             alt=""
@@ -1325,8 +1326,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                     style={{ left: `${x / 2}%`, top: `${y / 2}%` }}
                   >
                     {card.profile.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                      <Photo w={32} src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <span className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-neutral-600">
                         {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
@@ -1389,7 +1389,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                         >
                           <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-neutral-100">
                             {card.profile.avatar_url ? (
-                              <img loading="lazy" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                              <Photo w={36} loading="lazy" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
                                 {card.profile.full_name?.charAt(0).toUpperCase() || "P"}

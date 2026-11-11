@@ -2,13 +2,18 @@
 
 import { useEffect } from "react";
 import { Elements } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
+import { loadStripe } from "@stripe/stripe-js/pure";
+import type { Stripe } from "@stripe/stripe-js";
 import CheckoutForm from "./CheckoutForm";
 import TipStep, { formatTipMoney } from "./TipStep";
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
-);
+// Stripe.js is only fetched the first time a payment sheet opens, not on
+// every page that can show one.
+let stripePromise: Promise<Stripe | null> | null = null;
+function getStripe() {
+  stripePromise ??= loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+  return stripePromise;
+}
 
 export default function PaymentModal({
   clientSecret,
@@ -61,7 +66,7 @@ export default function PaymentModal({
         </div>
 
         <Elements
-          stripe={stripePromise}
+          stripe={getStripe()}
           options={{
             clientSecret,
             appearance: {

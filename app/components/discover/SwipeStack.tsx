@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import Photo from "@/app/components/Photo";
 
 export type SwipeCardData = {
   key: string;
@@ -119,7 +120,7 @@ export default function SwipeStack({ cards }: { cards: SwipeCardData[] }) {
               >
                 <div className="relative h-full w-full overflow-hidden bg-neutral-100">
                   {card.image ? (
-                    <img loading="lazy"
+                    <Photo sizes="(min-width: 640px) 448px, 100vw" loading="lazy"
                       src={card.image}
                       alt={card.name}
                       className="h-full w-full object-cover"

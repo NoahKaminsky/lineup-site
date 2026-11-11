@@ -637,15 +637,36 @@ export default function ServicesPage() {
         return;
       }
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select(
-          // "*" so service_radius_km is included once the service-area
-          // migration has run, without breaking before it has.
-          "*"
-        )
-        .eq("id", user.id)
-        .single();
+      // Profile, hours and services are independent, so ask for all three at
+      // once instead of one after another.
+      const [
+        { data: profileData, error: profileError },
+        { data: availabilityData, error: availabilityError },
+        { data: servicesData, error: servicesError },
+      ] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select(
+            // "*" so service_radius_km is included once the service-area
+            // migration has run, without breaking before it has.
+            "*"
+          )
+          .eq("id", user.id)
+          .single(),
+        supabase
+          .from("professional_availability")
+          .select("id, professional_id, day_of_week, start_time, end_time, is_active")
+          .eq("professional_id", user.id)
+          .order("day_of_week", { ascending: true })
+          .order("start_time", { ascending: true }),
+        supabase
+          .from("professional_services")
+          .select(
+            "id, professional_id, service_name, duration_minutes, price, description, is_active, is_bookable, created_at"
+          )
+          .eq("professional_id", user.id)
+          .order("created_at", { ascending: true }),
+      ]);
 
       if (profileError || !profileData) {
         setMessage("Could not load profile.");
@@ -680,13 +701,6 @@ export default function ServicesPage() {
       setLocationLng(profileData.location_lng ?? null);
       setLocationPlaceId(profileData.location_place_id || "");
 
-      const { data: availabilityData, error: availabilityError } = await supabase
-        .from("professional_availability")
-        .select("id, professional_id, day_of_week, start_time, end_time, is_active")
-        .eq("professional_id", user.id)
-        .order("day_of_week", { ascending: true })
-        .order("start_time", { ascending: true });
-
       const resolvedAvailability = !availabilityError && availabilityData
         ? availabilityData.map((row) => ({
             id: row.id,
@@ -700,14 +714,6 @@ export default function ServicesPage() {
         : [];
 
       setAvailabilityWindows(resolvedAvailability);
-
-      const { data: servicesData, error: servicesError } = await supabase
-        .from("professional_services")
-        .select(
-          "id, professional_id, service_name, duration_minutes, price, description, is_active, is_bookable, created_at"
-        )
-        .eq("professional_id", user.id)
-        .order("created_at", { ascending: true });
 
       const resolvedServices = !servicesError && servicesData
         ? (servicesData as ProfessionalService[])

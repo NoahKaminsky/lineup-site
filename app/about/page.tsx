@@ -3,7 +3,7 @@ import PublicLayout, { PageIntro } from "@/app/components/site/PublicLayout";
 import FounderCards from "@/app/components/landing/FounderCards";
 
 export const metadata: Metadata = {
-  title: "About LineUp | Meet the founders",
+  title: { absolute: "About LineUp | Meet the founders" },
   description:
     "LineUp was founded in Winnipeg by Noah Kaminsky and Dan Latimer to make finding and booking a trusted beauty or grooming pro simple.",
 };

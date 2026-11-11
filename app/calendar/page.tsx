@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getInitialCalendarData } from "./getInitialData";
 import CalendarPageClient from "./CalendarPageClient";
 
+export const metadata = { title: "Calendar" };
+
 // Server Component wrapper — see app/requests/page.tsx for the pattern.
 export default async function CalendarPage() {
   const result = await getInitialCalendarData();

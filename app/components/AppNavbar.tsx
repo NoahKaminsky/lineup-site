@@ -5,6 +5,7 @@ import Link from "next/link";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import Photo from "@/app/components/Photo";
 
 type NavbarProfile = {
   id: string;
@@ -163,7 +164,7 @@ function MobileTabBar({
   }
 
   return (
-    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:hidden">
+    <nav aria-label="Main" data-bottom-nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] sm:hidden">
       <ul
         ref={barRef}
         onPointerDown={handlePointerDown}
@@ -788,7 +789,7 @@ function NavbarComponent() {
                   aria-expanded={accountMenuOpen}
                 >
                   {profile?.avatar_url ? (
-                    <img loading="lazy"
+                    <Photo w={40} loading="lazy"
                       src={profile.avatar_url}
                       alt=""
                       className="h-full w-full object-cover"
