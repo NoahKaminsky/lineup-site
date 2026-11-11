@@ -9,6 +9,7 @@ import { getSignedInUser } from "@/lib/getSignedInUser";
 import { STUDIO_PLANS, type StudioPlan } from "@/app/lib/plans";
 import { STUDIO_MAX_COMMISSION_PERCENT } from "@/app/lib/commission";
 import { formatCad, studioFetch } from "./studioApi";
+import Photo from "@/app/components/Photo";
 
 type TeamMember = {
   id: string;
@@ -663,8 +664,7 @@ function TeamView({ data, busy, run, setNotice, reload }: SectionProps) {
             <li key={m.id} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center">
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 {m.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={m.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+                  <Photo w={40} src={m.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
                 ) : (
                   <span
                     aria-hidden="true"

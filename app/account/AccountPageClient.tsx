@@ -16,6 +16,7 @@ import PushNotificationToggle from "@/app/components/PushNotificationToggle";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
 import { useHashTarget } from "@/app/lib/useHashTarget";
+import Photo from "@/app/components/Photo";
 
 // SMS alerts are superseded by push notifications (free, no Twilio account
 // needed) -- hidden from the UI for now rather than removed, since the
@@ -1062,7 +1063,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
               >
                 <div className="h-44 w-full overflow-hidden bg-neutral-100 md:h-60">
                   {profile.banner_url ? (
-                    <img loading="lazy"
+                    <Photo sizes="(min-width: 1152px) 1152px, 100vw" loading="lazy"
                       src={profile.banner_url}
                       alt="Cover photo"
                       className="h-full w-full object-cover transition group-hover:brightness-90"
@@ -1101,7 +1102,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   className="group relative h-28 w-28 overflow-hidden rounded-full bg-neutral-100 shadow-[0_12px_32px_-14px_rgba(0,0,0,0.45)] ring-4 ring-white md:h-36 md:w-36"
                 >
                   {profile.avatar_url ? (
-                    <img loading="lazy"
+                    <Photo w={144} loading="lazy"
                       src={profile.avatar_url}
                       alt={profile.full_name || "Profile"}
                       className="h-full w-full object-cover transition group-hover:brightness-75"
@@ -2066,7 +2067,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         controls
                       />
                     ) : (
-                      <img loading="lazy"
+                      <Photo sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" loading="lazy"
                         src={item.image_url}
                         alt={item.caption || "Portfolio item"}
                         className="aspect-square h-full w-full object-cover"
@@ -2135,7 +2136,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       <div className="flex items-start gap-4">
                         <div className="h-12 w-12 overflow-hidden rounded-full border border-neutral-200 bg-white">
                           {review.reviewer_avatar_url ? (
-                            <img loading="lazy"
+                            <Photo w={48} loading="lazy"
                               src={review.reviewer_avatar_url}
                               alt={review.reviewer_name || "Reviewer"}
                               className="h-full w-full object-cover"
@@ -2295,7 +2296,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
           onClick={() => setShowBannerPreview(false)}
         >
           <div className="relative max-h-[90vh] max-w-6xl">
-            <img loading="lazy"
+            <Photo sizes="100vw" loading="lazy"
               src={profile.banner_url}
               alt="Banner preview"
               className="max-h-[90vh] w-auto rounded-3xl object-contain"

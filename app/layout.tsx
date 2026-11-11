@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono } from "next/font/google";
 import "./globals.css";
 import NavigationProgress from "./components/NavigationProgress";
 import NavbarWrapper from "./components/NavbarWrapper";
@@ -7,11 +7,10 @@ import SplashScreen from "./components/SplashScreen";
 import BurstLayer from "./components/moments/Burst";
 import EmailConfirmedModal from "./components/EmailConfirmedModal";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
+// Body text uses the device's own system font (San Francisco on Apple, Roboto
+// on Android), so there is nothing to download for it. Geist Sans used to be
+// downloaded on every page here without ever being applied to anything.
+// Geist Mono is still loaded: the small uppercase labels use it.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -64,7 +63,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#ffffff",
+  // Matches the paper background, so the phone's status bar and browser bar
+  // blend into the page instead of sitting on it as a white strip.
+  themeColor: "#f7f7f5",
   viewportFit: "cover",
 };
 
@@ -87,7 +88,7 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning={true}
-        className={`${geistSans.variable} ${geistMono.variable} bg-white antialiased`}
+        className={`${geistMono.variable} bg-paper antialiased`}
       >
         <SplashScreen />
         <NavigationProgress />

@@ -4,7 +4,7 @@ import PublicLayout, { PageIntro } from "@/app/components/site/PublicLayout";
 import ContactForm from "./ContactForm";
 
 export const metadata: Metadata = {
-  title: "Contact | LineUp",
+  title: "Contact",
   description: "Get in touch with the LineUp team.",
 };
 

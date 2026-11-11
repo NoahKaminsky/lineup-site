@@ -17,7 +17,7 @@ import {
   Moon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import PaymentModal from "@/app/components/payments/PaymentModal";
+
 import { getCached, setCached } from "@/app/lib/pageCache";
 import DayZoomArea from "@/app/components/DayZoom";
 import type { ProfileDetailInitialData } from "./getInitialData";
@@ -27,6 +27,12 @@ import { useHashTarget } from "@/app/lib/useHashTarget";
 import { fetchBookingSchedule } from "@/app/lib/fetchBusyTimes";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
+import Photo from "@/app/components/Photo";
+import dynamic from "next/dynamic";
+
+// The payment sheet (and Stripe with it) is only downloaded when someone
+// actually goes to pay, so profiles open faster.
+const PaymentModal = dynamic(() => import("@/app/components/payments/PaymentModal"), { ssr: false });
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -1712,7 +1718,7 @@ if (loading) {
                   }`}
                 >
                   {profile.avatar_url ? (
-                    <img src={profile.avatar_url} alt={profile.full_name || "Profile"} className="h-full w-full bg-white object-cover" />
+                    <Photo w={96} src={profile.avatar_url} alt={profile.full_name || "Profile"} className="h-full w-full bg-white object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-3xl font-semibold text-neutral-400">
                       {profile.full_name?.charAt(0).toUpperCase() || "P"}
@@ -1762,7 +1768,7 @@ if (loading) {
                   className="block h-[400px] w-full cursor-zoom-in md:h-[500px]"
                   aria-label="View cover photo"
                 >
-                  <img src={profile.banner_url} alt="Cover photo" className="lu-cover-in h-full w-full object-cover" />
+                  <Photo sizes="(min-width: 1152px) 1152px, 100vw" src={profile.banner_url} alt="Cover photo" className="lu-cover-in h-full w-full object-cover" />
                 </button>
                 <div className="lu-fade-in pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/0" />
                 <div className="absolute inset-x-0 bottom-0 p-6 md:p-10">{identity(true)}</div>
@@ -2690,7 +2696,7 @@ if (loading) {
                           controls
                         />
                       ) : (
-                        <img
+                        <Photo sizes="(min-width: 1024px) 50vw, 100vw"
                           loading="lazy"
                           src={item.image_url}
                           alt={item.caption || "Portfolio image"}
@@ -2742,7 +2748,7 @@ if (loading) {
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-100">
                             {review.reviewer_avatar_url ? (
-                              <img
+                              <Photo w={40}
                                 loading="lazy"
                                 src={review.reviewer_avatar_url}
                                 alt={review.reviewer_name || "Reviewer"}
@@ -3074,7 +3080,7 @@ if (loading) {
           </button>
 
           <div className="flex h-full w-full max-w-6xl items-center justify-center">
-            <img loading="lazy"
+            <Photo sizes="100vw" loading="lazy"
               src={profile.banner_url}
               alt="Full cover photo"
               className="max-h-full max-w-full rounded-2xl object-contain"

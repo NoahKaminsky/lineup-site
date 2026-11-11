@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getInitialRequestsData } from "./getInitialData";
 import RequestsPageClient from "./RequestsPageClient";
 
+export const metadata = { title: "Dashboard" };
+
 // Server Component: does the auth check and the first data fetch with the
 // user's own cookie-based session, so the HTML that comes back already has
 // real content — no blank skeleton while the client re-does the same auth

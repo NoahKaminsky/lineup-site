@@ -19,7 +19,19 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // Photos and videos in /public rarely change. Without this they are
+      // re-checked with the server on every single visit; now a returning
+      // visitor's browser reuses its copy for a week (and refreshes it in the
+      // background after a day).
+      {
+        source: "/(images|videos)/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" },
+        ],
+      },
+    ];
   },
   experimental: {
     viewTransition: true,
@@ -35,6 +47,9 @@ const nextConfig: NextConfig = {
       },
     ],
     formats: ["image/avif", "image/webp"],
+    // Every upload gets a unique file name, so a resized copy never goes
+    // stale: keep it for a month instead of re-making it every few hours.
+    minimumCacheTTL: 2678400,
   },
 };
 

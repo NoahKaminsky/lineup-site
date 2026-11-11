@@ -72,24 +72,36 @@ export default function RespondToRequestPage() {
         return;
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role, service_modes")
-        .eq("id", user.id)
-        .single();
+      // These four reads are independent, so they go out together rather
+      // than one after another (four round trips became one).
+      const [
+        { data: profile, error: profileError },
+        // Separate, best-effort read so a problem here never blocks the page load.
+        { data: verificationRow, error: verificationError },
+        { data: requestData, error: requestError },
+        { data: existingOfferData },
+      ] = await Promise.all([
+        supabase.from("profiles").select("role, service_modes").eq("id", user.id).single(),
+        supabase
+          .from("profiles")
+          .select("verification_status, verified_until")
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase.from("service_requests").select("*").eq("id", requestId).single(),
+        supabase
+          .from("request_offers")
+          .select("id")
+          .eq("request_id", requestId)
+          .eq("professional_id", user.id)
+          .in("status", ["pending", "payment_pending", "accepted"])
+          .maybeSingle(),
+      ]);
 
       if (profileError || !profile) {
         setMessage("Could not load profile.");
         setLoading(false);
         return;
       }
-
-      // Separate, best-effort read so a problem here never blocks the page load.
-      const { data: verificationRow, error: verificationError } = await supabase
-        .from("profiles")
-        .select("verification_status, verified_until")
-        .eq("id", user.id)
-        .maybeSingle();
 
       if (!verificationError && verificationRow) {
         setNeedsVerification(!isVerifiedNow(verificationRow));
@@ -103,12 +115,6 @@ export default function RespondToRequestPage() {
         router.push(`/requests/${requestId}`);
         return;
       }
-
-      const { data: requestData, error: requestError } = await supabase
-        .from("service_requests")
-        .select("*")
-        .eq("id", requestId)
-        .single();
 
       if (requestError || !requestData) {
         setMessage("Request not found or you do not have access.");
@@ -138,14 +144,6 @@ export default function RespondToRequestPage() {
         setLoading(false);
         return;
       }
-
-      const { data: existingOfferData } = await supabase
-        .from("request_offers")
-        .select("id")
-        .eq("request_id", requestId)
-        .eq("professional_id", user.id)
-        .in("status", ["pending", "payment_pending", "accepted"])
-        .maybeSingle();
 
       setExistingOffer(!!existingOfferData);
       setUserId(user.id);

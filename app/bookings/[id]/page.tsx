@@ -18,6 +18,7 @@ import {
 import { DrawnCheck, MaskLine, formatMomentPrice } from "@/app/components/moments/Moments";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { useHashTarget } from "@/app/lib/useHashTarget";
+import Photo from "@/app/components/Photo";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -328,11 +329,21 @@ export default function BookingDetailPage() {
 
       setViewerId(user.id);
 
-      const { data: viewerProfile, error: viewerProfileError } = await supabase
-        .from("profiles")
-        .select("id, role")
-        .eq("id", user.id)
-        .single();
+      // Your profile and the booking don't depend on each other: load both
+      // at once.
+      const [
+        { data: viewerProfile, error: viewerProfileError },
+        { data: bookingData, error: bookingError },
+      ] = await Promise.all([
+        supabase.from("profiles").select("id, role").eq("id", user.id).single(),
+        supabase
+          .from("bookings")
+          .select(
+            "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, service_price, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
+          )
+          .eq("id", bookingId)
+          .single(),
+      ]);
 
       if (viewerProfileError || !viewerProfile) {
         setMessage("Could not load your profile.");
@@ -341,14 +352,6 @@ export default function BookingDetailPage() {
       }
 
       setViewerRole(viewerProfile.role);
-
-      const { data: bookingData, error: bookingError } = await supabase
-        .from("bookings")
-        .select(
-          "id, request_id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, service_mode, source, duration_minutes, service_price, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id"
-        )
-        .eq("id", bookingId)
-        .single();
 
       if (bookingError || !bookingData) {
         setMessage("Booking not found.");
@@ -785,7 +788,7 @@ export default function BookingDetailPage() {
           <div className="mt-6 flex items-center gap-3">
             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-neutral-100 ring-1 ring-ink/[0.06]">
               {otherPerson?.avatar_url ? (
-                <img loading="lazy" src={otherPerson.avatar_url} alt="" className="h-full w-full object-cover" />
+                <Photo w={48} loading="lazy" src={otherPerson.avatar_url} alt="" className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">
                   {otherPerson?.full_name?.charAt(0).toUpperCase() || "?"}

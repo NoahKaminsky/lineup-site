@@ -23,6 +23,7 @@ import { DrawnCheck } from "@/app/components/moments/Moments";
 import { canCancelForRefund, hasAppointmentEnded } from "@/app/lib/bookingTime";
 import { useMyServiceArea } from "@/app/lib/useMyServiceArea";
 import { withinServiceArea } from "@/app/lib/serviceArea";
+import Photo from "@/app/components/Photo";
 type Profile = {
   id: string;
   email: string | null;
@@ -348,7 +349,7 @@ function Avatar({ name, url }: { name: string | null; url: string | null }) {
   return (
     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
       {url ? (
-        <img loading="lazy" src={url} alt={name || "User"} className="h-full w-full object-cover" />
+        <Photo w={48} loading="lazy" src={url} alt={name || "User"} className="h-full w-full object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">
           {getInitials(name)}

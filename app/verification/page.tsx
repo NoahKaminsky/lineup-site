@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getInitialVerificationData } from "./getInitialData";
 import VerificationPageClient from "./VerificationPageClient";
 
+export const metadata = { title: "Verification" };
+
 // Server Component wrapper — see app/requests/page.tsx for the pattern this
 // follows. Fetches the signed-in professional's profile + submission history
 // server-side so a cold load already shows real status instead of a

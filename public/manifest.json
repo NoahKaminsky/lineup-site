@@ -4,8 +4,8 @@
   "description": "Beauty marketplace for trusted on-demand services.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#f7f7f5",
+  "theme_color": "#f7f7f5",
   "icons": [
     {
       "src": "/icon-192.png",

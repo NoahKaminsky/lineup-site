@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import Photo from "@/app/components/Photo";
 
 // Archived services: every completed booking for the signed-in user (as the
 // professional or the client). The dashboard and calendar only show the last
@@ -193,7 +194,7 @@ export default function ArchivePage() {
                             >
                               <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-100">
                                 {other?.avatar_url ? (
-                                  <img loading="lazy" src={other.avatar_url} alt="" className="h-full w-full object-cover" />
+                                  <Photo w={40} loading="lazy" src={other.avatar_url} alt="" className="h-full w-full object-cover" />
                                 ) : (
                                   <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">
                                     {other?.full_name?.charAt(0).toUpperCase() || "?"}

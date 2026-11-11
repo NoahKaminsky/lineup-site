@@ -6,7 +6,7 @@ import { PLAN_FEATURES } from "@/app/lib/plans";
 import { MASTER_COMMISSION_PERCENT, STANDARD_COMMISSION_PERCENT } from "@/app/lib/commission";
 
 export const metadata: Metadata = {
-  title: "FAQ | LineUp",
+  title: "FAQ",
   description: "How booking, payments, cancellations, verification and plans work on LineUp.",
 };
 

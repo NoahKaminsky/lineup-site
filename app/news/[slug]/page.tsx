@@ -16,8 +16,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
   const issue = getPublicIssues().find((i) => i.slug === slug);
-  if (!issue) return { title: "News | LineUp" };
-  return { title: `${issue.title} | LineUp News`, description: issue.summary };
+  if (!issue) return { title: "News" };
+  return { title: { absolute: `${issue.title} | LineUp News` }, description: issue.summary };
 }
 
 export default async function IssuePage({ params }: Params) {

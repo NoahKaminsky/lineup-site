@@ -23,6 +23,7 @@ import { useMyServiceArea } from "@/app/lib/useMyServiceArea";
 import { useBidCounts } from "@/app/lib/useBidCounts";
 import BidCountBlip from "@/app/components/BidCountBlip";
 import { approxDistanceLabel, withinServiceArea } from "@/app/lib/serviceArea";
+import Photo from "@/app/components/Photo";
 
 // "Recently completed" lists show the last 24 hours only (older work lives in
 // Archived services).
@@ -2106,7 +2107,7 @@ return (
                             <div className="flex min-w-0 flex-1 gap-4">
                               <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
                                 {booking.professional_avatar_url ? (
-                                  <img loading="lazy"
+                                  <Photo w={64} loading="lazy"
                                     src={booking.professional_avatar_url}
                                     alt={booking.professional_name || "Professional"}
                                     className="h-full w-full object-cover"
@@ -2270,7 +2271,7 @@ return (
                             {request.reference_photos &&
                             request.reference_photos.length > 0 ? (
                               <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
-                                <img loading="lazy"
+                                <Photo w={96} loading="lazy"
                                   src={request.reference_photos[0]}
                                   alt="Reference preview"
                                   className="h-full w-full object-cover"
@@ -2383,7 +2384,7 @@ return (
                           <div className="flex min-w-0 flex-1 gap-4">
                             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
                               {booking.professional_avatar_url ? (
-                                <img loading="lazy"
+                                <Photo w={64} loading="lazy"
                                   src={booking.professional_avatar_url}
                                   alt={booking.professional_name || "Professional"}
                                   className="h-full w-full object-cover"
@@ -2512,7 +2513,7 @@ return (
                               {request.reference_photos &&
                               request.reference_photos.length > 0 ? (
                                 <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-                                  <img loading="lazy"
+                                  <Photo w={96} loading="lazy"
                                     src={request.reference_photos[0]}
                                     alt="Reference preview"
                                     className="h-full w-full object-cover"
@@ -2816,11 +2817,11 @@ return (
                             <Link href={item.href} className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-neutral-50">
                               <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-neutral-100">
                                 {item.source === "booking" && item.client_avatar_url ? (
-                                  <img loading="lazy" src={item.client_avatar_url} alt="" className="h-full w-full object-cover" />
+                                  <Photo w={36} loading="lazy" src={item.client_avatar_url} alt="" className="h-full w-full object-cover" />
                                 ) : item.source === "request" &&
                                   item.rawRequest.reference_photos &&
                                   item.rawRequest.reference_photos.length > 0 ? (
-                                  <img loading="lazy" src={item.rawRequest.reference_photos[0]} alt="" className="h-full w-full object-cover" />
+                                  <Photo w={36} loading="lazy" src={item.rawRequest.reference_photos[0]} alt="" className="h-full w-full object-cover" />
                                 ) : (
                                   <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
                                     {item.client_name?.charAt(0).toUpperCase() || "C"}

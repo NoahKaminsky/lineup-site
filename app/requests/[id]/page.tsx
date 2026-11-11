@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getInitialRequestDetailData } from "./getInitialData";
 import RequestDetailPageClient from "./RequestDetailPageClient";
 
+export const metadata = { title: "Request" };
+
 // Server Component wrapper — see app/requests/page.tsx for the pattern.
 export default async function RequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
