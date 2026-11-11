@@ -9,9 +9,11 @@ import Link from "next/link";
 import SiteMenu from "@/app/components/site/SiteMenu";
 import SocialLinks from "@/app/components/site/SocialLinks";
 import FounderCards from "@/app/components/landing/FounderCards";
+import { STUDIO_PLANS } from "@/app/lib/plans";
 import {
   focusRing,
   Line,
+  DesktopFrame,
   PhoneFrame,
   Screen,
   Station,
@@ -116,7 +118,47 @@ const proFeatures = [
   { title: "Paid through LineUp", body: "Every booking is paid securely through Stripe before the appointment, so nobody chases anybody." },
   { title: "A record that follows you", body: "Every completed job adds a verified review to your public profile and portfolio." },
   { title: "Work where you already work", body: "A shop chair, a shared space, your home studio or the client's place. You choose what you offer." },
+  { title: "Looking for a chair?", body: "Shops post their open chairs on LineUp. You'll only see posts for your trade, and you can apply with your LineUp profile." },
   { title: "Free to start", body: "Take on real, paying clients without a subscription. Upgrade later if you want more." },
+];
+
+// The shop side. Copy follows what the Studio plans actually include
+// (app/lib/plans.ts), so the page can't promise something the product doesn't do.
+const shopFeatures = [
+  { title: "One calendar for the whole shop", body: "Every online booking, walk-in and phone booking shows up in the same calendar, so you always know who is busy and who is free." },
+  { title: "A login for every pro", body: "Everyone on your team gets their own LineUp account that is linked to your shop." },
+  { title: "No commission on your own clients", body: "When one of your own clients books with you, LineUp doesn't take a commission." },
+  { title: "Memberships for your regulars", body: "You can offer a monthly membership to the clients who come in often." },
+  { title: "Commission or booth rent, handled for you", body: "With Studio Plus, LineUp collects your shop's share from each pro and pays it to you automatically." },
+];
+
+// Who's on the floor in the front-desk demo. Names are examples and say so on the page.
+const floor = [
+  { id: "maya", name: "Maya", status: "Free now" },
+  { id: "jordan", name: "Jordan", status: "With a client until 3:30" },
+  { id: "sam", name: "Sam", status: "Free at 4:00" },
+];
+
+// Which chair photo and wording go with the service the visitor picked, so the
+// chair opening further down is for the same trade as their request.
+const tradeChair: Record<string, { kind: StationKind; plural: string }> = {
+  fade: { kind: "barber", plural: "barbers" },
+  silk: { kind: "styling", plural: "stylists" },
+  gel: { kind: "nail", plural: "nail techs" },
+  lash: { kind: "lash", plural: "lash artists" },
+};
+
+const upNext = [
+  { time: "2:30", what: "Beard trim", who: "Walk-in, with Jordan" },
+  { time: "4:00", what: "Cut and colour", who: "Booked online, with Sam" },
+  { time: "4:45", what: "Skin fade", who: "Phone-in, with Maya" },
+];
+
+type Side = "clients" | "pros" | "shops";
+const sides: { id: Side; label: string }[] = [
+  { id: "clients", label: "Clients" },
+  { id: "pros", label: "Pros" },
+  { id: "shops", label: "Shops" },
 ];
 
 /* ── Scroll-scrubbed video ───────────────────────────────────────────────── */
@@ -211,12 +253,18 @@ export default function LandingPage() {
   const day = days.find((d) => d.id === dayId)!;
 
   const [activeStep, setActiveStep] = useState(0);
-  const [side, setSide] = useState<"clients" | "pros">("clients");
-  const sideRef = useRef<"clients" | "pros">("clients");
+  const [side, setSide] = useState<Side>("clients");
+  const sideRef = useRef<Side>("clients");
+  // Which pro the visitor passed their request to at the shop's front desk.
+  const [passedTo, setPassedTo] = useState<string | null>(null);
+  const passedPro = floor.find((pro) => pro.id === passedTo) || null;
+  // The chair opening demo: has the visitor invited the example applicant?
+  const [invited, setInvited] = useState(false);
+  const chair = tradeChair[service.id] ?? tradeChair.fade;
   const [headerHidden, setHeaderHidden] = useState(false);
 
   // Header steps aside while reading down and returns on scroll up. The same
-  // pass flips the Clients / Pros indicator once the pro side is in view.
+  // pass moves the Clients / Pros / Shops indicator as each side comes into view.
   useEffect(() => {
     let lastY = window.scrollY;
     let raf = 0;
@@ -226,8 +274,15 @@ export default function LandingPage() {
         raf = 0;
         const y = window.scrollY;
         const pros = document.getElementById("pros");
+        const shops = document.getElementById("shops");
         if (pros) {
-          const next = pros.getBoundingClientRect().top < window.innerHeight * 0.5 ? "pros" : "clients";
+          const mid = window.innerHeight * 0.5;
+          const next: Side =
+            shops && shops.getBoundingClientRect().top < mid
+              ? "shops"
+              : pros.getBoundingClientRect().top < mid
+              ? "pros"
+              : "clients";
           if (next !== sideRef.current) {
             sideRef.current = next;
             setSide(next);
@@ -412,6 +467,22 @@ export default function LandingPage() {
             toggleClass: { targets: relay, className: "is-landed" },
           });
 
+          // ── Shops: the same request reaches the front desk ──────────
+          // The shop's screen rises and settles to full size as it arrives, and
+          // the request pings once it's there, ready to be passed along.
+          gsap.from(".js-shop-screen", {
+            y: desktop ? 110 : 40,
+            scale: desktop ? 0.94 : 1,
+            transformOrigin: "50% 100%",
+            ease: "none",
+            scrollTrigger: { trigger: ".js-shop-screen", start: "top bottom", end: "top 30%", scrub: desktop ? 1 : 0.35 },
+          });
+          ScrollTrigger.create({
+            trigger: ".js-shop-screen",
+            start: "top 45%",
+            toggleClass: { targets: ".js-shop", className: "is-landed" },
+          });
+
           // ── Close: the studio again, and the chair turns to you ─────
           gsap.fromTo(
             ".js-close-plate",
@@ -427,6 +498,14 @@ export default function LandingPage() {
             start: "top 85%",
             end: "top 10%",
             onUpdate: (self) => closeScrub?.set(self.progress),
+          });
+
+          // The applicant arrives beside the open chair as you scroll.
+          gsap.from(".js-applicant", {
+            x: 56,
+            autoAlpha: 0,
+            ease: "none",
+            scrollTrigger: { trigger: ".js-chair-cards", start: "top 80%", end: "top 45%", scrub: desktop ? 1 : 0.35 },
           });
 
           const onLoad = () => ScrollTrigger.refresh();
@@ -462,19 +541,13 @@ export default function LandingPage() {
 
           {/* Which side of LineUp you're reading about. Flips on its own at
               the handoff; either half jumps to that side. */}
-          <nav aria-label="Who LineUp is for" className="relative hidden rounded-full bg-ink/[0.05] p-1 text-sm sm:flex">
+          <nav aria-label="Who LineUp is for" className="relative hidden grid-cols-3 rounded-full bg-ink/[0.05] p-1 text-sm sm:grid">
             <span
               aria-hidden="true"
-              className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-premium ${
-                side === "pros" ? "translate-x-full" : "translate-x-0"
-              }`}
+              className="absolute inset-y-1 left-1 w-[calc((100%-8px)/3)] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)] transition-transform duration-300 ease-premium"
+              style={{ transform: `translateX(${sides.findIndex((item) => item.id === side) * 100}%)` }}
             />
-            {(
-              [
-                { id: "clients", label: "Clients" },
-                { id: "pros", label: "Pros" },
-              ] as const
-            ).map((item) => (
+            {sides.map((item) => (
               <a
                 key={item.id}
                 href={`#${item.id}`}
@@ -838,8 +911,268 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ───────────────────────── Shop side: the front desk ───────────────────────── */}
+      <section id="shops" className="js-shop border-t border-ink/[0.08] bg-paper">
+        <div className="mx-auto max-w-7xl px-6 py-28 lg:py-36">
+          <div className="max-w-2xl">
+            <p className="text-sm font-medium text-neutral-500">For shop owners</p>
+            <h2 data-split className="mt-4 text-[clamp(2rem,3.6vw,3rem)] font-semibold leading-[1.04] tracking-[-0.035em]">
+              <Line>Run your salon, barbershop</Line>
+              <Line className="text-neutral-400">or studio on LineUp.</Line>
+            </h2>
+            <p data-reveal className="mt-7 max-w-xl text-lg leading-8 text-neutral-600">
+              A Studio account is LineUp for your whole shop. Everyone who works with you gets their own login, and you
+              get one calendar that shows every booking for the whole team. When a client nearby posts a request, it
+              shows up for your shop and you decide which of your pros takes it.
+            </p>
+            <p data-reveal className="mt-4 max-w-xl text-lg leading-8 text-neutral-600">
+              If you have an empty chair, you can also{" "}
+              <a href="#chairs" className={`rounded font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink ${focusRing}`}>
+                post it on LineUp
+              </a>{" "}
+              so pros who are looking for a place to work can apply.
+            </p>
+          </div>
+
+          <p data-reveal className="mx-auto mt-14 max-w-2xl text-center text-lg leading-8 text-neutral-600 lg:mt-20">
+            Here&apos;s what that looks like. A client nearby just asked for a {service.name.toLowerCase()}, so choose which
+            of your pros should take it.
+          </p>
+
+          {/* The front desk on the shop's computer, built live rather than shown as a
+              picture, so the visitor's own request can sit in it and be passed along. */}
+          <div className="js-shop-screen mx-auto mt-8 max-w-5xl will-change-transform">
+            <DesktopFrame address="lineup-aesthetics.ca/studio">
+              <div className="bg-paper text-left">
+                <div className="flex items-center gap-6 border-b border-ink/[0.07] bg-white px-4 py-3 sm:px-6">
+                  <p className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.03em]">
+                    LineUp
+                    <span className="rounded-md bg-ink px-1.5 py-0.5 text-[11px] font-semibold text-white">Studio</span>
+                  </p>
+                  <ul aria-hidden="true" className="hidden items-center gap-6 text-[13px] text-neutral-500 md:flex">
+                    <li className="font-medium text-ink">Today</li>
+                    <li>Calendar</li>
+                    <li>Requests</li>
+                    <li>Team</li>
+                    <li>Chairs</li>
+                  </ul>
+                </div>
+
+                <div className="px-4 pb-6 pt-5 sm:px-6 sm:pb-8 sm:pt-6">
+                  <p className="text-[22px] font-semibold leading-tight tracking-[-0.035em]">Today</p>
+                  <p className="mt-1 text-[13px] text-neutral-500" aria-live="polite">
+                    {passedPro ? `3 appointments today. Request sent to ${passedPro.name}.` : "3 appointments today. 1 new client request."}
+                  </p>
+
+                  <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_19rem]">
+                    <div className="space-y-4">
+                      <div className="relative rounded-2xl bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 ring-2 ring-ink [.is-landed_&]:animate-[lu-ping_1s_ease-out]"
+                        />
+                        <p className="text-[14px] font-semibold text-ink">Client requests</p>
+                        {passedPro ? (
+                          <div
+                            key={passedPro.id}
+                            className="mt-3 animate-[lu-line-in_320ms_var(--ease-premium)_backwards] motion-reduce:animate-none"
+                            style={{ "--motion-distance": "10px" } as React.CSSProperties}
+                          >
+                            <p className="text-[14px] leading-6 text-neutral-600">
+                              You sent this to {passedPro.name}. {passedPro.name} will reply to the client with a price and a
+                              time.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setPassedTo(null)}
+                              className={`mt-2 rounded-full py-2 text-[13px] font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink ${focusRing}`}
+                            >
+                              Undo
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="mt-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+                            <div>
+                              <p className="text-[15px] font-semibold leading-snug">{service.name}</p>
+                              <p className="text-[13px] leading-snug text-neutral-600">
+                                {place.short}, {day.label.toLowerCase()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[12px] text-neutral-500">Who should take it?</p>
+                              <div className="mt-1.5 flex flex-wrap gap-2">
+                                {floor.map((pro) => (
+                                  <button
+                                    key={pro.id}
+                                    type="button"
+                                    onClick={() => setPassedTo(pro.id)}
+                                    className={`min-h-11 rounded-full bg-white px-4 text-[13px] font-medium text-ink ring-1 ring-ink/15 transition hover:ring-ink/40 active:scale-[0.97] sm:min-h-10 ${focusRing}`}
+                                  >
+                                    {pro.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="rounded-2xl bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
+                        <p className="text-[14px] font-semibold text-ink">Up next</p>
+                        <ul className="mt-2 divide-y divide-ink/[0.06]">
+                          {upNext.map((item) => (
+                            <li key={item.time} className="flex items-baseline gap-4 py-2.5">
+                              <span className="w-12 shrink-0 text-[13px] font-semibold tabular-nums">{item.time}</span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[13px] font-medium leading-tight">{item.what}</span>
+                                <span className="block truncate text-[12px] leading-snug text-neutral-500">{item.who}</span>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="self-start rounded-2xl bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
+                      <p className="text-[14px] font-semibold text-ink">On the floor</p>
+                      <ul className="mt-2">
+                        {floor.map((pro) => (
+                          <li key={pro.id} className="flex items-center gap-3 py-2">
+                            <span
+                              aria-hidden="true"
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[13px] font-semibold text-neutral-600"
+                            >
+                              {pro.name[0]}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[14px] font-medium leading-tight">{pro.name}</span>
+                              <span className="block truncate text-[12px] leading-snug text-neutral-500">{pro.status}</span>
+                            </span>
+                            {passedTo === pro.id ? (
+                              <span className="shrink-0 animate-[lu-pop-in_220ms_var(--ease-premium)_backwards] rounded-full bg-ink px-2 py-1 text-[11px] font-medium text-white motion-reduce:animate-none">
+                                New request
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </DesktopFrame>
+            <p className="mt-5 text-center text-xs text-neutral-400">
+              This is a demo of what a shop owner sees on LineUp. The names are made up.
+            </p>
+          </div>
+
+          {/* Chair openings get their own moment: for a lot of owners an empty
+              chair is the reason to sign up at all. */}
+          <div id="chairs" className="mt-24 grid scroll-mt-24 items-center gap-12 border-t border-ink/10 pt-16 lg:mt-32 lg:grid-cols-12 lg:gap-10 lg:pt-24">
+            <div className="lg:col-span-5">
+              <h3 data-split className="text-[clamp(1.75rem,3vw,2.5rem)] font-semibold leading-[1.06] tracking-[-0.035em]">
+                <Line>Fill your empty chair</Line>
+                <Line className="text-neutral-400">through LineUp.</Line>
+              </h3>
+              <p data-reveal className="mt-6 max-w-md text-lg leading-8 text-neutral-600">
+                When you have a chair open, you can post it on LineUp. You say what kind of pro you&apos;re looking for,
+                whether you want booth rent or commission, and when they can start. Only pros in that trade will see
+                your post.
+              </p>
+              <p data-reveal className="mt-4 max-w-md text-lg leading-8 text-neutral-600">
+                When someone applies, you can look through their profile, their work and their reviews. If you like
+                them, you invite them to join your shop.
+              </p>
+              <p data-reveal className="mt-4 max-w-md leading-7 text-neutral-600">
+                Posting a chair is included with every Studio plan, so it doesn&apos;t cost anything extra.
+              </p>
+            </div>
+
+            <div className="lg:col-span-6 lg:col-start-7">
+              <div className="flex items-end gap-6">
+                <Station kind={chair.kind} className="hidden h-[260px] w-auto shrink-0 sm:block" />
+                <div className="js-chair-cards min-w-0 flex-1 space-y-3">
+                  <div className="rounded-2xl bg-white p-5 ring-1 ring-ink/[0.08]">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs text-neutral-500">Chair opening</p>
+                      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-700">Open</span>
+                    </div>
+                    <p className="mt-2 text-lg font-semibold tracking-tight">Looking for a {service.trade.toLowerCase()}</p>
+                    <p className="mt-1 text-sm leading-6 text-neutral-600">
+                      Booth rent or commission. Only {chair.plural} can see this post.
+                    </p>
+                  </div>
+
+                  <div className="js-applicant rounded-2xl bg-white p-5 shadow-[0_12px_32px_-18px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.08]">
+                    <div className="flex items-center gap-3">
+                      <span
+                        aria-hidden="true"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-sm font-semibold text-neutral-600"
+                      >
+                        R
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">Riley applied for your chair</p>
+                        <p className="text-sm text-neutral-500">Riley has 6 years of experience and can start next week.</p>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-neutral-600">You can look at Riley&apos;s profile, work and reviews before you decide.</p>
+                    <div className="mt-4" aria-live="polite">
+                      {invited ? (
+                        <p
+                          className="animate-[lu-line-in_320ms_var(--ease-premium)_backwards] text-sm leading-6 text-ink motion-reduce:animate-none"
+                          style={{ "--motion-distance": "10px" } as React.CSSProperties}
+                        >
+                          <span className="font-semibold">Your invite was sent.</span> Riley will join your shop once they accept.
+                        </p>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setInvited(true)}
+                          className={`inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-medium text-white transition hover:bg-neutral-800 active:scale-[0.98] ${focusRing}`}
+                        >
+                          Invite Riley to your shop
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-neutral-400 sm:text-right">An example post and applicant.</p>
+            </div>
+          </div>
+
+          <dl className="mt-16 grid gap-x-10 sm:grid-cols-2 lg:mt-24 lg:grid-cols-3">
+            {shopFeatures.map((item) => (
+              <div key={item.title} data-reveal className="border-t border-ink/10 py-5">
+                <dt className="font-semibold tracking-tight">{item.title}</dt>
+                <dd className="mt-1.5 leading-7 text-neutral-600">{item.body}</dd>
+              </div>
+            ))}
+            <div data-reveal className="border-t border-ink/10 py-5">
+              <dt className="font-semibold tracking-tight">
+                {STUDIO_PLANS.studio.label} costs {STUDIO_PLANS.studio.priceLabel} a month
+              </dt>
+              <dd className="mt-1.5 leading-7 text-neutral-600">
+                That price covers your whole shop, no matter how many pros work there. {STUDIO_PLANS.studio_plus.label}{" "}
+                costs {STUDIO_PLANS.studio_plus.priceLabel} a month. Prices are in CAD.
+              </dd>
+            </div>
+          </dl>
+
+          <div data-reveal className="mt-10">
+            <Link
+              href="/login?mode=signup"
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-full bg-ink px-7 py-3.5 font-medium text-white transition-colors duration-150 hover:bg-neutral-800 ${focusRing}`}
+            >
+              Set up your shop
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ───────────────────────── Founders ───────────────────────── */}
-      <section id="founders" className="border-t border-ink/[0.08] bg-paper">
+      <section id="founders" className="border-t border-ink/[0.08] bg-white">
         <div className="mx-auto max-w-7xl px-6 py-28 lg:py-36">
           <blockquote data-split className="max-w-4xl">
             <p className="text-[clamp(1.75rem,3.2vw,2.75rem)] font-semibold leading-[1.12] tracking-[-0.03em]">
@@ -906,7 +1239,7 @@ export default function LandingPage() {
             </h2>
             <p className="mt-8 max-w-md text-lg leading-8 text-neutral-600">
               Create your account in under a minute. As a client, that {service.name.toLowerCase()} is one step away.
-              As a pro, so is your next client.
+              As a pro or a shop owner, so is your next client.
             </p>
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               <JoinButton className="px-8 py-4" />

@@ -32,6 +32,8 @@ import { useHashTarget } from "@/app/lib/useHashTarget";
 import { fetchBookingSchedule } from "@/app/lib/fetchBusyTimes";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
+import SaveHeart from "@/app/components/SaveHeart";
+import { useSavedPros } from "@/app/lib/savedPros";
 import { shopNow } from "@/app/lib/bookingTime";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -548,6 +550,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [showBannerPreview, setShowBannerPreview] = useState(false);
   const [viewerUserId, setViewerUserId] = useState<string | null>(() => initialData?.viewerUserId ?? null);
   const [viewerIsCustomer, setViewerIsCustomer] = useState(() => initialData?.viewerIsCustomer ?? false);
+  const { canSave, savedIds, toggle: toggleSaved } = useSavedPros();
   // Signed-out visitor picked a time and service: ask them to sign in, then
   // bring them straight back to this calendar.
   const [authPromptService, setAuthPromptService] = useState<string | null>(null);
@@ -2015,6 +2018,15 @@ if (loading) {
                         ? "Request again"
                         : "Request service"}
                   </Link>
+                  {canSave ? (
+                    <SaveHeart
+                      variant="pill"
+                      saved={savedIds.has(profile.id)}
+                      onToggle={() => toggleSaved(profile.id)}
+                      name={profile.full_name}
+                      className="w-full"
+                    />
+                  ) : null}
                 </div>
               ) : null}
 

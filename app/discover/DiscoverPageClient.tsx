@@ -13,6 +13,8 @@ import SpotlightStage from "@/app/components/discover/SpotlightStage";
 import LineupPicks, { type PickCard } from "@/app/components/discover/LineupPicks";
 import type { DiscoverCard as InitialDiscoverCard } from "./getInitialData";
 import { BadgeCheck, MapPin, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import SaveHeart from "@/app/components/SaveHeart";
+import { useSavedPros } from "@/app/lib/savedPros";
 
 type ProfileRow = {
   id: string;
@@ -185,6 +187,8 @@ type ProCardProps = {
   openSoon: boolean;
   verified: boolean;
   size?: "feature" | "grid";
+  // Set for signed-in clients: draws the save heart on the photo.
+  save?: { saved: boolean; onToggle: () => void };
 };
 
 // A short, human location for cards: the profile's own location text, or the
@@ -198,10 +202,15 @@ function getShortLocation(profile: ProfileRow) {
 
 // The single card used everywhere on Browse: the work leads, then a tight,
 // three-line typographic summary. No box, no stacked pills.
-function ProCard({ href, name, role, place, image, badge, rating, reviewCount, open, openSoon, verified }: ProCardProps) {
+function ProCard({ href, name, role, place, image, badge, rating, reviewCount, open, openSoon, verified, save }: ProCardProps) {
   const initial = name.charAt(0).toUpperCase() || "P";
   const ratingText = rating ? `rated ${rating} from ${reviewCount} review${reviewCount === 1 ? "" : "s"}` : "no reviews yet";
   return (
+    // The heart is a sibling of the link, not inside it: a button can't live in an <a>.
+    <div className="relative">
+    {save ? (
+      <SaveHeart saved={save.saved} onToggle={save.onToggle} name={name} className="absolute right-2.5 top-2.5 z-10" />
+    ) : null}
     <Link
       href={href}
       aria-label={`${name}, ${role}${place ? `, ${place}` : ""}, ${ratingText}${open ? `, ${open.toLowerCase()}` : ""}`}
@@ -259,6 +268,7 @@ function ProCard({ href, name, role, place, image, badge, rating, reviewCount, o
         </p>
       </div>
     </Link>
+    </div>
   );
 }
 
@@ -444,6 +454,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   const [loading, setLoading] = useState(() => !seed);
   const [message, setMessage] = useState("");
   const [cards, setCards] = useState<DiscoverCard[]>(() => seed ?? []);
+  const { canSave, savedIds, toggle: toggleSaved } = useSavedPros();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<(typeof categoryOptions)[number]["value"]>("all");
   const [selectedModes, setSelectedModes] = useState<string[]>([]);
@@ -1328,7 +1339,15 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
 
               <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-5 sm:gap-y-10 lg:grid-cols-4">
                 {sortedCards.map((card) => (
-                  <ProCard key={card.profile.id} {...getCardProps(card)} />
+                  <ProCard
+                    key={card.profile.id}
+                    {...getCardProps(card)}
+                    save={
+                      canSave
+                        ? { saved: savedIds.has(card.profile.id), onToggle: () => toggleSaved(card.profile.id) }
+                        : undefined
+                    }
+                  />
                 ))}
               </div>
             </section>
