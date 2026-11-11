@@ -118,6 +118,7 @@ const proFeatures = [
   { title: "Paid through LineUp", body: "Every booking is paid securely through Stripe before the appointment, so nobody chases anybody." },
   { title: "A record that follows you", body: "Every completed job adds a verified review to your public profile and portfolio." },
   { title: "Work where you already work", body: "A shop chair, a shared space, your home studio or the client's place. You choose what you offer." },
+  { title: "Looking for a chair?", body: "Shops post their open chairs on LineUp. You see the ones for your trade and apply with your profile, portfolio and reviews." },
   { title: "Free to start", body: "Take on real, paying clients without a subscription. Upgrade later if you want more." },
 ];
 
@@ -127,7 +128,6 @@ const shopFeatures = [
   { title: "One calendar for every chair", body: "Online bookings, walk-ins and phone-ins sit in one place, for the whole team." },
   { title: "Everyone keeps their own login", body: "Each pro gets their own LineUp account and Pro features, housed under the shop." },
   { title: "Your regulars stay yours", body: "No LineUp commission on the clients you bring in yourself, and monthly memberships to keep them coming back." },
-  { title: "Fill an empty chair", body: "Post a chair opening. Only pros in that trade see it." },
   { title: "Set the shop's cut", body: "On Studio Plus, take a commission or charge booth rent. It's collected and paid out to the shop automatically." },
 ];
 
@@ -137,6 +137,15 @@ const floor = [
   { id: "jordan", name: "Jordan", status: "With a client until 3:30" },
   { id: "sam", name: "Sam", status: "Free at 4:00" },
 ];
+
+// Which chair photo and wording go with the service the visitor picked, so the
+// chair opening further down is for the same trade as their request.
+const tradeChair: Record<string, { kind: StationKind; plural: string }> = {
+  fade: { kind: "barber", plural: "barbers" },
+  silk: { kind: "styling", plural: "stylists" },
+  gel: { kind: "nail", plural: "nail techs" },
+  lash: { kind: "lash", plural: "lash artists" },
+};
 
 const upNext = [
   { time: "2:30", what: "Beard trim", who: "Walk-in, with Jordan" },
@@ -248,6 +257,9 @@ export default function LandingPage() {
   // Which pro the visitor passed their request to at the shop's front desk.
   const [passedTo, setPassedTo] = useState<string | null>(null);
   const passedPro = floor.find((pro) => pro.id === passedTo) || null;
+  // The chair opening demo: has the visitor invited the example applicant?
+  const [invited, setInvited] = useState(false);
+  const chair = tradeChair[service.id] ?? tradeChair.fade;
   const [headerHidden, setHeaderHidden] = useState(false);
 
   // Header steps aside while reading down and returns on scroll up. The same
@@ -485,6 +497,14 @@ export default function LandingPage() {
             start: "top 85%",
             end: "top 10%",
             onUpdate: (self) => closeScrub?.set(self.progress),
+          });
+
+          // The applicant arrives beside the open chair as you scroll.
+          gsap.from(".js-applicant", {
+            x: 56,
+            autoAlpha: 0,
+            ease: "none",
+            scrollTrigger: { trigger: ".js-chair-cards", start: "top 80%", end: "top 45%", scrub: desktop ? 1 : 0.35 },
           });
 
           const onLoad = () => ScrollTrigger.refresh();
@@ -904,6 +924,13 @@ export default function LandingPage() {
               That request you built reaches your front desk too, and you pass it to whoever&apos;s free. Go on, pass
               it to someone.
             </p>
+            <p data-reveal className="mt-4 max-w-xl leading-7 text-neutral-600">
+              Got a chair to fill?{" "}
+              <a href="#chairs" className={`rounded font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink ${focusRing}`}>
+                Post a chair opening
+              </a>{" "}
+              and pros in that trade come to you.
+            </p>
           </div>
 
           {/* The front desk on the shop's computer, built live rather than shown as a
@@ -1030,6 +1057,79 @@ export default function LandingPage() {
             <p className="mt-5 text-center text-xs text-neutral-400">
               A working demo of the front desk. The names are examples.
             </p>
+          </div>
+
+          {/* Chair openings get their own moment: for a lot of owners an empty
+              chair is the reason to sign up at all. */}
+          <div id="chairs" className="mt-24 grid scroll-mt-24 items-center gap-12 border-t border-ink/10 pt-16 lg:mt-32 lg:grid-cols-12 lg:gap-10 lg:pt-24">
+            <div className="lg:col-span-5">
+              <h3 data-split className="text-[clamp(1.75rem,3vw,2.5rem)] font-semibold leading-[1.06] tracking-[-0.035em]">
+                <Line>Got an empty chair?</Line>
+                <Line className="text-neutral-400">Post it. Pros come to you.</Line>
+              </h3>
+              <p data-reveal className="mt-6 max-w-md text-lg leading-8 text-neutral-600">
+                Post a chair opening from your Studio account: who it&apos;s for, booth rent or commission, and when it
+                starts. Only pros in that trade see it. They apply with their LineUp profile, portfolio and reviews,
+                and you invite the one you want onto your team.
+              </p>
+              <p data-reveal className="mt-5 max-w-md leading-7 text-neutral-600">
+                <span className="font-semibold text-ink">Included with every Studio plan.</span> No job board, no
+                reposting to your story every week.
+              </p>
+            </div>
+
+            <div className="lg:col-span-6 lg:col-start-7">
+              <div className="flex items-end gap-6">
+                <Station kind={chair.kind} className="hidden h-[260px] w-auto shrink-0 sm:block" />
+                <div className="js-chair-cards min-w-0 flex-1 space-y-3">
+                  <div className="rounded-2xl bg-white p-5 ring-1 ring-ink/[0.08]">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs text-neutral-500">Chair opening</p>
+                      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-700">Open</span>
+                    </div>
+                    <p className="mt-2 text-lg font-semibold tracking-tight">Opening for a {service.trade.toLowerCase()}</p>
+                    <p className="mt-1 text-sm leading-6 text-neutral-600">
+                      Booth rent or commission. Seen only by {chair.plural}.
+                    </p>
+                  </div>
+
+                  <div className="js-applicant rounded-2xl bg-white p-5 shadow-[0_12px_32px_-18px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.08]">
+                    <div className="flex items-center gap-3">
+                      <span
+                        aria-hidden="true"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-sm font-semibold text-neutral-600"
+                      >
+                        R
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">Riley applied</p>
+                        <p className="text-sm text-neutral-500">6 years of experience. Can start next week.</p>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-neutral-600">Profile, portfolio and reviews attached.</p>
+                    <div className="mt-4" aria-live="polite">
+                      {invited ? (
+                        <p
+                          className="animate-[lu-line-in_320ms_var(--ease-premium)_backwards] text-sm leading-6 text-ink motion-reduce:animate-none"
+                          style={{ "--motion-distance": "10px" } as React.CSSProperties}
+                        >
+                          <span className="font-semibold">Invite sent.</span> Riley joins your team when they accept.
+                        </p>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setInvited(true)}
+                          className={`inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-medium text-white transition hover:bg-neutral-800 active:scale-[0.98] ${focusRing}`}
+                        >
+                          Invite to the team
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-neutral-400 sm:text-right">An example opening and applicant.</p>
+            </div>
           </div>
 
           <dl className="mt-16 grid gap-x-10 sm:grid-cols-2 lg:mt-24 lg:grid-cols-3">
