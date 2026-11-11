@@ -33,6 +33,36 @@ export function PhoneFrame({ children, className = "" }: { children: React.React
   );
 }
 
+// A desktop display on its stand: thin dark bezel, a slim browser bar, and the
+// page inside at its natural height. The stand only shows where the display is
+// wide enough to read as a desktop; on phones it's just the window.
+export function DesktopFrame({ children, address, className = "" }: { children: React.ReactNode; address: string; className?: string }) {
+  return (
+    <div className={className}>
+      <div className="rounded-[1.1rem] bg-ink p-[6px] shadow-[0_1px_2px_rgba(0,0,0,0.08),0_50px_90px_-40px_rgba(0,0,0,0.45)] ring-1 ring-black/5 sm:rounded-[1.4rem] sm:p-2">
+        <div className="overflow-hidden rounded-[0.8rem] bg-white sm:rounded-[1rem]">
+          <div aria-hidden="true" className="flex items-center gap-3 border-b border-ink/[0.07] bg-neutral-100 px-3.5 py-2">
+            <span className="flex gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-neutral-300" />
+              <span className="h-2.5 w-2.5 rounded-full bg-neutral-300" />
+              <span className="h-2.5 w-2.5 rounded-full bg-neutral-300" />
+            </span>
+            <span className="mx-auto w-[min(340px,60%)] truncate rounded-md bg-white px-3 py-1 text-center text-[11px] text-neutral-500 ring-1 ring-ink/[0.06]">
+              {address}
+            </span>
+            <span className="w-[42px]" />
+          </div>
+          {children}
+        </div>
+      </div>
+      <div aria-hidden="true" className="hidden sm:block">
+        <div className="mx-auto h-12 w-[15%] bg-neutral-300 [clip-path:polygon(8%_0,92%_0,100%_100%,0_100%)]" />
+        <div className="mx-auto h-1.5 w-[30%] rounded-t-md bg-neutral-300" />
+      </div>
+    </div>
+  );
+}
+
 export function Screen({
   src,
   alt,

@@ -13,6 +13,7 @@ import { STUDIO_PLANS } from "@/app/lib/plans";
 import {
   focusRing,
   Line,
+  DesktopFrame,
   PhoneFrame,
   Screen,
   Station,
@@ -454,16 +455,18 @@ export default function LandingPage() {
           });
 
           // ── Shops: the same request reaches the front desk ──────────
-          // The phone drifts up into place as the section arrives, and the
-          // request pings once it's there, ready to be passed along.
-          gsap.from(".js-shop-phone", {
-            y: desktop ? 90 : 40,
+          // The shop's screen rises and settles to full size as it arrives, and
+          // the request pings once it's there, ready to be passed along.
+          gsap.from(".js-shop-screen", {
+            y: desktop ? 110 : 40,
+            scale: desktop ? 0.94 : 1,
+            transformOrigin: "50% 100%",
             ease: "none",
-            scrollTrigger: { trigger: ".js-shop", start: "top bottom", end: "top 25%", scrub: desktop ? 1 : 0.35 },
+            scrollTrigger: { trigger: ".js-shop-screen", start: "top bottom", end: "top 30%", scrub: desktop ? 1 : 0.35 },
           });
           ScrollTrigger.create({
-            trigger: ".js-shop-phone",
-            start: "top 55%",
+            trigger: ".js-shop-screen",
+            start: "top 45%",
             toggleClass: { targets: ".js-shop", className: "is-landed" },
           });
 
@@ -889,122 +892,127 @@ export default function LandingPage() {
 
       {/* ───────────────────────── Shop side: the front desk ───────────────────────── */}
       <section id="shops" className="js-shop border-t border-ink/[0.08] bg-paper">
-        {/* Three blocks: intro, the phone, then the details. On a phone they read in
-            that order, so the demo sits right under the line that invites it. */}
-        <div className="mx-auto grid max-w-7xl gap-y-14 px-6 py-28 lg:grid-cols-12 lg:gap-x-10 lg:gap-y-0 lg:py-36">
-          <div className="lg:col-span-5 lg:row-start-1">
+        <div className="mx-auto max-w-7xl px-6 py-28 lg:py-36">
+          <div className="max-w-2xl">
             <p className="text-sm font-medium text-neutral-500">For salon, studio and shop owners</p>
             <h2 data-split className="mt-4 text-[clamp(2rem,3.6vw,3rem)] font-semibold leading-[1.04] tracking-[-0.035em]">
               <Line>One front desk</Line>
               <Line className="text-neutral-400">for the whole shop.</Line>
             </h2>
-            <p data-reveal className="mt-7 max-w-md text-lg leading-8 text-neutral-600">
+            <p data-reveal className="mt-7 max-w-xl text-lg leading-8 text-neutral-600">
               Own a salon, a barbershop or a studio? A Studio account puts your whole team on LineUp under one roof.
               That request you built reaches your front desk too, and you pass it to whoever&apos;s free. Go on, pass
               it to someone.
             </p>
           </div>
 
-          <div className="max-lg:order-3 lg:col-span-5 lg:row-start-2">
-            <dl className="max-w-md lg:mt-12">
-              {shopFeatures.map((item) => (
-                <div key={item.title} data-reveal className="border-t border-ink/10 py-5">
-                  <dt className="font-semibold tracking-tight">{item.title}</dt>
-                  <dd className="mt-1.5 leading-7 text-neutral-600">{item.body}</dd>
+          {/* The front desk on the shop's computer, built live rather than shown as a
+              picture, so the visitor's own request can sit in it and be passed along. */}
+          <div className="js-shop-screen mx-auto mt-14 max-w-5xl will-change-transform lg:mt-20">
+            <DesktopFrame address="lineup-aesthetics.ca/studio">
+              <div className="bg-paper text-left">
+                <div className="flex items-center gap-6 border-b border-ink/[0.07] bg-white px-4 py-3 sm:px-6">
+                  <p className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.03em]">
+                    LineUp
+                    <span className="rounded-md bg-ink px-1.5 py-0.5 text-[11px] font-semibold text-white">Studio</span>
+                  </p>
+                  <ul aria-hidden="true" className="hidden items-center gap-6 text-[13px] text-neutral-500 md:flex">
+                    <li className="font-medium text-ink">Today</li>
+                    <li>Calendar</li>
+                    <li>Requests</li>
+                    <li>Team</li>
+                    <li>Chairs</li>
+                  </ul>
                 </div>
-              ))}
-            </dl>
 
-            <div data-reveal className="mt-8 max-w-md border-t border-ink/10 pt-7">
-              <p className="leading-7 text-neutral-600">
-                <span className="font-semibold text-ink">
-                  {STUDIO_PLANS.studio.label} is {STUDIO_PLANS.studio.priceLabel} a month
-                </span>{" "}
-                for the whole salon, studio or shop, however many pros work there. {STUDIO_PLANS.studio_plus.label} is{" "}
-                {STUDIO_PLANS.studio_plus.priceLabel}. Prices in CAD.
-              </p>
-              <Link
-                href="/login?mode=signup"
-                className={`mt-6 inline-flex items-center justify-center whitespace-nowrap rounded-full bg-ink px-7 py-3.5 font-medium text-white transition-colors duration-150 hover:bg-neutral-800 ${focusRing}`}
-              >
-                Open your shop
-              </Link>
-            </div>
-          </div>
+                <div className="px-4 pb-6 pt-5 sm:px-6 sm:pb-8 sm:pt-6">
+                  <p className="text-[22px] font-semibold leading-tight tracking-[-0.035em]">Today</p>
+                  <p className="mt-1 text-[13px] text-neutral-500" aria-live="polite">
+                    {passedPro ? `3 appointments. Request passed to ${passedPro.name}.` : "3 appointments. 1 client request waiting."}
+                  </p>
 
-          <div className="max-lg:order-2 lg:col-span-6 lg:col-start-7 lg:row-span-2 lg:row-start-1">
-            <div className="lg:sticky lg:top-[12vh]">
-              <div className="js-shop-phone mx-auto w-[min(300px,82vw)] will-change-transform lg:w-[min(320px,38vh)]">
-                <PhoneFrame>
-                  {/* The front desk, built live rather than shown as a picture, so the
-                      visitor's own request can sit in it and be passed along. */}
-                  <div className="flex h-full flex-col bg-paper px-3.5 pb-4 pt-[15%] text-left">
-                    <p className="text-[11px] font-medium text-neutral-500">Front desk</p>
-                    <p className="mt-0.5 text-[19px] font-semibold leading-tight tracking-[-0.03em]">Today</p>
-                    <p className="mt-0.5 text-[12px] leading-snug text-neutral-500" aria-live="polite">
-                      {passedPro ? `Passed to ${passedPro.name}.` : "1 client request waiting."}
-                    </p>
-
-                    <div className="relative mt-3.5 rounded-2xl bg-white p-3 ring-1 ring-ink/[0.07]">
-                      <span
-                        aria-hidden="true"
-                        className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 ring-2 ring-ink [.is-landed_&]:animate-[lu-ping_1s_ease-out]"
-                      />
-                      <p className="text-[12px] font-semibold text-ink">Client requests</p>
-                      {passedPro ? (
-                        <div
-                          key={passedPro.id}
-                          className="mt-2 animate-[lu-line-in_320ms_var(--ease-premium)_backwards] motion-reduce:animate-none"
-                          style={{ "--motion-distance": "10px" } as React.CSSProperties}
-                        >
-                          <p className="text-[12px] leading-snug text-neutral-600">
-                            {service.name} is with {passedPro.name}, who answers the client with a price and a time.
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => setPassedTo(null)}
-                            className={`mt-2 rounded-full px-1 py-1 text-[12px] font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink ${focusRing}`}
+                  <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_19rem]">
+                    <div className="space-y-4">
+                      <div className="relative rounded-2xl bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 ring-2 ring-ink [.is-landed_&]:animate-[lu-ping_1s_ease-out]"
+                        />
+                        <p className="text-[14px] font-semibold text-ink">Client requests</p>
+                        {passedPro ? (
+                          <div
+                            key={passedPro.id}
+                            className="mt-3 animate-[lu-line-in_320ms_var(--ease-premium)_backwards] motion-reduce:animate-none"
+                            style={{ "--motion-distance": "10px" } as React.CSSProperties}
                           >
-                            Take it back
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="mt-2">
-                          <p className="text-[13px] font-semibold leading-snug">{service.name}</p>
-                          <p className="text-[12px] leading-snug text-neutral-600">
-                            {place.short}, {day.label.toLowerCase()}
-                          </p>
-                          <p className="mt-2.5 text-[11px] text-neutral-500">Pass to</p>
-                          <div className="mt-1.5 flex flex-wrap gap-1.5">
-                            {floor.map((pro) => (
-                              <button
-                                key={pro.id}
-                                type="button"
-                                onClick={() => setPassedTo(pro.id)}
-                                className={`min-h-9 rounded-full bg-white px-3 text-[12px] font-medium text-ink ring-1 ring-ink/15 transition hover:ring-ink/40 active:scale-[0.97] ${focusRing}`}
-                              >
-                                {pro.name}
-                              </button>
-                            ))}
+                            <p className="text-[14px] leading-6 text-neutral-600">
+                              {service.name} is with {passedPro.name}, who answers the client with a price and a time.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setPassedTo(null)}
+                              className={`mt-2 rounded-full py-2 text-[13px] font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink ${focusRing}`}
+                            >
+                              Take it back
+                            </button>
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="mt-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+                            <div>
+                              <p className="text-[15px] font-semibold leading-snug">{service.name}</p>
+                              <p className="text-[13px] leading-snug text-neutral-600">
+                                {place.short}, {day.label.toLowerCase()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[12px] text-neutral-500">Pass to</p>
+                              <div className="mt-1.5 flex flex-wrap gap-2">
+                                {floor.map((pro) => (
+                                  <button
+                                    key={pro.id}
+                                    type="button"
+                                    onClick={() => setPassedTo(pro.id)}
+                                    className={`min-h-11 rounded-full bg-white px-4 text-[13px] font-medium text-ink ring-1 ring-ink/15 transition hover:ring-ink/40 active:scale-[0.97] sm:min-h-10 ${focusRing}`}
+                                  >
+                                    {pro.name}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="rounded-2xl bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
+                        <p className="text-[14px] font-semibold text-ink">Up next</p>
+                        <ul className="mt-2 divide-y divide-ink/[0.06]">
+                          {upNext.map((item) => (
+                            <li key={item.time} className="flex items-baseline gap-4 py-2.5">
+                              <span className="w-12 shrink-0 text-[13px] font-semibold tabular-nums">{item.time}</span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[13px] font-medium leading-tight">{item.what}</span>
+                                <span className="block truncate text-[12px] leading-snug text-neutral-500">{item.who}</span>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
 
-                    <div className="mt-3 rounded-2xl bg-white p-3 ring-1 ring-ink/[0.07]">
-                      <p className="text-[12px] font-semibold text-ink">On the floor</p>
-                      <ul className="mt-1.5">
+                    <div className="self-start rounded-2xl bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
+                      <p className="text-[14px] font-semibold text-ink">On the floor</p>
+                      <ul className="mt-2">
                         {floor.map((pro) => (
-                          <li key={pro.id} className="flex items-center gap-2.5 py-1.5">
+                          <li key={pro.id} className="flex items-center gap-3 py-2">
                             <span
                               aria-hidden="true"
-                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[12px] font-semibold text-neutral-600"
+                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[13px] font-semibold text-neutral-600"
                             >
                               {pro.name[0]}
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[13px] font-medium leading-tight">{pro.name}</span>
-                              <span className="block truncate text-[11px] leading-snug text-neutral-500">{pro.status}</span>
+                              <span className="block truncate text-[14px] font-medium leading-tight">{pro.name}</span>
+                              <span className="block truncate text-[12px] leading-snug text-neutral-500">{pro.status}</span>
                             </span>
                             {passedTo === pro.id ? (
                               <span className="shrink-0 animate-[lu-pop-in_220ms_var(--ease-premium)_backwards] rounded-full bg-ink px-2 py-1 text-[11px] font-medium text-white motion-reduce:animate-none">
@@ -1015,28 +1023,40 @@ export default function LandingPage() {
                         ))}
                       </ul>
                     </div>
-
-                    <div className="mt-3 rounded-2xl bg-white p-3 ring-1 ring-ink/[0.07]">
-                      <p className="text-[12px] font-semibold text-ink">Up next</p>
-                      <ul className="mt-1.5">
-                        {upNext.map((item) => (
-                          <li key={item.time} className="flex items-baseline gap-2.5 py-1.5">
-                            <span className="w-11 shrink-0 text-[12px] font-semibold tabular-nums">{item.time}</span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[12px] font-medium leading-tight">{item.what}</span>
-                              <span className="block truncate text-[11px] leading-snug text-neutral-500">{item.who}</span>
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
                   </div>
-                </PhoneFrame>
+                </div>
               </div>
-              <p className="mx-auto mt-5 max-w-[300px] text-center text-xs text-neutral-400">
-                A working demo of the front desk. The names are examples.
-              </p>
+            </DesktopFrame>
+            <p className="mt-5 text-center text-xs text-neutral-400">
+              A working demo of the front desk. The names are examples.
+            </p>
+          </div>
+
+          <dl className="mt-16 grid gap-x-10 sm:grid-cols-2 lg:mt-24 lg:grid-cols-3">
+            {shopFeatures.map((item) => (
+              <div key={item.title} data-reveal className="border-t border-ink/10 py-5">
+                <dt className="font-semibold tracking-tight">{item.title}</dt>
+                <dd className="mt-1.5 leading-7 text-neutral-600">{item.body}</dd>
+              </div>
+            ))}
+            <div data-reveal className="border-t border-ink/10 py-5">
+              <dt className="font-semibold tracking-tight">
+                {STUDIO_PLANS.studio.label} is {STUDIO_PLANS.studio.priceLabel} a month
+              </dt>
+              <dd className="mt-1.5 leading-7 text-neutral-600">
+                For the whole salon, studio or shop, however many pros work there. {STUDIO_PLANS.studio_plus.label} is{" "}
+                {STUDIO_PLANS.studio_plus.priceLabel}. Prices in CAD.
+              </dd>
             </div>
+          </dl>
+
+          <div data-reveal className="mt-10">
+            <Link
+              href="/login?mode=signup"
+              className={`inline-flex items-center justify-center whitespace-nowrap rounded-full bg-ink px-7 py-3.5 font-medium text-white transition-colors duration-150 hover:bg-neutral-800 ${focusRing}`}
+            >
+              Open your shop
+            </Link>
           </div>
         </div>
       </section>
