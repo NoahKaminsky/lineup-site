@@ -118,18 +118,18 @@ const proFeatures = [
   { title: "Paid through LineUp", body: "Every booking is paid securely through Stripe before the appointment, so nobody chases anybody." },
   { title: "A record that follows you", body: "Every completed job adds a verified review to your public profile and portfolio." },
   { title: "Work where you already work", body: "A shop chair, a shared space, your home studio or the client's place. You choose what you offer." },
-  { title: "Looking for a chair?", body: "Shops post their open chairs on LineUp. You only see posts for your trade, and you apply with your profile." },
+  { title: "Looking for a chair?", body: "Shops post their open chairs on LineUp. You'll only see posts for your trade, and you can apply with your LineUp profile." },
   { title: "Free to start", body: "Take on real, paying clients without a subscription. Upgrade later if you want more." },
 ];
 
 // The shop side. Copy follows what the Studio plans actually include
 // (app/lib/plans.ts), so the page can't promise something the product doesn't do.
 const shopFeatures = [
-  { title: "One calendar for the whole shop", body: "Online bookings, walk-ins and phone bookings all show up in the same calendar." },
-  { title: "Every pro gets their own login", body: "Each person on your team has their own LineUp account, linked to your shop." },
-  { title: "No fee on your own clients", body: "LineUp takes no commission when your own clients book with you." },
-  { title: "Memberships for your regulars", body: "Offer a monthly membership to the clients who come in often." },
-  { title: "Take a commission or charge booth rent", body: "With Studio Plus, LineUp collects your shop's share from each pro and pays it to you automatically." },
+  { title: "One calendar for the whole shop", body: "Every online booking, walk-in and phone booking shows up in the same calendar, so you always know who is busy and who is free." },
+  { title: "A login for every pro", body: "Everyone on your team gets their own LineUp account that is linked to your shop." },
+  { title: "No commission on your own clients", body: "When one of your own clients books with you, LineUp doesn't take a commission." },
+  { title: "Memberships for your regulars", body: "You can offer a monthly membership to the clients who come in often." },
+  { title: "Commission or booth rent, handled for you", body: "With Studio Plus, LineUp collects your shop's share from each pro and pays it to you automatically." },
 ];
 
 // Who's on the floor in the front-desk demo. Names are examples and say so on the page.
@@ -915,27 +915,28 @@ export default function LandingPage() {
       <section id="shops" className="js-shop border-t border-ink/[0.08] bg-paper">
         <div className="mx-auto max-w-7xl px-6 py-28 lg:py-36">
           <div className="max-w-2xl">
-            <p className="text-sm font-medium text-neutral-500">For salon, studio and shop owners</p>
+            <p className="text-sm font-medium text-neutral-500">For shop owners</p>
             <h2 data-split className="mt-4 text-[clamp(2rem,3.6vw,3rem)] font-semibold leading-[1.04] tracking-[-0.035em]">
-              <Line>Run your whole shop</Line>
-              <Line className="text-neutral-400">on LineUp.</Line>
+              <Line>Run your salon, barbershop</Line>
+              <Line className="text-neutral-400">or studio on LineUp.</Line>
             </h2>
             <p data-reveal className="mt-7 max-w-xl text-lg leading-8 text-neutral-600">
-              Own a salon, barbershop or studio? A Studio account is one account for your shop and everyone who works
-              in it. You see every booking in one place, and each of your pros still has their own login.
+              A Studio account is LineUp for your whole shop. Everyone who works with you gets their own login, and you
+              get one calendar that shows every booking for the whole team. When a client nearby posts a request, it
+              shows up for your shop and you decide which of your pros takes it.
             </p>
-            <p data-reveal className="mt-4 max-w-xl leading-7 text-neutral-600">
-              Have an empty chair?{" "}
+            <p data-reveal className="mt-4 max-w-xl text-lg leading-8 text-neutral-600">
+              If you have an empty chair, you can also{" "}
               <a href="#chairs" className={`rounded font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink ${focusRing}`}>
-                Post it on LineUp
+                post it on LineUp
               </a>{" "}
-              and pros apply to work with you.
+              so pros who are looking for a place to work can apply.
             </p>
           </div>
 
-          <p data-reveal className="mt-14 text-center text-lg font-semibold tracking-tight lg:mt-20">
-            Try it. A client nearby just asked for a {service.name.toLowerCase()}.{" "}
-            <span className="text-neutral-500">Pick who takes it.</span>
+          <p data-reveal className="mx-auto mt-14 max-w-2xl text-center text-lg leading-8 text-neutral-600 lg:mt-20">
+            Here&apos;s what that looks like. A client nearby just asked for a {service.name.toLowerCase()}, so choose which
+            of your pros should take it.
           </p>
 
           {/* The front desk on the shop's computer, built live rather than shown as a
@@ -978,7 +979,8 @@ export default function LandingPage() {
                             style={{ "--motion-distance": "10px" } as React.CSSProperties}
                           >
                             <p className="text-[14px] leading-6 text-neutral-600">
-                              Sent to {passedPro.name}. {passedPro.name} replies to the client with a price and a time.
+                              You sent this to {passedPro.name}. {passedPro.name} will reply to the client with a price and a
+                              time.
                             </p>
                             <button
                               type="button"
@@ -1060,7 +1062,7 @@ export default function LandingPage() {
               </div>
             </DesktopFrame>
             <p className="mt-5 text-center text-xs text-neutral-400">
-              This is a demo of a shop&apos;s LineUp screen. The names are made up.
+              This is a demo of what a shop owner sees on LineUp. The names are made up.
             </p>
           </div>
 
@@ -1069,24 +1071,20 @@ export default function LandingPage() {
           <div id="chairs" className="mt-24 grid scroll-mt-24 items-center gap-12 border-t border-ink/10 pt-16 lg:mt-32 lg:grid-cols-12 lg:gap-10 lg:pt-24">
             <div className="lg:col-span-5">
               <h3 data-split className="text-[clamp(1.75rem,3vw,2.5rem)] font-semibold leading-[1.06] tracking-[-0.035em]">
-                <Line>Have an empty chair?</Line>
-                <Line className="text-neutral-400">Post it on LineUp.</Line>
+                <Line>Fill your empty chair</Line>
+                <Line className="text-neutral-400">through LineUp.</Line>
               </h3>
-              <ol data-reveal className="mt-6 max-w-md space-y-3 text-lg leading-8 text-neutral-600">
-                <li>
-                  <span className="font-semibold text-ink">1. Post the chair.</span> Say who you&apos;re looking for, whether
-                  it&apos;s booth rent or commission, and when they can start.
-                </li>
-                <li>
-                  <span className="font-semibold text-ink">2. Pros apply.</span> Only pros in that trade see your post. You
-                  see their profile, their work and their reviews.
-                </li>
-                <li>
-                  <span className="font-semibold text-ink">3. Invite the one you like.</span> They join your shop on LineUp.
-                </li>
-              </ol>
-              <p data-reveal className="mt-5 max-w-md leading-7 text-neutral-600">
-                Posting chairs is included with every Studio plan.
+              <p data-reveal className="mt-6 max-w-md text-lg leading-8 text-neutral-600">
+                When you have a chair open, you can post it on LineUp. You say what kind of pro you&apos;re looking for,
+                whether you want booth rent or commission, and when they can start. Only pros in that trade will see
+                your post.
+              </p>
+              <p data-reveal className="mt-4 max-w-md text-lg leading-8 text-neutral-600">
+                When someone applies, you can look through their profile, their work and their reviews. If you like
+                them, you invite them to join your shop.
+              </p>
+              <p data-reveal className="mt-4 max-w-md leading-7 text-neutral-600">
+                Posting a chair is included with every Studio plan, so it doesn&apos;t cost anything extra.
               </p>
             </div>
 
@@ -1101,7 +1099,7 @@ export default function LandingPage() {
                     </div>
                     <p className="mt-2 text-lg font-semibold tracking-tight">Looking for a {service.trade.toLowerCase()}</p>
                     <p className="mt-1 text-sm leading-6 text-neutral-600">
-                      Booth rent or commission. Only {chair.plural} see this post.
+                      Booth rent or commission. Only {chair.plural} can see this post.
                     </p>
                   </div>
 
@@ -1114,18 +1112,18 @@ export default function LandingPage() {
                         R
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium">Riley applied</p>
-                        <p className="text-sm text-neutral-500">6 years of experience. Can start next week.</p>
+                        <p className="font-medium">Riley applied for your chair</p>
+                        <p className="text-sm text-neutral-500">Riley has 6 years of experience and can start next week.</p>
                       </div>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-neutral-600">You can see Riley&apos;s profile, work and reviews.</p>
+                    <p className="mt-3 text-sm leading-6 text-neutral-600">You can look at Riley&apos;s profile, work and reviews before you decide.</p>
                     <div className="mt-4" aria-live="polite">
                       {invited ? (
                         <p
                           className="animate-[lu-line-in_320ms_var(--ease-premium)_backwards] text-sm leading-6 text-ink motion-reduce:animate-none"
                           style={{ "--motion-distance": "10px" } as React.CSSProperties}
                         >
-                          <span className="font-semibold">Invite sent.</span> Riley joins your shop when they accept.
+                          <span className="font-semibold">Your invite was sent.</span> Riley will join your shop once they accept.
                         </p>
                       ) : (
                         <button
@@ -1153,11 +1151,11 @@ export default function LandingPage() {
             ))}
             <div data-reveal className="border-t border-ink/10 py-5">
               <dt className="font-semibold tracking-tight">
-                {STUDIO_PLANS.studio.label} is {STUDIO_PLANS.studio.priceLabel} a month
+                {STUDIO_PLANS.studio.label} costs {STUDIO_PLANS.studio.priceLabel} a month
               </dt>
               <dd className="mt-1.5 leading-7 text-neutral-600">
-                One price for the whole shop, no matter how many pros work there. {STUDIO_PLANS.studio_plus.label} is{" "}
-                {STUDIO_PLANS.studio_plus.priceLabel} a month. Prices in CAD.
+                That price covers your whole shop, no matter how many pros work there. {STUDIO_PLANS.studio_plus.label}{" "}
+                costs {STUDIO_PLANS.studio_plus.priceLabel} a month. Prices are in CAD.
               </dd>
             </div>
           </dl>
