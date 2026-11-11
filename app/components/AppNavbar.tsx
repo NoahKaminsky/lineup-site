@@ -658,9 +658,17 @@ function NavbarComponent() {
       items.splice(4, 0, { href: "/studio/memberships", label: "Memberships", shortLabel: "Members", icon: "account" });
       return items;
     }
+    // Clients reach their account from the avatar on desktop, so the tab row
+    // is just the three places they go. (The phone's bottom bar keeps "You".)
+    if (!isProfessional) return navItems.filter((item) => item.href !== "/account");
     // Pros get the same four places on desktop as on the phone.
     return navItems;
   }, [navItems, isProfessional, isShop, onStudio]);
+
+  const isClient = hasUser && !loading && !!profile && !isProfessional && !isShop;
+  // The dashboard already leads with its own "New request" button.
+  const showNewRequest = isClient && pathname !== "/requests" && !pathname.startsWith("/requests/new");
+  const onAccountPage = pathname === "/account";
 
   // A section stays highlighted on its sub-pages too (a request detail page is
   // still "Dashboard"; a booking detail page is still "Work").
@@ -715,11 +723,14 @@ function NavbarComponent() {
             logo lines up exactly with page content. */}
         <div className="px-4 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-10">
+          {/* On desktop the logo and the right-hand cluster take equal shares,
+              which leaves the tab row sitting in the centre of the bar. */}
+          <div className="order-1 flex shrink-0 lg:flex-1">
           <Link
             href={hasUser ? (isShop ? "/studio" : "/requests") : "/"}
             prefetch
             onClick={handleNavClick}
-            className="order-1 flex h-16 shrink-0 items-center gap-2 rounded text-xl font-semibold tracking-[-0.03em] text-ink"
+            className="flex h-16 shrink-0 items-center gap-2 rounded text-xl font-semibold tracking-[-0.03em] text-ink"
           >
             <svg viewBox="215 245 545 410" aria-hidden="true" className="h-[18px] w-auto text-ink">
               <LuMarkPaths />
@@ -735,8 +746,19 @@ function NavbarComponent() {
               </span>
             ) : null}
           </Link>
+          </div>
 
-          <div className="order-2 ml-auto flex items-center gap-1.5 lg:order-3">
+          <div className="order-2 ml-auto flex items-center gap-1.5 lg:order-3 lg:ml-0 lg:flex-1 lg:justify-end">
+            {showNewRequest ? (
+              <Link
+                href="/requests/new"
+                prefetch
+                onClick={handleNavClick}
+                className="mr-1.5 hidden h-9 items-center rounded-full bg-ink px-4 text-sm font-medium text-white transition hover:bg-neutral-800 active:scale-[0.98] lg:inline-flex"
+              >
+                New request
+              </Link>
+            ) : null}
             {hasUser && !loading ? (
               <div className="relative" ref={notifPanelRef}>
                 <button
@@ -914,7 +936,7 @@ function NavbarComponent() {
                     setAccountMenuOpen((prev) => !prev);
                   }}
                   className={`ml-1 flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-surface text-xs font-semibold text-ink ring-1 transition-shadow ${
-                    accountMenuOpen ? "ring-ink" : "ring-ink/10 hover:ring-ink/30"
+                    accountMenuOpen ? "ring-ink" : onAccountPage ? "ring-2 ring-ink" : "ring-ink/10 hover:ring-ink/30"
                   }`}
                   aria-label="Open account menu"
                   aria-haspopup="true"
@@ -987,7 +1009,7 @@ function NavbarComponent() {
               aria-label="Main"
               className="order-3 -mb-px hidden w-full overflow-x-auto [scrollbar-width:none] sm:block lg:order-2 lg:w-auto [&::-webkit-scrollbar]:hidden"
             >
-              <ul className="flex min-w-max items-center gap-7">
+              <ul className={`flex min-w-max items-center gap-7 ${desktopNavItems.length <= 4 ? "lg:gap-12" : ""}`}>
                 {desktopNavItems.map((item) => {
                   const active = isActive(item.href);
                   return (

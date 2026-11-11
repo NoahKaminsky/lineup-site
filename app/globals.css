@@ -410,6 +410,37 @@ main {
   animation: lu-burst-dot 900ms var(--ease-arrive) both;
 }
 
+/* Saving a pro: the heart pops, a ring opens and six dots fly out. */
+@keyframes lu-heart-pop {
+  0% { transform: scale(0.2); }
+  45% { transform: scale(1.35); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+@keyframes lu-heart-ring {
+  from { opacity: 0.9; transform: scale(0.4); }
+  to { opacity: 0; transform: scale(1.7); }
+}
+
+@keyframes lu-heart-dot {
+  0% { opacity: 1; transform: translate(0, 0) scale(0.4); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); }
+}
+
+.lu-heart-pop {
+  animation: lu-heart-pop 420ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+
+.lu-heart-ring {
+  animation: lu-heart-ring 480ms ease-out both;
+}
+
+.lu-heart-dot {
+  animation: lu-heart-dot 560ms ease-out both;
+}
+
 /* The bell swings once when something new arrives. */
 @keyframes lu-bell {
   0%, 100% { transform: rotate(0deg); }

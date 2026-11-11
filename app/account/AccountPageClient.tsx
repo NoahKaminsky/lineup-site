@@ -13,6 +13,7 @@ import { getProfileHref } from "@/app/lib/profileLink";
 import { containsProfanity } from "@/app/lib/profanityFilter";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 import PushNotificationToggle from "@/app/components/PushNotificationToggle";
+import SavedProsCard from "@/app/components/SavedProsCard";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
 import { useHashTarget } from "@/app/lib/useHashTarget";
@@ -1050,11 +1051,56 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
     );
   }
 
+  // The profile photo, tap to change: large over a pro's cover, small in a client's header row.
+  const avatarControl = (sizeClass: string, initialClass: string) => (
+    <>
+      <button
+        type="button"
+        onClick={() => avatarInputRef.current?.click()}
+        aria-label="Change profile photo"
+        id="photo"
+        className={`group relative overflow-hidden rounded-full bg-neutral-100 ${sizeClass}`}
+      >
+        {profile.avatar_url ? (
+          <img loading="lazy"
+            src={profile.avatar_url}
+            alt={profile.full_name || "Profile"}
+            className="h-full w-full object-cover transition group-hover:brightness-75"
+          />
+        ) : (
+          <div className={`flex h-full w-full items-center justify-center font-semibold text-neutral-500 ${initialClass}`}>
+            {profile.full_name?.charAt(0).toUpperCase() || "P"}
+          </div>
+        )}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100 group-active:opacity-100">
+          {avatarUploading ? (
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+          ) : (
+            <svg viewBox="0 0 24 24" className="h-6 w-6 text-white" fill="none" aria-hidden="true">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+              <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="1.8"/>
+            </svg>
+          )}
+        </div>
+      </button>
+      <input
+        ref={avatarInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleAvatarChange}
+      />
+    </>
+  );
+
   return (
     <>
       <main className="min-h-screen bg-paper px-4 pb-36 pt-6 text-neutral-900 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="mb-6 overflow-hidden rounded-[28px] bg-white ring-1 ring-ink/[0.07]">
+            {/* Pros lead with a cover photo. Clients get one compact row instead:
+                photo, name, rating and Edit, so the page starts with what they use. */}
+            {isProfessional ? (
             <div className="relative">
               {/* Banner — click to change */}
               <button
@@ -1072,10 +1118,6 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       className="h-full w-full object-cover transition group-hover:brightness-90"
                     />
                   ) : (
-                    !isProfessional ? (
-                      // Clients don't need a cover: a quiet brand band instead of a chore.
-                      <div className="lu-pinstripe relative h-full w-full overflow-hidden bg-[#f1efea]" />
-                    ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[linear-gradient(135deg,#f4f4f2,#e9e9e6)] text-sm font-medium text-neutral-500">
                       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
@@ -1083,7 +1125,6 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       </svg>
                       Add a cover photo
                     </div>
-                    )
                   )}
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100 group-active:opacity-100">
@@ -1102,49 +1143,21 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
               {/* Avatar — click to change */}
               <div className="absolute -bottom-14 left-6 md:-bottom-16 md:left-8">
-                <button
-                  type="button"
-                  onClick={() => avatarInputRef.current?.click()}
-                  aria-label="Change profile photo"
-                  id="photo"
-                  className="group relative h-28 w-28 overflow-hidden rounded-full bg-neutral-100 shadow-[0_12px_32px_-14px_rgba(0,0,0,0.45)] ring-4 ring-white md:h-36 md:w-36"
-                >
-                  {profile.avatar_url ? (
-                    <img loading="lazy"
-                      src={profile.avatar_url}
-                      alt={profile.full_name || "Profile"}
-                      className="h-full w-full object-cover transition group-hover:brightness-75"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-4xl font-semibold text-neutral-500">
-                      {profile.full_name?.charAt(0).toUpperCase() || "P"}
-                    </div>
-                  )}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100 group-active:opacity-100">
-                    {avatarUploading ? (
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    ) : (
-                      <svg viewBox="0 0 24 24" className="h-6 w-6 text-white" fill="none" aria-hidden="true">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
-                        <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="1.8"/>
-                      </svg>
-                    )}
-                  </div>
-                </button>
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarChange}
-                />
+                {avatarControl("h-28 w-28 shadow-[0_12px_32px_-14px_rgba(0,0,0,0.45)] ring-4 ring-white md:h-36 md:w-36", "text-4xl")}
               </div>
             </div>
+            ) : null}
 
-            <div className="px-6 pb-7 pt-[4.5rem] md:px-8 md:pt-20">
-              <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-                <div className="min-w-0">
-                  <h1 className="text-[2rem] font-semibold leading-[1.05] tracking-[-0.035em] md:text-[2.5rem]">
+            <div className={isProfessional ? "px-6 pb-7 pt-[4.5rem] md:px-8 md:pt-20" : "p-6 md:px-8 md:py-7"}>
+              <div className={`flex flex-col gap-6 md:flex-row md:justify-between ${isProfessional ? "md:items-end" : "md:items-center"}`}>
+                <div className={isProfessional ? "min-w-0" : "flex min-w-0 items-center gap-5"}>
+                  {!isProfessional ? avatarControl("h-20 w-20 shrink-0 ring-1 ring-ink/[0.08]", "text-3xl") : null}
+                  <div className="min-w-0">
+                  <h1
+                    className={`font-semibold leading-[1.05] tracking-[-0.035em] ${
+                      isProfessional ? "text-[2rem] md:text-[2.5rem]" : "text-[1.625rem] md:text-[2rem]"
+                    }`}
+                  >
                     {profile.full_name || "No name yet"}
                   </h1>
 
@@ -1181,13 +1194,24 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                             }`
                           : "No reviews yet"}
                       </span>
+                    ) : customerRating ? (
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-full bg-neutral-100 px-3 py-1.5 text-[13px] text-neutral-700"
+                        title={`Rated by ${customerRating.count} pro${customerRating.count === 1 ? "" : "s"}`}
+                      >
+                        <span aria-hidden="true" className="text-ink">★</span>
+                        <span className="font-semibold tabular-nums text-ink">{customerRating.average.toFixed(1)}</span>
+                        <span aria-hidden="true" className="tabular-nums text-neutral-500">({customerRating.count})</span>
+                        <span className="sr-only">
+                          rating from {customerRating.count} pro{customerRating.count === 1 ? "" : "s"}
+                        </span>
+                      </span>
                     ) : (
                       <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-[13px] text-neutral-700">
-                        {customerRating
-                          ? `★ ${customerRating.average.toFixed(1)} from ${customerRating.count} pro${customerRating.count === 1 ? "" : "s"}`
-                          : "No ratings yet"}
+                        No ratings yet
                       </span>
                     )}
+                  </div>
                   </div>
                 </div>
 
@@ -1869,6 +1893,8 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
               <div id="push-notifications" className="scroll-mt-28">
                 <PushNotificationToggle />
               </div>
+
+              {!isProfessional ? <SavedProsCard clientId={profile.id} /> : null}
 
               {/* Your account: the things that decide whether you get booked and
                   paid, each with the one action it needs. */}
