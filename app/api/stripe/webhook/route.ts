@@ -4,6 +4,11 @@ import { stripe } from "@/app/lib/stripe";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { studioPlanFromPriceId } from "@/app/lib/plans";
 import { syncMemberPlan, syncStudioMemberPlans } from "@/app/lib/studios";
+import { hasFrontDeskClash } from "@/app/lib/busyTimes";
+import { createPayAtShopBooking } from "@/app/lib/payAtShop";
+import { recordBoost } from "@/app/lib/boostsServer";
+import { markMembershipPastDue, syncMembershipSubscription } from "@/app/lib/memberships";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 function timeToMinutes(timeString: string) {
   const [hours, minutes] = String(timeString).slice(0, 5).split(":").map(Number);
@@ -59,7 +64,7 @@ async function releaseTakenSlot(
 }
 
 async function sendBookingConfirmedEmail(bookingId: string) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = getSiteUrl();
 
   try {
     await fetch(`${siteUrl}/api/notifications/booking-confirmed`, {
@@ -155,11 +160,12 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
   const proposedStartMinutes = timeToMinutes(proposedStart);
   const proposedEndMinutes = timeToMinutes(proposedEnd);
 
-  const hasBookingConflict = (existingBookings || []).some((booking) => {
-    const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
-    const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
-    return proposedStartMinutes < bookingEnd && proposedEndMinutes > bookingStart;
-  });
+  const hasBookingConflict =
+    (existingBookings || []).some((booking) => {
+      const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
+      const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
+      return proposedStartMinutes < bookingEnd && proposedEndMinutes > bookingStart;
+    }) || (await hasFrontDeskClash(offer.professional_id, offer.proposed_date, proposedStart, proposedEnd));
 
   if (hasBookingConflict) {
     await supabase
@@ -511,11 +517,12 @@ async function handleDirectBookingPaymentSucceeded(
   const startMinutes = timeToMinutes(startTime);
   const endMinutes = timeToMinutes(endTime);
 
-  const hasBookingConflict = (existingBookings || []).some((booking) => {
-    const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
-    const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
-    return startMinutes < bookingEnd && endMinutes > bookingStart;
-  });
+  const hasBookingConflict =
+    (existingBookings || []).some((booking) => {
+      const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
+      const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
+      return startMinutes < bookingEnd && endMinutes > bookingStart;
+    }) || (await hasFrontDeskClash(professionalId, bookingDate, startTime, endTime));
 
   if (hasBookingConflict) {
     await releaseTakenSlot(supabase, { paymentIntentId: paymentIntent.id, customerId });
@@ -681,9 +688,31 @@ export async function POST(req: Request) {
       }
     }
 
+    // A client saved a card to book now and pay at the shop (backstop for
+    // when the page closed before it could make the booking itself).
+    if (event.type === "setup_intent.succeeded") {
+      const setupIntent = event.data.object;
+      if (setupIntent.metadata?.flow_type === "pay_at_shop_booking") {
+        const result = await createPayAtShopBooking(setupIntent.id);
+        if (!result.ok) console.error("Pay-at-shop booking from webhook not created:", result.error);
+      }
+    }
+
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      if (session.mode === "subscription" && session.metadata?.studio_id) {
+      if (session.mode === "payment" && session.metadata?.boost_kind) {
+        await recordBoost(session as unknown as Parameters<typeof recordBoost>[0]);
+      }
+      if (session.mode === "subscription" && session.metadata?.membership_plan_id) {
+        await syncMembershipSubscription(
+          (await stripe.subscriptions.retrieve(session.subscription as string)) as unknown as StudioSubscription
+        );
+      } else if (session.mode === "subscription" && session.metadata?.studio_rent_member_id) {
+        await handleRentSubscriptionChanged(
+          (await stripe.subscriptions.retrieve(session.subscription as string)) as unknown as StudioSubscription,
+          { fromCheckout: true }
+        );
+      } else if (session.mode === "subscription" && session.metadata?.studio_id) {
         await handleStudioSubscriptionChanged(
           (await stripe.subscriptions.retrieve(session.subscription as string)) as unknown as StudioSubscription,
           { customerId: session.customer as string }
@@ -694,7 +723,11 @@ export async function POST(req: Request) {
     }
 
     if (event.type === "customer.subscription.updated") {
-      if (event.data.object.metadata?.studio_id) {
+      if (event.data.object.metadata?.membership_plan_id) {
+        await syncMembershipSubscription(event.data.object as unknown as StudioSubscription);
+      } else if (event.data.object.metadata?.studio_rent_member_id) {
+        await handleRentSubscriptionChanged(event.data.object as unknown as StudioSubscription);
+      } else if (event.data.object.metadata?.studio_id) {
         await handleStudioSubscriptionChanged(event.data.object as unknown as StudioSubscription);
       } else {
         await handleSubscriptionUpdated(event.data.object);
@@ -702,7 +735,11 @@ export async function POST(req: Request) {
     }
 
     if (event.type === "customer.subscription.deleted") {
-      if (event.data.object.metadata?.studio_id) {
+      if (event.data.object.metadata?.membership_plan_id) {
+        await syncMembershipSubscription(event.data.object as unknown as StudioSubscription, { deleted: true });
+      } else if (event.data.object.metadata?.studio_rent_member_id) {
+        await handleRentSubscriptionChanged(event.data.object as unknown as StudioSubscription, { deleted: true });
+      } else if (event.data.object.metadata?.studio_id) {
         await handleStudioSubscriptionChanged(event.data.object as unknown as StudioSubscription, { deleted: true });
       } else {
         await handleSubscriptionDeleted(event.data.object);
@@ -711,8 +748,12 @@ export async function POST(req: Request) {
 
     if (event.type === "invoice.payment_failed") {
       const invoice = event.data.object as any;
-      if (invoice.subscription) {
-        await handleInvoicePaymentFailed(invoice.subscription as string);
+      // Newer Stripe API versions moved this under invoice.parent.
+      const invoiceSubscription = invoice.subscription ?? invoice.parent?.subscription_details?.subscription;
+      if (invoiceSubscription) {
+        await handleInvoicePaymentFailed(
+          typeof invoiceSubscription === "string" ? invoiceSubscription : invoiceSubscription.id
+        );
       }
     }
 
@@ -751,9 +792,7 @@ async function handleSubscriptionCheckoutCompleted(session: any) {
       stripe_subscription_id: subscription.id,
       subscription_status: subscription.status,
       subscription_plan: plan,
-      subscription_current_period_end: new Date(
-        subscription.current_period_end * 1000
-      ).toISOString(),
+      subscription_current_period_end: periodEndIso(subscription),
       // Instant-booking calendar is available on any paid tier (not just
       // Master) — turn it on automatically instead of leaving it as a buried
       // settings toggle nobody knows to flip. Direct bookings are never
@@ -786,9 +825,7 @@ async function handleSubscriptionUpdated(subscription: any) {
     .update({
       subscription_status: subscription.status,
       subscription_plan: plan,
-      subscription_current_period_end: new Date(
-        subscription.current_period_end * 1000
-      ).toISOString(),
+      subscription_current_period_end: periodEndIso(subscription),
       ...(isSubscribed
         ? { direct_booking_enabled: true, public_availability_enabled: true }
         : { direct_booking_enabled: false, public_availability_enabled: false }),
@@ -833,6 +870,21 @@ async function handleInvoicePaymentFailed(subscriptionId: string) {
   if (studio) {
     await supabase.from("studios").update({ subscription_status: "past_due" }).eq("id", studio.id);
     await syncStudioMemberPlans(supabase, studio.id);
+    return;
+  }
+
+  // A client's membership payment failed.
+  if (await markMembershipPastDue(subscriptionId)) return;
+
+  // A pro's booth rent payment failed.
+  const { data: renter } = await supabase
+    .from("studio_members")
+    .select("id")
+    .eq("rent_subscription_id", subscriptionId)
+    .maybeSingle();
+
+  if (renter) {
+    await supabase.from("studio_members").update({ rent_status: "past_due" }).eq("id", renter.id);
     return;
   }
 
@@ -897,4 +949,47 @@ async function handleStudioSubscriptionChanged(
     .eq("id", studioId);
 
   await syncStudioMemberPlans(supabase, studioId);
+}
+
+// A pro's booth rent was set up, renewed, changed or ended.
+async function handleRentSubscriptionChanged(
+  subscription: StudioSubscription,
+  options: { deleted?: boolean; fromCheckout?: boolean } = {}
+) {
+  const supabase = getServiceSupabase();
+  const memberId = subscription.metadata?.studio_rent_member_id;
+  if (!memberId) return;
+
+  const { data: member } = await supabase
+    .from("studio_members")
+    .select("id, rent_subscription_id")
+    .eq("id", memberId)
+    .maybeSingle();
+  if (!member) return;
+
+  // Ignore events from a rent subscription that's since been replaced.
+  if (!options.fromCheckout && member.rent_subscription_id && member.rent_subscription_id !== subscription.id) return;
+
+  const periodEnd = subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end;
+
+  await supabase
+    .from("studio_members")
+    .update(
+      options.deleted
+        ? { rent_subscription_id: null, rent_status: "canceled", rent_current_period_end: null }
+        : {
+            rent_subscription_id: subscription.id,
+            rent_status: subscription.status,
+            rent_current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+          }
+    )
+    .eq("id", member.id);
+}
+
+// When a subscription's current period ends, as an ISO string. Newer Stripe
+// API versions (the SDK's default since 2025) put it on each item instead of
+// the subscription; reading only the old field threw "Invalid time value".
+function periodEndIso(subscription: { current_period_end?: number; items?: { data?: { current_period_end?: number }[] } }) {
+  const end = subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end;
+  return end ? new Date(end * 1000).toISOString() : null;
 }

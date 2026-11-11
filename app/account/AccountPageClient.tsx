@@ -169,6 +169,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
   const [deleting, setDeleting] = useState(false);
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeRequirementsDue, setStripeRequirementsDue] = useState<string[]>([]);
+  // Stripe's own answer, kept apart from `profile` so a slower profile reload
+  // (read from the database before the status check saved) can't overwrite it.
+  const [stripeLivePayouts, setStripeLivePayouts] = useState<boolean | null>(null);
   const [stripeStatusError, setStripeStatusError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [showBannerPreview, setShowBannerPreview] = useState(false);
@@ -710,6 +713,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       }
 
       setStripeStatusError("");
+      setStripeLivePayouts(Boolean(data.payoutsEnabled));
       setStripeRequirementsDue(Array.isArray(data.requirementsDue) ? data.requirementsDue : []);
 
       setProfile((prev) =>
@@ -753,7 +757,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
       // Already fully onboarded — send them to Stripe's real account
       // management dashboard instead of back through first-time onboarding.
-      if (profile.stripe_payouts_enabled) {
+      if ((stripeLivePayouts ?? !!profile.stripe_payouts_enabled)) {
         const dashboardResponse = await fetch("/api/stripe/connect/dashboard-link", {
           method: "POST",
           headers: {
@@ -1068,6 +1072,10 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       className="h-full w-full object-cover transition group-hover:brightness-90"
                     />
                   ) : (
+                    !isProfessional ? (
+                      // Clients don't need a cover: a quiet brand band instead of a chore.
+                      <div className="lu-pinstripe relative h-full w-full overflow-hidden bg-[#f1efea]" />
+                    ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-[linear-gradient(135deg,#f4f4f2,#e9e9e6)] text-sm font-medium text-neutral-500">
                       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
                         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
@@ -1075,6 +1083,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       </svg>
                       Add a cover photo
                     </div>
+                    )
                   )}
                 </div>
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100 group-active:opacity-100">
@@ -1140,7 +1149,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   </h1>
 
                   <p className="mt-2 text-base text-neutral-600">
-                    {isProfessional ? formatProfessionalTypes(getProfessionalTypes(profile)) : "Customer"}
+                    {isProfessional
+                      ? formatProfessionalTypes(getProfessionalTypes(profile))
+                      : "LineUp client"}
                     {profile.username ? <span className="text-neutral-400"> · @{profile.username}</span> : null}
                   </p>
 
@@ -1173,9 +1184,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     ) : (
                       <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-[13px] text-neutral-700">
                         {customerRating
-                          ? `${customerRating.average.toFixed(1)} / 5 · ${customerRating.count} rating${
-                              customerRating.count === 1 ? "" : "s"
-                            } from pros`
+                          ? `★ ${customerRating.average.toFixed(1)} from ${customerRating.count} pro${customerRating.count === 1 ? "" : "s"}`
                           : "No ratings yet"}
                       </span>
                     )}
@@ -1216,8 +1225,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
               own card, right under the profile; it opens their calendar. */}
           {isProfessional && !hasPaidPlan ? (
             <section id="booking-link" className="relative mb-8 scroll-mt-28 overflow-hidden rounded-[28px] bg-ink p-6 text-white sm:p-8">
-              <p className="text-xs font-medium text-white/50">Booking link</p>
-              <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
+              <h2 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
                 Get your own link clients book from.
               </h2>
               <p className="mt-2 max-w-md text-sm text-white/55">
@@ -1445,7 +1453,8 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       About
                     </p>
                     <p className="mt-4 max-w-3xl text-lg leading-8 text-neutral-600">
-                      {profile.bio?.trim() || "No bio added yet."}
+                      {profile.bio?.trim() ||
+                        (isProfessional ? "No bio added yet." : "Add a line about yourself so pros know who's coming.")}
                     </p>
                   </div>
 
@@ -1863,7 +1872,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
               {/* Your account: the things that decide whether you get booked and
                   paid, each with the one action it needs. */}
-              <div className="rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+              <div className={`rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] ${isProfessional ? "" : "hidden"}`}>
                 <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Your account</h2>
                 <ul className="mt-2 divide-y divide-ink/[0.06]">
                   {(() => {
@@ -1912,7 +1921,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                             ? `Until ${verifiedUntil}`
                             : vStatus === "verified" || vStatus === "pending"
                             ? null
-                            : "Only verified pros appear in Browse.",
+                            : "Only verified pros appear in Explore.",
                         noteTone: vStatus === "verified" || vStatus === "pending" ? "muted" : "alert",
                         action:
                           vStatus === "verified"
@@ -1926,23 +1935,23 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         key: "payouts",
                         id: "payouts",
                         label: "Payouts",
-                        value: profile.stripe_payouts_enabled
+                        value: (stripeLivePayouts ?? !!profile.stripe_payouts_enabled)
                           ? "Enabled"
                           : profile.stripe_account_id
                           ? "Setup incomplete"
                           : "Not connected",
                         note: stripeStatusError
                           ? `Couldn't confirm your Stripe status: ${stripeStatusError}`
-                          : !profile.stripe_payouts_enabled && stripeRequirementsDue.length > 0
+                          : !(stripeLivePayouts ?? !!profile.stripe_payouts_enabled) && stripeRequirementsDue.length > 0
                           ? `Stripe needs: ${stripeRequirementsDue.map(formatStripeRequirement).join(", ")}`
-                          : profile.stripe_payouts_enabled
+                          : (stripeLivePayouts ?? !!profile.stripe_payouts_enabled)
                           ? "Paid to your bank through Stripe"
                           : "Connect Stripe to get paid for bookings",
-                        noteTone: profile.stripe_payouts_enabled ? "muted" : "alert",
+                        noteTone: (stripeLivePayouts ?? !!profile.stripe_payouts_enabled) ? "muted" : "alert",
                         action: {
                           label: stripeLoading
                             ? "Opening…"
-                            : profile.stripe_payouts_enabled
+                            : (stripeLivePayouts ?? !!profile.stripe_payouts_enabled)
                             ? "Manage"
                             : profile.stripe_account_id
                             ? "Finish"
@@ -1998,7 +2007,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                           row.action.href ? (
                             <Link
                               href={row.action.href}
-                              className="shrink-0 rounded-full border border-neutral-300 px-4 py-2 text-xs font-semibold text-ink transition hover:bg-neutral-50"
+                              className="shrink-0 rounded-full bg-neutral-100 px-4 py-2 text-xs font-semibold text-ink transition hover:bg-neutral-200"
                             >
                               {row.action.label}
                             </Link>
@@ -2026,34 +2035,24 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
             <div id="portfolio" className="mt-10 scroll-mt-28 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
               <div className="flex items-end justify-between gap-4">
                 <div>
-                  <p className="text-xs font-medium text-neutral-500">
-                    Portfolio
-                  </p>
-                  <h2 className="mt-3 text-[1.6rem] font-semibold tracking-[-0.03em]">Past work</h2>
+                  <h2 className="text-[1.6rem] font-semibold tracking-[-0.03em]">Portfolio</h2>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowUpload(true)}
-                  className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
-                >
-                  Add work
-                </button>
               </div>
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <button
                   type="button"
                   onClick={() => setShowUpload(true)}
-                  className="flex aspect-square items-center justify-center rounded-2xl border-2 border-dashed border-neutral-300 bg-white text-sm font-medium text-neutral-500 transition hover:bg-neutral-50"
+                  className="flex h-24 items-center justify-center rounded-2xl bg-ink/[0.03] text-sm font-medium text-neutral-600 transition hover:bg-ink/[0.06] hover:text-ink sm:aspect-square sm:h-auto"
                 >
-                  + Add work
+                  Add work
                 </button>
 
                 {portfolioItems.map((item) => (
                   <div
                     key={item.id}
-                    className="group relative overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100"
+                    className="group relative overflow-hidden rounded-2xl bg-neutral-100"
                   >
                     {item.media_type === "video" ? (
                       <video
@@ -2102,12 +2101,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
             <div className="mt-10 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <p className="text-xs font-medium text-neutral-500">
-                    Reviews
-                  </p>
-                  <h2 className="mt-3 text-[1.6rem] font-semibold tracking-[-0.03em]">
-                    Client feedback
-                  </h2>
+                  <h2 className="text-[1.6rem] font-semibold tracking-[-0.03em]">Reviews</h2>
                 </div>
 
                 {reviews.length > 3 ? (
@@ -2184,12 +2178,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       {showUpload ? (
         <div className="lu-fade-in fixed inset-0 z-[100] flex items-center justify-center bg-ink/45 px-6">
           <div className="lu-dialog-in w-full max-w-lg rounded-panel border border-neutral-200 bg-white p-8 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
-            <p className="text-xs font-medium text-neutral-500">
-              Portfolio
-            </p>
-            <h3 className="mt-3 text-[1.6rem] font-semibold tracking-[-0.03em] text-neutral-900">
-              Add work
-            </h3>
+            <h3 className="text-[1.6rem] font-semibold tracking-[-0.03em] text-neutral-900">Add work</h3>
             <p className="mt-1 text-sm text-neutral-500">
               Add a photo or a short video of your work.
             </p>

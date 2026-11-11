@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { platformFeeCentsFor, splitBookingPayment } from "@/app/lib/commission";
 import { getStudioPricingForPro } from "@/app/lib/studios";
-import { getBookingWindows, getTimeOffDays } from "@/app/lib/busyTimes";
+import { startPayAtShopBooking } from "@/app/lib/payAtShop";
+import { getBookingWindows, getTimeOffDays, hasFrontDeskClash } from "@/app/lib/busyTimes";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
@@ -270,11 +271,12 @@ async function handleDirectBookingIntent(req: Request, body: any) {
   const startMinutes = timeToMinutes(normalizedStart);
   const endMinutes = timeToMinutes(normalizedEnd);
 
-  const hasBookingConflict = (existingBookings || []).some((booking) => {
-    const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
-    const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
-    return startMinutes < bookingEnd && endMinutes > bookingStart;
-  });
+  const hasBookingConflict =
+    (existingBookings || []).some((booking) => {
+      const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
+      const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
+      return startMinutes < bookingEnd && endMinutes > bookingStart;
+    }) || (await hasFrontDeskClash(professionalId, date, normalizedStart, normalizedEnd));
 
   if (hasBookingConflict) {
     return NextResponse.json(
@@ -283,9 +285,26 @@ async function handleDirectBookingIntent(req: Request, body: any) {
     );
   }
 
+  // "Pay at the shop": the client saves a card for no-show protection
+  // instead of paying now. Only for pros whose studio has turned it on.
+  if (body.payAtShop === true) {
+    return startPayAtShopBooking({
+      supabase: serviceSupabase,
+      user: { id: user.id, email: user.email ?? null },
+      professionalId,
+      serviceId: service.id,
+      amountCents,
+      date,
+      startTime: normalizedStart,
+      endTime: normalizedEnd,
+      mode,
+    });
+  }
+
   // Master pros pay a reduced commission; studio members pay only card
   // processing on their own clients, and their shop may take a cut.
-  const studioPricing = await getStudioPricingForPro(serviceSupabase, professionalId);
+  // Only appointments at the shop count as the shop's.
+  const studioPricing = await getStudioPricingForPro(serviceSupabase, professionalId, mode);
   const { platformFeeCents, depositAmountCents, studioCutCents, professionalPayoutCents, remainingPayoutCents } =
     splitBookingPayment({
       amountCents,
@@ -459,11 +478,12 @@ export async function POST(req: Request) {
     const proposedStartMinutes = timeToMinutes(proposedStart);
     const proposedEndMinutes = timeToMinutes(proposedEnd);
 
-    const hasBookingConflict = (existingBookings || []).some((booking) => {
-      const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
-      const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
-      return proposedStartMinutes < bookingEnd && proposedEndMinutes > bookingStart;
-    });
+    const hasBookingConflict =
+      (existingBookings || []).some((booking) => {
+        const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
+        const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
+        return proposedStartMinutes < bookingEnd && proposedEndMinutes > bookingStart;
+      }) || (await hasFrontDeskClash(offer.professional_id, offer.proposed_date, proposedStart, proposedEnd));
 
     if (hasBookingConflict) {
       return NextResponse.json(
@@ -480,7 +500,11 @@ export async function POST(req: Request) {
       .maybeSingle();
     // Request bookings are new clients LineUp found, so they pay the normal
     // commission even for studio members; the shop's cut still applies.
-    const studioPricing = await getStudioPricingForPro(serviceSupabase, offer.professional_id);
+    const studioPricing = await getStudioPricingForPro(
+      serviceSupabase,
+      offer.professional_id,
+      (offer.proposed_service_mode as string | null) || null
+    );
     const { platformFeeCents, depositAmountCents, studioCutCents, professionalPayoutCents, remainingPayoutCents } =
       splitBookingPayment({
         amountCents,

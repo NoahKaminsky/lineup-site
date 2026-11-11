@@ -163,7 +163,7 @@ export default function AdminVerifications() {
 
       <section>
         <h2 className="text-lg font-semibold">Look up a pro</h2>
-        <p className="mt-1 text-sm text-neutral-500">Search by name, username or email to see why someone is or isn&apos;t in Browse.</p>
+        <p className="mt-1 text-sm text-neutral-500">Search by name, username or email to see why someone is or isn&apos;t in Explore.</p>
         <form
           className="mt-3 flex gap-2"
           onSubmit={(e) => {
@@ -206,7 +206,7 @@ export default function AdminVerifications() {
                       {r.verified_until ? ` · valid until ${r.verified_until}` : r.verification_status === "verified" ? " · no expiry" : ""}
                     </p>
                     <p className={`mt-2 font-medium ${hidden ? "text-red-600" : "text-green-700"}`}>
-                      {hidden ? "Hidden from Browse" : "Should be showing in Browse"}
+                      {hidden ? "Hidden from Explore" : "Should be showing in Explore"}
                     </p>
                     {hidden ? (
                       <ul className="mt-1 list-disc pl-5 text-neutral-700">
@@ -412,7 +412,7 @@ export default function AdminVerifications() {
       <section>
         <h2 className="text-lg font-semibold">Professionals without verification ({needsAttention.length})</h2>
         <p className="mt-1 text-sm text-neutral-500">
-          These are hidden from Browse and can&apos;t send offers. Approve someone you know is legitimate
+          These are hidden from Explore and can&apos;t send offers. Approve someone you know is legitimate
           (test or founding accounts, say) without documents — a note is required and saved on the record.
         </p>
         {needsAttention.length === 0 ? (

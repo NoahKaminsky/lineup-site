@@ -254,7 +254,7 @@ export type VerificationFields = {
 // 7pm (6pm in summer) the night before their expiry date, because UTC had
 // already rolled over to the next day. Same result on the server and in the
 // browser, whatever their own time zone is.
-export const LINEUP_TIME_ZONE = "America/Winnipeg";
+export const LINEUP_TIME_ZONE = "Etc/GMT+5"; // Manitoba is UTC-5 year-round; see app/lib/bookingTime.ts
 
 export function todayDateString() {
   // en-CA formats as YYYY-MM-DD.

@@ -6,7 +6,7 @@ import { MASTER_COMMISSION_PERCENT, STANDARD_COMMISSION_PERCENT } from "./commis
 export const PLAN_FEATURES: Record<"basic" | "apprentice" | "pro" | "master", string[]> = {
   basic: [
     "Profile, portfolio and reviews",
-    "Show up in Browse once verified",
+    "Show up in Explore once verified",
     "Get requests and send offers",
     "Up to 15 request bookings per month",
     `${STANDARD_COMMISSION_PERCENT}% LineUp commission`,
@@ -17,20 +17,20 @@ export const PLAN_FEATURES: Record<"basic" | "apprentice" | "pro" | "master", st
     "Weekly hours, time off and booking window",
     "Up to 25 request bookings per month",
     "Basic analytics",
-    "Apprentice badge and a boost in Browse",
+    "Apprentice badge, ranked higher in Explore",
   ],
   pro: [
     "Unlimited request bookings",
     "Full analytics",
-    "10 Explore Page promotions per month",
+    "In the Explore Spotlight, the big card at the top",
     "Pro badge",
-    "Higher placement in Browse and the Spotlight row",
+    "Higher placement in Explore",
   ],
   master: [
     `Reduced ${MASTER_COMMISSION_PERCENT}% LineUp commission (instead of ${STANDARD_COMMISSION_PERCENT}%)`,
-    "Unlimited Explore Page promotions",
+    "Twice the Spotlight time of Pro",
     "Master badge",
-    "Top placement in Browse and first in the Spotlight row",
+    "Top placement in Explore",
   ],
 };
 
@@ -46,21 +46,24 @@ export const STUDIO_PLANS: Record<
 > = {
   studio: {
     label: "Studio",
-    priceLabel: "$39",
+    priceLabel: "$79",
     features: [
-      "Unlimited team members, one flat price",
-      "Each pro gets their own login and Pro features",
-      "Every member's schedule in one place",
+      "One calendar for the whole shop, with online booking",
+      "Client requests near your shop, passed to the right pro",
+      "Walk-ins and phone bookings at the front desk",
       "0% LineUp commission on your own clients",
-      "Commission only on new clients LineUp sends you through requests",
+      "Chair openings, seen only by pros in that trade",
+      "Monthly memberships for your regulars",
+      "Every pro gets their own login and Pro features (2 pros or more)",
     ],
   },
   studio_plus: {
     label: "Studio Plus",
-    priceLabel: "$99",
+    priceLabel: "$149",
     features: [
       "Everything in Studio",
       "Set the shop's commission, for the whole team or per pro",
+      "Or charge booth rent, collected by card automatically",
       "The shop's cut is paid out to the shop automatically",
       "Shop earnings by member",
     ],

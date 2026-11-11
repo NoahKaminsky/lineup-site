@@ -487,7 +487,6 @@ function LocationAutocomplete({
 // page can be scanned top to bottom and jumped around from the section nav.
 function AccordionSection({
   title,
-  subtitle,
   summary,
   id,
   children,
@@ -500,12 +499,10 @@ function AccordionSection({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-32 rounded-2xl border border-hairline bg-surface lg:scroll-mt-24">
+    <section id={id} className="scroll-mt-32 rounded-2xl bg-surface ring-1 ring-ink/[0.06] lg:scroll-mt-24">
       <div className="border-b border-hairline px-5 py-4 sm:px-6">
-        {subtitle ? (
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">{subtitle}</p>
-        ) : null}
-        <h2 className="mt-1.5 text-lg font-semibold tracking-[-0.02em] text-ink">{title}</h2>
+        {/* `subtitle` is kept for callers but not shown: it repeated the title. */}
+        <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">{title}</h2>
         {summary ? <p className="mt-0.5 text-sm leading-6 text-neutral-500">{summary}</p> : null}
       </div>
       <div className="p-5 sm:p-6">{children}</div>
@@ -529,6 +526,17 @@ export default function ServicesPage() {
   const [defaultAppointmentDuration, setDefaultAppointmentDuration] = useState(60);
   const [availabilityWindows, setAvailabilityWindows] = useState<AvailabilityWindow[]>([]);
   const [location, setLocation] = useState("");
+  // On a shop's team: the public address is the shop's, set by the shop.
+  const [shopLocked, setShopLocked] = useState(false);
+  // Private home base for mobile (at-home) work. Never shown to clients.
+  const [homeBase, setHomeBase] = useState<{ address: string; placeId: string; lat: number | null; lng: number | null }>({
+    address: "",
+    placeId: "",
+    lat: null,
+    lng: null,
+  });
+  const [homeBaseSaved, setHomeBaseSaved] = useState("");
+  const [savingHomeBase, setSavingHomeBase] = useState(false);
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
   const [locationPlaceId, setLocationPlaceId] = useState("");
@@ -547,6 +555,8 @@ export default function ServicesPage() {
   const [newServicePrice, setNewServicePrice] = useState("");
   const [newServiceDescription, setNewServiceDescription] = useState("");
   const [serviceDrafts, setServiceDrafts] = useState<Record<string, ServiceDraft>>({});
+  // One service's details open at a time; the rest stay a clean list.
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
   const normalizedType = normalizeProfessionalType(profile?.professional_type);
   const presetServices = suggestedServiceTemplatesByType[normalizedType] || [];
@@ -679,6 +689,18 @@ export default function ServicesPage() {
       setLocationLat(profileData.location_lat ?? null);
       setLocationLng(profileData.location_lng ?? null);
       setLocationPlaceId(profileData.location_place_id || "");
+
+      // Separate queries: errors just mean 20261105_shop_location.sql hasn't run.
+      const [{ data: sourceRow }, { data: homeRow }] = await Promise.all([
+        supabase.from("profiles").select("location_source").eq("id", user.id).maybeSingle(),
+        supabase.from("professional_home_base").select("address, place_id, lat, lng").eq("profile_id", user.id).maybeSingle(),
+      ]);
+      setShopLocked((sourceRow as { location_source?: string | null } | null)?.location_source === "studio");
+      if (homeRow) {
+        const h = homeRow as { address: string | null; place_id: string | null; lat: number | null; lng: number | null };
+        setHomeBase({ address: h.address || "", placeId: h.place_id || "", lat: h.lat, lng: h.lng });
+        setHomeBaseSaved(h.address || "");
+      }
 
       const { data: availabilityData, error: availabilityError } = await supabase
         .from("professional_availability")
@@ -1047,7 +1069,7 @@ export default function ServicesPage() {
         Number.isFinite(locationLat) &&
         Number.isFinite(locationLng));
 
-    const locationWarning = !locationIsValid
+    const locationWarning = !locationIsValid && !shopLocked
       ? !location.trim()
         ? "Business address was not saved — enter your shop or studio address."
         : !locationPlaceId
@@ -1067,7 +1089,8 @@ export default function ServicesPage() {
         direct_booking_enabled: directBookingEnabled,
         public_availability_enabled: publicAvailabilityEnabled,
         default_appointment_duration: defaultAppointmentDuration,
-        ...(locationIsValid
+        // A shop member's address is the shop's: never overwrite it from here.
+        ...(locationIsValid && !shopLocked
           ? {
               formatted_address: savedFormattedAddress,
               location_lat: savedLocationLat,
@@ -1206,15 +1229,9 @@ export default function ServicesPage() {
       <div className="mx-auto max-w-6xl py-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-              Services & Availability
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+            <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
               Services & availability
             </h1>
-            <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
-              What you offer, when you&apos;re open, and where clients find you.
-            </p>
           </div>
 
         </div>
@@ -1275,15 +1292,15 @@ export default function ServicesPage() {
                 return (
                   <div
                     key={service.id}
-                    className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"
+                    className="rounded-2xl bg-surface p-4 ring-1 ring-ink/[0.06] sm:p-5"
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0">
                         <p className="text-base font-semibold text-neutral-900">
                           {service.service_name}
                         </p>
-                        <p className="mt-1 text-sm text-neutral-500">
-                          {service.duration_minutes} minutes · {formatPrice(service.price)}
+                        <p className="mt-1 text-sm tabular-nums text-neutral-500">
+                          {formatPrice(service.price)}, {service.duration_minutes} min
                         </p>
                         {service.description ? (
                           <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-600">
@@ -1293,6 +1310,14 @@ export default function ServicesPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          aria-expanded={editingServiceId === service.id}
+                          onClick={() => setEditingServiceId(editingServiceId === service.id ? null : service.id)}
+                          className="rounded-full px-4 py-2 text-xs font-medium text-ink ring-1 ring-inset ring-ink/15 transition hover:ring-ink/30"
+                        >
+                          {editingServiceId === service.id ? "Done" : "Edit"}
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleToggleBookable(service.id, !service.is_bookable)}
@@ -1308,19 +1333,16 @@ export default function ServicesPage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteService(service.id)}
-                          className="rounded-full border border-red-200 bg-white px-4 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                          className="rounded-full px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
                         >
                           Delete
                         </button>
                       </div>
                     </div>
 
-                    <div className="mt-4 rounded-2xl border border-neutral-200 bg-white p-4">
-                      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                        Edit details
-                      </p>
-
-                      <div className="mt-4 grid gap-4 md:grid-cols-[1.25fr_0.65fr_0.65fr_auto]">
+                    {editingServiceId === service.id ? (
+                    <div className="mt-4 border-t border-hairline pt-4">
+                      <div className="grid gap-4 md:grid-cols-[1.25fr_0.65fr_0.65fr]">
                         <div>
                           <label className="mb-2 block text-sm font-medium text-neutral-700">
                             Service name
@@ -1373,15 +1395,6 @@ export default function ServicesPage() {
                           />
                         </div>
 
-                        <div className="flex items-end">
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateService(service.id)}
-                            className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
-                          >
-                            Save
-                          </button>
-                        </div>
                       </div>
 
                       <div className="mt-4">
@@ -1398,7 +1411,19 @@ export default function ServicesPage() {
                           className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
                         />
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleUpdateService(service.id);
+                          setEditingServiceId(null);
+                        }}
+                        className="mt-4 w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 sm:w-auto sm:px-8"
+                      >
+                        Save changes
+                      </button>
                     </div>
+                    ) : null}
                   </div>
                 );
               })}
@@ -1407,11 +1432,33 @@ export default function ServicesPage() {
         </AccordionSection>
         <AccordionSection
           id="add-service"
-          title="Add a custom service"
-          subtitle="Add service"
-          summary="Create a new bookable service with duration and price"
+          title="Add a service"
+          summary={presetServices.length > 0 ? "Tap a common one, or make your own below." : "Name it, set how long it takes and what it costs."}
         >
-          <div className="grid gap-4 md:grid-cols-[1.2fr_0.55fr_0.55fr_auto]">
+          {presetServices.length > 0 ? (
+            <div className="mb-6">
+            <div className="flex flex-wrap gap-3">
+                {presetServicesWithExistingState.map((template) => (
+                  <button
+                    key={template.name}
+                    type="button"
+                    disabled={serviceSaving || template.exists}
+                    onClick={() => handleAddPresetService(template)}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      template.exists
+                        ? "cursor-not-allowed border border-neutral-200 bg-white text-neutral-400"
+                        : "border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-100"
+                    }`}
+                  >
+                    {template.exists
+                      ? `${template.name} added`
+                      : `${template.name}, ${template.duration} min`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className="grid gap-4 md:grid-cols-[1.2fr_0.55fr_0.55fr]">
             <div>
               <label className="mb-2 block text-sm font-medium text-neutral-700">
                 Service name
@@ -1457,16 +1504,6 @@ export default function ServicesPage() {
               />
             </div>
 
-            <div className="flex items-end">
-              <button
-                type="button"
-                onClick={handleAddService}
-                disabled={serviceSaving}
-                className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
-              >
-                {serviceSaving ? "Adding…" : "Add service"}
-              </button>
-            </div>
           </div>
 
           <div className="mt-4">
@@ -1481,35 +1518,16 @@ export default function ServicesPage() {
               className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
             />
           </div>
-        </AccordionSection>
-        {presetServices.length > 0 ? (
-          <AccordionSection
-            id="quick-add"
-            title="Common services"
-            subtitle="Quick add"
-            summary="Add popular services for your category"
+
+          <button
+            type="button"
+            onClick={handleAddService}
+            disabled={serviceSaving}
+            className="mt-5 w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60 sm:w-auto sm:px-8"
           >
-            <div className="flex flex-wrap gap-3">
-              {presetServicesWithExistingState.map((template) => (
-                <button
-                  key={template.name}
-                  type="button"
-                  disabled={serviceSaving || template.exists}
-                  onClick={() => handleAddPresetService(template)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                    template.exists
-                      ? "cursor-not-allowed border border-neutral-200 bg-white text-neutral-400"
-                      : "border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-100"
-                  }`}
-                >
-                  {template.exists
-                    ? `${template.name} added`
-                    : `${template.name} • ${template.duration} min`}
-                </button>
-              ))}
-            </div>
-          </AccordionSection>
-        ) : null}
+            {serviceSaving ? "Adding…" : "Add service"}
+          </button>
+        </AccordionSection>
         <AccordionSection
           id="availability"
           title="Weekly availability"
@@ -1523,7 +1541,7 @@ export default function ServicesPage() {
           }
         >
           {!isSubscribed ? (
-            <div className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-center">
+            <div className="rounded-2xl bg-ink/[0.03]-50 p-6 text-center">
               <p className="text-sm font-semibold text-neutral-900">
                 The weekly availability schedule is a paid feature
               </p>
@@ -1618,9 +1636,9 @@ export default function ServicesPage() {
             </div>
           </AccordionSection>
         ) : (
-          <div id="booking" className="scroll-mt-32 overflow-hidden rounded-2xl border border-hairline bg-surface lg:scroll-mt-24">
+          <div id="booking" className="scroll-mt-32 overflow-hidden rounded-2xl bg-surface ring-1 ring-ink/[0.06] lg:scroll-mt-24">
             <div className="px-5 py-5 sm:px-6">
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+              <p className="text-[13px] font-medium text-neutral-500">
                 Direct booking
               </p>
               <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
@@ -1688,13 +1706,83 @@ export default function ServicesPage() {
           title="Shop or studio address"
           subtitle="Business location"
           summary={
-            displayedBusinessAddress
+            shopLocked
+              ? "Your shop's address"
+              : displayedBusinessAddress
               ? displayedBusinessAddress.primary
               : needsBusinessLocation
               ? "Required for in-shop or home studio bookings"
               : "Optional unless you offer location-based bookings"
           }
         >
+          {shopLocked ? (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <p className="text-sm font-semibold text-neutral-900">Your shop&apos;s address</p>
+                <p className="mt-1 text-sm text-neutral-700">
+                  <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />
+                  {location || "Set by your shop"}
+                </p>
+                <p className="mt-2 text-xs leading-5 text-neutral-500">
+                  You&apos;re on a shop&apos;s team, so your profile and in-shop bookings use the shop&apos;s address. The shop
+                  owner changes it in their settings.
+                </p>
+              </div>
+
+              <div>
+                <LocationAutocomplete
+                  label="Home base for mobile appointments (private)"
+                  placeholder="Where you start from when you go to clients"
+                  value={homeBase.address}
+                  onInputChange={(value) => setHomeBase({ address: value, placeId: "", lat: null, lng: null })}
+                  onSelect={(selected) =>
+                    setHomeBase({
+                      address: selected.formattedAddress || homeBase.address,
+                      placeId: selected.placeId || "",
+                      lat: Number.isFinite(selected.lat) ? selected.lat : null,
+                      lng: Number.isFinite(selected.lng) ? selected.lng : null,
+                    })
+                  }
+                />
+                <p className="mt-2 text-xs leading-5 text-neutral-500">
+                  Only for work you do on your own at clients&apos; places. It&apos;s never shown to anyone.
+                </p>
+                {homeBase.address !== homeBaseSaved ? (
+                  <button
+                    type="button"
+                    disabled={savingHomeBase || (!!homeBase.address.trim() && homeBase.lat === null)}
+                    onClick={async () => {
+                      if (!profile) return;
+                      setSavingHomeBase(true);
+                      const cleared = !homeBase.address.trim();
+                      const { error } = await supabase.from("professional_home_base").upsert(
+                        {
+                          profile_id: profile.id,
+                          address: cleared ? null : homeBase.address.trim(),
+                          place_id: cleared ? null : homeBase.placeId || null,
+                          lat: cleared ? null : homeBase.lat,
+                          lng: cleared ? null : homeBase.lng,
+                          updated_at: new Date().toISOString(),
+                        },
+                        { onConflict: "profile_id" }
+                      );
+                      setSavingHomeBase(false);
+                      if (error) {
+                        setMessage(error.message);
+                        return;
+                      }
+                      setHomeBaseSaved(cleared ? "" : homeBase.address.trim());
+                      setMessage(cleared ? "Home base removed." : "Home base saved. It stays private.");
+                    }}
+                    className="mt-3 inline-flex rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-50"
+                  >
+                    {savingHomeBase ? "Saving…" : homeBase.address.trim() ? "Save home base" : "Remove home base"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+          <>
           <p className="max-w-2xl text-sm leading-6 text-neutral-500">
             This is used for in-shop and home studio bookings. Customers should only see the exact address after a booking is confirmed.
           </p>
@@ -1791,6 +1879,8 @@ export default function ServicesPage() {
               Optional unless you offer in-shop or home studio services.
             </p>
           )}
+          </>
+          )}
         </AccordionSection>
         <AccordionSection
           id="service-area"
@@ -1859,7 +1949,7 @@ export default function ServicesPage() {
         {/* One save bar for location, booking settings and availability. */}
         {isSettingsDirty || saving || justSaved ? (
           <div className="lu-fade-in fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 sm:inset-x-auto sm:bottom-6 sm:left-1/2 sm:w-[min(36rem,calc(100%-3rem))] sm:-translate-x-1/2">
-            <div role="status" className="flex items-center justify-between gap-4 rounded-2xl border border-hairline bg-surface/95 px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.06),0_20px_44px_-16px_rgba(0,0,0,0.3)] backdrop-blur">
+            <div role="status" className="flex items-center justify-between gap-4 rounded-2xl bg-surface ring-1 ring-ink/[0.06]/95 px-4 py-3 shadow-[0_2px_8px_rgba(0,0,0,0.06),0_20px_44px_-16px_rgba(0,0,0,0.3)] backdrop-blur">
               <p className="text-sm text-neutral-700">
                 {justSaved && !isSettingsDirty ? "All changes saved." : "You have unsaved changes."}
               </p>

@@ -34,18 +34,18 @@ type Step = {
 // Weekly hours are deliberately absent: they're a paid-plan feature, so they
 // can't be something every pro is asked to finish.
 const ESSENTIALS: Step[] = [
-  { key: "verified", label: "Get verified", why: "Only verified pros appear in Browse and can be booked.", href: "/verification#verification-form", cta: "Verify" },
+  { key: "verified", label: "Get verified", why: "Only verified pros appear in Explore and can be booked.", href: "/verification#verification-form", cta: "Verify" },
   { key: "photo", label: "Add a profile photo", why: "A clear photo of you is the first thing clients look for.", href: "/account#photo", cta: "Add photo" },
   { key: "link", label: "Choose your booking link", why: "lineup-aesthetics.ca/book/yourname: the clean link you share with clients.", href: "/account#booking-link", cta: "Choose link" },
   { key: "bio", label: "Write a short bio", why: "A few lines on your experience and style.", href: "/account#bio", cta: "Write bio" },
   { key: "where", label: "Set where you work", why: "Your area, and whether you travel, host or work from a shop.", href: "/services#modes", cta: "Set location" },
   { key: "service", label: "Add your services", why: "What you offer, with prices and how long each takes.", href: "/services#add-service", cta: "Add service" },
-  { key: "portfolio", label: "Post 3 photos of your work", why: "Your work sells you better than anything you write.", href: "/account#portfolio", cta: "Add photos" },
+  { key: "portfolio", label: "Post 3 photos of your work", why: "Your first photo is your card in Explore. Pros with real photos get picked first.", href: "/account#portfolio", cta: "Add photos" },
+  { key: "cover", label: "Add a cover photo", why: "The big photo across the top of your profile. Your shop, your chair, your work.", href: "/account#cover", cta: "Add cover" },
   { key: "payouts", label: "Connect payouts", why: "Set up Stripe so you get paid for completed jobs.", href: "/account#payouts", cta: "Connect" },
 ];
 
 const STAND_OUT: Step[] = [
-  { key: "cover", label: "Add a cover photo", why: "The banner across the top of your profile.", href: "/account#cover", cta: "Add cover" },
   { key: "instagram", label: "Link your Instagram", why: "Let clients see more of your work.", href: "/account#instagram", cta: "Link" },
 ];
 
@@ -167,7 +167,14 @@ export function ProfileCompleteSheet({ userId, onClose }: { userId: string; onCl
   );
 }
 
-export default function OnboardingChecklist({ userId }: { userId: string }) {
+export default function OnboardingChecklist({
+  userId,
+  onVisibleChange,
+}: {
+  userId: string;
+  // Lets Home hide other setup nudges while this list is on screen.
+  onVisibleChange?: (visible: boolean) => void;
+}) {
   const [dismissed, setDismissed] = useState(true); // start hidden to avoid flash
   const [steps, setSteps] = useState<StepState | null>(null);
   const [verificationPending, setVerificationPending] = useState(false);
@@ -267,6 +274,11 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+  const visible = !celebrate && !dismissed && !!steps;
+  useEffect(() => {
+    onVisibleChange?.(visible);
+  }, [visible, onVisibleChange]);
+
   if (celebrate) return <ProfileCompleteSheet userId={userId} onClose={() => setCelebrate(false)} />;
 
   if (dismissed || !steps) return null;
@@ -339,7 +351,7 @@ export default function OnboardingChecklist({ userId }: { userId: string }) {
       {/* Up next */}
       {nextStep ? (
         <div className="mx-4 mt-6 rounded-2xl bg-ink p-5 text-white sm:mx-6">
-          <p className="text-xs font-medium text-white/60">Up next</p>
+          <p className="text-xs font-medium text-white/60">Next step</p>
           <div className="mt-1.5 flex flex-wrap items-end justify-between gap-4">
             <div className="min-w-0">
               <p className="text-lg font-semibold tracking-[-0.02em]">{nextStep.label}</p>

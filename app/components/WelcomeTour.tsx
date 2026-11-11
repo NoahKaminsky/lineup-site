@@ -73,7 +73,15 @@ export default function WelcomeTour({
         return;
       }
 
+      // Seen the moment it's shown, not only when finished: closing it,
+      // reloading or switching device mid-tour must never bring it back.
+      localStorage.setItem(storageKey(userId, role), "1");
       setVisible(true);
+      const { error: markError } = await supabase
+        .from("profiles")
+        .update({ [profileColumn(role)]: true })
+        .eq("id", userId);
+      if (markError) console.error("Failed to persist welcome tour seen state:", markError);
     })();
 
     return () => {

@@ -9,6 +9,7 @@ import {
   getStrictestLicensedRule,
   todayDateString,
 } from "@/app/lib/verificationRules";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 const NUMBER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 \-/._]{1,63}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -208,7 +209,7 @@ export async function POST(req: Request) {
         }))
       );
 
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lineup-aesthetics.ca";
+      const siteUrl = getSiteUrl("https://lineup-aesthetics.ca");
       const html = createEmailLayout({
         title: "Credentials to review",
         preview: `${profile?.full_name || "A professional"} submitted credentials.`,

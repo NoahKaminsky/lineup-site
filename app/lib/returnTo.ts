@@ -44,3 +44,16 @@ export function loginHref(returnPath: string, mode: "signin" | "signup" = "signi
   if (mode === "signup") params.set("mode", "signup");
   return `/login?${params.toString()}`;
 }
+
+// Forget a saved return path that starts with this prefix (e.g. an invite
+// link once it's been accepted), so later sign-ins don't land back on it.
+export function forgetReturnTo(prefix: string) {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return;
+    const { path } = JSON.parse(raw) as { path: string };
+    if (typeof path === "string" && path.startsWith(prefix)) localStorage.removeItem(KEY);
+  } catch {
+    // nothing saved, or storage unavailable
+  }
+}

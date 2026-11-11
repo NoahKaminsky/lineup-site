@@ -4,13 +4,22 @@
 // 24-hour cancellation cutoff 5–6 hours early. Everything that asks "when is
 // this appointment, really?" goes through here instead.
 
-export const BOOKING_TIME_ZONE = "America/Winnipeg";
+// Manitoba stopped changing clocks on Nov 1, 2026 and stays on UTC-5
+// ("Manitoba Standard Time") year-round. Plenty of browsers, phones and
+// servers still carry the old rules and think Winnipeg fell back to UTC-6,
+// so formatting uses a fixed UTC-5 zone instead of "America/Winnipeg".
+// (IANA's Etc/ zones have the sign flipped: Etc/GMT+5 is UTC-5.)
+export const BOOKING_TIME_ZONE = "Etc/GMT+5";
+const MANITOBA_PERMANENT_FROM = Date.UTC(2026, 10, 1, 7, 0, 0); // Nov 1, 2026, 2:00 local
+const PERMANENT_OFFSET_MS = -5 * 3600 * 1000;
 export const CANCELLATION_CUTOFF_HOURS = 24;
 
 // Offset (ms) between UTC and the booking zone at a given instant.
 function zoneOffsetMs(instant: Date) {
+  if (instant.getTime() >= MANITOBA_PERMANENT_FROM) return PERMANENT_OFFSET_MS;
+  // Older dates: the historical Winnipeg rules are right everywhere.
   const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: BOOKING_TIME_ZONE,
+    timeZone: "America/Winnipeg",
     hourCycle: "h23",
     year: "numeric",
     month: "2-digit",
@@ -55,7 +64,9 @@ export function formatCancellationDeadline(date: string, startTime: string | nul
     month: "short",
     day: "numeric",
   });
-  const time = cutoff.toLocaleTimeString("en-CA", { timeZone: BOOKING_TIME_ZONE, hour: "numeric", minute: "2-digit" });
+  // en-US gives "9:30 AM" (matching the booking times shown elsewhere);
+  // en-CA's "9:30 a.m." ended sentences with a double period.
+  const time = cutoff.toLocaleTimeString("en-US", { timeZone: BOOKING_TIME_ZONE, hour: "numeric", minute: "2-digit" });
   return `${day} at ${time}`;
 }
 
@@ -68,3 +79,23 @@ export function hasAppointmentEnded(date: string | null | undefined, endTime: st
 
 // How far ahead clients can book from a profile's calendar.
 export const BOOKING_WINDOW_DAYS = 56; // 8 weeks
+
+// "Now" on the shop's clock: today's date key ("2026-11-08") and minutes past
+// midnight. Use this instead of the device's local time, which can be wrong
+// (old time zone rules, or a client in another province).
+export function shopNow(at: Date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: BOOKING_TIME_ZONE,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(at);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value || "0";
+  return {
+    dateKey: `${get("year")}-${get("month")}-${get("day")}`,
+    minutes: Number(get("hour")) * 60 + Number(get("minute")),
+  };
+}

@@ -3,6 +3,7 @@ import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { sendSmsToProfileIfOptedIn } from "@/app/lib/sms";
 import { sendPushToUser } from "@/app/lib/push";
 import { getServiceSupabase, isCronAuthorized } from "@/app/lib/serverSupabase";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 type EmailProfile = {
   id: string;
@@ -153,7 +154,7 @@ export async function POST(req: Request) {
       getEmailProfile(supabase, booking.professional_id),
     ]);
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const siteUrl = getSiteUrl();
     const bookingUrl = `${siteUrl}/bookings/${booking.id}`;
 
     const serviceName = booking.service_name || "Booked service";

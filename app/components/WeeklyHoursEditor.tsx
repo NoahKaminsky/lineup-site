@@ -41,7 +41,7 @@ function formatTime(time: string) {
   const m = minutes % 60;
   const suffix = h >= 12 && h < 24 ? "pm" : "am";
   const h12 = h % 12 || 12;
-  return m === 0 ? `${h12}${suffix}` : `${h12}:${String(m).padStart(2, "0")}${suffix}`;
+  return `${h12}:${String(m).padStart(2, "0")}${suffix}`;
 }
 
 function formatTimeLong(time: string) {
@@ -181,7 +181,7 @@ export default function WeeklyHoursEditor({
         ) : null}
       </div>
 
-      <ul className="mt-3 overflow-hidden rounded-2xl border border-hairline bg-surface">
+      <ul className="mt-3 overflow-hidden rounded-2xl bg-surface ring-1 ring-ink/[0.06]">
         {DAY_ORDER.map((day, index) => {
           const list = byDay(day);
           const isOpen = list.length > 0;

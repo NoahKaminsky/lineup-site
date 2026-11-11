@@ -5,6 +5,8 @@ import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useScrollVar } from "@/app/lib/useScrollVar";
+import SplitFlap from "@/app/components/SplitFlap";
 import { useParams } from "next/navigation";
 import {
   BadgeCheck,
@@ -14,10 +16,13 @@ import {
   ChevronRight,
   Search,
   Sun,
+  Check,
+  X,
   Moon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import PaymentModal from "@/app/components/payments/PaymentModal";
+import CardSetupModal from "@/app/components/payments/CardSetupModal";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import DayZoomArea from "@/app/components/DayZoom";
 import type { ProfileDetailInitialData } from "./getInitialData";
@@ -27,6 +32,7 @@ import { useHashTarget } from "@/app/lib/useHashTarget";
 import { fetchBookingSchedule } from "@/app/lib/fetchBusyTimes";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
+import { shopNow } from "@/app/lib/bookingTime";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -362,8 +368,7 @@ function ProfileSection({
 }) {
   const heading = (
     <div className="min-w-0">
-      {subtitle ? <p className="text-xs font-medium text-neutral-500">{subtitle}</p> : null}
-      <h2 className="mt-1.5 text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink md:text-[2rem]">
+      <h2 className="text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink md:text-[2rem]">
         {title}
       </h2>
       {summary ? <p className="mt-2 text-sm leading-6 text-neutral-500">{summary}</p> : null}
@@ -434,9 +439,11 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   // ids explicitly.
   const seed: ProfileDetailCache | null = cached ?? (initialData as unknown as ProfileDetailCache | null);
 
+  const heroRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(() => !seed);
   const [message, setMessage] = useState("");
   const [profile, setProfile] = useState<Profile | null>(() => seed?.profile ?? null);
+  useScrollVar(heroRef, 1, profile?.id);
   // Shared booking links end in #availability: land on the calendar once the
   // profile has loaded.
   useHashTarget(!loading && !!profile);
@@ -565,6 +572,12 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [pendingBookingChoice, setPendingBookingChoice] = useState<PendingBookingChoice | null>(null);
   const [confirmedBooking, setConfirmedBooking] = useState<BookingRow | null>(null);
   const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
+  // "Book now, pay at the shop" (studio pros whose shop allows it).
+  const [payAtShopTerms, setPayAtShopTerms] = useState<{ studioName: string; noShowFeePercent: number } | null>(null);
+  const [payAtShopChoice, setPayAtShopChoice] = useState(false);
+  const [cardSetup, setCardSetup] = useState<{ clientSecret: string; priceCents: number; noShowFeeCents: number } | null>(
+    null
+  );
   const [confirmingPayment, setConfirmingPayment] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [showAllServices, setShowAllServices] = useState(false);
@@ -891,8 +904,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
           // Today: never offer a time that has already started (15 min buffer).
           if (offset === 0) {
-            const now = new Date();
-            if (slotStart <= now.getHours() * 60 + now.getMinutes() + 15) continue;
+            if (slotStart <= shopNow().minutes + 15) continue;
           }
 
           const dateKey = formatDateKey(currentDate);
@@ -1053,6 +1065,41 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     ].filter((group) => group.slots.length > 0);
   }, [selectedBookingDay]);
 
+  // Arriving from a shop's booking page with a time already picked
+  // (?book=YYYY-MM-DDTHH:MM&service=<id>): open the calendar on that time
+  // with that service, ready to confirm. Done once; if the time has gone by
+  // the time they land, they just see the day.
+  const [handoff, setHandoff] = useState<{ date: string; time: string; service: string | null } | null>(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const book = params.get("book") || "";
+    const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(book);
+    return m ? { date: m[1], time: m[2], service: params.get("service") } : null;
+  });
+  useEffect(() => {
+    if (!handoff || !handoff.service) return;
+    if (services.some((service) => service.id === handoff.service)) setPreferredServiceId(handoff.service);
+  }, [handoff, services]);
+  useEffect(() => {
+    if (!handoff || generatedSlots.length === 0) return;
+    if (handoff.service && services.some((s) => s.id === handoff.service) && preferredServiceId !== handoff.service) return;
+    const slot = generatedSlots.find((s) => s.date === handoff.date && s.start_time === handoff.time);
+    setSelectedDay(handoff.date);
+    if (slot) {
+      setSelectedSlot(slot);
+      setSelectedServiceMode(directBookingModes.length === 1 ? directBookingModes[0] : null);
+      const minutes = timeToMinutes(slot.start_time);
+      setSelectedPeriod(minutes < 12 * 60 ? "Morning" : minutes < 16 * 60 ? "Afternoon" : "Evening");
+      if (handoff.service) setChosenService({ slotKey: slot.key, serviceId: handoff.service });
+    }
+    setHandoff(null);
+    window.setTimeout(() => {
+      document.getElementById("availability")?.scrollIntoView({ block: "start" });
+    }, 80);
+    // directBookingModes is derived each render; the handoff runs once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handoff, generatedSlots, services, preferredServiceId]);
+
   const activePeriodGroup =
     selectedDayTimeGroups.find((group) => group.label === selectedPeriod) ||
     selectedDayTimeGroups[0] ||
@@ -1162,11 +1209,17 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
+  // A plain "2026-11-09" is a calendar day, not an instant: read it at noon
+  // UTC so it never slides to the day before west of Greenwich.
   function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString("en-CA", {
-      year: "numeric",
+    const plain = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
+    const d = plain ? new Date(`${dateString}T12:00:00Z`) : new Date(dateString);
+    return d.toLocaleDateString("en-US", {
+      weekday: plain ? "short" : undefined,
       month: "short",
       day: "numeric",
+      ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" as const } : {}),
+      ...(plain ? { timeZone: "UTC" } : {}),
     });
   }
 
@@ -1318,6 +1371,16 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     return `${first.dayLabel} ${first.dateLabel} • ${formatTime(first.start_time)}`;
   }
 
+  // "Today 5:30 PM", "Tomorrow 9:00 AM", "Wed Nov 11, 9:00 AM" for the main button.
+  function getNextOpeningShort() {
+    if (generatedSlots.length === 0) return null;
+    const first = generatedSlots[0];
+    const relative = first.dayLabel === "Today" || first.dayLabel === "Tomorrow";
+    return relative
+      ? `${first.dayLabel} ${formatTime(first.start_time)}`
+      : `${first.dayLabel} ${first.dateLabel}, ${formatTime(first.start_time)}`;
+  }
+
   function handleStartBookingConfirmation(service: ProfessionalService) {
     setMessage("");
 
@@ -1369,10 +1432,70 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     });
   }
 
+  // Whether this pro's shop lets clients pay at the shop instead of now.
+  useEffect(() => {
+    const proId = profile?.id;
+    if (!proId) return;
+    let cancelled = false;
+    fetch(`/api/bookings/pay-at-shop?professionalId=${encodeURIComponent(proId)}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (cancelled) return;
+        setPayAtShopTerms(json?.available ? { studioName: json.studioName, noShowFeePercent: json.noShowFeePercent } : null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id]);
+
+  async function handlePayAtShopCardSaved(setupIntentId: string) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const response = await fetch("/api/bookings/pay-at-shop", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ setupIntentId }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setCardSetup(null);
+    setBookingSlotKey(null);
+
+    if (!response.ok || !data?.bookingId) {
+      setMessage(data?.error || "Your card was saved, but we couldn't confirm the booking. Check your Bookings tab.");
+      return;
+    }
+
+    const { data: created } = await supabase
+      .from("bookings")
+      .select(
+        "id, professional_id, customer_id, booking_date, start_time, end_time, status, service_id, service_name, duration_minutes, service_price, service_mode, source, formatted_address, location_lat, location_lng, location_place_id"
+      )
+      .eq("id", data.bookingId)
+      .maybeSingle();
+
+    if (created) {
+      const booked = {
+        ...created,
+        start_time: String(created.start_time).slice(0, 5),
+        end_time: String(created.end_time).slice(0, 5),
+      } as BookingRow;
+      setBookings((prev) => [...prev, booked]);
+      setConfirmedBooking(booked);
+      setSelectedSlot(null);
+      setSelectedServiceMode(null);
+    }
+  }
+
   async function handleBookServiceInSlot(
     service: ProfessionalService,
     slotOverride?: GeneratedSlot,
-    modeOverride?: string
+    modeOverride?: string,
+    payAtShop = false
   ) {
     if (bookingSlotKey) return;
 
@@ -1443,6 +1566,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
           startTime: activeSlot.start_time,
           endTime: activeSlot.end_time,
           mode: activeMode,
+          ...(payAtShop ? { payAtShop: true } : {}),
         }),
       });
 
@@ -1460,6 +1584,15 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
           if (schedule) setBookings(schedule.rows as BookingRow[]);
           setSelectedSlot(null);
         }
+        return;
+      }
+
+      if (data.mode === "setup") {
+        setCardSetup({
+          clientSecret: data.clientSecret,
+          priceCents: Number(data.amountCents) || 0,
+          noShowFeeCents: Number(data.noShowFeeCents) || 0,
+        });
         return;
       }
 
@@ -1700,6 +1833,7 @@ if (loading) {
             const subline = [
               isProfessional ? formatProfessionalTypes(profile) : "LineUp Client",
               isProfessional ? profile.business_name?.trim() : null,
+              isProfessional && averageRating ? `★ ${averageRating} (${reviews.length})` : null,
             ]
               .filter(Boolean)
               .join(" · ");
@@ -1754,21 +1888,45 @@ if (loading) {
               </div>
             );
 
+            // Scroll-driven: the cover drifts slower than the page and the
+            // name lifts away; without a cover, a giant initial does it.
             return profile.banner_url ? (
-              <div className="relative overflow-hidden rounded-[32px] bg-ink">
+              <div ref={heroRef} className="relative overflow-hidden rounded-[32px] bg-ink" style={{ ["--sp" as string]: 0 }}>
                 <button
                   type="button"
                   onClick={() => setShowBannerPreview(true)}
-                  className="block h-[400px] w-full cursor-zoom-in md:h-[500px]"
+                  className="block h-[400px] w-full cursor-zoom-in overflow-hidden md:h-[500px]"
                   aria-label="View cover photo"
                 >
-                  <img src={profile.banner_url} alt="Cover photo" className="lu-cover-in h-full w-full object-cover" />
+                  <img
+                    src={profile.banner_url}
+                    alt="Cover photo"
+                    className="lu-cover-in h-full w-full object-cover will-change-transform"
+                    style={{ transform: "translate3d(0, calc(var(--sp) * 90px), 0) scale(calc(1.04 + var(--sp) * 0.1))" }}
+                  />
                 </button>
-                <div className="lu-fade-in pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/0" />
-                <div className="absolute inset-x-0 bottom-0 p-6 md:p-10">{identity(true)}</div>
+                <div
+                  className="lu-fade-in pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/0"
+                  style={{ opacity: "calc(1 + var(--sp) * 0.4)" }}
+                />
+                <div
+                  className="absolute inset-x-0 bottom-0 p-6 md:p-10"
+                  style={{ transform: "translate3d(0, calc(var(--sp) * -40px), 0)", opacity: "calc(1 - var(--sp) * 1.4)" }}
+                >
+                  {identity(true)}
+                </div>
               </div>
             ) : (
-              <div className="pt-4 md:pt-10">{identity(false)}</div>
+              <div ref={heroRef} className="relative pt-4 md:pt-10" style={{ ["--sp" as string]: 0 }}>
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -right-4 -top-10 select-none text-[16rem] font-semibold leading-none tracking-[-0.08em] text-ink/[0.05] md:-top-20 md:text-[24rem]"
+                  style={{ transform: "translate3d(0, calc(var(--sp) * 120px), 0) rotate(calc(var(--sp) * -6deg))" }}
+                >
+                  {(profile.full_name || "L").charAt(0).toUpperCase()}
+                </span>
+                <div className="relative">{identity(false)}</div>
+              </div>
             );
           })()}
 
@@ -1818,18 +1976,7 @@ if (loading) {
                 </p>
               ) : null}
 
-              {profileTags.filter((tag) => !tag.startsWith("Verified")).length > 0 ? (
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {profileTags
-                    .filter((tag) => !tag.startsWith("Verified"))
-                    .slice(0, 4)
-                    .map((tag) => (
-                      <span key={tag} className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 ring-1 ring-ink/[0.07]">
-                        {tag}
-                      </span>
-                    ))}
-                </div>
-              ) : null}
+
             </div>
 
             <div className="lg:w-[300px]">
@@ -1847,7 +1994,7 @@ if (loading) {
                       className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-7 py-4 text-[15px] font-semibold text-white transition duration-300 ease-premium hover:bg-neutral-800 active:scale-[0.98]"
                     >
                       <CalendarDays className="h-4 w-4" />
-                      Book a time
+                      {getNextOpeningShort() ? `Book · ${getNextOpeningShort()}` : "Book a time"}
                     </a>
                   ) : null}
                   <Link
@@ -1856,17 +2003,18 @@ if (loading) {
                         ? `/requests/new?rebook=1&pro=${profile.id}`
                         : loginHref(`/requests/new?rebook=1&pro=${profile.id}`)
                     }
-                    className={`inline-flex items-center justify-center rounded-full px-7 py-4 text-[15px] font-semibold transition duration-300 ease-premium active:scale-[0.98] ${
+                    className={
                       canDirectBook
-                        ? "bg-white text-ink ring-1 ring-ink/15 hover:ring-ink/30"
-                        : "bg-ink text-white hover:bg-neutral-800"
-                    }`}
+                        ? "text-center text-sm font-medium text-neutral-500 transition hover:text-ink"
+                        : "inline-flex items-center justify-center rounded-full bg-ink px-7 py-4 text-[15px] font-semibold text-white transition duration-300 ease-premium hover:bg-neutral-800 active:scale-[0.98]"
+                    }
                   >
-                    {hasBookedBefore ? "Request again" : "Request service"}
+                    {canDirectBook
+                      ? "or send a request"
+                      : hasBookedBefore
+                        ? "Request again"
+                        : "Request service"}
                   </Link>
-                  {canDirectBook && getNextOpeningText() ? (
-                    <p className="mt-1 text-center text-xs text-neutral-500">Next opening {getNextOpeningText()}</p>
-                  ) : null}
                 </div>
               ) : null}
 
@@ -1906,60 +2054,7 @@ if (loading) {
             </dl>
           ) : null}
 
-          {isProfessional ? (
-            <dl
-              style={{ "--lu-delay": profile.banner_url ? "720ms" : "460ms" } as React.CSSProperties}
-              className={`lu-rise mt-8 grid ${portfolioItems.length > 0 ? "grid-cols-4" : "grid-cols-3"} divide-x divide-ink/[0.08] rounded-2xl bg-white py-4 ring-1 ring-ink/[0.07] md:py-5`}>
-              {[
-                {
-                  label: "Rating",
-                  value: averageRating || "New",
-                  star: !!averageRating,
-                  href: reviews.length > 0 ? "#reviews" : null,
-                },
-                {
-                  label: reviews.length === 1 ? "Review" : "Reviews",
-                  value: String(reviews.length),
-                  href: reviews.length > 0 ? "#reviews" : null,
-                },
-                {
-                  label: services.length === 1 ? "Service" : "Services",
-                  value: String(services.length),
-                  href: services.length > 0 ? "#services" : null,
-                },
-                portfolioItems.length > 0
-                  ? { label: "Portfolio", value: String(portfolioItems.length), href: "#work" }
-                  : null,
-              ]
-                .filter((stat): stat is NonNullable<typeof stat> => !!stat)
-                .map((stat) => {
-                const body = (
-                  <>
-                    <dt className="mt-1.5 truncate text-[11px] text-neutral-500 md:text-xs">{stat.label}</dt>
-                    <dd className="flex items-center justify-center gap-1 text-[1.15rem] font-semibold leading-none tracking-[-0.02em] text-ink md:text-[1.5rem]">
-                      {"star" in stat && stat.star ? (
-                        <span aria-hidden="true" className="text-[0.7em] leading-none">★</span>
-                      ) : null}
-                      {stat.value}
-                    </dd>
-                  </>
-                );
-                return stat.href ? (
-                  <a
-                    key={stat.label}
-                    href={stat.href}
-                    className="flex min-w-0 flex-col-reverse items-center px-2 text-center transition hover:opacity-70"
-                  >
-                    {body}
-                  </a>
-                ) : (
-                  <div key={stat.label} className="flex min-w-0 flex-col-reverse items-center px-2 text-center">
-                    {body}
-                  </div>
-                );
-              })}
-            </dl>
-          ) : null}
+          {/* Rating sits in the name line; sections are one tap away in the tab bar. */}
 
           {message ? (
             <div className="mt-6 rounded-2xl bg-white p-4 text-sm text-neutral-700 ring-1 ring-ink/[0.07]">{message}</div>
@@ -2044,24 +2139,13 @@ if (loading) {
               id="availability"
               wide
               title="Book a time"
-              subtitle="Availability"
-              summary={getNextOpeningText() ? `Next opening: ${getNextOpeningText()}` : "View available times"}
+              summary={
+                directBookingModes.length > 0
+                  ? `Pick a time and it's booked. ${directBookingModes.map((m) => formatModeLabel(m)).join(" or ")}.`
+                  : "Pick a time and it's booked."
+              }
             >
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm ring-1 ring-ink/[0.07]">
-                <p className="text-neutral-600">
-                  Pick an open time below and book instantly
-                  {directBookingModes.length > 0
-                    ? ` (${directBookingModes.map((m) => formatModeLabel(m).toLowerCase()).join(" or ")})`
-                    : ""}
-                  .
-                </p>
-                <Link
-                  href={`/requests/new?rebook=1&pro=${profile.id}`}
-                  className="font-medium text-ink underline decoration-ink/25 underline-offset-4 transition hover:decoration-ink"
-                >
-                  Make a direct service request instead
-                </Link>
-              </div>
+
 
               {preferredService ? (
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink bg-surface px-4 py-3 text-sm">
@@ -2181,28 +2265,11 @@ if (loading) {
                                 {day.shortDayLabel}
                               </span>
 
-                              <span className="flex h-5 items-center justify-center gap-0.5 sm:gap-1">
-                                {symbols.length > 0 ? (
-                                  symbols.map((symbol) => (
-                                    <span
-                                      key={symbol}
-                                      className={`inline-flex h-4 w-4 items-center sm:h-5 sm:w-5 justify-center rounded-full ring-1 ${
-                                        isSelected
-                                          ? "bg-ink text-white ring-black"
-                                          : "bg-neutral-100 text-neutral-500 ring-neutral-200"
-                                      }`}
-                                    >
-                                      {symbol === "evening" ? (
-                                        <Moon className="h-3 w-3" strokeWidth={2.25} />
-                                      ) : (
-                                        <Sun className="h-3 w-3" strokeWidth={2.25} />
-                                      )}
-                                    </span>
-                                  ))
-                                ) : (
-                                  <span className="h-1.5 w-1.5 rounded-full bg-neutral-200" />
-                                )}
-                              </span>
+                              {/* one dot: open or not. Morning/evening is in the times below. */}
+                              <span
+                                aria-hidden="true"
+                                className={`h-1.5 w-1.5 rounded-full ${symbols.length > 0 ? "bg-emerald-500" : "bg-neutral-200"}`}
+                              />
                             </button>
                           );
                         })}
@@ -2213,22 +2280,14 @@ if (loading) {
                     <div className="min-w-0 rounded-3xl bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                          <p className="text-xs font-medium text-neutral-500">
-                            Selected day
-                          </p>
-                          <h3 className="mt-2 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
+                          <h3 className="text-xl font-semibold tracking-[-0.02em] text-neutral-900">
                             {selectedBookingDay
                               ? `${selectedBookingDay.dayLabel} ${selectedBookingDay.dateLabel}`
                               : "Choose a day"}
                           </h3>
                         </div>
 
-                        {selectedBookingDay ? (
-                          <span className="w-fit rounded-full bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm ring-1 ring-neutral-200">
-                            {selectedBookingDay.slots.length} open{" "}
-                            {selectedBookingDay.slots.length === 1 ? "time" : "times"}
-                          </span>
-                        ) : null}
+
                       </div>
 
                       {!selectedBookingDay || selectedBookingDay.slots.length === 0 ? (
@@ -2305,30 +2364,26 @@ if (loading) {
                                       setLocationLng(null);
                                       setMessage("");
                                     }}
-                                    className={`min-w-0 rounded-2xl border px-3 py-3 text-left transition-all duration-150 ${
+                                    className={`min-w-0 rounded-2xl px-3 py-3 text-left transition-all duration-150 ${
                                       isSelected
-                                        ? "border-ink bg-ink text-white shadow-md"
+                                        ? "bg-ink text-white shadow-md"
                                         : isCovered
-                                        ? "cursor-default border-ink/70 bg-ink/75 text-white"
-                                        : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
+                                        ? "cursor-default bg-ink/75 text-white"
+                                        : "bg-neutral-50 text-neutral-900 ring-1 ring-inset ring-ink/[0.06] hover:bg-white hover:ring-ink/20 disabled:cursor-not-allowed disabled:opacity-50"
                                     }`}
                                   >
                                     <p className={`text-base font-semibold ${isCovered ? "text-white/70" : ""}`}>
                                       {bookingSlotKey === slot.key ? "Booking…" : formatTime(slot.start_time)}
                                     </p>
-                                    <p
-                                      className={`mt-1 text-xs ${
-                                        isSelected || isCovered ? "text-white/70" : "text-neutral-500"
-                                      }`}
-                                    >
-                                      {isSelected
-                                        ? chosenRange
-                                          ? `until ${formatTime(minutesToTime(chosenRange.end))}`
-                                          : "Pick a service"
-                                        : isCovered
-                                        ? "Your appointment"
-                                        : "Open"}
-                                    </p>
+                                    {isSelected || isCovered ? (
+                                      <p className="mt-1 text-xs text-white/70">
+                                        {isSelected
+                                          ? chosenRange
+                                            ? `until ${formatTime(minutesToTime(chosenRange.end))}`
+                                            : "Pick a service"
+                                          : "Your appointment"}
+                                      </p>
+                                    ) : null}
                                   </button>
                                   );
                                 })}
@@ -2340,202 +2395,193 @@ if (loading) {
                     </div>
                   </div>
 
-                  <div className="h-fit rounded-3xl bg-white p-5 ring-1 ring-ink/[0.07] xl:sticky xl:top-[calc(var(--profile-offset,8rem)+1rem)]">
-                    <p className="text-xs font-medium text-neutral-500">
-                      Booking summary
-                    </p>
-
+                  <div className={`h-fit rounded-3xl bg-white p-5 ring-1 ring-ink/[0.07] xl:sticky xl:top-[calc(var(--profile-offset,8rem)+1rem)] ${selectedSlot ? "" : "hidden xl:block"}`}>
                     {!selectedSlot ? (
-                      <div className="mt-4 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
-                        Select a day and time to see which services fit and complete your booking.
+                      <div className="px-1 py-2">
+                        <p className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Your booking</p>
+                        <p className="mt-1 text-sm leading-6 text-neutral-500">
+                          Pick a time and it shows up here with the services that fit.
+                          {!viewerUserId ? " You'll sign in to confirm and come right back." : ""}
+                        </p>
                       </div>
                     ) : (
                       <>
-                        <div className="mt-4 rounded-2xl border border-ink bg-surface p-5 text-ink">
-                          <p className="text-xs font-medium text-neutral-500">
-                            Selected time
-                          </p>
-                          <h3 className="mt-2 text-xl font-semibold">
-                            {selectedSlot.dayLabel} {selectedSlot.dateLabel}
-                          </h3>
-                          <p className="mt-2 text-sm text-neutral-600">
-                            {chosenRange && activeChosenService
-                              ? `${formatTime(selectedSlot.start_time)} – ${formatTime(minutesToTime(chosenRange.end))} · ${activeChosenService.service_name} (${activeChosenService.duration_minutes} min)`
-                              : `Starts ${formatTime(selectedSlot.start_time)}. Pick a service to see when it ends.`}
-                          </p>
+                        {/* The appointment as a ticket: when, what, where. */}
+                        <div className="relative overflow-hidden rounded-[24px] bg-white text-ink shadow-[0_18px_40px_-26px_rgba(0,0,0,0.4)] ring-1 ring-ink/[0.07]">
+                          <div className="relative p-5">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="text-sm text-neutral-500">
+                                {selectedSlot.dayLabel} {selectedSlot.dateLabel}
+                              </p>
+                              <button
+                                type="button"
+                                aria-label="Clear this time"
+                                onClick={() => {
+                                  setSelectedSlot(null);
+                                  setSelectedServiceMode(null);
+                                  setLocationInput("");
+                                  setLocationPlaceId("");
+                                  setLocationLat(null);
+                                  setLocationLng(null);
+                                }}
+                                className="-mr-1 -mt-1 rounded-full p-1.5 text-neutral-400 transition hover:bg-neutral-100 hover:text-ink"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <div className="mt-2 flex flex-wrap items-end gap-x-2 gap-y-1">
+                              <SplitFlap text={formatTime(selectedSlot.start_time).split(" ")[0]} className="text-[2.2rem] font-semibold" />
+                              <span className="mb-1 text-sm font-semibold text-neutral-500">
+                                {formatTime(selectedSlot.start_time).split(" ")[1]}
+                                {chosenRange && activeChosenService ? ` to ${formatTime(minutesToTime(chosenRange.end))}` : ""}
+                              </span>
+                            </div>
+                            <p className="mt-3 text-[15px] font-medium">
+                              {activeChosenService ? (
+                                <>
+                                  {activeChosenService.service_name}
+                                  <span className="font-normal text-neutral-500"> with {(profile.full_name || "your pro").split(" ")[0]}</span>
+                                </>
+                              ) : (
+                                <span className="text-neutral-400">Pick a service below</span>
+                              )}
+                            </p>
+                          </div>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedSlot(null);
-                              setSelectedServiceMode(null);
-                              setLocationInput("");
-                              setLocationPlaceId("");
-                              setLocationLat(null);
-                              setLocationLng(null);
-                            }}
-                            className="mt-4 rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium text-ink transition hover:bg-neutral-50"
-                          >
-                            Clear
-                          </button>
+                          {/* Perforation, like a tear-off stub. */}
+                          <div aria-hidden="true" className="relative h-4">
+                            <span className="absolute -left-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white ring-1 ring-ink/[0.07]" />
+                            <span className="absolute -right-2 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white ring-1 ring-ink/[0.07]" />
+                            <span className="absolute inset-x-4 top-1/2 border-t-2 border-dotted border-ink/10" />
+                          </div>
+
+                          <div className="relative flex items-center justify-between gap-3 px-5 pb-5 pt-2 text-[13px] text-neutral-500">
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                              <span className="truncate">
+                                {selectedServiceMode && professionalBookingAddress
+                                  ? formatDisplayAddress(professionalBookingAddress)
+                                  : selectedServiceMode
+                                    ? formatModeLabel(selectedServiceMode)
+                                    : "Pick where"}
+                              </span>
+                            </span>
+                            {activeChosenService && formatPrice(activeChosenService.price) ? (
+                              <span className="shrink-0 text-base font-semibold tabular-nums text-ink">
+                                {formatPrice(activeChosenService.price)}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
 
                         {servicesThatFitSelectedSlot.length === 0 ? (
-                          <div className="mt-4 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
-                            No services fit inside this time block.
-                          </div>
+                          <p className="mt-4 rounded-2xl bg-neutral-50 p-4 text-sm text-neutral-600">
+                            No service fits in this gap. Try an earlier time or another day.
+                          </p>
                         ) : (
-                          <div className="mt-4 space-y-4">
-                            <div>
-                              <p className="text-sm font-medium text-neutral-900">
-                                Where it happens
+                          <div className="mt-5 space-y-5">
+                            {directBookingModes.length === 0 ? (
+                              <p className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+                                This pro hasn&apos;t turned on bookings at their shop or studio yet. Send them a request instead.
                               </p>
-                              <p className="mt-1 text-xs leading-5 text-neutral-500">
-                                Direct bookings are for appointments at the professional’s shop or studio. For a mobile appointment at your place, post a request instead.
-                              </p>
-
-                              {directBookingModes.length > 0 ? (
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                  {directBookingModes.map((mode) => (
-                                    <button
-                                      key={mode}
-                                      type="button"
-                                      onClick={() => {
-                                        setSelectedServiceMode(mode);
-                                        setLocationInput("");
-                                        setLocationPlaceId("");
-                                        setLocationLat(null);
-                                        setLocationLng(null);
-                                        setMessage("");
-                                      }}
-                                      className={`rounded-full border px-4 py-2 text-sm transition ${
-                                        selectedServiceMode === mode
-                                          ? "border-ink bg-ink text-white"
-                                          : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-100"
-                                      }`}
-                                    >
-                                      {formatModeLabel(mode)}
-                                    </button>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                                  This professional has not enabled in-shop or home-studio direct booking yet.
-                                </div>
-                              )}
-                            </div>
-
-                            {selectedServiceMode === "in_shop" || selectedServiceMode === "home_studio" ? (
-                              <div className="rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm leading-6 text-neutral-600">
-                                <p className="font-medium text-neutral-900">
-                                  {formatModeLabel(selectedServiceMode)}
-                                </p>
-                                <p className="mt-1">
-                                  This booking will use the professional’s saved business location.
-                                </p>
-
-                                {professionalBookingAddress ? (
-                                  <div className="mt-3 rounded-xl border border-neutral-200 bg-white p-3">
-                                    <p className="font-medium text-neutral-900">
-                                      <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{formatDisplayAddress(professionalBookingAddress)}
-                                    </p>
-                                    {profileDistanceLabel ? (
-                                      <p className="mt-1 text-xs font-medium text-neutral-500">
-                                        {profileDistanceLabel}
-                                      </p>
-                                    ) : null}
-
-                                    {professionalMapsUrl ? (
-                                      <a
-                                        href={professionalMapsUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="mt-3 inline-flex rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-800 transition hover:bg-neutral-50"
-                                      >
-                                        Open in Maps
-                                      </a>
-                                    ) : null}
-                                  </div>
-                                ) : (
-                                  <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
-                                    This professional still needs to add a shop/studio address in Services.
-                                  </p>
-                                )}
-                              </div>
-                            ) : directBookingModes.length > 0 ? (
-                              <div className="rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-500">
-                                Select where you want to book the appointment.
+                            ) : directBookingModes.length > 1 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {directBookingModes.map((mode) => (
+                                  <button
+                                    key={mode}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedServiceMode(mode);
+                                      setLocationInput("");
+                                      setLocationPlaceId("");
+                                      setLocationLat(null);
+                                      setLocationLng(null);
+                                      setMessage("");
+                                    }}
+                                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                                      selectedServiceMode === mode
+                                        ? "bg-ink text-white"
+                                        : "bg-neutral-100 text-neutral-800 hover:bg-neutral-200"
+                                    }`}
+                                  >
+                                    {formatModeLabel(mode)}
+                                  </button>
+                                ))}
                               </div>
                             ) : null}
 
-                            <div>
-                              <p className="text-sm font-medium text-neutral-900">
-                                Choose your service
+                            {(selectedServiceMode === "in_shop" || selectedServiceMode === "home_studio") && !professionalBookingAddress ? (
+                              <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">
+                                This pro still needs to add their address.
                               </p>
+                            ) : null}
 
-                              <div className="mt-2 space-y-3">
-                                {servicesThatFitSelectedSlot.map((service) => (
+                            <div role="radiogroup" aria-label="Service" className="space-y-2">
+                              {servicesThatFitSelectedSlot.map((service) => {
+                                const picked = service.id === activeChosenService?.id;
+                                return (
                                   <button
                                     key={service.id}
                                     type="button"
+                                    role="radio"
+                                    aria-checked={picked}
                                     onClick={() => {
-                                      // Pick it first: its length fills in on the times.
                                       setMessage("");
                                       setChosenService({ slotKey: selectedSlot.key, serviceId: service.id });
                                     }}
                                     disabled={bookingSlotKey === selectedSlot.key}
-                                    className={`w-full rounded-2xl bg-white p-4 text-left transition hover:border-ink hover:bg-neutral-50 disabled:opacity-60 ${
-                                      service.id === activeChosenService?.id ? "ring-2 ring-ink" : "ring-1 ring-ink/[0.06]"
+                                    className={`flex w-full items-center gap-3 rounded-2xl p-4 text-left transition disabled:opacity-60 ${
+                                      picked ? "bg-white ring-2 ring-ink" : "bg-neutral-50 ring-1 ring-inset ring-ink/[0.06] hover:bg-white hover:ring-ink/20"
                                     }`}
                                   >
-                                    <p className="font-semibold text-neutral-900">
-                                      {service.service_name}
-                                      {service.id === activeChosenService?.id ? (
-                                        <span className="ml-2 align-middle text-xs font-medium text-neutral-500">Your pick</span>
-                                      ) : null}
-                                    </p>
-                                    <p className="mt-1 text-sm text-neutral-500">
-                                      {service.duration_minutes} min
-                                      {formatPrice(service.price) ? ` · ${formatPrice(service.price)}` : ""}
-                                    </p>
-                                    {service.description ? (
-                                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-600">
-                                        {service.description}
-                                      </p>
+                                    <span
+                                      aria-hidden="true"
+                                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition ${
+                                        picked ? "bg-ink text-white" : "ring-1 ring-inset ring-ink/20"
+                                      }`}
+                                    >
+                                      {picked ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                      <span className="block truncate font-semibold text-ink">{service.service_name}</span>
+                                      <span className="mt-0.5 block text-[13px] text-neutral-500">{service.duration_minutes} min</span>
+                                    </span>
+                                    {formatPrice(service.price) ? (
+                                      <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">{formatPrice(service.price)}</span>
                                     ) : null}
                                   </button>
-                                ))}
-                              </div>
-
-                              {activeChosenService ? (
-                                <button
-                                  type="button"
-                                  disabled={bookingSlotKey === selectedSlot.key}
-                                  onClick={() => {
-                                    if (!selectedServiceMode) {
-                                      setMessage("Pick where it happens first.");
-                                      return;
-                                    }
-                                    handleStartBookingConfirmation(activeChosenService);
-                                  }}
-                                  className="mt-4 w-full rounded-full bg-ink px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60"
-                                >
-                                  Book {activeChosenService.service_name}
-                                  {formatPrice(activeChosenService.price) ? ` · ${formatPrice(activeChosenService.price)}` : ""}
-                                </button>
-                              ) : (
-                                <p className="mt-3 text-xs text-neutral-500">Pick a service to see how long it takes on the calendar.</p>
-                              )}
+                                );
+                              })}
                             </div>
+
+                            <button
+                              type="button"
+                              disabled={!activeChosenService || bookingSlotKey === selectedSlot.key}
+                              onClick={() => {
+                                if (!activeChosenService) return;
+                                if (!selectedServiceMode) {
+                                  setMessage("Pick where it happens first.");
+                                  return;
+                                }
+                                handleStartBookingConfirmation(activeChosenService);
+                              }}
+                              className="flex w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-4 text-[15px] font-semibold text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,0.6)] transition hover:bg-neutral-800 active:scale-[0.99] disabled:bg-neutral-300 disabled:shadow-none"
+                            >
+                              {bookingSlotKey === selectedSlot.key
+                                ? "Booking…"
+                                : activeChosenService
+                                  ? `Book for ${formatTime(selectedSlot.start_time)}`
+                                  : "Pick a service to book"}
+                            </button>
                           </div>
                         )}
                       </>
                     )}
 
                     {!viewerUserId ? (
-                      <div className="mt-4 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
-                        Pick a time and a service. You&apos;ll sign in to confirm and come right back here.
-                      </div>
+                      selectedSlot ? (
+                        <p className="mt-4 text-center text-xs text-neutral-500">You&apos;ll sign in to confirm and come right back here.</p>
+                      ) : null
                     ) : !viewerIsCustomer ? (
                       <div className="mt-4 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-600">
                         Sign in as a customer to book a time.
@@ -2713,7 +2759,7 @@ if (loading) {
           {isProfessional ? (
             <ProfileSection
               id="reviews"
-              title="Client feedback"
+              title="Reviews"
               subtitle="Reviews"
             >
               {reviews.length === 0 ? (
@@ -2842,101 +2888,124 @@ if (loading) {
       ) : null}
 
       {pendingBookingChoice ? (
-        <div className="lu-fade-in fixed inset-0 z-[70] flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm">
-          <div className="lu-dialog-in w-full max-w-md rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-neutral-100 text-ink">
-              <CalendarDays aria-hidden="true" className="h-5 w-5" strokeWidth={1.8} />
-            </div>
-
-            <h2 className="mt-4 text-xl font-semibold tracking-[-0.02em] text-neutral-900">
-              Confirm booking
+        <div className="lu-fade-in fixed inset-0 z-[70] flex items-end justify-center bg-ink/50 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="lu-sheet-in w-full max-w-md rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-7">
+            <h2 className="text-[1.6rem] font-semibold leading-[1.1] tracking-[-0.035em] text-ink">
+              {pendingBookingChoice.service.service_name}
+              <span className="text-neutral-400"> with {(profile.full_name || "your pro").split(" ")[0]}</span>
             </h2>
-            <p className="mt-2 text-sm leading-6 text-neutral-600">
-              Make sure the service, time, and location are right before confirming.
+            <p className="mt-2 text-[15px] text-neutral-600">
+              {formatDate(pendingBookingChoice.slot.date)}, {formatTime(pendingBookingChoice.slot.start_time)} to{" "}
+              {formatTime(pendingBookingChoice.slot.end_time)}
             </p>
 
-            <div className="mt-4 space-y-3 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-4 text-sm text-neutral-700">
-              <div>
-                <p className="text-xs font-medium text-neutral-500">
-                  Service
-                </p>
-                <p className="mt-1 font-semibold text-neutral-900">
-                  {pendingBookingChoice.service.service_name}
-                </p>
+            <dl className="mt-5 divide-y divide-ink/[0.06] border-y border-ink/[0.06]">
+              <div className="flex items-baseline justify-between gap-6 py-3">
+                <dt className="text-[13px] text-neutral-500">Where</dt>
+                <dd className="min-w-0 text-right text-sm font-medium text-ink">
+                  {pendingBookingChoice.address ? formatDisplayAddress(pendingBookingChoice.address) : formatModeLabel(pendingBookingChoice.mode)}
+                </dd>
               </div>
-
               {formatPrice(pendingBookingChoice.service.price) ? (
-                <div>
-                  <p className="text-xs font-medium text-neutral-500">
-                    Price
-                  </p>
-                  <p className="mt-1 font-semibold text-neutral-900">
-                    {formatPrice(pendingBookingChoice.service.price)}
-                  </p>
+                <div className="flex items-baseline justify-between gap-6 py-3">
+                  <dt className="text-[13px] text-neutral-500">Total</dt>
+                  <dd className="text-lg font-semibold tabular-nums text-ink">{formatPrice(pendingBookingChoice.service.price)}</dd>
                 </div>
               ) : null}
+            </dl>
 
-              <div>
-                <p className="text-xs font-medium text-neutral-500">
-                  Date & time
-                </p>
-                <p className="mt-1 font-semibold text-neutral-900">
-                  {formatDate(pendingBookingChoice.slot.date)} · {formatTime(pendingBookingChoice.slot.start_time)} - {formatTime(pendingBookingChoice.slot.end_time)}
-                </p>
+            {payAtShopTerms && pendingBookingChoice.mode === "in_shop" ? (
+              <div className="mt-5 grid grid-cols-2 gap-2" role="radiogroup" aria-label="When to pay">
+                {[
+                  { value: false, title: "Pay now", text: "Secure checkout" },
+                  { value: true, title: "Pay at the shop", text: "Card holds your spot" },
+                ].map((option) => (
+                  <button
+                    key={String(option.value)}
+                    type="button"
+                    role="radio"
+                    aria-checked={payAtShopChoice === option.value}
+                    onClick={() => setPayAtShopChoice(option.value)}
+                    className={`rounded-2xl p-3 text-left ring-1 transition ${
+                      payAtShopChoice === option.value
+                        ? "bg-ink text-white ring-ink"
+                        : "bg-white text-neutral-900 ring-ink/[0.1] hover:bg-neutral-50"
+                    }`}
+                  >
+                    <span className="block text-sm font-semibold">{option.title}</span>
+                    <span className={`block text-xs ${payAtShopChoice === option.value ? "text-white/70" : "text-neutral-500"}`}>
+                      {option.text}
+                    </span>
+                  </button>
+                ))}
               </div>
-
-              <div>
-                <p className="text-xs font-medium text-neutral-500">
-                  Where
-                </p>
-                <p className="mt-1 font-semibold text-neutral-900">
-                  {formatModeLabel(pendingBookingChoice.mode)}
-                </p>
-              </div>
-
-              {pendingBookingChoice.address ? (
-                <div>
-                  <p className="text-xs font-medium text-neutral-500">
-                    Location
-                  </p>
-                  <p className="mt-1 font-semibold text-neutral-900">
-                    <MapPin aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 shrink-0 align-[-2px]" />{formatDisplayAddress(pendingBookingChoice.address)}
-                  </p>
-                </div>
-              ) : null}
-            </div>
+            ) : null}
 
             {/* The cancellation policy, stated before anyone pays. */}
-            <p className="mt-5 rounded-2xl bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-600 ring-1 ring-ink/[0.05]">
-              <span className="font-semibold text-neutral-900">Cancellation policy:</span> cancel for a full refund until{" "}
-              {formatCancellationDeadline(pendingBookingChoice.slot.date, pendingBookingChoice.slot.start_time)}. Within 24
-              hours of the appointment, bookings can&apos;t be cancelled.
+            <p className="mt-4 text-xs leading-5 text-neutral-500">
+              {payAtShopTerms && payAtShopChoice && pendingBookingChoice.mode === "in_shop" ? (
+                <>
+                  <span className="font-semibold text-neutral-900">No-show policy:</span> nothing is charged today. Cancel
+                  free until {formatCancellationDeadline(pendingBookingChoice.slot.date, pendingBookingChoice.slot.start_time)}.
+                  If you don&apos;t show up, {payAtShopTerms.studioName} charges a no-show fee of{" "}
+                  {payAtShopTerms.noShowFeePercent}% of the price to your card.
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold text-neutral-900">Cancellation policy:</span> cancel for a full refund
+                  until {formatCancellationDeadline(pendingBookingChoice.slot.date, pendingBookingChoice.slot.start_time)}.
+                  Within 24 hours of the appointment, bookings can&apos;t be cancelled.
+                </>
+              )}
             </p>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-6 flex flex-col gap-2">
               <button
                 type="button"
                 onClick={() => {
                   const choice = pendingBookingChoice;
                   setPendingBookingChoice(null);
-                  handleBookServiceInSlot(choice.service, choice.slot, choice.mode);
+                  handleBookServiceInSlot(
+                    choice.service,
+                    choice.slot,
+                    choice.mode,
+                    !!payAtShopTerms && payAtShopChoice && choice.mode === "in_shop"
+                  );
                 }}
                 disabled={bookingSlotKey === pendingBookingChoice.slot.key}
-                className="inline-flex flex-1 items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-4 text-[15px] font-semibold text-white transition hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60"
               >
-                {bookingSlotKey === pendingBookingChoice.slot.key ? "Booking…" : "Confirm booking"}
+                {bookingSlotKey === pendingBookingChoice.slot.key
+                  ? "Booking…"
+                  : payAtShopTerms && payAtShopChoice && pendingBookingChoice.mode === "in_shop"
+                    ? "Hold my spot"
+                    : "Continue to payment"}
               </button>
               <button
                 type="button"
                 onClick={() => setPendingBookingChoice(null)}
                 disabled={bookingSlotKey === pendingBookingChoice.slot.key}
-                className="inline-flex flex-1 items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-60"
+                className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium text-neutral-500 transition hover:text-ink disabled:opacity-60"
               >
-                Cancel
+                Back
               </button>
             </div>
           </div>
         </div>
+      ) : null}
+
+      {cardSetup ? (
+        <CardSetupModal
+          clientSecret={cardSetup.clientSecret}
+          priceCents={cardSetup.priceCents}
+          noShowFeeCents={cardSetup.noShowFeeCents}
+          shopName={payAtShopTerms?.studioName}
+          onClose={() => {
+            setCardSetup(null);
+            setBookingSlotKey(null);
+          }}
+          onSaved={handlePayAtShopCardSaved}
+        />
       ) : null}
 
       {paymentClientSecret ? (
@@ -3009,14 +3078,19 @@ if (loading) {
       {confirmedBooking ? (
         <BookedSheet
           subtitle={profile.full_name ? `With ${profile.full_name}.` : undefined}
-          body="Full details, location and directions are on the booking page."
+          ticket={{
+            day: new Date(`${confirmedBooking.booking_date}T12:00:00Z`).toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+              timeZone: "UTC",
+            }),
+            time: formatTime(confirmedBooking.start_time),
+            line: `${confirmedBooking.service_name || "Appointment"} with ${(profile.full_name || "your pro").split(" ")[0]}`,
+          }}
           note={`Free cancellation until ${formatCancellationDeadline(confirmedBooking.booking_date, confirmedBooking.start_time)}. Within 24 hours of the appointment it can't be cancelled.`}
           rows={[
-            { label: "Service", value: confirmedBooking.service_name || "Appointment" },
-            {
-              label: "When",
-              value: `${formatDate(confirmedBooking.booking_date)} · ${formatTime(confirmedBooking.start_time)} - ${formatTime(confirmedBooking.end_time)}`,
-            },
+            { label: "Ends", value: formatTime(confirmedBooking.end_time) },
             ...(confirmedBooking.formatted_address
               ? [
                   {
@@ -3056,9 +3130,9 @@ if (loading) {
           <button
             type="button"
             onClick={() => setConfirmedBooking(null)}
-            className="inline-flex items-center justify-center rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+            className="inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium text-neutral-500 transition hover:text-ink"
           >
-            Stay here
+            Done
           </button>
         </BookedSheet>
       ) : null}

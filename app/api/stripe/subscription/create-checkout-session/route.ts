@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { isAllowedSubscriptionPrice, stripe } from "@/app/lib/stripe";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 export async function POST(req: Request) {
   const { priceId } = await req.json().catch(() => ({}) as { priceId?: string });
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
       .eq("id", user.id);
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = getSiteUrl();
 
   const trialDaysByPriceId: Record<string, number> = {
     [process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || ""]: 7,

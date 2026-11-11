@@ -2,6 +2,9 @@
 
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
+import BrowseCardNudge from "@/app/components/BrowseCardNudge";
+import { BOOKING_TIME_ZONE, shopNow } from "@/app/lib/bookingTime";
+import { BookingRow, NextUpCard } from "@/app/components/bookings/BookingVisuals";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles, Inbox, Briefcase, Wand2, UserCircle, Images, Star, ClipboardList, Handshake, MapPin } from "lucide-react";
@@ -596,6 +599,7 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
   const seed: RequestsCache | null =
     getCached<RequestsCache>("requests-page") ?? (initialData as unknown as RequestsCache | null);
 
+  const [checklistShowing, setChecklistShowing] = useState(false);
   const [loading, setLoading] = useState(() => !seed);
   const [role, setRole] = useState<string | null>(() => seed?.role ?? null);
   const [userId, setUserId] = useState<string | null>(() => seed?.userId ?? null);
@@ -1034,44 +1038,27 @@ if (profileError || !profile) {
       }, 250);
     };
 
-    const channel = supabase
-      .channel("requests-live")
+    if (!userId) return;
+    // Only this person's rows (see app/work/WorkPageClient.tsx).
+    const pro = !isCustomerRole(role);
+    let channel = supabase
+      .channel(`requests-live-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` }, queueSilentReload)
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "service_requests",
-        },
+        { event: "*", schema: "public", table: "bookings", filter: `${pro ? "professional_id" : "customer_id"}=eq.${userId}` },
         queueSilentReload
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "request_offers",
-        },
-        queueSilentReload
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-        },
-        queueSilentReload
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "bookings",
-        },
-        queueSilentReload
-      )
+      );
+    channel = pro
+      ? channel
+          .on("postgres_changes", { event: "*", schema: "public", table: "request_offers", filter: `professional_id=eq.${userId}` }, queueSilentReload)
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "service_requests" }, queueSilentReload)
+      : channel.on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "service_requests", filter: `client_id=eq.${userId}` },
+          queueSilentReload
+        );
+    channel
       .subscribe();
 
     return () => {
@@ -1080,7 +1067,7 @@ if (profileError || !profile) {
       }
       supabase.removeChannel(channel);
     };
-  }, [role, loadRequestsLive]);
+  }, [role, userId, loadRequestsLive]);
 
   // Pro marks an ended appointment done; the client is then pushed to confirm.
   async function handleMarkBookingComplete(bookingId: string) {
@@ -1832,27 +1819,24 @@ return (
 
     <div className="mx-auto max-w-6xl py-8">
       <div>
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-                Dashboard
+          <div className="flex items-end justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-sm text-neutral-500">
+                {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: BOOKING_TIME_ZONE })}
               </p>
-
-              <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-                Welcome back{userName ? `, ${userName.split(" ")[0]}` : ""}.
+              <h1 className="mt-1 text-[2rem] font-semibold leading-[1.05] tracking-[-0.04em] md:text-5xl">
+                {(() => {
+                  const minutes = shopNow().minutes;
+                  const greeting = minutes < 12 * 60 ? "Good morning" : minutes < 17 * 60 ? "Good afternoon" : "Good evening";
+                  return `${greeting}${userName ? `, ${userName.split(" ")[0]}` : ""}.`;
+                })()}
               </h1>
-
-              <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
-                {isCustomer
-                  ? "Track your requests, bookings, and completed services in one place."
-                  : "Here’s what’s happening with your work this week."}
-              </p>
             </div>
 
             {isCustomer ? (
               <Link
                 href="/requests/new"
-                className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+                className="inline-flex shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
               >
                 New request
               </Link>
@@ -1869,7 +1853,9 @@ return (
                 finalCtaHref="/subscription"
               />
               <VerificationBanner />
-              <OnboardingChecklist userId={userId} />
+              {/* One setup prompt at a time: the checklist already asks for photos. */}
+              {!checklistShowing ? <BrowseCardNudge userId={userId} /> : null}
+              <OnboardingChecklist userId={userId} onVisibleChange={setChecklistShowing} />
             </>
           ) : null}
 
@@ -2027,7 +2013,7 @@ return (
           ) : null}
 
           {!message && isCustomer && requests.length === 0 && bookings.length === 0 ? (
-            <div className="mt-10 rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+            <div className="mt-10 rounded-panel bg-ink/[0.03] px-6 py-12 text-center">
               <div className="mx-auto flex h-8 w-8 items-center justify-center">
                 <svg viewBox="0 0 20 20" className="h-6 w-6 text-neutral-400" fill="none">
                   <path d="M10 2C6.686 2 4 4.686 4 8c0 4 6 10 6 10s6-6 6-10c0-3.314-2.686-6-6-6z" stroke="currentColor" strokeWidth="1.5"/>
@@ -2049,11 +2035,12 @@ return (
 
           {!message &&
           isProfessional &&
+          !checklistShowing &&
           setupComplete === false &&
           professionalOpenRequests.length === 0 &&
           unifiedProfessionalUpcomingWork.length === 0 &&
           unifiedProfessionalCompletedWork.length === 0 ? (
-            <div className="mt-10 rounded-panel border border-dashed border-neutral-300 px-6 py-12 text-center">
+            <div className="mt-10 rounded-panel bg-ink/[0.03] px-6 py-12 text-center">
               <div className="mx-auto flex h-8 w-8 items-center justify-center">
                 <svg viewBox="0 0 20 20" className="h-6 w-6 text-neutral-400" fill="none">
                   <path d="M10 2l2 5h5l-4 3 1.5 5L10 12l-4.5 3L7 10 3 7h5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -2078,11 +2065,11 @@ return (
             <div className="lg:max-w-3xl">
               <div className="mt-10">
                 <h2 className="text-xl font-semibold tracking-[-0.02em]">
-                  Active bookings
+                  Upcoming
                 </h2>
 
                 {activeBookings.length === 0 ? (
-                  <div className="mt-6 rounded-2xl border border-dashed border-neutral-300 px-6 py-10 text-center">
+                  <div className="mt-6 rounded-2xl bg-ink/[0.03] px-6 py-10 text-center">
                     <div className="mx-auto flex h-8 w-8 items-center justify-center">
                       <svg viewBox="0 0 20 20" className="h-5 w-5 text-neutral-400" fill="none">
                         <path d="M6 2v2M14 2v2M3 8h14M4 4h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -2092,163 +2079,83 @@ return (
                     <p className="mt-1 text-sm text-neutral-500">Confirmed upcoming services will appear here.</p>
                   </div>
                 ) : (
-                  <div className="lu-lineup mt-5 grid gap-4">
-                    {activeBookings.map((booking) => {
-                      const isLoadingAction =
-                        bookingActionLoadingId === booking.id;
-
+                  (() => {
+                    const sorted = [...activeBookings].sort((x, y) =>
+                      `${x.booking_date}${x.start_time}`.localeCompare(`${y.booking_date}${y.start_time}`)
+                    );
+                    const needsYou = sorted.filter((b) => b.status === "completion_requested");
+                    const ahead = sorted.filter((b) => b.status !== "completion_requested");
+                    const [next, ...later] = ahead;
+                    const toAppt = (booking: (typeof sorted)[number]) => ({
+                      href: `/bookings/${booking.id}`,
+                      title: cleanServiceLabel(booking.service_name) || "Booked service",
+                      date: booking.booking_date,
+                      startTime: booking.start_time,
+                      withName: booking.professional_name,
+                      withAvatarUrl: booking.professional_avatar_url,
+                      location: booking.formatted_address ?? null,
+                    });
+                    return (
+                      <div className="mt-5 space-y-3">
+                        {needsYou.length > 0 ? (
+                  <ul className="lu-lineup grid gap-3">
+                    {needsYou.map((booking) => {
+                      const isLoadingAction = bookingActionLoadingId === booking.id;
+                      const needsConfirm = booking.status === "completion_requested";
+                      // The whole card opens the booking; details, directions
+                      // and cancelling live there, so they aren't repeated here.
                       return (
-                        <div
-                          key={booking.id}
-                          className="rounded-2xl border border-hairline bg-surface p-5 sm:p-6"
-                        >
-                          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                            <div className="flex min-w-0 flex-1 gap-4">
-                              <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
-                                {booking.professional_avatar_url ? (
-                                  <img loading="lazy"
-                                    src={booking.professional_avatar_url}
-                                    alt={booking.professional_name || "Professional"}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center text-sm font-medium text-neutral-500">
-                                    {booking.professional_name
-                                      ?.charAt(0)
-                                      .toUpperCase() || "P"}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="min-w-0 max-w-3xl">
-                                <div className="flex flex-wrap items-center gap-3">
-
-                                  <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
-                                    {booking.status === "completion_requested"
-                                      ? "Awaiting confirmation"
-                                      : booking.status}
-                                  </span>
-
-                                  {booking.professional_type ? (
-                                    <span className="rounded-md bg-neutral-100 px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
-                                      {formatProfessionalType(
-                                        booking.professional_type
-                                      )}
-                                    </span>
-                                  ) : null}
+                        <li key={booking.id} className="rounded-2xl bg-surface ring-1 ring-ink/[0.06] transition-[box-shadow] hover:ring-ink/15">
+                          <Link href={`/bookings/${booking.id}`} className="flex items-center gap-4 p-4 sm:p-5">
+                            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-ink/[0.05]">
+                              {booking.professional_avatar_url ? (
+                                <img loading="lazy" src={booking.professional_avatar_url} alt="" className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">
+                                  {booking.professional_name?.charAt(0).toUpperCase() || "P"}
                                 </div>
-
-                                <h2 className="mt-3 text-lg font-semibold tracking-[-0.015em]">
-                                  {cleanServiceLabel(booking.service_name) || "Booked service"}
-                                </h2>
-
-                                <p className="mt-3 text-neutral-600">
-                                  {formatBookingDate(booking.booking_date)} •{" "}
-                                  {formatTime(booking.start_time)} -{" "}
-                                  {formatTime(booking.end_time)}
-                                </p>
-
-                                <p className="mt-2 text-neutral-600">
-                                  With {booking.professional_name || "Professional"}
-                                </p>
-
-                                <UberLocationCard
-                                  address={booking.formatted_address}
-                                  lat={booking.location_lat}
-                                  lng={booking.location_lng}
-                                  compact
-                              userLat={userLocation?.lat}
-                              userLng={userLocation?.lng}
-                                />
-                              </div>
+                              )}
                             </div>
-
-                            <p className="shrink-0 text-sm text-neutral-500">
-                              Created {formatDateTime(booking.created_at)}
-                            </p>
-                          </div>
-
-                          <div className="mt-5 flex flex-wrap gap-2">
-                            {booking.duration_minutes ? (
-                              <span className="rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-700">
-                                {booking.duration_minutes} min
-                              </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[15px] font-semibold tracking-[-0.01em] text-ink">
+                                {cleanServiceLabel(booking.service_name) || "Booked service"}
+                                <span className="font-normal text-neutral-500"> with {booking.professional_name?.split(" ")[0] || "your pro"}</span>
+                              </p>
+                              <p className="mt-0.5 truncate text-[13px] tabular-nums text-neutral-500">
+                                {formatBookingDate(booking.booking_date)}, {formatTime(booking.start_time)}
+                              </p>
+                            </div>
+                            {needsConfirm ? (
+                              <span className="shrink-0 rounded-full bg-ink px-2.5 py-1 text-[11px] font-medium text-white">Confirm</span>
                             ) : null}
-                          </div>
-
-                          <div className="mt-4 flex flex-wrap gap-3">
-                            <Link
-                              href={`/bookings/${booking.id}`}
-                              className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
-                            >
-                              View booking
-                            </Link>
-
-                            {booking.status === "completion_requested" ? (
+                          </Link>
+                          {needsConfirm ? (
+                            <div className="flex items-center justify-between gap-3 border-t border-hairline px-4 py-3 sm:px-5">
+                              <p className="text-[13px] text-neutral-600">
+                                {booking.professional_name?.split(" ")[0] || "Your pro"} marked this done.
+                              </p>
                               <button
                                 type="button"
-                                onClick={() =>
-                                  handleConfirmBookingCompletion(booking.id)
-                                }
+                                onClick={() => handleConfirmBookingCompletion(booking.id)}
                                 disabled={isLoadingAction}
-                                className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                                className="shrink-0 rounded-full bg-ink px-4 py-2 text-[13px] font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
                               >
-                                {isLoadingAction
-                                  ? "Confirming…"
-                                  : "Confirm service completed"}
+                                {isLoadingAction ? "Confirming…" : "Confirm it's done"}
                               </button>
-                            ) : null}
-
-                            {(booking.status === "confirmed" ||
-                              booking.status === "completion_requested") ? (
-                              !canCancelForRefund(booking.booking_date, booking.start_time) ? (
-                                // Inside 24h: say so instead of offering a button the
-                                // server will refuse.
-                                <p className="text-xs leading-5 text-neutral-500">
-                                  Within 24 hours of the appointment, so it can no longer be cancelled. Message the
-                                  professional if something&apos;s come up.
-                                </p>
-                              ) : cancelBookingConfirmId === booking.id ? (
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-sm text-neutral-600">Cancel and get a full refund?</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCancelBooking(booking.id)}
-                                    disabled={isLoadingAction}
-                                    className="inline-flex rounded-full border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
-                                  >
-                                    Yes, cancel
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setCancelBookingConfirmId(null)}
-                                    className="inline-flex rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-900 transition hover:bg-neutral-50"
-                                  >
-                                    Keep
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setCancelBookingConfirmId(booking.id)}
-                                  disabled={isLoadingAction}
-                                  className="inline-flex rounded-full border border-red-300 px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
-                                >
-                                  Cancel booking
-                                </button>
-                              )
-                            ) : null}
-                            {(booking.status === "confirmed" || booking.status === "completion_requested") &&
-                            canCancelForRefund(booking.booking_date, booking.start_time) ? (
-                              <p className="text-xs text-neutral-400">
-                                Free cancellation until {formatCancellationDeadline(booking.booking_date, booking.start_time)}.
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
+                            </div>
+                          ) : null}
+                        </li>
                       );
                     })}
-                  </div>
+                  </ul>
+                        ) : null}
+                        {next ? <NextUpCard item={toAppt(next)} /> : null}
+                        {later.map((booking) => (
+                          <BookingRow key={booking.id} item={toAppt(booking)} />
+                        ))}
+                      </div>
+                    );
+                  })()
                 )}
               </div>
 
@@ -2263,7 +2170,7 @@ return (
                       <Link
                         key={request.id}
                         href={`/requests/${request.id}`}
-                        className="block rounded-2xl border border-hairline bg-surface p-5 transition-[border-color,box-shadow] duration-200 hover:border-neutral-300 hover:shadow-[0_12px_32px_-18px_rgba(0,0,0,0.25)] sm:p-6"
+                        className="block rounded-2xl bg-surface ring-1 ring-ink/[0.06] p-5 transition-[box-shadow] duration-200 hover:ring-ink/15 sm:p-6"
                       >
                         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                           <div className="flex min-w-0 flex-1 gap-4">
@@ -2369,7 +2276,7 @@ return (
                   <div className="flex items-baseline justify-between gap-4">
                     <h2 className="text-xl font-semibold tracking-[-0.02em]">Recently completed</h2>
                     <Link href="/archive" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
-                      View archive →
+                      View archive
                     </Link>
                   </div>
 
@@ -2377,7 +2284,7 @@ return (
                     {recentCompletedBookings.map((booking) => (
                       <div
                         key={booking.id}
-                        className="rounded-2xl border border-hairline bg-surface/60 p-5 sm:p-6"
+                        className="rounded-2xl bg-surface ring-1 ring-ink/[0.06]/60 p-5 sm:p-6"
                       >
                         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                           <div className="flex min-w-0 flex-1 gap-4">
@@ -2496,7 +2403,7 @@ return (
                   <div className="flex items-baseline justify-between gap-4">
                     <h2 className="text-xl font-semibold tracking-[-0.02em]">Recently completed requests</h2>
                     <Link href="/archive" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
-                      View archive →
+                      View archive
                     </Link>
                   </div>
 
@@ -2504,7 +2411,7 @@ return (
                     {recentCompletedRequests.map((request) => (
                       <div
                         key={request.id}
-                        className="rounded-2xl border border-hairline bg-surface/60 p-5 transition-colors hover:bg-surface sm:p-6"
+                        className="rounded-2xl bg-surface ring-1 ring-ink/[0.06]/60 p-5 transition-colors hover:bg-surface sm:p-6"
                       >
                         <Link href={`/requests/${request.id}`}>
                           <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
@@ -2609,26 +2516,62 @@ return (
 
           {isProfessional ? (
             <div className="mt-10 space-y-12">
-              {/* This month — the numbers a pro checks first. */}
-              <section aria-label="This month">
-                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">This month</p>
-                <dl className="lu-slots mt-3 grid grid-cols-3 overflow-hidden rounded-2xl border border-hairline bg-surface">
-                  {[
-                    { label: "Completed", value: monthlyCompletedJobsCount },
-                    { label: "Upcoming", value: monthlyUpcomingCount },
-                    { label: "Opportunities", value: monthlyOpportunitiesCount },
-                  ].map((stat, index) => (
-                    <div key={stat.label} className={`px-4 py-4 sm:px-6 sm:py-5 ${index > 0 ? "border-l border-hairline" : ""}`}>
-                      <dt className="text-xs text-neutral-500 sm:text-sm">{stat.label}</dt>
-                      <dd className="mt-1 text-2xl font-semibold tabular-nums tracking-[-0.02em] sm:text-3xl">{stat.value}</dd>
+              {/* What's next, as a ticket; the full week lives on the Calendar. */}
+              {(() => {
+                const toAppt = (item: (typeof professionalWeekAtGlanceWork)[number]) =>
+                  item.source === "booking"
+                    ? {
+                        href: item.href,
+                        title: item.title,
+                        date: item.rawBooking.booking_date,
+                        startTime: item.rawBooking.start_time,
+                        withName: item.client_name,
+                        withAvatarUrl: item.client_avatar_url,
+                        location: item.rawBooking.formatted_address ?? item.location,
+                      }
+                    : {
+                        href: item.href,
+                        title: item.title,
+                        date: item.rawRequest.scheduled_date ?? null,
+                        startTime: item.rawRequest.scheduled_start_time ?? null,
+                        withName: item.client_name,
+                        withAvatarUrl: item.client_avatar_url,
+                        location: item.formatted_address ?? item.location,
+                      };
+                const items = professionalWeekAtGlanceWork.map(toAppt);
+                const next = items.find((i) => i.date);
+                const rest = items.filter((i) => i !== next).slice(0, 4);
+                return (
+                  <section aria-labelledby="next-heading">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <h2 id="next-heading" className="text-xl font-semibold tracking-[-0.02em]">Up next</h2>
+                      <Link href="/calendar" className="rounded text-sm font-medium text-neutral-500 transition-colors hover:text-ink">
+                        Full calendar
+                      </Link>
                     </div>
-                  ))}
-                </dl>
-              </section>
+                    {!next ? (
+                      <p className="mt-2 text-sm text-neutral-500">
+                        Nothing booked this week yet.
+                      </p>
+                    ) : (
+                      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                        <NextUpCard item={{ ...next, date: next.date as string }} />
+                        {rest.length > 0 ? (
+                          <div className="space-y-2.5">
+                            {rest.map((item) => (
+                              <BookingRow key={item.href} item={item} />
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </section>
+                );
+              })()}
 
               <div className="grid gap-12 lg:grid-cols-12 lg:gap-10">
                 {/* Main column: work to win. */}
-                <section aria-labelledby="opportunities-heading" className="lg:col-span-8">
+                <section aria-labelledby="opportunities-heading" className="lg:col-span-12">
                   <div className="flex items-baseline justify-between gap-4">
                     <h2 id="opportunities-heading" className="text-xl font-semibold tracking-[-0.02em]">
                       Recommended opportunities
@@ -2641,7 +2584,7 @@ return (
                   </div>
 
                   {professionalOpenRequests.length === 0 ? (
-                    <div className="mt-5 rounded-2xl border border-dashed border-neutral-300 px-6 py-10 text-center">
+                    <div className="mt-4 rounded-[22px] bg-white px-6 py-8 text-center ring-1 ring-ink/[0.06]">
                       <p className="font-medium text-ink">No matching requests right now</p>
                       <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-500">
                         New requests matching your services will appear here automatically.
@@ -2684,21 +2627,21 @@ return (
                           ) : null}
                           <Link
                             href={`/requests/${request.id}`}
-                            className="group block rounded-2xl border border-hairline bg-surface p-5 pr-12 transition-[border-color,box-shadow] duration-200 hover:border-neutral-300 hover:shadow-[0_12px_32px_-18px_rgba(0,0,0,0.25)] sm:p-6 sm:pr-12"
+                            className="group block rounded-2xl bg-surface ring-1 ring-ink/[0.06] p-5 pr-12 transition-[box-shadow] duration-200 hover:ring-ink/15 sm:p-6 sm:pr-12"
                           >
                             <div className="flex items-center gap-2">
-                              <span className="truncate font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                              <span className="truncate text-[13px] font-medium text-neutral-500">
                                 {formatCategory(request.category)}
                                 {request.service_detail &&
  cleanServiceLabel(request.service_detail).toLowerCase() !== formatCategory(request.category).toLowerCase() ? ` · ${cleanServiceLabel(request.service_detail)}` : ""}
                               </span>
                               {request.is_direct_rebook ? (
-                                <span className="shrink-0 rounded-md bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink">
+                                <span className="shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-ink">
                                   {request.original_request_id ? "Rebook" : "Direct request"}
                                 </span>
                               ) : null}
                               {isNew ? (
-                                <span className="animate-notification-pop shrink-0 rounded-md bg-ink px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                                <span className="animate-notification-pop shrink-0 rounded-full bg-ink px-2 py-0.5 text-[11px] font-medium text-white">
                                   New
                                 </span>
                               ) : null}
@@ -2742,16 +2685,15 @@ return (
                               userLng={userLocation?.lng}
                             />
 
-                            <div className="mt-4 flex items-center justify-between border-t border-hairline pt-4">
+                            <div className="mt-4 flex items-center justify-between">
                               {responded ? (
                                 <span className="text-sm font-medium text-neutral-500">Offer sent</span>
                               ) : (
                                 <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink">
                                   Respond
-                                  <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
+
                                 </span>
                               )}
-                              <span className="text-xs text-neutral-400">View request</span>
                             </div>
                           </Link>
                           </div>
@@ -2761,105 +2703,6 @@ return (
                   )}
                 </section>
 
-                {/* Side column: your schedule and track record, at a glance. */}
-                <aside className="space-y-10 lg:col-span-4">
-                  <section aria-labelledby="week-heading">
-                    <div className="flex items-baseline justify-between gap-4">
-                      <h2 id="week-heading" className="text-base font-semibold tracking-[-0.01em]">This week</h2>
-                      <Link href="/calendar" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
-                        Calendar →
-                      </Link>
-                    </div>
-
-                    {professionalWeekAtGlanceWork.length === 0 ? (
-                      <p className="mt-3 rounded-xl border border-dashed border-neutral-300 px-4 py-4 text-sm text-neutral-500">
-                        Clear week ahead — no work scheduled yet.
-                      </p>
-                    ) : (
-                      <ul className="lu-lineup mt-3 divide-y divide-hairline rounded-2xl border border-hairline bg-surface">
-                        {professionalWeekAtGlanceWork.map((item) => (
-                          <li key={`${item.source}-${item.id}`}>
-                            <Link href={item.href} className="block px-4 py-3.5 transition-colors hover:bg-neutral-50">
-                              <div className="flex items-start justify-between gap-3">
-                                <p className="truncate text-sm font-semibold text-ink">{item.title}</p>
-                                <span className="shrink-0 rounded-md bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-700">
-                                  {item.status === "completion_requested" ? "Awaiting confirmation" : item.status}
-                                </span>
-                              </div>
-                              {item.subtitle ? <p className="mt-0.5 truncate text-xs text-neutral-500">{item.subtitle}</p> : null}
-                              <p className="mt-1 truncate text-xs text-neutral-500">
-                                {[item.client_name, item.location].filter(Boolean).join(" · ") ||
-                                  (item.source === "booking" ? "Booking" : "Request")}
-                              </p>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-
-                  <section aria-labelledby="completed-heading">
-                    <div className="flex items-baseline justify-between gap-4">
-                      <h2 id="completed-heading" className="text-base font-semibold tracking-[-0.01em]">Recently completed</h2>
-                      <Link href="/archive" className="rounded text-sm text-neutral-500 transition-colors hover:text-ink">
-                        Archive →
-                      </Link>
-                    </div>
-                    {recentProfessionalCompletedWork.length === 0 ? (
-                      <p className="mt-3 rounded-xl border border-dashed border-neutral-300 px-4 py-4 text-sm text-neutral-500">
-                        Jobs you finish show here for 24 hours, then move to your archive.
-                      </p>
-                    ) : (
-                      <ul className="lu-lineup mt-3 divide-y divide-hairline rounded-2xl border border-hairline bg-surface">
-                        {recentProfessionalCompletedWork.slice(0, 4).map((item) => (
-                          <li key={`${item.source}-${item.id}`}>
-                            <Link href={item.href} className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-neutral-50">
-                              <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-neutral-100">
-                                {item.source === "booking" && item.client_avatar_url ? (
-                                  <img loading="lazy" src={item.client_avatar_url} alt="" className="h-full w-full object-cover" />
-                                ) : item.source === "request" &&
-                                  item.rawRequest.reference_photos &&
-                                  item.rawRequest.reference_photos.length > 0 ? (
-                                  <img loading="lazy" src={item.rawRequest.reference_photos[0]} alt="" className="h-full w-full object-cover" />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
-                                    {item.client_name?.charAt(0).toUpperCase() || "C"}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm font-semibold text-ink">{item.title}</p>
-                                <p className="truncate text-xs text-neutral-500">
-                                  {item.client_name ? `${item.client_name} · ` : ""}
-                                  {item.completed_at ? formatDateTime(item.completed_at) : formatDateTime(item.created_at)}
-                                </p>
-                              </div>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-
-                  {cancelledProfessionalBookings.length > 0 ? (
-                    <section aria-labelledby="cancelled-heading">
-                      <h2 id="cancelled-heading" className="text-base font-semibold tracking-[-0.01em]">Cancelled</h2>
-                      <ul className="mt-3 divide-y divide-hairline rounded-2xl border border-hairline bg-surface">
-                        {cancelledProfessionalBookings.map((booking) => (
-                          <li key={booking.id}>
-                            <Link href={`/bookings/${booking.id}`} className="block px-4 py-3.5 transition-colors hover:bg-neutral-50">
-                              <p className="truncate text-sm font-semibold text-ink">{cleanServiceLabel(booking.service_name) || "Booked service"}</p>
-                              <p className="mt-0.5 text-xs text-neutral-500">
-                                {formatBookingDate(booking.booking_date)}
-                                {booking.refund_status === "refunded" ? " · Client refunded" : ""}
-                              </p>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  ) : null}
-                </aside>
               </div>
             </div>
           ) : null}

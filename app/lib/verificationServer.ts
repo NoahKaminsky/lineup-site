@@ -1,6 +1,7 @@
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { todayDateString, type VerificationStatus, type VerificationTrack } from "@/app/lib/verificationRules";
+import { getSiteUrl } from "@/app/lib/siteUrl";
 
 type VerificationRow = {
   track: VerificationTrack;
@@ -81,7 +82,7 @@ export async function notifyVerificationOutcome(params: {
   const { professionalId, outcome, reason } = params;
 
   const titles = {
-    approved: "You're verified — you're now visible in Browse and can send offers",
+    approved: "You're verified — you're now visible in Explore and can send offers",
     rejected: "We couldn't verify your credentials — see what to fix",
     expired: "Your verification has expired — resubmit to stay visible",
   } as const;
@@ -106,12 +107,12 @@ export async function notifyVerificationOutcome(params: {
 
     if (!profile?.email) return;
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://lineup-aesthetics.ca";
+    const siteUrl = getSiteUrl("https://lineup-aesthetics.ca");
     const firstName = profile.full_name?.split(" ")[0] || "there";
 
     const bodies = {
       approved: `<p style="margin:0 0 16px 0;">Hey ${escapeHtml(firstName)},</p>
-        <p style="margin:0 0 16px 0;">Your credentials have been reviewed and approved. You're now visible in Browse and can send offers on requests.</p>`,
+        <p style="margin:0 0 16px 0;">Your credentials have been reviewed and approved. You're now visible in Explore and can send offers on requests.</p>`,
       rejected: `<p style="margin:0 0 16px 0;">Hey ${escapeHtml(firstName)},</p>
         <p style="margin:0 0 16px 0;">We weren't able to approve the credentials you submitted.</p>
         ${
@@ -121,7 +122,7 @@ export async function notifyVerificationOutcome(params: {
         }
         <p style="margin:0 0 16px 0;">You can submit updated documents any time.</p>`,
       expired: `<p style="margin:0 0 16px 0;">Hey ${escapeHtml(firstName)},</p>
-        <p style="margin:0 0 16px 0;">Your verified credentials have passed their expiry date, so your profile is hidden from Browse until you submit a current one.</p>`,
+        <p style="margin:0 0 16px 0;">Your verified credentials have passed their expiry date, so your profile is hidden from Explore until you submit a current one.</p>`,
     } as const;
 
     const ctas = {

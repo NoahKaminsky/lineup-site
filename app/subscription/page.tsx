@@ -1,6 +1,8 @@
 "use client";
 
 import { PLAN_FEATURES } from "@/app/lib/plans";
+import { BOOSTS, formatBoostPrice } from "@/app/lib/boosts";
+import SpotlightStats from "@/app/components/SpotlightStats";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -151,9 +153,18 @@ export default function SubscriptionPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   // Set when this pro's plan is paid for by their studio (see /studio).
   const [coveredByStudio, setCoveredByStudio] = useState(false);
+  // On a shop's team, whether or not its plan covers them yet.
+  const [onStudio, setOnStudio] = useState(false);
+  const [boostedUntil, setBoostedUntil] = useState<string | null>(null);
+  const [boosting, setBoosting] = useState(false);
+  const [boostNotice, setBoostNotice] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get("boosted") === "1") {
+      setBoostNotice(true);
+      window.history.replaceState({}, "", "/subscription");
+    }
     if (params.get("success") === "true") {
       setShowSuccess(true);
       window.history.replaceState({}, "", "/subscription");
@@ -198,14 +209,55 @@ export default function SubscriptionPage() {
       // Separate query: an error just means the studio columns don't exist yet.
       const { data: studioInfo } = await supabase
         .from("profiles")
-        .select("plan_source")
+        .select("plan_source, studio_id")
         .eq("id", user.id)
         .maybeSingle();
       setCoveredByStudio(studioInfo?.plan_source === "studio");
+      setOnStudio(!!studioInfo?.studio_id);
+
+      // A boost running now (or queued after it).
+      const { data: boost } = await supabase
+        .from("boosts")
+        .select("ends_at")
+        .eq("kind", "profile")
+        .eq("target_id", user.id)
+        .gt("ends_at", new Date().toISOString())
+        .order("ends_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setBoostedUntil(boost?.ends_at ?? null);
     }
 
     load();
   }, [router]);
+
+  async function handleBoost() {
+    setBoosting(true);
+    setMessage("");
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const res = await fetch("/api/boosts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ kind: "profile", returnTo: "/subscription" }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.url) {
+        setMessage(json.error || "Could not start checkout.");
+        return;
+      }
+      window.location.href = json.url;
+    } catch {
+      setMessage("Something went wrong. Please try again.");
+    } finally {
+      setBoosting(false);
+    }
+  }
 
   async function handleSubscribe(plan: Plan) {
     if (!plan.envKey) return;
@@ -330,10 +382,7 @@ export default function SubscriptionPage() {
 
         {/* Header */}
         <div className="mb-10">
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
-            LineUp Professional
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+          <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
             {isActiveSubscriber ? "Your subscription" : "Choose your plan"}
           </h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-neutral-600">
@@ -349,8 +398,8 @@ export default function SubscriptionPage() {
         </div>
 
         {coveredByStudio ? (
-          <div className="mb-10 rounded-panel border border-hairline bg-surface p-6 sm:p-8">
-            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Covered by your studio</p>
+          <div className="mb-10 rounded-panel bg-surface ring-1 ring-ink/[0.06] p-6 sm:p-8">
+            <p className="text-[13px] font-medium text-neutral-500">Covered by your studio</p>
             <p className="mt-3 text-lg font-semibold tracking-[-0.02em] text-ink">
               Your studio pays for your plan. You don&apos;t need one of your own.
             </p>
@@ -362,6 +411,20 @@ export default function SubscriptionPage() {
               className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
             >
               Go to your studio
+            </Link>
+          </div>
+        ) : onStudio ? (
+          <div className="mb-10 rounded-panel bg-surface ring-1 ring-ink/[0.06] p-6 sm:p-8">
+            <p className="text-lg font-semibold tracking-[-0.02em] text-ink">Your shop&apos;s plan can cover you</p>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-600">
+              Once your shop is on a studio plan with 2 or more pros taking clients, you get Pro features from it and don&apos;t
+              need a plan of your own. If you already pay for one, it stops renewing then, so you&apos;re never charged twice.
+            </p>
+            <Link
+              href="/studio"
+              className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+            >
+              Go to your shop
             </Link>
           </div>
         ) : null}
@@ -405,7 +468,7 @@ export default function SubscriptionPage() {
             <div className="px-6 py-6 sm:px-8">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     {profile?.subscription_status === "trialing"
                       ? "Trial ends"
                       : "Renews on"}
@@ -416,7 +479,7 @@ export default function SubscriptionPage() {
                 </div>
 
                 <div className="rounded-2xl border border-neutral-100 bg-neutral-50 p-4">
-                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-neutral-500">
+                  <p className="text-[13px] font-medium text-neutral-500">
                     Included features
                   </p>
                   <p className="mt-2 text-base font-semibold text-neutral-900">
@@ -536,7 +599,7 @@ export default function SubscriptionPage() {
                     {/* CTA */}
                     <div className="mt-6">
                       {isCurrent && plan.isBasic ? (
-                        <p className="rounded-full border border-dashed border-neutral-300 px-5 py-3 text-center text-sm font-medium text-neutral-400">
+                        <p className="rounded-full bg-ink/[0.03] px-5 py-3 text-center text-sm font-medium text-neutral-400">
                           Your current plan
                         </p>
                       ) : isCurrent ? (
@@ -596,6 +659,54 @@ export default function SubscriptionPage() {
               Secure billing through Stripe. Cancel anytime — no lock-in.
             </p>
           ) : null}
+        </div>
+
+        {boostNotice ? (
+          <div className="mt-10 rounded-2xl border border-neutral-200 bg-neutral-100 p-4 text-sm font-medium text-ink">
+            Payment received. Your boost starts in a moment.
+          </div>
+        ) : null}
+
+        {profile?.role === "professional" ? (
+          <SpotlightStats
+            inRotation={
+              !!boostedUntil ||
+              ((profile?.subscription_status === "active" || profile?.subscription_status === "trialing") &&
+                (profile?.subscription_plan === "pro" || profile?.subscription_plan === "master"))
+            }
+            share={
+              boostedUntil
+                ? "a boost running (4x share)"
+                : profile?.subscription_plan === "master"
+                  ? "Master (2x share)"
+                  : "Pro"
+            }
+          />
+        ) : null}
+
+        {/* Paid boost: a week at the top of Explore. */}
+        <div className="mt-4 flex flex-col gap-4 rounded-[28px] bg-surface ring-1 ring-ink/[0.06] p-6 sm:flex-row sm:items-center sm:p-8">
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-semibold tracking-[-0.02em] text-ink">
+              {BOOSTS.profile.label}: {formatBoostPrice("profile")} for {BOOSTS.profile.days} days
+            </p>
+            <p className="mt-1 text-sm leading-6 text-neutral-600">{BOOSTS.profile.description}</p>
+            {boostedUntil ? (
+              <p className="mt-2 text-sm font-medium text-ink">
+                Boosted until{" "}
+                {new Date(boostedUntil).toLocaleDateString("en-CA", { month: "long", day: "numeric" })}. Buying again adds
+                another week.
+              </p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={handleBoost}
+            disabled={boosting}
+            className="shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
+          >
+            {boosting ? "Opening checkout…" : boostedUntil ? "Add a week" : "Boost my profile"}
+          </button>
         </div>
 
         {/* Past due warning */}

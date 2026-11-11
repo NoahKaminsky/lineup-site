@@ -3,17 +3,21 @@
 import { fetchBusyTimes } from "@/app/lib/fetchBusyTimes";
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { getProfileHref } from "@/app/lib/profileLink";
+import { shopNow } from "@/app/lib/bookingTime";
+import SpotlightStage from "@/app/components/discover/SpotlightStage";
+import LineupPicks, { type PickCard } from "@/app/components/discover/LineupPicks";
 import type { DiscoverCard as InitialDiscoverCard } from "./getInitialData";
-import SwipeStack, { type SwipeCardData } from "@/app/components/discover/SwipeStack";
-import { BadgeCheck, LayoutGrid, Layers, MapPin, Search, Star, X } from "lucide-react";
+import { BadgeCheck, MapPin, Search, SlidersHorizontal, Star, X } from "lucide-react";
 
 type ProfileRow = {
   id: string;
+  // Has a paid boost running (set on the client from the boosts table).
+  is_promoted?: boolean;
   full_name: string | null;
   username?: string | null;
   avatar_url: string | null;
@@ -156,34 +160,10 @@ function formatDistanceLabel(distanceKm: number | null) {
   return `${distanceKm.toFixed(1)} km away`;
 }
 
-function getBadges(profile: ProfileRow): { label: string; className: string }[] {
-  const badges: { label: string; className: string }[] = [];
-
-  if (profile.verification_track === "student") {
-    badges.push({ label: "Student", className: "border border-sky-200 bg-sky-100 text-sky-800" });
-  }
-
-  if (profile.is_founding_artist) {
-    badges.push({ label: "Founding Artist", className: "border border-neutral-300 bg-white text-ink" });
-  }
-
-  if (profile.is_featured) {
-    badges.push({ label: "LineUp Pick", className: "border border-ink bg-ink text-white" });
-  }
-
-  if (profile.subscription_plan === "master") {
-    badges.push({ label: "Master", className: "border border-neutral-900 bg-neutral-900 text-white" });
-  } else if (profile.subscription_plan === "pro") {
-    badges.push({ label: "Pro", className: "border border-neutral-300 bg-white text-neutral-700" });
-  }
-
-  return badges;
-}
-
-// Cards carry at most one badge on the photo — the one that matters most —
-// so the work itself stays the focus. Full badges still show on the profile.
 function getPrimaryBadge(profile: ProfileRow): { label: string; tone: "ink" | "light" } | null {
   if (profile.is_featured) return { label: "LineUp Pick", tone: "ink" };
+  // Paid placement is always labelled as such.
+  if (profile.is_promoted) return { label: "Promoted", tone: "light" };
   if (profile.subscription_plan === "master") return { label: "Master", tone: "ink" };
   if (profile.is_founding_artist) return { label: "Founding Artist", tone: "light" };
   if (profile.subscription_plan === "pro") return { label: "Pro", tone: "light" };
@@ -201,9 +181,10 @@ type ProCardProps = {
   badge: { label: string; tone: "ink" | "light" } | null;
   rating: string | null;
   reviewCount: number;
-  openThisWeek: boolean;
+  open: string | null;
+  openSoon: boolean;
   verified: boolean;
-  size?: "rail" | "grid";
+  size?: "feature" | "grid";
 };
 
 // A short, human location for cards: the profile's own location text, or the
@@ -217,80 +198,65 @@ function getShortLocation(profile: ProfileRow) {
 
 // The single card used everywhere on Browse: the work leads, then a tight,
 // three-line typographic summary. No box, no stacked pills.
-function ProCard({ href, name, role, place, services, image, badge, rating, reviewCount, openThisWeek, verified, size = "grid" }: ProCardProps) {
+function ProCard({ href, name, role, place, image, badge, rating, reviewCount, open, openSoon, verified }: ProCardProps) {
   const initial = name.charAt(0).toUpperCase() || "P";
   const ratingText = rating ? `rated ${rating} from ${reviewCount} review${reviewCount === 1 ? "" : "s"}` : "no reviews yet";
   return (
     <Link
       href={href}
-      aria-label={`${name}, ${role}${place ? `, ${place}` : ""}, ${ratingText}`}
-      className={`group block rounded-2xl outline-offset-4 ${size === "rail" ? "w-[70vw] max-w-[16rem] shrink-0 snap-start" : ""}`}
+      aria-label={`${name}, ${role}${place ? `, ${place}` : ""}, ${ratingText}${open ? `, ${open.toLowerCase()}` : ""}`}
+      className="group block rounded-[24px] outline-offset-4"
     >
-      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-[#ecebe7]">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-[24px] bg-neutral-200">
         {image ? (
           <img
             loading="lazy"
             src={image}
             alt=""
-            className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.035]"
+            className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.04]"
           />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-2">
-            <span className="text-6xl font-semibold tracking-[-0.05em] text-neutral-300">{initial}</span>
-            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-400">{role}</span>
+          <div className="lu-pinstripe relative flex h-full w-full items-center justify-center overflow-hidden bg-[#efece6]">
+            <span className="relative text-7xl font-semibold tracking-[-0.06em] text-ink/80">{initial}</span>
           </div>
         )}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[24px] ring-1 ring-inset ring-black/[0.06]" />
 
-        {/* Hairline inner edge keeps light photos from bleeding into the page. */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-black/[0.06]" />
+        {badge && (badge.label === "LineUp Pick" || badge.label === "Promoted") ? (
+          <span className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-ink backdrop-blur">
+            {badge.label}
+          </span>
+        ) : null}
 
-        {badge ? (
+        {open ? (
           <span
-            className={`absolute left-3 top-3 rounded-md px-2 py-1 text-[10px] font-semibold tracking-[0.02em] ${
-              badge.tone === "ink" ? "bg-ink text-white" : "bg-white/90 text-ink backdrop-blur"
+            className={`absolute bottom-2.5 left-2.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium backdrop-blur ${
+              openSoon ? "bg-white text-ink" : "bg-white/80 text-neutral-600"
             }`}
           >
-            {badge.label}
+            <span className={`h-1.5 w-1.5 rounded-full ${openSoon ? "bg-emerald-500" : "bg-neutral-300"}`} />
+            {open}
           </span>
         ) : null}
       </div>
 
-      <div className="mt-3.5 px-0.5">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="flex min-w-0 items-center gap-1 text-[15px] font-semibold tracking-[-0.01em] text-ink">
-            <span className="truncate underline-offset-4 decoration-ink/30 group-hover:underline">{name}</span>
-            {verified ? (
-              <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0 fill-ink text-paper" strokeWidth={2} />
-            ) : null}
+      <div className="mt-3 px-0.5">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="flex min-w-0 items-center gap-1 text-[15px] font-semibold tracking-[-0.015em] text-ink">
+            <span className="truncate">{name}</span>
+            {verified ? <BadgeCheck aria-hidden="true" className="h-4 w-4 shrink-0 fill-ink text-paper" strokeWidth={2} /> : null}
           </p>
           {rating ? (
-            <span className="flex shrink-0 items-center gap-1 text-[13px] tabular-nums text-ink" aria-hidden="true">
+            <span className="flex shrink-0 items-center gap-1 text-[13px] font-medium tabular-nums text-ink" aria-hidden="true">
               <Star className="h-3 w-3 fill-current" strokeWidth={0} />
               {rating}
-              <span className="hidden text-neutral-400 sm:inline">({reviewCount})</span>
             </span>
-          ) : (
-            <span className="hidden shrink-0 text-[12px] text-neutral-400 sm:inline" aria-hidden="true">New</span>
-          )}
+          ) : null}
         </div>
-
-        <p className="mt-0.5 truncate text-sm text-neutral-600">
+        <p className="mt-0.5 truncate text-[13px] text-neutral-500">
           {role}
-          {place ? <span className="text-neutral-400"> · {place}</span> : null}
+          {place ? (place.endsWith("away") ? `, ${place}` : ` in ${place}`) : ""}
         </p>
-
-        {openThisWeek || services ? (
-          <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-xs text-neutral-500">
-            {openThisWeek ? (
-              <span className="inline-flex shrink-0 items-center gap-1.5 font-medium text-ink">
-                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ink" />
-                Open this week
-              </span>
-            ) : null}
-            {openThisWeek && services ? <span aria-hidden="true" className="text-neutral-300">·</span> : null}
-            {services ? <span className="truncate">{services}</span> : null}
-          </p>
-        ) : null}
       </div>
     </Link>
   );
@@ -347,6 +313,46 @@ function busyDateKey(offsetDays: number) {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+// Days from today (0 = today) until this pro has a free half hour, on the
+// shop's clock, looking two weeks out. Day-level on purpose: the exact time
+// depends on the service, which the profile page works out.
+function nextOpenDay(profile: ProfileRow, availability: AvailabilityRow[], bookings: BookingRow[]): number | null {
+  if (!profile.direct_booking_enabled || !profile.public_availability_enabled) return null;
+  const active = availability.filter((row) => row.is_active);
+  if (active.length === 0) return null;
+  const now = shopNow();
+  for (let offset = 0; offset < 14; offset += 1) {
+    const day = new Date(`${now.dateKey}T12:00:00Z`);
+    day.setUTCDate(day.getUTCDate() + offset);
+    const dateKey = day.toISOString().slice(0, 10);
+    const taken = bookings
+      .filter((b) => b.booking_date === dateKey && b.status !== "cancelled")
+      .map((b) => ({ start: timeToMinutes(b.start_time), end: timeToMinutes(b.end_time) }))
+      .sort((a, b) => a.start - b.start);
+    for (const window of active.filter((row) => Number(row.day_of_week) === day.getUTCDay())) {
+      const start = Math.max(timeToMinutes(window.start_time), offset === 0 ? now.minutes + 30 : 0);
+      const end = timeToMinutes(window.end_time);
+      let cursor = start;
+      for (const b of taken) {
+        if (b.end <= cursor) continue;
+        if (b.start - cursor >= 30) return offset;
+        cursor = Math.max(cursor, b.end);
+      }
+      if (end - cursor >= 30) return offset;
+    }
+  }
+  return null;
+}
+
+function openLabel(offset: number | null) {
+  if (offset === null) return null;
+  if (offset === 0) return "Open today";
+  if (offset === 1) return "Open tomorrow";
+  const day = new Date(`${shopNow().dateKey}T12:00:00Z`);
+  day.setUTCDate(day.getUTCDate() + offset);
+  return `Open ${day.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })}`;
 }
 
 function hasOpenThisWeek(profile: ProfileRow, availability: AvailabilityRow[], bookings: BookingRow[]) {
@@ -443,7 +449,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   const [selectedModes, setSelectedModes] = useState<string[]>([]);
   const [openThisWeekOnly, setOpenThisWeekOnly] = useState(false);
   const [sortBy, setSortBy] = useState<"recommended" | "nearest" | "rating">("recommended");
-  const [mobileView, setMobileView] = useState<"grid" | "swipe">("grid");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<
     "idle" | "allowed" | "denied" | "unsupported"
@@ -520,7 +526,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         }
 
         // Only credential-verified professionals are listed — anyone unverified,
-        // pending, rejected, or past their expiry stays out of Browse.
+        // pending, rejected, or past their expiry stays out of Explore.
         const professionals = ((profilesData || []) as ProfileRow[]).filter(
           (profile) => isProfessionalRole(profile.role) && isVerifiedNow(profile)
         );
@@ -718,10 +724,36 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
       .filter(Boolean) as { card: DiscoverCard; distance: number; x: number; y: number }[];
   }, [cards, userLocation, nearbyRadiusKm]);
 
+  // Pros with a paid boost running right now (public table; an error just
+  // means boosts aren't set up yet).
+  const [promotedIds, setPromotedIds] = useState<Set<string>>(() => new Set());
+  useEffect(() => {
+    const now = new Date().toISOString();
+    supabase
+      .from("boosts")
+      .select("target_id")
+      .eq("kind", "profile")
+      .lte("starts_at", now)
+      .gt("ends_at", now)
+      .then(({ data }) => {
+        if (data?.length) setPromotedIds(new Set(data.map((b: { target_id: string }) => b.target_id)));
+      });
+  }, []);
+
+  const cardsWithPromotion = useMemo(
+    () =>
+      promotedIds.size
+        ? cards.map((card) =>
+            promotedIds.has(card.profile.id) ? { ...card, profile: { ...card.profile, is_promoted: true } } : card
+          )
+        : cards,
+    [cards, promotedIds]
+  );
+
   const filteredCards = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    const filtered = cards.filter((card) => {
+    const filtered = cardsWithPromotion.filter((card) => {
       const { profile, services, tagBadges } = card;
       const roles = getProfessionalTypes(profile);
 
@@ -767,7 +799,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
 
       return distanceA - distanceB;
     });
-  }, [cards, search, selectedCategory, selectedModes, openThisWeekOnly, userLocation, maxDistanceKm]);
+  }, [cardsWithPromotion, search, selectedCategory, selectedModes, openThisWeekOnly, userLocation, maxDistanceKm]);
 
   // Subscription tier is the primary ranking signal everywhere on this page —
   // paying for Master/Pro should reliably outrank free accounts, not just get
@@ -784,27 +816,10 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
 
   // Admin-curated override for one-off promotion (launch pushes, VIP signups) —
   // deliberately worth more than any tier/quality score so it always wins.
-  const featuredScore = (card: DiscoverCard) => (card.profile.is_featured ? 1000 : 0);
+  // Paid boost: above every plan tier, below LineUp's own picks.
+  const featuredScore = (card: DiscoverCard) =>
+    (card.profile.is_featured ? 1000 : 0) + ((card.profile as ProfileRow).is_promoted ? 500 : 0);
 
-  // Spotlight: featured first, then Master tier, then Pro — sorted within each by score
-  const spotlightCards = useMemo(() => {
-    const isSubscribed = (card: DiscoverCard) =>
-      (card.profile.subscription_plan === "master" || card.profile.subscription_plan === "pro") &&
-      (card.profile.subscription_status === "active" || card.profile.subscription_status === "trialing");
-
-    return [...filteredCards]
-      .filter((card) => isSubscribed(card) || card.profile.is_featured)
-      .sort((a, b) => {
-        const score = (card: DiscoverCard) => {
-          const ratingScore = card.averageRatingNumber ? card.averageRatingNumber * 8 : 0;
-          const reviewScore = Math.min(card.reviewCount, 15);
-          const imageScore = card.portfolioPreview?.image_url || card.profile.banner_url ? 5 : 0;
-          const activeScore = card.isActive ? 10 : 0;
-          return featuredScore(card) + tierScore(card) + ratingScore + reviewScore + imageScore + activeScore;
-        };
-        return score(b) - score(a);
-      });
-  }, [filteredCards]);
 
 
 
@@ -832,7 +847,8 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         const activeScore = card.isActive ? 50 : 0;
         const ratingScore = card.averageRatingNumber ? card.averageRatingNumber * 8 : 0;
         const reviewScore = Math.min(card.reviewCount, 20);
-        const imageScore = card.portfolioPreview?.image_url || card.profile.banner_url ? 6 : 0;
+        // Real photos of the work lead Browse; a letter tile sinks below them.
+        const imageScore = card.portfolioPreview?.image_url ? 40 : card.profile.banner_url ? 25 : card.profile.avatar_url ? 10 : 0;
         const openScore = hasOpenThisWeek(card.profile, card.availability, card.bookings) ? 4 : 0;
         return featuredScore(card) + tierScore(card) + activeScore + ratingScore + reviewScore + imageScore + openScore;
       };
@@ -847,12 +863,16 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
     openThisWeekOnly ||
     maxDistanceKm !== null;
 
+  const activeFilterCount =
+    selectedModes.length + (openThisWeekOnly ? 1 : 0) + (maxDistanceKm !== null ? 1 : 0) + (sortBy !== "recommended" ? 1 : 0);
+
   function clearFilters() {
     setSearch("");
     setSelectedCategory("all");
     setSelectedModes([]);
     setOpenThisWeekOnly(false);
     setMaxDistanceKm(null);
+    setSortBy("recommended");
   }
 
   function toggleMode(mode: string) {
@@ -886,44 +906,133 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
       badge: getPrimaryBadge(card.profile),
       rating: card.averageRating,
       reviewCount: card.reviewCount,
-      openThisWeek: hasOpenThisWeek(card.profile, card.availability, card.bookings),
+      open: openLabel(nextOpenDay(card.profile, card.availability, card.bookings)),
+      openSoon: (nextOpenDay(card.profile, card.availability, card.bookings) ?? 99) <= 1,
       verified: isVerifiedNow(card.profile),
     };
   }
 
-  const swipeCards = useMemo<SwipeCardData[]>(() => {
-    return sortedCards.map((card) => {
-      const roles = getProfessionalTypes(card.profile);
-      const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
-      const distanceKm = getCardDistanceKm(card, userLocation);
 
-      return {
-        key: card.profile.id,
-        href: getProfileHref(card.profile),
-        image: getCardImage(card),
-        name: card.profile.full_name || "Professional",
-        primaryRole,
-        badges: getBadges(card.profile),
-        rating: card.averageRating,
-        distanceLabel: formatDistanceLabel(distanceKm),
-      };
-    });
-  }, [sortedCards, userLocation]);
+  // Spotlight: the paid slot at the top of Explore. Everyone who has paid for
+  // it shares it, picked fresh on each visit, weighted by what they pay:
+  // a running boost counts 4, Master 2, Pro 1. When a category or search is
+  // on, it's picked from that slice so the spotlight always fits the ask.
+  const spotlightPool = useMemo(() => {
+    const narrowed = search.trim() || selectedCategory !== "all" ? filteredCards : cardsWithPromotion;
+    return narrowed
+      .map((card) => {
+        const live = card.profile.subscription_status === "active" || card.profile.subscription_status === "trialing";
+        const weight = (card.profile as ProfileRow).is_promoted
+          ? 4
+          : live && card.profile.subscription_plan === "master"
+            ? 2
+            : live && card.profile.subscription_plan === "pro"
+              ? 1
+              : 0;
+        return { card, weight };
+      })
+      .filter((entry) => entry.weight > 0);
+  }, [cardsWithPromotion, filteredCards, search, selectedCategory]);
+  const spotlightKey = spotlightPool.map((e) => `${e.card.profile.id}:${e.weight}`).join(",");
+  // Up to three on stage, drawn by weight without repeats.
+  const [spotlightIds, setSpotlightIds] = useState<string[]>([]);
+  useEffect(() => {
+    const left = [...spotlightPool];
+    const picked: string[] = [];
+    while (left.length && picked.length < 3) {
+      const total = left.reduce((sum, e) => sum + e.weight, 0);
+      let roll = Math.random() * total;
+      const index = Math.max(0, left.findIndex((e) => (roll -= e.weight) < 0));
+      picked.push(left[index].card.profile.id);
+      left.splice(index, 1);
+    }
+    const id = window.setTimeout(() => setSpotlightIds(picked), 0);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spotlightKey]);
+  const spotlightCards = spotlightIds
+    .map((id) => spotlightPool.find((e) => e.card.profile.id === id)?.card)
+    .filter((card): card is DiscoverCard => Boolean(card));
 
-  const sectionLabel = "font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500";
+  // A view is counted when the light lands on a pro, once per pro per visit.
+  const logSpotlight = useCallback((professionalId: string, kind: "view" | "tap") => {
+    if (kind === "view") {
+      const key = `lu-spot-${professionalId}`;
+      try {
+        if (sessionStorage.getItem(key)) return;
+        sessionStorage.setItem(key, "1");
+      } catch {
+        /* private mode: still count it */
+      }
+    }
+    fetch("/api/spotlight", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ professionalId, kind }),
+      keepalive: true,
+    }).catch(() => {});
+  }, []);
+  const onSpotlightView = useCallback((id: string) => logSpotlight(id, "view"), [logSpotlight]);
+  const onSpotlightTap = useCallback((id: string) => logSpotlight(id, "tap"), [logSpotlight]);
+
+  // LineUp Picks: chosen by the team (profiles.is_featured), never bought.
+  const picks = useMemo<PickCard[]>(() => {
+    return cardsWithPromotion
+      .filter((card) => card.profile.is_featured)
+      .slice(0, 3)
+      .map((card) => {
+        const props = getCardProps(card);
+        const bio = (card.profile.bio || "").replace(/\s+/g, " ").trim();
+        const firstSentence = bio.split(/(?<=[.!?])\s/)[0] || "";
+        const specialties = (card.profile.specialties || []).slice(0, 3).join(", ");
+        return {
+          id: card.profile.id,
+          href: props.href,
+          name: props.name,
+          role: props.role,
+          place: props.place,
+          image: props.image,
+          rating: props.rating,
+          open: props.open,
+          verified: props.verified,
+          why:
+            firstSentence.length >= 20
+              ? firstSentence.length > 140
+                ? `${firstSentence.slice(0, 137).trimEnd()}…`
+                : firstSentence
+              : specialties
+                ? `Known for ${specialties.toLowerCase()}.`
+                : "Clean work, booked solid, and the reviews to show it.",
+        };
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cardsWithPromotion, userLocation]);
+
+  // The hero strip: who has room today (or, failing that, this week).
+  const freeSoon = useMemo(() => {
+    const withDay = cardsWithPromotion
+      .map((card) => ({ card, offset: nextOpenDay(card.profile, card.availability, card.bookings) }))
+      .filter((entry): entry is { card: DiscoverCard; offset: number } => entry.offset !== null && entry.offset < 7)
+      .sort((a, b) => a.offset - b.offset);
+    const today = withDay.filter((entry) => entry.offset === 0);
+    const pick = (today.length > 0 ? today : withDay).slice(0, 12);
+    return { today, list: pick.map(({ card, offset }) => ({ card, label: (() => { const w = openLabel(offset)!.replace("Open ", ""); return w.charAt(0).toUpperCase() + w.slice(1); })() })) };
+  }, [cardsWithPromotion]);
+
+  // Nobody twice above the list: if the Spotlight or Picks already shows a
+  // pro, the "free" strip leaves them out.
+  const shownAbove = new Set([...spotlightIds, ...picks.map((pick) => pick.id)]);
+  const freeStrip = freeSoon.list.filter(({ card }) => !shownAbove.has(card.profile.id));
 
   if (loading) {
     return (
       <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8" aria-busy="true">
         <div className="mx-auto max-w-6xl py-8">
-          <div className="h-3 w-16 animate-pulse rounded-full bg-neutral-200" />
-          <div className="mt-4 h-9 w-72 animate-pulse rounded-lg bg-neutral-200" />
-          <div className="mt-4 h-4 w-full max-w-md animate-pulse rounded-full bg-neutral-200/70" />
-
-          <div className="mt-10 h-12 w-full animate-pulse rounded-full bg-neutral-200/70" />
-          <div className="mt-5 flex gap-7 border-b border-hairline pb-3.5">
+          <div className="h-10 w-72 animate-pulse rounded-lg bg-neutral-200" />
+          <div className="mt-6 h-14 w-full animate-pulse rounded-full bg-neutral-200/70" />
+          <div className="mt-4 flex gap-2">
             {[1, 2, 3, 4, 5, 6].map((item) => (
-              <div key={item} className="h-4 w-14 shrink-0 animate-pulse rounded-full bg-neutral-200/70" />
+              <div key={item} className="h-9 w-20 shrink-0 animate-pulse rounded-full bg-neutral-200/70" />
             ))}
           </div>
 
@@ -931,7 +1040,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => (
               <div key={item}>
-                <div className="aspect-[4/5] animate-pulse rounded-2xl bg-neutral-200/60" />
+                <div className="aspect-square animate-pulse rounded-[22px] sm:aspect-[4/5] bg-neutral-200/60" />
                 <div className="mt-3 h-4 w-2/3 animate-pulse rounded-full bg-neutral-200/70" />
                 <div className="mt-2 h-3 w-1/2 animate-pulse rounded-full bg-neutral-200/50" />
               </div>
@@ -943,184 +1052,257 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   }
 
   const isSearching = search.trim() !== "";
-  const showFeatured =
-    spotlightCards.length > 0 && !isSearching && selectedCategory === "all" && !openThisWeekOnly && maxDistanceKm === null;
   const categoryLabel = categoryOptions.find((c) => c.value === selectedCategory)?.label;
 
   return (
     <>
     <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl py-6 sm:py-8">
-        {/* Intro — compact, so real professionals start above the fold. */}
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className={sectionLabel}>Browse</p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-              Find your professional.
-            </h1>
-            <p className="mt-2.5 max-w-xl text-base leading-7 text-neutral-600">
-              Discover independent beauty and personal-care professionals, see their work, and book directly
-              — or post a request and let offers come to you.
-            </p>
-          </div>
+        {/* Explore: ask first (search), then the one paid stage, then who's
+            free. The Spotlight is the only dark, lit thing on the page. */}
+        <h1 className="text-[2.4rem] font-semibold leading-[1] tracking-[-0.05em] text-ink sm:text-[3.75rem]">
+          {freeSoon.today.length > 0 ? "Who\u2019s free today?" : "Who\u2019s free this week?"}
+        </h1>
 
-          <Link
-            href="/requests/new"
-            className="inline-flex w-fit shrink-0 items-center rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-ink transition-colors hover:border-ink"
+        <div className="relative mt-6">
+              <label htmlFor="browse-search" className="sr-only">
+                Search professionals by name, service, or area
+              </label>
+              <Search aria-hidden="true" className="pointer-events-none absolute left-5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-neutral-400" strokeWidth={2} />
+              <input
+                id="browse-search"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" && search) {
+                    e.preventDefault();
+                    setSearch("");
+                  }
+                }}
+                placeholder="Search a name, a service, an area"
+                autoComplete="off"
+                className="h-14 w-full rounded-full bg-white pl-[3.25rem] pr-12 text-[15px] text-ink shadow-[0_1px_2px_rgba(0,0,0,0.04),0_10px_30px_-14px_rgba(0,0,0,0.2)] outline-none ring-1 ring-inset ring-ink/[0.06] transition-shadow placeholder:text-neutral-400 focus:ring-ink [&::-webkit-search-cancel-button]:hidden"
+              />
+              {search ? (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
+                >
+                  <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
+                </button>
+              ) : null}
+            </div>
+
+        {spotlightCards.length > 0 ? (
+          <div className="mt-6">
+            <SpotlightStage
+              pros={spotlightCards.map((card) => {
+                const props = getCardProps(card);
+                return {
+                  id: card.profile.id,
+                  href: props.href,
+                  name: props.name,
+                  role: props.role,
+                  place: props.place,
+                  image: props.image,
+                  rating: props.rating,
+                  open: props.open,
+                  verified: props.verified,
+                };
+              })}
+              onView={onSpotlightView}
+              onTap={onSpotlightTap}
+            />
+          </div>
+        ) : null}
+
+        {freeStrip.length > 0 ? (
+          <p className="mt-7 text-sm font-medium text-neutral-500">
+            {freeSoon.today.length > 0 ? "Free today" : "Free this week"}
+          </p>
+        ) : null}
+            {freeStrip.length > 0 ? (
+              <div className="-mx-4 mt-3 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+                {freeStrip.map(({ card, label }, index) => {
+                  const photo = card.profile.avatar_url || card.portfolioPreview?.image_url || null;
+                  const name = card.profile.full_name || "Professional";
+                  return (
+                    <Link
+                      key={card.profile.id}
+                      href={getProfileHref(card.profile)}
+                      style={{ "--lu-delay": `${120 + index * 70}ms` } as React.CSSProperties}
+                      className="lu-rise group flex shrink-0 snap-start items-center gap-3 rounded-full bg-white py-1.5 pl-1.5 pr-4 ring-1 ring-ink/[0.06] transition hover:ring-ink/20"
+                    >
+                      <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-100">
+                        {photo ? (
+                          <img src={photo} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">{name.charAt(0)}</span>
+                        )}
+                      </span>
+                      <span className="min-w-0 leading-tight">
+                        <span className="block max-w-[9rem] truncate text-sm font-semibold tracking-[-0.01em] text-ink">{name}</span>
+                        <span className="block text-xs text-neutral-500">
+                          {getProfessionalTypes(card.profile).slice(0, 1).map(formatLabel)[0] || "Professional"}, {label.toLowerCase()}
+                        </span>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : null}
+
+        {!isSearching && selectedCategory === "all" ? <LineupPicks picks={picks.filter((pick) => !spotlightIds.includes(pick.id))} /> : null}
+
+        {/* One row: filters, then categories. Everything else lives behind Filters. */}
+        <div className="-mx-4 mt-5 flex items-center gap-2 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+          <button
+            type="button"
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen((open) => !open)}
+            className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium transition ${
+              filtersOpen || activeFilterCount > 0 ? "bg-ink text-white" : "bg-white text-ink ring-1 ring-inset ring-ink/10 hover:ring-ink/25"
+            }`}
           >
-            Post a request instead
-          </Link>
+            <SlidersHorizontal aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
+            Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ""}
+          </button>
+          <span aria-hidden="true" className="h-5 w-px shrink-0 bg-ink/10" />
+          {categoryOptions.map((category) => {
+            const selected = selectedCategory === category.value;
+            return (
+              <button
+                key={category.value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setSelectedCategory(category.value)}
+                className={`h-9 shrink-0 rounded-full px-3.5 text-[13px] font-medium transition ${
+                  selected ? "bg-ink text-white" : "text-neutral-600 hover:bg-white hover:text-ink"
+                }`}
+              >
+                {category.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Search + filters. Kept in normal flow on phones — pinning all of this
-            would eat a third of a small screen. */}
-        <div className="mt-7 sm:mt-8">
-          <div className="relative">
-            <label htmlFor="browse-search" className="sr-only">
-              Search professionals by name, service, or area
-            </label>
-            <Search aria-hidden="true" className="pointer-events-none absolute left-5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-neutral-400" strokeWidth={2} />
-            <input
-              id="browse-search"
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape" && search) {
-                  e.preventDefault();
-                  setSearch("");
-                }
-              }}
-              placeholder="Search name, service, or area"
-              autoComplete="off"
-              className="h-14 w-full rounded-full border border-neutral-200 bg-surface pl-[3.25rem] pr-12 text-[15px] outline-none transition-colors placeholder:text-neutral-400 focus:border-ink [&::-webkit-search-cancel-button]:hidden"
-            />
-            {search ? (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                aria-label="Clear search"
-                className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
-              >
-                <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
-              </button>
-            ) : null}
-          </div>
-
-          <div
-            role="group"
-            aria-label="Category"
-            className="-mx-4 mt-5 flex gap-6 overflow-x-auto border-b border-hairline px-4 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:gap-7 sm:px-0 [&::-webkit-scrollbar]:hidden"
-          >
-            {categoryOptions.map((category) => {
-              const selected = selectedCategory === category.value;
-              return (
-                <button
-                  key={category.value}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setSelectedCategory(category.value)}
-                  className={`relative shrink-0 pb-3.5 pt-1 text-sm transition-colors ${
-                    selected ? "font-medium text-ink" : "text-neutral-500 hover:text-ink"
-                  }`}
-                >
-                  {category.label}
-                  <span
-                    aria-hidden="true"
-                    className={`absolute inset-x-0 bottom-0 h-[1.5px] bg-ink transition-transform duration-300 ease-premium ${
-                      selected ? "scale-x-100" : "scale-x-0"
+        {filtersOpen ? (
+          <div className="lu-fade-in mt-3 rounded-[22px] bg-white p-4 ring-1 ring-ink/[0.06] sm:p-5">
+            <div className="grid gap-5 sm:grid-cols-3">
+              <div>
+                <p className="text-[13px] font-medium text-neutral-500">Where</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {serviceModeOptions.map((mode) => {
+                    const selected = selectedModes.includes(mode.value);
+                    return (
+                      <button
+                        key={mode.value}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => toggleMode(mode.value)}
+                        className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition ${
+                          selected ? "bg-ink text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                        }`}
+                      >
+                        {mode.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-neutral-500">When</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    aria-pressed={openThisWeekOnly}
+                    onClick={() => setOpenThisWeekOnly((prev) => !prev)}
+                    className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition ${
+                      openThisWeekOnly ? "bg-ink text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
                     }`}
-                  />
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Refinements: where it happens, availability, ordering. */}
-          <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
-            {serviceModeOptions.map((mode) => {
-              const selected = selectedModes.includes(mode.value);
-              return (
-                <button
-                  key={mode.value}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => toggleMode(mode.value)}
-                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
-                    selected ? "bg-ink text-white" : "bg-surface text-neutral-700 ring-1 ring-inset ring-ink/10 hover:ring-ink/30"
-                  }`}
-                >
-                  {mode.label}
-                </button>
-              );
-            })}
-
-            <span aria-hidden="true" className="mx-1 h-5 w-px shrink-0 bg-ink/10" />
-
-            <button
-              type="button"
-              aria-pressed={openThisWeekOnly}
-              onClick={() => setOpenThisWeekOnly((prev) => !prev)}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
-                openThisWeekOnly ? "bg-ink text-white" : "bg-surface text-neutral-700 ring-1 ring-inset ring-ink/10 hover:ring-ink/30"
-              }`}
-            >
-              <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${openThisWeekOnly ? "bg-white" : "bg-ink"}`} />
-              Open this week
-            </button>
-
-            <button
-              type="button"
-              aria-pressed={maxDistanceKm !== null}
-              onClick={() => {
-                setNearbyRadiusKm(maxDistanceKm ?? nearbyRadiusKm);
-                setNearbyPanelOpen(true);
-              }}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
-                maxDistanceKm !== null ? "bg-ink text-white" : "bg-surface text-neutral-700 ring-1 ring-inset ring-ink/10 hover:ring-ink/30"
-              }`}
-            >
-              <MapPin aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
-              {maxDistanceKm !== null ? `Within ${maxDistanceKm} km` : "Distance"}
-            </button>
-
+                  >
+                    Open this week
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={maxDistanceKm !== null}
+                    onClick={() => {
+                      setNearbyRadiusKm(maxDistanceKm ?? nearbyRadiusKm);
+                      setNearbyPanelOpen(true);
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition ${
+                      maxDistanceKm !== null ? "bg-ink text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                    }`}
+                  >
+                    <MapPin aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
+                    {maxDistanceKm !== null ? `Within ${maxDistanceKm} km` : "Near me"}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <p className="text-[13px] font-medium text-neutral-500">Sort</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {([
+                    { value: "recommended", label: "Recommended" },
+                    { value: "rating", label: "Top rated" },
+                    { value: "nearest", label: "Nearest" },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={sortBy === option.value}
+                      disabled={option.value === "nearest" && !userLocation}
+                      onClick={() => setSortBy(option.value)}
+                      className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition disabled:opacity-40 ${
+                        sortBy === option.value ? "bg-ink text-white" : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
             {hasActiveFilters ? (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="shrink-0 rounded px-2 py-1.5 text-[13px] text-neutral-500 underline decoration-neutral-300 underline-offset-4 transition-colors hover:text-ink hover:decoration-ink"
+                className="mt-4 text-[13px] font-medium text-neutral-500 transition hover:text-ink"
               >
                 Clear all
               </button>
             ) : null}
           </div>
-        </div>
+        ) : null}
 
         {message ? (
-          <div role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div role="alert" className="mt-6 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
             {message}
           </div>
         ) : null}
 
         {sortedCards.length === 0 ? (
-          <div className="mt-10 rounded-panel border border-dashed border-neutral-300 px-6 py-16 text-center">
-            <p className="font-medium text-ink">
-              {isSearching ? `No professionals match “${search.trim()}”` : "No professionals match those filters"}
+          <div className="mt-10 rounded-[28px] bg-white px-6 py-16 text-center ring-1 ring-ink/[0.06]">
+            <p className="text-lg font-semibold tracking-[-0.02em] text-ink">
+              {isSearching ? `No one matches “${search.trim()}”` : "No one matches those filters"}
             </p>
             <p className="mx-auto mt-1.5 max-w-sm text-sm leading-6 text-neutral-500">
-              Try another category or a broader search — or post a request and let nearby professionals send you offers.
+              Try a broader search, or post a request and let nearby pros come to you.
             </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
               <button
                 type="button"
                 onClick={clearFilters}
-                className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-ink"
+                className="rounded-full bg-neutral-100 px-4 py-2 text-sm font-medium text-ink transition hover:bg-neutral-200"
               >
                 Clear filters
               </button>
               <Link
                 href="/requests/new"
-                className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+                className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
               >
                 Post a request
               </Link>
@@ -1128,121 +1310,42 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           </div>
         ) : (
           <>
-            {/* Featured: LineUp Picks first, then Master and Pro members.
-                Hidden while searching/filtering so results come first. */}
-            {showFeatured ? (
-              <section aria-labelledby="featured-heading" className="mt-8">
-                <div className="flex items-baseline justify-between gap-4">
-                  <h2 id="featured-heading" className="text-lg font-semibold tracking-[-0.02em]">
-                    Featured on LineUp
-                  </h2>
-                  <p className="hidden text-xs text-neutral-500 sm:block">Hand-picked and top-tier members</p>
-                </div>
 
-                {/* Phones: a swipeable rail. Tablet/desktop: one aligned row on the same
-                    grid as the results, so a short list never leaves a ragged gap. */}
-                <div className="-mx-4 mt-4 flex snap-x snap-proximity scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
-                  {spotlightCards.map((card) => (
-                    <ProCard key={`featured-${card.profile.id}`} {...getCardProps(card)} size="rail" />
-                  ))}
-                </div>
-                <div className="mt-5 hidden gap-x-5 gap-y-10 sm:grid sm:grid-cols-3 lg:grid-cols-4">
-                  {spotlightCards.slice(0, 4).map((card, index) => (
-                    <div key={`featured-grid-${card.profile.id}`} className={index === 3 ? "hidden lg:block" : undefined}>
-                      <ProCard {...getCardProps(card)} />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : null}
 
-            <section aria-labelledby="all-heading" className={showFeatured ? "mt-12 border-t border-hairline pt-8" : "mt-6"}>
-              {/* Results toolbar: count on the left, ordering (and view on phones) on the right. */}
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 id="all-heading" className="text-lg font-semibold tracking-[-0.02em]" aria-live="polite">
-                  {sortedCards.length} {sortedCards.length === 1 ? "professional" : "professionals"}
-                  {categoryLabel && selectedCategory !== "all" ? (
-                    <span className="text-neutral-400"> · {categoryLabel}</span>
-                  ) : null}
+            <section aria-labelledby="all-heading" className="mt-8">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 id="all-heading" className="text-xl font-semibold tracking-[-0.03em] text-ink" aria-live="polite">
+                  {isSearching || hasActiveFilters
+                    ? `${sortedCards.length} ${sortedCards.length === 1 ? "result" : "results"}`
+                    : categoryLabel && selectedCategory !== "all"
+                      ? categoryLabel
+                      : "Everyone"}
                 </h2>
-
-                <div className="flex items-center gap-2">
-                  <label className="relative flex items-center">
-                    <span className="sr-only">Sort professionals</span>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                      className="h-9 appearance-none rounded-full bg-surface pl-3.5 pr-8 text-[13px] font-medium text-ink outline-none ring-1 ring-inset ring-ink/10 transition-shadow hover:ring-ink/30 focus:ring-ink"
-                    >
-                      <option value="recommended">Recommended</option>
-                      <option value="rating">Top rated</option>
-                      <option value="nearest" disabled={!userLocation}>
-                        {userLocation ? "Nearest" : "Nearest (allow location)"}
-                      </option>
-                    </select>
-                    <svg aria-hidden="true" viewBox="0 0 12 12" className="pointer-events-none absolute right-3 h-3 w-3 text-neutral-500" fill="none">
-                      <path d="M3 4.5 6 7.5 9 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </label>
-
-                  <div role="group" aria-label="View" className="flex rounded-full bg-surface p-0.5 ring-1 ring-inset ring-ink/10 sm:hidden">
-                    {[
-                      { value: "grid" as const, label: "Grid view", Icon: LayoutGrid },
-                      { value: "swipe" as const, label: "Swipe view", Icon: Layers },
-                    ].map(({ value, label, Icon }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        aria-label={label}
-                        aria-pressed={mobileView === value}
-                        onClick={() => setMobileView(value)}
-                        className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-                          mobileView === value ? "bg-ink text-white" : "text-neutral-500"
-                        }`}
-                      >
-                        <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={1.8} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {!userLocation && locationPermissionStatus !== "unsupported" ? (
+                  <span className="text-xs text-neutral-400">Allow location to see distances</span>
+                ) : null}
               </div>
 
-              <p className="mt-1.5 flex items-center gap-1.5 text-xs text-neutral-500">
-                {userLocation ? (
-                  <>
-                    Distances are from your current location.
-                    <button
-                      type="button"
-                      onClick={() => setNearbyPanelOpen(true)}
-                      className="inline-flex items-center gap-1 rounded font-medium text-ink underline decoration-ink/20 underline-offset-4 transition-colors hover:decoration-ink"
-                    >
-                      <MapPin aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2} />
-                      {nearbyCount === null ? "See who's nearby" : `${nearbyCount} nearby`}
-                    </button>
-                  </>
-                ) : locationPermissionStatus === "unsupported" ? (
-                  "Location isn't available in this browser."
-                ) : (
-                  "Allow location access to see distances and sort by nearest."
-                )}
-              </p>
-
-              {mobileView === "swipe" ? (
-                <div className="mt-6 sm:hidden">
-                  <SwipeStack cards={swipeCards} />
-                </div>
-              ) : null}
-
-              <div
-                className={`mt-6 grid-cols-2 gap-x-3 gap-y-8 sm:grid sm:grid-cols-3 sm:gap-x-5 sm:gap-y-10 lg:grid-cols-4 ${
-                  mobileView === "swipe" ? "hidden" : "grid"
-                }`}
-              >
+              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-5 sm:gap-y-10 lg:grid-cols-4">
                 {sortedCards.map((card) => (
                   <ProCard key={card.profile.id} {...getCardProps(card)} />
                 ))}
               </div>
             </section>
+
+            {/* The other way in, once you've seen who's here. */}
+            <Link
+              href="/requests/new"
+              className="group mt-14 flex items-center justify-between gap-4 rounded-[28px] bg-ink p-6 text-white transition hover:bg-neutral-900 sm:p-8"
+            >
+              <div>
+                <p className="text-lg font-semibold tracking-[-0.02em] sm:text-xl">Not sure who to book?</p>
+                <p className="mt-1 text-sm text-white/60">Post what you want and pros nearby send you offers.</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-medium text-ink transition group-hover:bg-neutral-200">
+                Post a request
+              </span>
+            </Link>
           </>
         )}
       </div>
@@ -1283,7 +1386,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
             <div className="mt-6 rounded-2xl bg-paper p-5 text-sm leading-6 text-neutral-600 ring-1 ring-ink/[0.05]">
               {locationPermissionStatus === "unsupported"
                 ? "Location isn't available in this browser, so distances can't be measured."
-                : "Allow location access for this site in your browser settings, then reopen Browse to filter by distance."}
+                : "Allow location access for this site in your browser settings, then reopen Explore to filter by distance."}
             </div>
           ) : (
             <>

@@ -22,7 +22,7 @@ export default function PushNotificationToggle() {
   if (isIOS && !isStandalone) {
     return (
       <div className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
-        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+        <p className="text-[13px] font-medium text-neutral-500">
           Push notifications
         </p>
         <p className="mt-2 text-sm leading-6 text-neutral-500">
@@ -87,7 +87,7 @@ export default function PushNotificationToggle() {
 
   return (
     <div className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
-      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">
+      <p className="text-[13px] font-medium text-neutral-500">
         Push notifications
       </p>
       <p className="mt-2 text-sm leading-6 text-neutral-500">

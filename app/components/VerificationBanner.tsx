@@ -57,7 +57,7 @@ export default function VerificationBanner() {
                     ? ` Your approval ends ${formatDate(until)}, when your program finishes — submit your licence then to stay visible.`
                     : ""
                 }`
-              : "Submit a current credential to stay visible in Browse."}
+              : "Submit a current credential to stay visible in Explore."}
           </p>
         </div>
         <Link
@@ -80,7 +80,7 @@ export default function VerificationBanner() {
             Your {student ? "proof of enrollment" : "credentials"} {student ? "is" : "are"} under review
           </p>
           <p className="mt-1 text-sm text-neutral-500">
-            Until you&apos;re approved you can&apos;t appear in Browse, send offers, or be booked. We&apos;ll email
+            Until you&apos;re approved you can&apos;t appear in Explore, send offers, or be booked. We&apos;ll email
             you as soon as it&apos;s reviewed.
           </p>
         </div>
@@ -105,12 +105,12 @@ export default function VerificationBanner() {
       : status === "expired" || status === "verified"
       ? {
           title: "Your verification has expired",
-          body: "You're hidden from Browse and can't send offers or be booked until you submit a current credential.",
+          body: "You're hidden from Explore and can't send offers or be booked until you submit a current credential.",
           cta: "Renew now",
         }
       : {
           title: "Verify to start using LineUp",
-          body: "You can't use LineUp to get clients until you're verified — you won't appear in Browse, can't send offers, and can't be booked.",
+          body: "You can't use LineUp to get clients until you're verified — you won't appear in Explore, can't send offers, and can't be booked.",
           cta: "Verify now",
         };
 
@@ -118,7 +118,7 @@ export default function VerificationBanner() {
     <div className="mt-8 rounded-2xl border border-ink bg-surface p-5 text-ink">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-neutral-500">Verification required</p>
+          <p className="text-[13px] font-medium text-neutral-500">Verification required</p>
           <p className="mt-1 text-lg font-semibold tracking-tight">{copy.title}</p>
           <p className="mt-1 text-sm text-neutral-600">{copy.body}</p>
           <p className="mt-1 text-sm text-neutral-600">

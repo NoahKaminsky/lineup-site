@@ -145,7 +145,7 @@ function NewRequestLoadingSkeleton() {
           <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
         </div>
 
-        <div className="mt-8 rounded-panel border border-neutral-200 bg-white p-5 shadow-sm">
+        <div className="mt-8 rounded-[28px] bg-white p-5 ring-1 ring-ink/[0.06]">
           <div className="space-y-5">
             {[1, 2, 3, 4].map((item) => (
               <div key={item}>
@@ -159,7 +159,7 @@ function NewRequestLoadingSkeleton() {
               <div className="mt-2 h-32 w-full animate-pulse rounded-xl bg-neutral-100" />
             </div>
 
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+            <div className="rounded-2xl bg-neutral-50 ring-1 ring-inset ring-ink/[0.06] p-4">
               <div className="h-4 w-36 animate-pulse rounded-full bg-neutral-200" />
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div className="h-12 animate-pulse rounded-xl bg-neutral-100" />
@@ -370,7 +370,7 @@ function LocationAutocomplete({
           onInputChange?.(e.target.value);
         }}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink focus:bg-white"
+        className="w-full rounded-xl bg-neutral-50 ring-1 ring-inset ring-ink/[0.06] px-4 py-3 text-sm text-neutral-900 outline-none transition focus:bg-white focus:ring-ink"
       />
 
       {confirming ? (
@@ -976,7 +976,7 @@ function NewRequestPageContent() {
     return <NewRequestLoadingSkeleton />;
   }
 
-  const inputClass = "w-full rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900 focus:bg-white";
+  const inputClass = "w-full rounded-2xl bg-neutral-50 ring-1 ring-inset ring-ink/[0.06] px-4 py-3 text-sm text-neutral-900 outline-none transition focus:bg-white focus:ring-ink";
   const labelClass = "mb-2 block text-sm font-semibold text-neutral-700";
 
   const serviceModeOptions = [
@@ -994,10 +994,7 @@ function NewRequestPageContent() {
           {/* Page header. "Rebook" only for a repeat client (started from a
               past job); any other request aimed at one pro is a direct request. */}
           <div className="mb-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">
-              {isRebook ? (originalRequestId ? "Rebook" : "Direct request") : "New Request"}
-            </p>
-            <h1 className="mt-2 text-neutral-900 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
+            <h1 className="text-neutral-900 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
               {isRebook ? (originalRequestId ? "Book again" : `Request ${rebookProName || "this professional"}`) : "Post a request"}
             </h1>
             <p className="mt-1.5 text-sm leading-6 text-neutral-500">
@@ -1009,7 +1006,7 @@ function NewRequestPageContent() {
 
           {/* Direct request / rebook banner */}
           {isRebook && preferredProfessionalId ? (
-            <div className="mb-6 rounded-2xl border border-neutral-200 bg-neutral-100 p-4">
+            <div className="mb-6 rounded-2xl bg-neutral-100 p-4">
               <p className="text-sm font-semibold text-ink">
                 {originalRequestId ? "Rebooking" : "Direct request to"} {rebookProName || "this professional"}
               </p>
@@ -1020,13 +1017,13 @@ function NewRequestPageContent() {
           ) : null}
 
           {/* Form card */}
-          <div className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="rounded-[28px] bg-white p-5 ring-1 ring-ink/[0.06] sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
 
               {requestingSpecificService ? (
                 <div>
                   <label className={labelClass}>Service</label>
-                  <div className="flex items-center justify-between gap-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div className="flex items-center justify-between gap-4 rounded-2xl bg-neutral-50 ring-1 ring-inset ring-ink/[0.06] p-4">
                     <div className="min-w-0">
                       <p className="truncate text-[15px] font-semibold text-neutral-900">{clickedServiceName}</p>
                       <p className="mt-0.5 text-sm text-neutral-500">
@@ -1068,10 +1065,10 @@ function NewRequestPageContent() {
                         key={opt.value}
                         type="button"
                         onClick={() => toggleCategory(opt.value)}
-                        className={`flex flex-col items-center gap-1.5 rounded-2xl border px-3 py-3 text-center transition active:scale-[0.97] ${
+                        className={`flex flex-col items-center gap-1.5 rounded-2xl px-3 py-3 text-center transition active:scale-[0.97] ${
                           isSelected
-                            ? "border-ink bg-ink text-white"
-                            : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
+                            ? "bg-ink text-white"
+                            : "bg-neutral-50 text-neutral-900 ring-1 ring-inset ring-ink/[0.07] hover:bg-white hover:ring-ink/20"
                         }`}
                       >
                         <opt.Icon className="h-5 w-5" />
@@ -1111,10 +1108,10 @@ function NewRequestPageContent() {
                                 key={option}
                                 type="button"
                                 onClick={() => toggleServiceDetail(c, option)}
-                                className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition active:scale-[0.97] ${
+                                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition active:scale-[0.97] ${
                                   isSelected
-                                    ? "border-ink bg-ink text-white"
-                                    : "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-400"
+                                    ? "bg-ink text-white"
+                                    : "bg-white text-neutral-900 ring-1 ring-inset ring-ink/[0.08] hover:ring-ink/25"
                                 }`}
                               >
                                 {option}
@@ -1166,10 +1163,10 @@ function NewRequestPageContent() {
                             setLocationLng(null);
                           }
                         }}
-                        className={`flex flex-col items-start gap-1 rounded-2xl border p-3 text-left transition active:scale-[0.97] ${
+                        className={`flex flex-col items-start gap-1 rounded-2xl p-3 text-left transition active:scale-[0.97] ${
                           isSelected
-                            ? "border-ink bg-ink text-white"
-                            : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400 hover:bg-white"
+                            ? "bg-ink text-white"
+                            : "bg-neutral-50 text-neutral-900 ring-1 ring-inset ring-ink/[0.07] hover:bg-white hover:ring-ink/20"
                         }`}
                       >
                         <span className="text-sm font-semibold">{opt.label}</span>
@@ -1247,7 +1244,7 @@ function NewRequestPageContent() {
                     }}
                   />
                   {locationSelectedFromGoogle && locationPlaceId ? (
-                    <div className="flex items-start gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+                    <div className="flex items-start gap-3 rounded-2xl bg-neutral-50 ring-1 ring-inset ring-ink/[0.06] p-3">
                       <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-neutral-900">
                         <svg viewBox="0 0 20 20" className="h-3 w-3 text-white" fill="none">
                           <path d="M4 10l4 4 8-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -1269,7 +1266,7 @@ function NewRequestPageContent() {
               {/* Timing */}
               <div>
                 <label className={labelClass}>When do you want this?</label>
-                <div className="space-y-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+                <div className="space-y-3 rounded-2xl bg-neutral-50 ring-1 ring-inset ring-ink/[0.06] p-4">
                   <div className="grid grid-cols-3 gap-1 rounded-full bg-white p-1 ring-1 ring-neutral-200">
                     {[
                       { value: "exact", label: "Exact time" },
@@ -1298,20 +1295,20 @@ function NewRequestPageContent() {
                   {timingFlexibility !== "anytime" ? (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="min-w-0">
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Date</label>
+                        <label className="mb-1.5 block text-[13px] font-medium text-neutral-500">Date</label>
                         <input
                           type="date"
                           value={preferredDate}
                           onChange={(e) => setPreferredDate(e.target.value)}
-                          className="block h-12 w-full min-w-0 appearance-none rounded-xl border border-neutral-200 bg-white px-4 text-left text-sm text-neutral-900 outline-none transition focus:border-neutral-900 [&::-webkit-date-and-time-value]:text-left"
+                          className="block h-12 w-full min-w-0 appearance-none rounded-xl bg-white px-4 text-left ring-1 ring-inset ring-ink/[0.08] focus:ring-ink text-sm text-neutral-900 outline-none transition [&::-webkit-date-and-time-value]:text-left"
                         />
                       </div>
                       <div className="min-w-0">
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Start time</label>
+                        <label className="mb-1.5 block text-[13px] font-medium text-neutral-500">Start time</label>
                         <TimeSelect
                           value={preferredStartTime}
                           onChange={setPreferredStartTime}
-                          selectClassName="h-12 w-full min-w-0 rounded-xl border border-neutral-200 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-900"
+                          selectClassName="h-12 w-full min-w-0 rounded-xl bg-white px-3 text-sm ring-1 ring-inset ring-ink/[0.08] focus:ring-ink text-neutral-900 outline-none transition"
                         />
                       </div>
                     </div>
@@ -1322,7 +1319,7 @@ function NewRequestPageContent() {
               </div>
 
               {/* Optional extras, tucked away so the form stays short */}
-              <div className="rounded-2xl border border-neutral-200">
+              <div className="rounded-2xl ring-1 ring-inset ring-ink/[0.08]">
                 <button
                   type="button"
                   onClick={() => setShowMoreDetails((v) => !v)}
@@ -1345,7 +1342,7 @@ function NewRequestPageContent() {
                   </svg>
                 </button>
                 {showMoreDetails ? (
-                  <div className="space-y-5 border-t border-neutral-200 px-4 pb-4 pt-4">
+                  <div className="space-y-5 border-t border-ink/[0.06] px-4 pb-4 pt-4">
                   {/* Title */}
                   <div>
                     <label className={labelClass}>Title <span className="font-normal text-neutral-400">(optional)</span></label>

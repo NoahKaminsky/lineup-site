@@ -2,6 +2,8 @@
 
 import React from "react";
 import { LuMarkPaths } from "@/app/components/LuMark";
+import { fireBurst } from "@/app/components/moments/Burst";
+import SplitFlap from "@/app/components/SplitFlap";
 
 /* Shared confirmation "moments" for the app. They only render what the page
    already decided — every caller keeps its own state, handlers, polling and
@@ -278,6 +280,7 @@ export function BookedSheet({
   rows,
   note,
   children,
+  ticket,
   labelledBy = "lu-booked-title",
 }: {
   subtitle?: string;
@@ -286,43 +289,66 @@ export function BookedSheet({
   note?: React.ReactNode;
   rows: { label: string; value: React.ReactNode }[];
   children: React.ReactNode;
+  // The appointment as a ticket: "Monday, Nov 9", "11:00 AM", "Fade with Line".
+  ticket?: { day: string; time: string; line?: string };
   labelledBy?: string;
 }) {
+  const checkRef = React.useRef<HTMLSpanElement | null>(null);
+  // One burst from the check as the sheet lands.
+  React.useEffect(() => {
+    const id = window.setTimeout(() => fireBurst(checkRef.current, "pop"), 420);
+    return () => window.clearTimeout(id);
+  }, []);
+
   return (
     <div className="lu-fade-in fixed inset-0 z-[100] flex items-end justify-center bg-ink/40 p-3 backdrop-blur-sm sm:items-center sm:p-6">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className="lu-sheet-in max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[28px] bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8"
+        className="lu-sheet-in max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8"
       >
-        <DrawnCheck size={52} delay={120} />
+        <div className="flex items-center gap-4">
+          <span ref={checkRef} className="inline-flex">
+            <DrawnCheck size={48} delay={120} />
+          </span>
+          <h2 id={labelledBy} className="text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink">
+            <MaskLine delay={200}>You&apos;re booked.</MaskLine>
+            {subtitle && !ticket ? (
+              <MaskLine delay={290} className="text-neutral-500">
+                {subtitle}
+              </MaskLine>
+            ) : null}
+          </h2>
+        </div>
 
-        <h2 id={labelledBy} className="mt-7 text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink">
-          <MaskLine delay={200}>You&apos;re booked.</MaskLine>
-          {subtitle ? (
-            <MaskLine delay={290} className="text-neutral-500">
-              {subtitle}
-            </MaskLine>
-          ) : null}
-        </h2>
+        {ticket ? (
+          <div className="lu-rise relative mt-6 rounded-[22px] bg-neutral-50 p-5 ring-1 ring-inset ring-ink/[0.06]" style={{ "--lu-delay": "260ms" } as React.CSSProperties}>
+            <p className="text-sm text-neutral-500">{ticket.day}</p>
+            <div className="mt-2 flex items-end gap-2">
+              <SplitFlap text={ticket.time.split(" ")[0]} className="text-[2.4rem] font-semibold" />
+              <span className="mb-1 text-sm font-semibold text-neutral-500">{ticket.time.split(" ")[1] || ""}</span>
+            </div>
+            {ticket.line ? <p className="mt-3 text-[15px] font-medium text-ink">{ticket.line}</p> : null}
+          </div>
+        ) : null}
 
         {body ? <div className="lu-fade-in mt-4 text-sm leading-6 text-neutral-600">{body}</div> : null}
 
         {rows.length > 0 ? (
-          <dl className="lu-lineup mt-6 divide-y divide-ink/[0.06] rounded-2xl bg-paper px-4 ring-1 ring-ink/[0.05]">
+          <dl className="lu-lineup mt-4 divide-y divide-ink/[0.06]">
             {rows.map((row) => (
-              <div key={row.label} className="flex items-baseline justify-between gap-6 py-3.5">
-                <dt className="shrink-0 text-xs text-neutral-500">{row.label}</dt>
+              <div key={row.label} className="flex items-baseline justify-between gap-6 py-3">
+                <dt className="shrink-0 text-[13px] text-neutral-500">{row.label}</dt>
                 <dd className="min-w-0 text-right text-sm font-medium text-ink">{row.value}</dd>
               </div>
             ))}
           </dl>
         ) : null}
 
-        {note ? <p className="lu-fade-in mt-4 text-xs leading-5 text-neutral-500">{note}</p> : null}
+        {note ? <p className="lu-fade-in mt-3 text-xs leading-5 text-neutral-500">{note}</p> : null}
 
-        <div className="mt-7 flex flex-col gap-3">{children}</div>
+        <div className="mt-6 flex flex-col gap-2">{children}</div>
       </div>
     </div>
   );

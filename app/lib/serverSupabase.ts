@@ -1,3 +1,4 @@
+import type { User } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { timingSafeEqual } from "node:crypto";
 import { createServerClient } from "@supabase/ssr";
@@ -87,6 +88,19 @@ export async function getAuthenticatedUser(req: Request) {
     : null;
 
   if (token) {
+    // Fast path: verify the JWT locally (asymmetric signing keys, cached), no
+    // round trip to the Auth server. Every API call starts here, so this is
+    // the single most-repeated wait in the app. API routes only use id/email.
+    try {
+      const { data, error } = await serviceSupabase.auth.getClaims(token);
+      const claims = data?.claims as { sub?: string; email?: string } | undefined;
+      if (!error && claims?.sub) {
+        return { id: claims.sub, email: claims.email ?? undefined } as unknown as User;
+      }
+    } catch {
+      // fall through to the network check
+    }
+
     const { data, error } = await serviceSupabase.auth.getUser(token);
 
     if (!error && data?.user) {
