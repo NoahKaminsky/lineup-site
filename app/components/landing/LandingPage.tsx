@@ -118,17 +118,18 @@ const proFeatures = [
   { title: "Paid through LineUp", body: "Every booking is paid securely through Stripe before the appointment, so nobody chases anybody." },
   { title: "A record that follows you", body: "Every completed job adds a verified review to your public profile and portfolio." },
   { title: "Work where you already work", body: "A shop chair, a shared space, your home studio or the client's place. You choose what you offer." },
-  { title: "Looking for a chair?", body: "Shops post their open chairs on LineUp. You see the ones for your trade and apply with your profile, portfolio and reviews." },
+  { title: "Looking for a chair?", body: "Shops post their open chairs on LineUp. You only see posts for your trade, and you apply with your profile." },
   { title: "Free to start", body: "Take on real, paying clients without a subscription. Upgrade later if you want more." },
 ];
 
 // The shop side. Copy follows what the Studio plans actually include
 // (app/lib/plans.ts), so the page can't promise something the product doesn't do.
 const shopFeatures = [
-  { title: "One calendar for every chair", body: "Online bookings, walk-ins and phone-ins sit in one place, for the whole team." },
-  { title: "Everyone keeps their own login", body: "Each pro gets their own LineUp account and Pro features, housed under the shop." },
-  { title: "Your regulars stay yours", body: "No LineUp commission on the clients you bring in yourself, and monthly memberships to keep them coming back." },
-  { title: "Set the shop's cut", body: "On Studio Plus, take a commission or charge booth rent. It's collected and paid out to the shop automatically." },
+  { title: "One calendar for the whole shop", body: "Online bookings, walk-ins and phone bookings all show up in the same calendar." },
+  { title: "Every pro gets their own login", body: "Each person on your team has their own LineUp account, linked to your shop." },
+  { title: "No fee on your own clients", body: "LineUp takes no commission when your own clients book with you." },
+  { title: "Memberships for your regulars", body: "Offer a monthly membership to the clients who come in often." },
+  { title: "Take a commission or charge booth rent", body: "With Studio Plus, LineUp collects your shop's share from each pro and pays it to you automatically." },
 ];
 
 // Who's on the floor in the front-desk demo. Names are examples and say so on the page.
@@ -916,26 +917,30 @@ export default function LandingPage() {
           <div className="max-w-2xl">
             <p className="text-sm font-medium text-neutral-500">For salon, studio and shop owners</p>
             <h2 data-split className="mt-4 text-[clamp(2rem,3.6vw,3rem)] font-semibold leading-[1.04] tracking-[-0.035em]">
-              <Line>One front desk</Line>
-              <Line className="text-neutral-400">for the whole shop.</Line>
+              <Line>Run your whole shop</Line>
+              <Line className="text-neutral-400">on LineUp.</Line>
             </h2>
             <p data-reveal className="mt-7 max-w-xl text-lg leading-8 text-neutral-600">
-              Own a salon, a barbershop or a studio? A Studio account puts your whole team on LineUp under one roof.
-              That request you built reaches your front desk too, and you pass it to whoever&apos;s free. Go on, pass
-              it to someone.
+              Own a salon, barbershop or studio? A Studio account is one account for your shop and everyone who works
+              in it. You see every booking in one place, and each of your pros still has their own login.
             </p>
             <p data-reveal className="mt-4 max-w-xl leading-7 text-neutral-600">
-              Got a chair to fill?{" "}
+              Have an empty chair?{" "}
               <a href="#chairs" className={`rounded font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink ${focusRing}`}>
-                Post a chair opening
+                Post it on LineUp
               </a>{" "}
-              and pros in that trade come to you.
+              and pros apply to work with you.
             </p>
           </div>
 
+          <p data-reveal className="mt-14 text-center text-lg font-semibold tracking-tight lg:mt-20">
+            Try it. A client nearby just asked for a {service.name.toLowerCase()}.{" "}
+            <span className="text-neutral-500">Pick who takes it.</span>
+          </p>
+
           {/* The front desk on the shop's computer, built live rather than shown as a
               picture, so the visitor's own request can sit in it and be passed along. */}
-          <div className="js-shop-screen mx-auto mt-14 max-w-5xl will-change-transform lg:mt-20">
+          <div className="js-shop-screen mx-auto mt-8 max-w-5xl will-change-transform">
             <DesktopFrame address="lineup-aesthetics.ca/studio">
               <div className="bg-paper text-left">
                 <div className="flex items-center gap-6 border-b border-ink/[0.07] bg-white px-4 py-3 sm:px-6">
@@ -955,7 +960,7 @@ export default function LandingPage() {
                 <div className="px-4 pb-6 pt-5 sm:px-6 sm:pb-8 sm:pt-6">
                   <p className="text-[22px] font-semibold leading-tight tracking-[-0.035em]">Today</p>
                   <p className="mt-1 text-[13px] text-neutral-500" aria-live="polite">
-                    {passedPro ? `3 appointments. Request passed to ${passedPro.name}.` : "3 appointments. 1 client request waiting."}
+                    {passedPro ? `3 appointments today. Request sent to ${passedPro.name}.` : "3 appointments today. 1 new client request."}
                   </p>
 
                   <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_19rem]">
@@ -973,14 +978,14 @@ export default function LandingPage() {
                             style={{ "--motion-distance": "10px" } as React.CSSProperties}
                           >
                             <p className="text-[14px] leading-6 text-neutral-600">
-                              {service.name} is with {passedPro.name}, who answers the client with a price and a time.
+                              Sent to {passedPro.name}. {passedPro.name} replies to the client with a price and a time.
                             </p>
                             <button
                               type="button"
                               onClick={() => setPassedTo(null)}
                               className={`mt-2 rounded-full py-2 text-[13px] font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink ${focusRing}`}
                             >
-                              Take it back
+                              Undo
                             </button>
                           </div>
                         ) : (
@@ -992,7 +997,7 @@ export default function LandingPage() {
                               </p>
                             </div>
                             <div>
-                              <p className="text-[12px] text-neutral-500">Pass to</p>
+                              <p className="text-[12px] text-neutral-500">Who should take it?</p>
                               <div className="mt-1.5 flex flex-wrap gap-2">
                                 {floor.map((pro) => (
                                   <button
@@ -1055,7 +1060,7 @@ export default function LandingPage() {
               </div>
             </DesktopFrame>
             <p className="mt-5 text-center text-xs text-neutral-400">
-              A working demo of the front desk. The names are examples.
+              This is a demo of a shop&apos;s LineUp screen. The names are made up.
             </p>
           </div>
 
@@ -1064,17 +1069,24 @@ export default function LandingPage() {
           <div id="chairs" className="mt-24 grid scroll-mt-24 items-center gap-12 border-t border-ink/10 pt-16 lg:mt-32 lg:grid-cols-12 lg:gap-10 lg:pt-24">
             <div className="lg:col-span-5">
               <h3 data-split className="text-[clamp(1.75rem,3vw,2.5rem)] font-semibold leading-[1.06] tracking-[-0.035em]">
-                <Line>Got an empty chair?</Line>
-                <Line className="text-neutral-400">Post it. Pros come to you.</Line>
+                <Line>Have an empty chair?</Line>
+                <Line className="text-neutral-400">Post it on LineUp.</Line>
               </h3>
-              <p data-reveal className="mt-6 max-w-md text-lg leading-8 text-neutral-600">
-                Post a chair opening from your Studio account: who it&apos;s for, booth rent or commission, and when it
-                starts. Only pros in that trade see it. They apply with their LineUp profile, portfolio and reviews,
-                and you invite the one you want onto your team.
-              </p>
+              <ol data-reveal className="mt-6 max-w-md space-y-3 text-lg leading-8 text-neutral-600">
+                <li>
+                  <span className="font-semibold text-ink">1. Post the chair.</span> Say who you&apos;re looking for, whether
+                  it&apos;s booth rent or commission, and when they can start.
+                </li>
+                <li>
+                  <span className="font-semibold text-ink">2. Pros apply.</span> Only pros in that trade see your post. You
+                  see their profile, their work and their reviews.
+                </li>
+                <li>
+                  <span className="font-semibold text-ink">3. Invite the one you like.</span> They join your shop on LineUp.
+                </li>
+              </ol>
               <p data-reveal className="mt-5 max-w-md leading-7 text-neutral-600">
-                <span className="font-semibold text-ink">Included with every Studio plan.</span> No job board, no
-                reposting to your story every week.
+                Posting chairs is included with every Studio plan.
               </p>
             </div>
 
@@ -1087,9 +1099,9 @@ export default function LandingPage() {
                       <p className="text-xs text-neutral-500">Chair opening</p>
                       <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-medium text-neutral-700">Open</span>
                     </div>
-                    <p className="mt-2 text-lg font-semibold tracking-tight">Opening for a {service.trade.toLowerCase()}</p>
+                    <p className="mt-2 text-lg font-semibold tracking-tight">Looking for a {service.trade.toLowerCase()}</p>
                     <p className="mt-1 text-sm leading-6 text-neutral-600">
-                      Booth rent or commission. Seen only by {chair.plural}.
+                      Booth rent or commission. Only {chair.plural} see this post.
                     </p>
                   </div>
 
@@ -1106,14 +1118,14 @@ export default function LandingPage() {
                         <p className="text-sm text-neutral-500">6 years of experience. Can start next week.</p>
                       </div>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-neutral-600">Profile, portfolio and reviews attached.</p>
+                    <p className="mt-3 text-sm leading-6 text-neutral-600">You can see Riley&apos;s profile, work and reviews.</p>
                     <div className="mt-4" aria-live="polite">
                       {invited ? (
                         <p
                           className="animate-[lu-line-in_320ms_var(--ease-premium)_backwards] text-sm leading-6 text-ink motion-reduce:animate-none"
                           style={{ "--motion-distance": "10px" } as React.CSSProperties}
                         >
-                          <span className="font-semibold">Invite sent.</span> Riley joins your team when they accept.
+                          <span className="font-semibold">Invite sent.</span> Riley joins your shop when they accept.
                         </p>
                       ) : (
                         <button
@@ -1121,14 +1133,14 @@ export default function LandingPage() {
                           onClick={() => setInvited(true)}
                           className={`inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-medium text-white transition hover:bg-neutral-800 active:scale-[0.98] ${focusRing}`}
                         >
-                          Invite to the team
+                          Invite Riley to your shop
                         </button>
                       )}
                     </div>
                   </div>
                 </div>
               </div>
-              <p className="mt-4 text-xs text-neutral-400 sm:text-right">An example opening and applicant.</p>
+              <p className="mt-4 text-xs text-neutral-400 sm:text-right">An example post and applicant.</p>
             </div>
           </div>
 
@@ -1144,8 +1156,8 @@ export default function LandingPage() {
                 {STUDIO_PLANS.studio.label} is {STUDIO_PLANS.studio.priceLabel} a month
               </dt>
               <dd className="mt-1.5 leading-7 text-neutral-600">
-                For the whole salon, studio or shop, however many pros work there. {STUDIO_PLANS.studio_plus.label} is{" "}
-                {STUDIO_PLANS.studio_plus.priceLabel}. Prices in CAD.
+                One price for the whole shop, no matter how many pros work there. {STUDIO_PLANS.studio_plus.label} is{" "}
+                {STUDIO_PLANS.studio_plus.priceLabel} a month. Prices in CAD.
               </dd>
             </div>
           </dl>
@@ -1155,7 +1167,7 @@ export default function LandingPage() {
               href="/login?mode=signup"
               className={`inline-flex items-center justify-center whitespace-nowrap rounded-full bg-ink px-7 py-3.5 font-medium text-white transition-colors duration-150 hover:bg-neutral-800 ${focusRing}`}
             >
-              Open your shop
+              Set up your shop
             </Link>
           </div>
         </div>
