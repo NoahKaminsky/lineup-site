@@ -29,6 +29,7 @@ export default function robots(): MetadataRoute.Robots {
           "/chairs",
           "/gift-cards",
           "/import",
+          "/refer",
           "/regular",
           "/gift/thanks",
           "/onboarding",
