@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getServiceSupabase, requireAdmin } from "@/app/lib/serverSupabase";
 import { getNewsletterAudience } from "@/app/lib/newsletterAudience";
-import { NEWSLETTER_LAUNCH_SUBJECT, getNewsletterLaunchHtml } from "@/lib/email/newsletterLaunch";
+import { NEWSLETTER_STUDIO_SUBJECT, getNewsletterStudioHtml } from "@/lib/email/newsletterStudio";
+
+// The issue the admin Newsletter tab sends. Point these at the newest template
+// when there is a new one to release.
+const SUBJECT = NEWSLETTER_STUDIO_SUBJECT;
+const getHtml = getNewsletterStudioHtml;
 
 // Sending a few hundred emails in batches takes a little while.
 export const maxDuration = 300;
@@ -16,8 +21,8 @@ function message(email: string) {
     from: FROM,
     to: [email],
     replyTo: REPLY_TO,
-    subject: NEWSLETTER_LAUNCH_SUBJECT,
-    html: getNewsletterLaunchHtml(email),
+    subject: SUBJECT,
+    html: getHtml(email),
     headers: {
       "List-Unsubscribe": `<https://www.lineup-aesthetics.ca/unsubscribe?email=${encodeURIComponent(email)}>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
@@ -32,7 +37,7 @@ export async function GET(req: Request) {
 
   try {
     const { counts } = await getNewsletterAudience(getServiceSupabase());
-    return NextResponse.json({ subject: NEWSLETTER_LAUNCH_SUBJECT, counts, adminEmail: admin.email || null });
+    return NextResponse.json({ subject: SUBJECT, counts, adminEmail: admin.email || null });
   } catch (error) {
     console.error("Newsletter audience failed:", error);
     return NextResponse.json({ error: "Could not load the mailing list." }, { status: 500 });
@@ -87,7 +92,7 @@ export async function POST(req: Request) {
       }
     }
 
-    console.log(`Launch newsletter sent by ${admin.id}: ${sent} sent, ${failed} failed`);
+    console.log(`Newsletter "${SUBJECT}" sent by ${admin.id}: ${sent} sent, ${failed} failed`);
     return NextResponse.json({ ok: failed === 0, sent, failed, total: recipients.length });
   }
 

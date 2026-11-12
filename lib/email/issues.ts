@@ -1,5 +1,6 @@
 import { getNewsletterLaunchHtml, NEWSLETTER_LAUNCH_SUBJECT } from "./newsletterLaunch";
 import { getNewsletterMarch27Html } from "./newsletterMarch27";
+import { getNewsletterStudioHtml, NEWSLETTER_STUDIO_SUBJECT } from "./newsletterStudio";
 
 // Every newsletter issue, newest first. /news lists the public ones grouped
 // by week, and /news/<slug> shows each in full.
@@ -21,6 +22,18 @@ export type NewsletterIssue = {
 };
 
 export const NEWSLETTER_ISSUES: NewsletterIssue[] = [
+  {
+    slug: "lineup-studio-is-live",
+    title: "LineUp Studio is live",
+    subject: NEWSLETTER_STUDIO_SUBJECT,
+    date: "2026-11-12",
+    summary:
+      "Studio accounts are open to salon, barbershop and studio owners: one account for the whole shop, a shared calendar, client requests and chair openings.",
+    audience: "Everyone",
+    byline: "Noah Kaminsky",
+    public: true,
+    html: getNewsletterStudioHtml,
+  },
   {
     slug: "lineup-is-live",
     title: "LineUp is live",

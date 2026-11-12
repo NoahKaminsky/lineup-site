@@ -101,7 +101,7 @@ export default function AdminNewsletter() {
   return (
     <div className="mt-6 space-y-4">
       <div className="rounded-2xl border border-neutral-200 bg-white p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Launch newsletter</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Newsletter ready to send</p>
         <h2 className="mt-1 text-lg font-semibold">{subject || "…"}</h2>
 
         {loading ? (
