@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 
 export const SITE_PAGES = [
   { href: "/beauty", label: "Find a pro", note: "Verified pros by city" },
+  { href: "/shops", label: "Find a shop", note: "Salons, barbershops, studios" },
   { href: "/about", label: "About", note: "Meet the founders" },
   { href: "/faq", label: "FAQ", note: "How LineUp works" },
   { href: "/news", label: "News", note: "The weekly LineUp" },

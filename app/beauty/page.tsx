@@ -30,7 +30,7 @@ export default async function BeautyIndexPage() {
             <span className="block text-neutral-400">Pick your city.</span>
           </>
         }
-        subtitle="Every pro listed has been verified by LineUp. If your city doesn't have anyone yet, post a request anyway: pros nearby are alerted when one comes in."
+        subtitle="Every pro listed has been verified by LineUp. If your city doesn't have anyone yet, post a request anyway: pros nearby are alerted when one comes in. Looking for a salon or barbershop? Find a shop instead."
       />
 
       <div className="mx-auto max-w-6xl space-y-14 px-4 pb-24 sm:px-6">

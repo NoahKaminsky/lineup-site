@@ -1071,9 +1071,17 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
       <div className="mx-auto max-w-6xl py-6 sm:py-8">
         {/* Explore: ask first (search), then the one paid stage, then who's
             free. The Spotlight is the only dark, lit thing on the page. */}
-        <h1 className="text-[2.4rem] font-semibold leading-[1] tracking-[-0.05em] text-ink sm:text-[3.75rem]">
-          {freeSoon.today.length > 0 ? "Who\u2019s free today?" : "Who\u2019s free this week?"}
-        </h1>
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <h1 className="text-[2.4rem] font-semibold leading-[1] tracking-[-0.05em] text-ink sm:text-[3.75rem]">
+            {freeSoon.today.length > 0 ? "Who\u2019s free today?" : "Who\u2019s free this week?"}
+          </h1>
+          <Link
+            href="/shops"
+            className="rounded-full px-4 py-2 text-sm font-medium text-ink ring-1 ring-inset ring-ink/15 transition-colors hover:bg-ink/[0.04]"
+          >
+            Find a shop
+          </Link>
+        </div>
 
         <div className="relative mt-6">
               <label htmlFor="browse-search" className="sr-only">
