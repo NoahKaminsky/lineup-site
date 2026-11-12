@@ -17,6 +17,7 @@ import {
   Search,
   Sun,
   Check,
+  Gift,
   X,
   Moon,
 } from "lucide-react";
@@ -2051,6 +2052,15 @@ if (loading) {
                     </svg>
                     @{String(profile.instagram_handle).replace("@", "")}
                   </a>
+                ) : null}
+                {isProfessional && viewerUserId !== profile.id ? (
+                  <Link
+                    href={`/gift/pro/${profile.username || profile.id}`}
+                    className="inline-flex items-center gap-1.5 font-medium text-ink underline decoration-ink/20 underline-offset-4 transition hover:decoration-ink"
+                  >
+                    <Gift className="h-4 w-4" aria-hidden="true" />
+                    Buy a gift card
+                  </Link>
                 ) : null}
               </div>
 

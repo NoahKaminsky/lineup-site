@@ -27,6 +27,8 @@ export default function robots(): MetadataRoute.Robots {
           "/bookings",
           "/calendar",
           "/chairs",
+          "/gift-cards",
+          "/gift/thanks",
           "/onboarding",
           "/requests",
           "/reset-password",
