@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 // sit beside it as their own buttons, never inside it.
 
 export const SITE_PAGES = [
+  { href: "/beauty", label: "Find a pro", note: "Verified pros by city" },
   { href: "/about", label: "About", note: "Meet the founders" },
   { href: "/faq", label: "FAQ", note: "How LineUp works" },
   { href: "/news", label: "News", note: "The weekly LineUp" },
