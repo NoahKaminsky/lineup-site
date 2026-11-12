@@ -7,6 +7,7 @@ import { syncMemberPlan, syncStudioMemberPlans } from "@/app/lib/studios";
 import { hasFrontDeskClash } from "@/app/lib/busyTimes";
 import { createPayAtShopBooking } from "@/app/lib/payAtShop";
 import { recordBoost } from "@/app/lib/boostsServer";
+import { activateGiftCard } from "@/app/lib/giftCardsServer";
 import { markMembershipPastDue, syncMembershipSubscription } from "@/app/lib/memberships";
 import { getSiteUrl } from "@/app/lib/siteUrl";
 
@@ -702,6 +703,9 @@ export async function POST(req: Request) {
       const session = event.data.object;
       if (session.mode === "payment" && session.metadata?.boost_kind) {
         await recordBoost(session as unknown as Parameters<typeof recordBoost>[0]);
+      }
+      if (session.mode === "payment" && session.metadata?.gift_card_id) {
+        await activateGiftCard(session as unknown as Parameters<typeof activateGiftCard>[0]);
       }
       if (session.mode === "subscription" && session.metadata?.membership_plan_id) {
         await syncMembershipSubscription(

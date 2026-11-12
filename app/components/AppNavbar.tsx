@@ -701,6 +701,7 @@ function NavbarComponent() {
     ? [
         { href: "/studio/settings", label: "Shop settings", show: true },
         { href: "/studio/memberships", label: "Memberships", show: true },
+        { href: "/gift-cards", label: "Gift cards", show: true },
         { href: "/account", label: "Account", show: true },
         { href: "/admin", label: "Switch to admin", show: !!profile?.is_admin },
       ].filter((link) => link.show)
@@ -710,6 +711,7 @@ function NavbarComponent() {
     { href: "/archive", label: "Archived services", show: true },
     { href: "/services", label: "Services & availability", show: isProfessional },
     { href: "/studio", label: onStudio ? "Your shop" : "Open a shop", show: isProfessional },
+    { href: "/gift-cards", label: "Gift cards", show: isProfessional },
     { href: "/chairs", label: "Chair openings", show: isProfessional },
     { href: "/analytics", label: "Analytics", show: isProfessional },
     { href: "/subscription", label: "Subscription", show: isProfessional },

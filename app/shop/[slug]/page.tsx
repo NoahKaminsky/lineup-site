@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MapPin } from "lucide-react";
+import { Gift, MapPin } from "lucide-react";
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
 import { PROFESSION_LABELS, isVerifiedNow } from "@/app/lib/verificationRules";
 import { getProfileHref } from "@/app/lib/profileLink";
@@ -43,7 +43,7 @@ async function loadShop(slug: string) {
 
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, tagline, owner_id, plan, subscription_status")
+    .select("id, name, tagline, owner_id, plan, subscription_status, stripe_account_id")
     .eq("slug", slug)
     .maybeSingle();
   if (!studio) return null;
@@ -180,6 +180,15 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
       <div className="mx-auto max-w-3xl">
         <h1 className="text-[2rem] font-semibold leading-[1.1] tracking-[-0.04em] sm:text-[2.5rem]">{studio.name}</h1>
         {studio.tagline ? <p className="mt-3 max-w-xl text-[15px] leading-7 text-neutral-600">{studio.tagline}</p> : null}
+        {isStudioLive(studio) && studio.stripe_account_id ? (
+          <Link
+            href={`/gift/shop/${slug}`}
+            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink underline decoration-ink/20 underline-offset-4 hover:decoration-ink"
+          >
+            <Gift className="h-4 w-4" aria-hidden="true" />
+            Buy a gift card
+          </Link>
+        ) : null}
         {address ? (
           <a
             href={mapsUrl!}
