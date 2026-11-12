@@ -134,9 +134,10 @@ const shopFeatures = [
 
 // Who's on the floor in the front-desk demo. Names are examples and say so on the page.
 const floor = [
-  { id: "maya", name: "Maya", status: "Free now" },
-  { id: "jordan", name: "Jordan", status: "With a client until 3:30" },
-  { id: "sam", name: "Sam", status: "Free at 4:00" },
+  // `short` is the status as it fits on a phone-sized version of the screen.
+  { id: "maya", name: "Maya", status: "Free now", short: "Free now" },
+  { id: "jordan", name: "Jordan", status: "With a client until 3:30", short: "Busy to 3:30" },
+  { id: "sam", name: "Sam", status: "Free at 4:00", short: "Free at 4:00" },
 ];
 
 // Which chair photo and wording go with the service the visitor picked, so the
@@ -943,9 +944,12 @@ export default function LandingPage() {
               picture, so the visitor's own request can sit in it and be passed along. */}
           <div className="js-shop-screen mx-auto mt-8 max-w-5xl will-change-transform">
             <DesktopFrame address="lineup-aesthetics.ca/studio">
+              {/* On a phone the screen keeps its desktop shape: two columns, tighter
+                  type and no "Up next", so it reads as a computer screen rather
+                  than one long stack of panels. */}
               <div className="bg-paper text-left">
-                <div className="flex items-center gap-6 border-b border-ink/[0.07] bg-white px-4 py-3 sm:px-6">
-                  <p className="flex items-center gap-2 text-[15px] font-semibold tracking-[-0.03em]">
+                <div className="flex items-center gap-6 border-b border-ink/[0.07] bg-white px-3 py-2 sm:px-6 sm:py-3">
+                  <p className="flex items-center gap-1.5 text-[13px] font-semibold tracking-[-0.03em] sm:gap-2 sm:text-[15px]">
                     LineUp
                     <span className="rounded-md bg-ink px-1.5 py-0.5 text-[11px] font-semibold text-white">Studio</span>
                   </p>
@@ -958,55 +962,55 @@ export default function LandingPage() {
                   </ul>
                 </div>
 
-                <div className="px-4 pb-6 pt-5 sm:px-6 sm:pb-8 sm:pt-6">
-                  <p className="text-[22px] font-semibold leading-tight tracking-[-0.035em]">Today</p>
-                  <p className="mt-1 text-[13px] text-neutral-500" aria-live="polite">
+                <div className="px-3 pb-3 pt-3 sm:px-6 sm:pb-8 sm:pt-6">
+                  <p className="text-[16px] font-semibold leading-tight tracking-[-0.035em] sm:text-[22px]">Today</p>
+                  <p className="mt-0.5 text-[11px] text-neutral-500 sm:mt-1 sm:text-[13px]" aria-live="polite">
                     {passedPro ? `3 appointments today. Request sent to ${passedPro.name}.` : "3 appointments today. 1 new client request."}
                   </p>
 
-                  <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_19rem]">
+                  <div className="mt-2.5 grid grid-cols-[minmax(0,1fr)_6.25rem] gap-2 sm:mt-5 sm:grid-cols-[minmax(0,1fr)_13rem] sm:gap-4 md:grid-cols-[minmax(0,1fr)_19rem]">
                     <div className="space-y-4">
-                      <div className="relative rounded-2xl bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
+                      <div className="relative rounded-xl bg-white p-3 ring-1 ring-ink/[0.07] sm:rounded-2xl sm:p-5">
                         <span
                           aria-hidden="true"
                           className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 ring-2 ring-ink [.is-landed_&]:animate-[lu-ping_1s_ease-out]"
                         />
-                        <p className="text-[14px] font-semibold text-ink">Client requests</p>
+                        <p className="text-[12px] font-semibold text-ink sm:text-[14px]">Client requests</p>
                         {passedPro ? (
                           <div
                             key={passedPro.id}
-                            className="mt-3 animate-[lu-line-in_320ms_var(--ease-premium)_backwards] motion-reduce:animate-none"
+                            className="mt-2 animate-[lu-line-in_320ms_var(--ease-premium)_backwards] motion-reduce:animate-none sm:mt-3"
                             style={{ "--motion-distance": "10px" } as React.CSSProperties}
                           >
-                            <p className="text-[14px] leading-6 text-neutral-600">
+                            <p className="text-[12px] leading-[1.45] text-neutral-600 sm:text-[14px] sm:leading-6">
                               You sent this to {passedPro.name}. {passedPro.name} will reply to the client with a price and a
                               time.
                             </p>
                             <button
                               type="button"
                               onClick={() => setPassedTo(null)}
-                              className={`mt-2 rounded-full py-2 text-[13px] font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink ${focusRing}`}
+                              className={`mt-1 rounded-full py-2 text-[12px] font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink sm:mt-2 sm:text-[13px] ${focusRing}`}
                             >
                               Undo
                             </button>
                           </div>
                         ) : (
-                          <div className="mt-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+                          <div className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-2.5 sm:mt-3 sm:gap-y-4">
                             <div>
-                              <p className="text-[15px] font-semibold leading-snug">{service.name}</p>
-                              <p className="text-[13px] leading-snug text-neutral-600">
+                              <p className="text-[13px] font-semibold leading-snug sm:text-[15px]">{service.name}</p>
+                              <p className="text-[11px] leading-snug text-neutral-600 sm:text-[13px]">
                                 {place.short}, {day.label.toLowerCase()}
                               </p>
                             </div>
                             <div>
-                              <p className="text-[12px] text-neutral-500">Who should take it?</p>
-                              <div className="mt-1.5 flex flex-wrap gap-2">
+                              <p className="text-[11px] text-neutral-500 sm:text-[12px]">Who should take it?</p>
+                              <div className="mt-1.5 flex flex-nowrap gap-1 sm:flex-wrap sm:gap-2">
                                 {floor.map((pro) => (
                                   <button
                                     key={pro.id}
                                     type="button"
                                     onClick={() => setPassedTo(pro.id)}
-                                    className={`min-h-11 rounded-full bg-white px-4 text-[13px] font-medium text-ink ring-1 ring-ink/15 transition hover:ring-ink/40 active:scale-[0.97] sm:min-h-10 ${focusRing}`}
+                                    className={`min-h-10 rounded-full bg-white px-2 text-[12px] font-medium text-ink ring-1 ring-ink/15 transition hover:ring-ink/40 active:scale-[0.97] sm:px-4 sm:text-[13px] ${focusRing}`}
                                   >
                                     {pro.name}
                                   </button>
@@ -1017,7 +1021,7 @@ export default function LandingPage() {
                         )}
                       </div>
 
-                      <div className="rounded-2xl bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
+                      <div className="hidden rounded-2xl bg-white p-5 ring-1 ring-ink/[0.07] sm:block">
                         <p className="text-[14px] font-semibold text-ink">Up next</p>
                         <ul className="mt-2 divide-y divide-ink/[0.06]">
                           {upNext.map((item) => (
@@ -1033,23 +1037,34 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    <div className="self-start rounded-2xl bg-white p-4 ring-1 ring-ink/[0.07] sm:p-5">
-                      <p className="text-[14px] font-semibold text-ink">On the floor</p>
-                      <ul className="mt-2">
+                    <div className="self-stretch rounded-xl bg-white p-3 ring-1 ring-ink/[0.07] sm:self-start sm:rounded-2xl sm:p-5">
+                      <p className="text-[12px] font-semibold text-ink sm:text-[14px]">On the floor</p>
+                      <ul className="mt-1 sm:mt-2">
                         {floor.map((pro) => (
-                          <li key={pro.id} className="flex items-center gap-3 py-2">
+                          <li key={pro.id} className="flex items-center gap-3 py-1.5 sm:py-2">
                             <span
                               aria-hidden="true"
-                              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[13px] font-semibold text-neutral-600"
+                              className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-[13px] font-semibold text-neutral-600 sm:flex"
                             >
                               {pro.name[0]}
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[14px] font-medium leading-tight">{pro.name}</span>
-                              <span className="block truncate text-[12px] leading-snug text-neutral-500">{pro.status}</span>
+                              <span className="flex items-center gap-1.5 text-[12px] font-medium leading-tight sm:text-[14px]">
+                                <span className="truncate">{pro.name}</span>
+                                {passedTo === pro.id ? (
+                                  <span
+                                    aria-hidden="true"
+                                    className="h-1.5 w-1.5 shrink-0 animate-[lu-pop-in_220ms_var(--ease-premium)_backwards] rounded-full bg-ink motion-reduce:animate-none sm:hidden"
+                                  />
+                                ) : null}
+                              </span>
+                              <span className="block truncate text-[11px] leading-snug text-neutral-500 sm:hidden">
+                                {passedTo === pro.id ? "New request" : pro.short}
+                              </span>
+                              <span className="hidden truncate text-[12px] leading-snug text-neutral-500 sm:block">{pro.status}</span>
                             </span>
                             {passedTo === pro.id ? (
-                              <span className="shrink-0 animate-[lu-pop-in_220ms_var(--ease-premium)_backwards] rounded-full bg-ink px-2 py-1 text-[11px] font-medium text-white motion-reduce:animate-none">
+                              <span className="hidden shrink-0 animate-[lu-pop-in_220ms_var(--ease-premium)_backwards] rounded-full bg-ink px-2 py-1 text-[11px] font-medium text-white motion-reduce:animate-none sm:inline">
                                 New request
                               </span>
                             ) : null}
