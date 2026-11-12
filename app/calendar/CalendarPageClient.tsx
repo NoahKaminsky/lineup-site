@@ -16,6 +16,7 @@ import {
   type FrontDeskRow,
 } from "@/app/lib/calendarBookings";
 import type { CalendarInitialData } from "./getInitialData";
+import CalendarSync from "./CalendarSync";
 
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { BOOKING_TIME_ZONE } from "@/app/lib/bookingTime";
@@ -979,8 +980,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   return (
     <main className="min-h-screen overflow-x-hidden bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl py-6 sm:py-8">
-        <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Calendar</h1>
+          <CalendarSync />
         </div>
 
         <VerificationBanner />
