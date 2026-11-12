@@ -337,6 +337,14 @@ function formatModeLabel(mode: string) {
   return mode.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+// A service can only be booked straight from the calendar when it has a price
+// to charge. Without one, the client asks for a price by sending a request.
+function hasBookablePrice(service: { price: string | number | null | undefined }) {
+  if (service.price === null || service.price === undefined || service.price === "") return false;
+  const amount = Number(service.price);
+  return Number.isFinite(amount) && amount > 0;
+}
+
 function formatPrice(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === "") return null;
 
@@ -573,6 +581,8 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [bookingSlotKey, setBookingSlotKey] = useState<string | null>(null);
   const [pendingBookingChoice, setPendingBookingChoice] = useState<PendingBookingChoice | null>(null);
+  // Set when the client taps Book before choosing a service.
+  const [serviceNudge, setServiceNudge] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<BookingRow | null>(null);
   const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
   // "Book now, pay at the shop" (studio pros whose shop allows it).
@@ -1114,6 +1124,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       (service) =>
         service.is_active &&
         service.is_bookable &&
+        hasBookablePrice(service) &&
         Number(service.duration_minutes) <= Number(selectedSlot.duration_minutes)
     );
     if (!preferredServiceId) return fitting;
@@ -1122,6 +1133,19 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       ...fitting.filter((service) => service.id !== preferredServiceId),
     ];
   }, [services, selectedSlot, preferredServiceId]);
+
+  // Services that are bookable but need longer than this opening has. Shown
+  // dimmed under the ones that fit, so a service never just disappears.
+  const servicesTooLongForSelectedSlot = useMemo(() => {
+    if (!selectedSlot) return [];
+    return services.filter(
+      (service) =>
+        service.is_active &&
+        service.is_bookable &&
+        hasBookablePrice(service) &&
+        Number(service.duration_minutes) > Number(selectedSlot.duration_minutes)
+    );
+  }, [services, selectedSlot]);
 
   // The service filling in the selected time: the one the client picked for
   // it, or the service they tapped in the Services list if it fits.
@@ -2407,7 +2431,9 @@ if (loading) {
                     </div>
                   </div>
 
-                  <div className={`h-fit rounded-3xl bg-white p-5 ring-1 ring-ink/[0.07] xl:sticky xl:top-[calc(var(--profile-offset,8rem)+1rem)] ${selectedSlot ? "" : "hidden xl:block"}`}>
+                  {/* On phones the ticket stands on the page by itself; the outer
+                      card only appears once there's room for a side column. */}
+                  <div className={`h-fit xl:sticky xl:top-[calc(var(--profile-offset,8rem)+1rem)] xl:rounded-3xl xl:bg-white xl:p-5 xl:ring-1 xl:ring-ink/[0.07] ${selectedSlot ? "" : "hidden xl:block"}`}>
                     {!selectedSlot ? (
                       <div className="px-1 py-2">
                         <p className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Your booking</p>
@@ -2539,11 +2565,12 @@ if (loading) {
                                     aria-checked={picked}
                                     onClick={() => {
                                       setMessage("");
+                                      setServiceNudge(false);
                                       setChosenService({ slotKey: selectedSlot.key, serviceId: service.id });
                                     }}
                                     disabled={bookingSlotKey === selectedSlot.key}
                                     className={`flex w-full items-center gap-3 rounded-2xl p-4 text-left transition disabled:opacity-60 ${
-                                      picked ? "bg-white ring-2 ring-ink" : "bg-neutral-50 ring-1 ring-inset ring-ink/[0.06] hover:bg-white hover:ring-ink/20"
+                                      picked ? "bg-white ring-2 ring-ink" : "bg-white ring-1 ring-inset ring-ink/[0.08] hover:ring-ink/20 xl:bg-neutral-50 xl:ring-ink/[0.06] xl:hover:bg-white"
                                     }`}
                                   >
                                     <span
@@ -2566,18 +2593,45 @@ if (loading) {
                               })}
                             </div>
 
+                            {servicesTooLongForSelectedSlot.length > 0 ? (
+                              <div>
+                                <p className="text-[13px] font-medium text-neutral-500">
+                                  Too long for {formatTime(selectedSlot.start_time)}. Pick an earlier time to book{" "}
+                                  {servicesTooLongForSelectedSlot.length === 1 ? "this" : "one of these"}.
+                                </p>
+                                <ul className="mt-2 divide-y divide-ink/[0.06] rounded-2xl ring-1 ring-inset ring-ink/[0.06]">
+                                  {servicesTooLongForSelectedSlot.map((service) => (
+                                    <li key={service.id} className="flex items-center gap-3 px-4 py-3">
+                                      <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-[15px] font-medium text-neutral-500">{service.service_name}</span>
+                                        <span className="mt-0.5 block text-[13px] text-neutral-500">Needs {service.duration_minutes} min</span>
+                                      </span>
+                                      <span className="shrink-0 text-sm tabular-nums text-neutral-500">{formatPrice(service.price)}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
+
                             <button
                               type="button"
-                              disabled={!activeChosenService || bookingSlotKey === selectedSlot.key}
+                              disabled={bookingSlotKey === selectedSlot.key}
                               onClick={() => {
-                                if (!activeChosenService) return;
+                                if (!activeChosenService) {
+                                  setServiceNudge(true);
+                                  return;
+                                }
                                 if (!selectedServiceMode) {
                                   setMessage("Pick where it happens first.");
                                   return;
                                 }
                                 handleStartBookingConfirmation(activeChosenService);
                               }}
-                              className="flex w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-4 text-[15px] font-semibold text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,0.6)] transition hover:bg-neutral-800 active:scale-[0.99] disabled:bg-neutral-300 disabled:shadow-none"
+                              className={`flex w-full items-center justify-center gap-2 rounded-full px-5 py-4 text-[15px] font-semibold transition active:scale-[0.99] disabled:opacity-70 ${
+                                activeChosenService
+                                  ? "bg-ink text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,0.6)] hover:bg-neutral-800"
+                                  : "bg-white text-neutral-600 ring-1 ring-inset ring-ink/15 hover:ring-ink/30"
+                              }`}
                             >
                               {bookingSlotKey === selectedSlot.key
                                 ? "Booking…"
@@ -2585,6 +2639,18 @@ if (loading) {
                                   ? `Book for ${formatTime(selectedSlot.start_time)}`
                                   : "Pick a service to book"}
                             </button>
+                            {serviceNudge && !activeChosenService ? (
+                              <p role="status" className="-mt-2 text-center text-[13px] font-medium text-ink">
+                                Tap one of the services above first.
+                              </p>
+                            ) : null}
+                            {/* Booking problems show here, beside the button that caused
+                                them, as well as at the top of the page. */}
+                            {message ? (
+                              <p role="alert" className="-mt-1 rounded-2xl bg-neutral-100 px-4 py-3 text-sm text-neutral-800">
+                                {message}
+                              </p>
+                            ) : null}
                           </div>
                         )}
                       </>
@@ -2656,17 +2722,21 @@ if (loading) {
                                 {service.description ? ` · ${service.description}` : ""}
                               </p>
                             </div>
-                            {formatPrice(service.price) ? (
+                            {hasBookablePrice(service) ? (
                               <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink">
                                 {formatPrice(service.price)}
                               </span>
-                            ) : null}
+                            ) : (
+                              <span className="shrink-0 text-[13px] text-neutral-500">Ask for a price</span>
+                            )}
                           </>
                         );
                         const rowClass =
                           "flex items-center gap-4 border-t border-ink/[0.06] px-5 py-4 first:border-t-0";
 
-                        if (canAct && canDirectBook) {
+                        // No price means nothing to charge, so it goes the request
+                        // route below instead of the calendar.
+                        if (canAct && canDirectBook && hasBookablePrice(service)) {
                           return (
                             <li key={service.id}>
                               <a
@@ -2684,7 +2754,7 @@ if (loading) {
                           );
                         }
                         if (canAct && profileVerified) {
-                          const requestPath = `/requests/new?rebook=1&pro=${profile.id}&service=${encodeURIComponent(service.service_name)}${service.price ? `&price=${service.price}` : ""}`;
+                          const requestPath = `/requests/new?rebook=1&pro=${profile.id}&service=${encodeURIComponent(service.service_name)}${hasBookablePrice(service) ? `&price=${service.price}` : ""}`;
                           return (
                             <li key={service.id}>
                               <Link
