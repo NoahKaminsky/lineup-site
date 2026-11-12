@@ -7,6 +7,7 @@ import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useScrollVar } from "@/app/lib/useScrollVar";
 import SplitFlap from "@/app/components/SplitFlap";
+import ReviewReply from "./ReviewReply";
 import { useParams } from "next/navigation";
 import {
   BadgeCheck,
@@ -86,6 +87,9 @@ type ReviewRow = {
   rating: number;
   comment: string | null;
   created_at: string;
+  // The pro's public reply.
+  pro_reply?: string | null;
+  pro_replied_at?: string | null;
 };
 
 type EnrichedReview = ReviewRow & {
@@ -749,7 +753,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
         const { data: reviewData, error: reviewError } = await supabase
           .from("professional_reviews")
-          .select("id, professional_id, reviewer_id, rating, comment, created_at")
+          .select("id, professional_id, reviewer_id, rating, comment, created_at, pro_reply, pro_replied_at")
           .eq("professional_id", resolvedId)
           .order("created_at", { ascending: false });
 
@@ -2965,6 +2969,16 @@ if (loading) {
                         {review.comment ? (
                           <p className="mt-3 max-w-2xl text-[15px] leading-7 text-neutral-700">{review.comment}</p>
                         ) : null}
+
+                        <ReviewReply
+                          reviewId={review.id}
+                          reply={review.pro_reply || null}
+                          proName={profile.full_name || "The pro"}
+                          canReply={viewerUserId === profile.id}
+                          onSaved={(reply) =>
+                            setReviews((prev) => prev.map((r) => (r.id === review.id ? { ...r, pro_reply: reply, pro_replied_at: new Date().toISOString() } : r)))
+                          }
+                        />
                       </li>
                     ))}
                   </ul>

@@ -19,7 +19,7 @@ export const FRONT_DESK_COLUMNS =
 export type FrontDeskRow = {
   id: string;
   professional_id: string;
-  kind: "walk_in" | "phone";
+  kind: "walk_in" | "phone" | "imported";
   client_name: string;
   client_phone: string | null;
   service_name: string;

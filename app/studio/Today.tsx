@@ -164,7 +164,7 @@ export default function TodayView() {
                         {inProgress ? `In the chair until ${time12(i.end)}` : "Next in the chair"}
                       </span>
                       {i.kind !== "online" ? (
-                        <span className="text-xs text-white/60">{i.kind === "phone" ? "Phone-in" : "Walk-in"}</span>
+                        <span className="text-xs text-white/60">{i.kind === "phone" ? "Phone-in" : i.kind === "imported" ? "Imported" : "Walk-in"}</span>
                       ) : i.memberPlan ? (
                         <span className="text-xs text-white/60">Member</span>
                       ) : i.payAtShop ? (
@@ -213,7 +213,7 @@ export default function TodayView() {
                           {me.canManage && pro ? ` with ${firstName(pro.name)}` : ""}
                         </span>
                       </span>
-                      {i.kind !== "online" ? <Tag>{i.kind === "phone" ? "Phone-in" : "Walk-in"}</Tag> : i.memberPlan ? <Tag tone="outline">Member</Tag> : i.payAtShop ? <Tag tone="outline">Pays here</Tag> : null}
+                      {i.kind !== "online" ? <Tag>{i.kind === "phone" ? "Phone-in" : i.kind === "imported" ? "Imported" : "Walk-in"}</Tag> : i.memberPlan ? <Tag tone="outline">Member</Tag> : i.payAtShop ? <Tag tone="outline">Pays here</Tag> : null}
                     </button>
                   </li>
                 );

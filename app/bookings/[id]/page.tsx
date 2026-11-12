@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import BookingChat from "@/app/components/BookingChat";
 import RegularCard from "./RegularCard";
+import ClientNotes from "./ClientNotes";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { containsProfanity } from "@/app/lib/profanityFilter";
 
@@ -1028,6 +1029,27 @@ export default function BookingDetailPage() {
                 : "You'll pay at the shop. Your saved card is only charged if you miss the appointment."
               : <>Once the appointment is over, you&apos;ll confirm it here so your professional gets paid.</>}
           </p>
+        ) : null}
+
+        {isViewerProfessional && booking.customer_id ? (
+          <ClientNotes professionalId={booking.professional_id} customerId={booking.customer_id} clientName={customer?.full_name || "Client"} />
+        ) : null}
+
+        {isViewerCustomer && booking.status === "completed" ? (
+          <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+            <div className="min-w-0">
+              <p className="font-semibold text-ink">Book your next one</p>
+              <p className="mt-1 text-sm leading-6 text-neutral-500">
+                {professional?.full_name ? `See ${professional.full_name.split(" ")[0]}'s open times` : "See their open times"} and lock in your next visit.
+              </p>
+            </div>
+            <Link
+              href={`/profile/${booking.professional_id}#availability`}
+              className="inline-flex shrink-0 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+            >
+              Book again
+            </Link>
+          </section>
         ) : null}
 
         {booking.status !== "cancelled" && (isViewerCustomer || isViewerProfessional) ? (

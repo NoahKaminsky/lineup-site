@@ -11,6 +11,7 @@ import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import LocationAutocomplete, { type SelectedLocation } from "@/app/components/LocationAutocomplete";
 import { rememberReturnTo, takeReturnTo } from "@/app/lib/returnTo";
+import { takeReferralCode } from "@/app/components/ReferralCapture";
 
 // See the matching flag in app/account/AccountPageClient.tsx — same reasoning.
 const SMS_SIGNUP_UI_ENABLED = false;
@@ -244,6 +245,23 @@ export default function OnboardingPage() {
         ? returnPath
         : "/verification"
       : returnPath || "/requests";
+    // Joined as a pro through another pro's link: tie them together (the
+    // referrer gets a free month once this pro starts a paid plan).
+    if (savedRole === "professional") {
+      const referralCode = takeReferralCode();
+      if (referralCode) {
+        void supabase.auth.getSession().then(({ data: { session } }) =>
+          fetch("/api/referrals", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+            },
+            body: JSON.stringify({ action: "claim", code: referralCode }),
+          }).catch(() => {})
+        );
+      }
+    }
     setWelcomeMoment(runsStudio ? "shop" : savedRole === "professional" ? "professional" : "customer");
     window.setTimeout(() => router.push(destination), 1500);
   }

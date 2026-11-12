@@ -67,7 +67,7 @@ function paymentLine(item: ScheduleItem) {
   if (item.source === "independent") return "Their own appointment, away from the shop";
   const price = item.priceCents !== null ? formatCad(item.priceCents) : null;
   if (item.kind !== "online") {
-    return `${item.kind === "phone" ? "Phone-in" : "Walk-in"}${price ? `, ${price} at the shop` : ", paid at the shop"}`;
+    return `${item.kind === "phone" ? "Phone-in" : item.kind === "imported" ? "Imported" : "Walk-in"}${price ? `, ${price} at the shop` : ", paid at the shop"}`;
   }
   if (item.memberPlan) return `Member, covered by ${item.memberPlan}`;
   if (item.payAtShop) return `Booked online${price ? `, pays ${price} at the shop` : ", pays at the shop"}`;

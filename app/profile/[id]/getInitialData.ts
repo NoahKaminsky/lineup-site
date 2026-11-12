@@ -41,7 +41,7 @@ type Profile = {
 };
 
 type PortfolioItem = { id: string; user_id: string; image_url: string; caption: string | null; media_type?: "image" | "video" | null; created_at: string };
-type EnrichedReview = { id: string; professional_id: string; reviewer_id: string; rating: number; comment: string | null; created_at: string; reviewer_name: string | null; reviewer_avatar_url: string | null };
+type EnrichedReview = { id: string; professional_id: string; reviewer_id: string; rating: number; comment: string | null; created_at: string; pro_reply?: string | null; pro_replied_at?: string | null; reviewer_name: string | null; reviewer_avatar_url: string | null };
 type AvailabilityRow = { id: string; professional_id: string; day_of_week: number; start_time: string; end_time: string; is_active: boolean };
 type BookingRow = { id: string; professional_id: string; customer_id: string; booking_date: string; start_time: string; end_time: string; status: string; service_id?: string | null; service_name?: string | null; duration_minutes?: number | null; service_price?: number | null; service_mode?: string | null; source?: string | null; formatted_address?: string | null; location_lat?: number | null; location_lng?: number | null; location_place_id?: string | null };
 type ProfessionalService = { id: string; professional_id: string; service_name: string; duration_minutes: number; price: number | null; description: string | null; is_active: boolean; is_bookable: boolean; created_at: string };
@@ -132,7 +132,7 @@ export async function getInitialProfileDetailData(profileIdOrUsername: string): 
           .order("created_at", { ascending: false }),
         supabase
           .from("professional_reviews")
-          .select("id, professional_id, reviewer_id, rating, comment, created_at")
+          .select("id, professional_id, reviewer_id, rating, comment, created_at, pro_reply, pro_replied_at")
           .eq("professional_id", resolvedId)
           .order("created_at", { ascending: false }),
         user ? supabase.from("profiles").select("role").eq("id", user.id).single() : Promise.resolve({ data: null, error: null }),
