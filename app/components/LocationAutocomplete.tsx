@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Suggestion = {
   placeId: string;
@@ -20,6 +20,8 @@ type Props = {
   placeholder?: string;
   value?: string;
   onSelect: (location: SelectedLocation) => void;
+  // Called when the person edits the text by hand (any earlier pick is stale).
+  onInputChange?: (value: string) => void;
 };
 
 export default function LocationAutocomplete({
@@ -27,12 +29,21 @@ export default function LocationAutocomplete({
   placeholder = "Start typing an address...",
   value = "",
   onSelect,
+  onInputChange,
 }: Props) {
   const [input, setInput] = useState(value);
+  // Set when we fill the box ourselves (a picked suggestion, or a saved
+  // address on load), so that doesn't start a search and pop the list open.
+  const skipSearchRef = useRef(!!value);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (skipSearchRef.current) {
+      skipSearchRef.current = false;
+      return;
+    }
+    let cancelled = false;
     const timeout = setTimeout(async () => {
       if (!input || input.length < 2) {
         setSuggestions([]);
@@ -49,7 +60,7 @@ export default function LocationAutocomplete({
         });
 
         const data = await res.json();
-        setSuggestions(data.suggestions || []);
+        if (!cancelled) setSuggestions(data.suggestions || []);
       } catch {
         setSuggestions([]);
       } finally {
@@ -57,10 +68,14 @@ export default function LocationAutocomplete({
       }
     }, 300);
 
-    return () => clearTimeout(timeout);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
   }, [input]);
 
   async function handleSelect(suggestion: Suggestion) {
+    skipSearchRef.current = true;
     setInput(suggestion.text);
     setSuggestions([]);
 
@@ -88,8 +103,13 @@ export default function LocationAutocomplete({
       </label>
 
       <input
+        autoComplete="off"
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={(e) => {
+          skipSearchRef.current = false;
+          setInput(e.target.value);
+          onInputChange?.(e.target.value);
+        }}
         placeholder={placeholder}
         className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
       />

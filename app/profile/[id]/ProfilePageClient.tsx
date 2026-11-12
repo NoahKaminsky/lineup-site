@@ -193,6 +193,9 @@ function LocationAutocomplete({
   onInputChange?: (value: string) => void;
 }) {
   const [input, setInput] = useState(value);
+  // Set when we fill the box ourselves (a picked suggestion, or a saved
+  // address on load), so that doesn't start a search and pop the list open.
+  const skipSearchRef = useRef(!!value);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -201,6 +204,11 @@ function LocationAutocomplete({
   }, [value]);
 
   useEffect(() => {
+    if (skipSearchRef.current) {
+      skipSearchRef.current = false;
+      return;
+    }
+    let cancelled = false;
     const timeout = setTimeout(async () => {
       if (!input || input.length < 2) {
         setSuggestions([]);
@@ -217,7 +225,7 @@ function LocationAutocomplete({
         });
 
         const data = await res.json();
-        setSuggestions(data.suggestions || []);
+        if (!cancelled) setSuggestions(data.suggestions || []);
       } catch {
         setSuggestions([]);
       } finally {
@@ -225,10 +233,14 @@ function LocationAutocomplete({
       }
     }, 300);
 
-    return () => clearTimeout(timeout);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
   }, [input]);
 
   async function handleSelect(suggestion: Suggestion) {
+    skipSearchRef.current = true;
     setInput(suggestion.text);
     setSuggestions([]);
 
@@ -256,8 +268,10 @@ function LocationAutocomplete({
       </label>
 
       <input
+        autoComplete="off"
         value={input}
         onChange={(e) => {
+          skipSearchRef.current = false;
           setInput(e.target.value);
           onInputChange?.(e.target.value);
         }}

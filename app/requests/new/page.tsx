@@ -211,6 +211,9 @@ function LocationAutocomplete({
   onInputChange?: (value: string) => void;
 }) {
   const [input, setInput] = useState(value);
+  // Set when we fill the box ourselves (a picked suggestion, or a saved
+  // address on load), so that doesn't start a search and pop the list open.
+  const skipSearchRef = useRef(!!value);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -222,6 +225,11 @@ function LocationAutocomplete({
   }, [value]);
 
   useEffect(() => {
+    if (skipSearchRef.current) {
+      skipSearchRef.current = false;
+      return;
+    }
+    let cancelled = false;
     const timeout = setTimeout(async () => {
       if (!input || input.length < 2) {
         setSuggestions([]);
@@ -258,7 +266,7 @@ function LocationAutocomplete({
         }
 
         setLookupError("");
-        setSuggestions(data.suggestions || []);
+        if (!cancelled) setSuggestions(data.suggestions || []);
       } catch {
         setSuggestions([]);
         setLookupError("Address lookup is temporarily unavailable.");
@@ -267,7 +275,10 @@ function LocationAutocomplete({
       }
     }, 300);
 
-    return () => clearTimeout(timeout);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
   }, [input]);
 
   async function handleSelect(suggestion: Suggestion) {
@@ -321,6 +332,7 @@ function LocationAutocomplete({
       const placeId = data.placeId ?? data.place_id ?? suggestion.placeId;
 
       if (!placeId) {
+        skipSearchRef.current = true;
         setInput(suggestion.text);
         onSelect({
           placeId: suggestion.placeId,
@@ -331,6 +343,8 @@ function LocationAutocomplete({
         });
         return;
       }
+
+      skipSearchRef.current = true;
 
       setInput(formattedAddress);
 
@@ -343,6 +357,7 @@ function LocationAutocomplete({
         areaLabel: data.areaLabel ?? null,
       });
     } catch {
+      skipSearchRef.current = true;
       setInput(suggestion.text);
       onSelect({
         placeId: suggestion.placeId,
@@ -364,8 +379,10 @@ function LocationAutocomplete({
       </label>
 
       <input
+        autoComplete="off"
         value={input}
         onChange={(e) => {
+          skipSearchRef.current = false;
           setInput(e.target.value);
           onInputChange?.(e.target.value);
         }}

@@ -9,6 +9,7 @@ import { Scissors, Wand2, Hand, Eye, Pencil, Palette, Flame, Leaf, Star, Shoppin
 import { supabase } from "../../lib/supabaseClient";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import LocationAutocomplete, { type SelectedLocation } from "@/app/components/LocationAutocomplete";
 import { rememberReturnTo, takeReturnTo } from "@/app/lib/returnTo";
 
 // See the matching flag in app/account/AccountPageClient.tsx — same reasoning.
@@ -37,6 +38,9 @@ export default function OnboardingPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [marketingConsent, setMarketingConsent] = useState(false);
+  // Required for every new account: it decides which pros a client sees and
+  // which requests (and city page) a pro shows up for.
+  const [location, setLocation] = useState<SelectedLocation | null>(null);
   const [phoneNumber, setPhoneNumber] = useState("");
   const [smsNotificationsEnabled, setSmsNotificationsEnabled] = useState(false);
   const [phoneError, setPhoneError] = useState("");
@@ -150,6 +154,16 @@ export default function OnboardingPage() {
       return;
     }
 
+    if (!location || !Number.isFinite(location.lat) || !Number.isFinite(location.lng)) {
+      setSaving(false);
+      setErrorMessage(
+        savedRole === "professional" || runsStudio
+          ? "Add where you work, and pick it from the list."
+          : "Add your area, and pick it from the list."
+      );
+      return;
+    }
+
     const cleanPhoneNumber = phoneNumber.trim();
 
     if (cleanPhoneNumber && !isLikelyValidPhoneNumber(cleanPhoneNumber)) {
@@ -198,6 +212,10 @@ export default function OnboardingPage() {
         marketing_consent_at: marketingConsent ? now : null,
         marketing_consent_source: marketingConsent ? "account_creation" : null,
         unsubscribed_from_marketing: false,
+        formatted_address: location.formattedAddress,
+        location_lat: location.lat,
+        location_lng: location.lng,
+        location_place_id: location.placeId || null,
         phone_number: cleanPhoneNumber || null,
         sms_notifications_enabled: cleanPhoneNumber ? smsNotificationsEnabled : false,
       },
@@ -474,6 +492,27 @@ export default function OnboardingPage() {
                     );
                   })}
                 </div>
+              </div>
+            ) : null}
+
+            {role ? (
+              <div>
+                <LocationAutocomplete
+                  label={role === "customer" ? "Your area" : "Where do you work?"}
+                  placeholder={role === "customer" ? "Your neighbourhood, city or address" : "Your shop, studio or the area you cover"}
+                  onSelect={(picked) => {
+                    setLocation(picked);
+                    setErrorMessage("");
+                  }}
+                  onInputChange={() => setLocation(null)}
+                />
+                <p className="mt-2 text-xs leading-5 text-neutral-500">
+                  {location
+                    ? `Set to ${location.formattedAddress}.`
+                    : role === "customer"
+                    ? "So we can show you pros near you."
+                    : "So clients nearby can find you and you get requests from your area. If clients come to you, this is the address they'll see when they book. You can change it any time in Services."}
+                </p>
               </div>
             ) : null}
 
