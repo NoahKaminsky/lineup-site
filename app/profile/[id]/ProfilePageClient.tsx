@@ -33,6 +33,7 @@ import { fetchBookingSchedule } from "@/app/lib/fetchBusyTimes";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 import SaveHeart from "@/app/components/SaveHeart";
+import { useModalSheet } from "@/app/lib/useModalSheet";
 import { useSavedPros } from "@/app/lib/savedPros";
 import { shopNow } from "@/app/lib/bookingTime";
 
@@ -581,6 +582,8 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [bookingSlotKey, setBookingSlotKey] = useState<string | null>(null);
   const [pendingBookingChoice, setPendingBookingChoice] = useState<PendingBookingChoice | null>(null);
+  // Pins the page behind the "confirm booking" sheet and keeps it on screen.
+  const confirmSheetRef = useModalSheet(!!pendingBookingChoice);
   // Set when the client taps Book before choosing a service.
   const [serviceNudge, setServiceNudge] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<BookingRow | null>(null);
@@ -1321,11 +1324,28 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     return weekIndex === 0 ? `This week · ${start} – ${end}` : weekIndex === 1 ? `Next week · ${start} – ${end}` : `${start} – ${end}`;
   }
 
+  // Pick a time from anywhere it's shown: the slot grid, or the preview that
+  // opens when you hover a day. Selects its day too.
+  function pickSlot(slot: (typeof generatedSlots)[number]) {
+    setSelectedDay(slot.date);
+    setSelectedSlot(slot);
+    setSelectedServiceMode(directBookingModes.length === 1 ? directBookingModes[0] : null);
+    setLocationInput("");
+    setLocationPlaceId("");
+    setLocationLat(null);
+    setLocationLng(null);
+    setMessage("");
+    const minutes = timeToMinutes(slot.start_time);
+    setSelectedPeriod(minutes < 12 * 60 ? "Morning" : minutes < 16 * 60 ? "Afternoon" : "Evening");
+  }
+
   // Hovering a day on the booking strip zooms into its open times.
-  function renderBookingDayLens(date: string) {
+  function renderBookingDayLens(date: string, dismiss?: () => void) {
     const day = bookingCalendarDays.find((item) => item.date === date);
     if (!day) return null;
     const preview = day.slots.slice(0, 9);
+    // Same rule as the slot grid: clients and signed-out visitors can pick.
+    const canPick = !(viewerUserId && !viewerIsCustomer) && viewerUserId !== profile?.id;
     return (
       <div className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06),0_28px_64px_-20px_rgba(0,0,0,0.35)] ring-1 ring-black/5">
         <div className="flex items-end justify-between gap-3 border-b border-neutral-100 px-4 pb-3 pt-4">
@@ -1345,18 +1365,41 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
           <p className="px-4 py-5 text-sm text-neutral-500">Fully booked — try another day.</p>
         ) : (
           <div className="lu-slots grid grid-cols-3 gap-1.5 px-4 py-4">
-            {preview.map((slot) => (
-              <span
-                key={slot.key}
-                className="whitespace-nowrap rounded-lg bg-neutral-100 px-1 py-1.5 text-center text-[12px] font-medium tabular-nums text-neutral-800"
-              >
-                {formatTime(slot.start_time)}
-              </span>
-            ))}
+            {preview.map((slot) =>
+              canPick ? (
+                <button
+                  key={slot.key}
+                  type="button"
+                  onClick={() => {
+                    pickSlot(slot);
+                    dismiss?.();
+                  }}
+                  aria-label={`Book ${formatTime(slot.start_time)} on ${day.dayLabel} ${day.dateLabel}`}
+                  className={`whitespace-nowrap rounded-lg px-1 py-2 text-center text-[12px] font-medium tabular-nums transition-colors ${
+                    selectedSlot?.key === slot.key
+                      ? "bg-ink text-white"
+                      : "bg-neutral-100 text-neutral-800 hover:bg-ink hover:text-white"
+                  }`}
+                >
+                  {formatTime(slot.start_time)}
+                </button>
+              ) : (
+                <span
+                  key={slot.key}
+                  className="whitespace-nowrap rounded-lg bg-neutral-100 px-1 py-1.5 text-center text-[12px] font-medium tabular-nums text-neutral-800"
+                >
+                  {formatTime(slot.start_time)}
+                </span>
+              )
+            )}
             {day.slots.length > preview.length ? (
-              <span className="col-span-3 text-center text-[11px] text-neutral-500">
+              <button
+                type="button"
+                onClick={() => chooseBookingDay(day.date)}
+                className="col-span-3 rounded py-1 text-center text-[11px] text-neutral-500 transition-colors hover:text-ink"
+              >
                 +{day.slots.length - preview.length} more
-              </span>
+              </button>
             ) : null}
           </div>
         )}
@@ -2970,7 +3013,8 @@ if (loading) {
       ) : null}
 
       {pendingBookingChoice ? (
-        <div className="lu-fade-in fixed inset-0 z-[70] flex items-end justify-center bg-ink/50 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+        <div ref={confirmSheetRef} role="dialog" aria-modal="true" className="lu-fade-in lu-sheet-overlay z-[70] bg-ink/50 backdrop-blur-sm">
+          <div className="flex min-h-full items-end justify-center p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:items-center sm:p-4">
           <div className="lu-sheet-in w-full max-w-md rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-7">
             <h2 className="text-[1.6rem] font-semibold leading-[1.1] tracking-[-0.035em] text-ink">
               {pendingBookingChoice.service.service_name}
@@ -3072,6 +3116,7 @@ if (loading) {
                 Back
               </button>
             </div>
+          </div>
           </div>
         </div>
       ) : null}
