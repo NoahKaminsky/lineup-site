@@ -31,6 +31,7 @@ export const STUDIO_SECTIONS = [
   { slug: "calendar", label: "Calendar" },
   { slug: "requests", label: "Requests" },
   { slug: "team", label: "Team" },
+  { slug: "clients", label: "Clients" },
   { slug: "memberships", label: "Memberships" },
   { slug: "chairs", label: "Chairs" },
 ] as const;

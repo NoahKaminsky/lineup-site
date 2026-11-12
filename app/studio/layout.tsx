@@ -134,9 +134,9 @@ function StudioShell({ children }: { children: ReactNode }) {
   // A shop account's main nav already lists the sections.
   const navInHeader = data.role !== "shop";
   const section = pathname.replace(/^\/studio\/?/, "").split("/")[0] || "";
-  // Chairs are for managers. A regular member's shop appointments are already
+  // Chairs and the client list are for managers. A regular member's shop appointments are already
   // on their own Calendar (tagged "Shop"), so the team calendar is for managers.
-  const sections = STUDIO_SECTIONS.filter((s) => (s.slug === "chairs" || s.slug === "calendar" ? me.canManage : true));
+  const sections = STUDIO_SECTIONS.filter((s) => (s.slug === "chairs" || s.slug === "calendar" || s.slug === "clients" ? me.canManage : true));
   const proCount = studio.proCount ?? (data.team || []).filter((m) => m.status === "active").length;
 
   return (

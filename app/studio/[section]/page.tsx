@@ -8,6 +8,7 @@ import RequestsView from "../Requests";
 import TeamView from "../Team";
 import MembershipsView from "../Memberships";
 import ChairsView from "../Chairs";
+import ClientsView from "../Clients";
 import SettingsView from "../Settings";
 
 export default function StudioSectionPage({ params }: { params: Promise<{ section: string }> }) {
@@ -23,6 +24,8 @@ export default function StudioSectionPage({ params }: { params: Promise<{ sectio
       return <RequestsView />;
     case "team":
       return <TeamView {...props} />;
+    case "clients":
+      return me.canManage ? <ClientsView {...props} /> : <OnlyManagers />;
     case "memberships":
       return <MembershipsView {...props} />;
     case "chairs":
