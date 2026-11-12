@@ -62,7 +62,7 @@ export async function getLocalDirectory(): Promise<{ pros: LocalPro[]; shops: Lo
     pros.push({
       id: p.id,
       href: getProfileHref(p),
-      name: p.business_name?.trim() || p.full_name?.trim() || "LineUp pro",
+      name: p.full_name?.trim() || p.business_name?.trim() || "LineUp pro",
       avatarUrl: p.avatar_url,
       professions,
       professionLabels: professions.map(professionLabel),
