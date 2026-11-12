@@ -6,6 +6,7 @@ import NavbarWrapper from "./components/NavbarWrapper";
 import SplashScreen from "./components/SplashScreen";
 import BurstLayer from "./components/moments/Burst";
 import EmailConfirmedModal from "./components/EmailConfirmedModal";
+import ReferralCapture from "./components/ReferralCapture";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -95,6 +96,7 @@ export default function RootLayout({
         {children}
         <BurstLayer />
         <EmailConfirmedModal />
+        <ReferralCapture />
       </body>
     </html>
   );

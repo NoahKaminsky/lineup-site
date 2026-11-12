@@ -6,6 +6,7 @@ import { syncMemberPlan, syncStudioMemberPlans } from "@/app/lib/studios";
 import { createPayAtShopBooking } from "@/app/lib/payAtShop";
 import { recordBoost } from "@/app/lib/boostsServer";
 import { activateGiftCard } from "@/app/lib/giftCardsServer";
+import { onPaidPlanStarted } from "@/app/lib/referrals";
 import { markMembershipPastDue, syncMembershipSubscription } from "@/app/lib/memberships";
 import { handlePaymentIntentSucceeded } from "@/app/lib/paymentBookings";
 
@@ -179,6 +180,10 @@ async function handleSubscriptionCheckoutCompleted(session: any) {
   // Their own paid plan from here on, not one granted by a studio. (Separate
   // write so it's harmless on a database without the studio migration.)
   await supabase.from("profiles").update({ plan_source: null }).eq("id", userId).eq("plan_source", "studio");
+
+  // Referrals: reward whoever invited this pro, and apply any free months
+  // this pro earned by inviting others.
+  if (plan && plan !== "unknown") await onPaidPlanStarted(userId);
 }
 
 async function handleSubscriptionUpdated(subscription: any) {
