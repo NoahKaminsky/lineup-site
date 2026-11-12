@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
+import { listPriceCents, repriceBookingIntent } from "@/app/lib/giftCheckout";
 
 // Tip on a booking payment, chosen in the payment sheet before paying.
 //
 // POST { paymentIntentId, tipPercent }   tipPercent: 0 | 15 | 18 | 20
 //   Sets the tip and the new total on the client's own unpaid payment.
 // POST { paymentIntentId }               (no tipPercent)
-//   Just reports the price, current tip and total.
+//   Just reports the price, gift card, current tip and total.
 //
-// The tip goes entirely to the pro: LineUp's commission is only ever taken
-// from the service price, and the tip is added to the pro's payout.
+// The tip is a percentage of the full service price (even when a gift card
+// covers part of it) and goes entirely to the pro: LineUp's commission is
+// only ever taken from the service price.
 const TIP_PERCENTS = [0, 15, 18, 20];
 
 export async function POST(req: Request) {
@@ -24,16 +26,24 @@ export async function POST(req: Request) {
   }
 
   const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
-  const metadata = intent.metadata || {};
+  const metadata = (intent.metadata || {}) as Record<string, string>;
   if (metadata.customer_id !== user.id) {
     return NextResponse.json({ error: "Not your payment." }, { status: 403 });
   }
 
-  const currentTip = Number(metadata.tip_cents || 0);
-  const baseCents = Number(metadata.base_amount_cents || intent.amount - currentTip);
+  const list = listPriceCents(metadata, intent.amount);
+  const gift = Number(metadata.gift_card_cents || 0);
+  const tip = Number(metadata.tip_cents || 0);
 
   if (body?.tipPercent === undefined || body?.tipPercent === null) {
-    return NextResponse.json({ baseCents, tipCents: currentTip, totalCents: intent.amount, currency: intent.currency });
+    return NextResponse.json({
+      listCents: list,
+      giftCents: gift,
+      baseCents: list - gift,
+      tipCents: tip,
+      totalCents: intent.amount,
+      currency: intent.currency,
+    });
   }
 
   const tipPercent = Number(body.tipPercent);
@@ -44,20 +54,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "This payment can't be changed any more." }, { status: 409 });
   }
 
-  const tipCents = Math.round((baseCents * tipPercent) / 100);
-  // Payout fields without the old tip, then with the new one.
-  const payoutBase = Number(metadata.professional_payout_cents || 0) - currentTip;
-  const remainingBase = Number(metadata.remaining_payout_cents || 0) - currentTip;
-
-  const updated = await stripe.paymentIntents.update(paymentIntentId, {
-    amount: baseCents + tipCents,
-    metadata: {
-      tip_cents: String(tipCents),
-      tip_percent: String(tipPercent),
-      professional_payout_cents: String(payoutBase + tipCents),
-      remaining_payout_cents: String(remainingBase + tipCents),
-    },
-  });
-
-  return NextResponse.json({ baseCents, tipCents, totalCents: updated.amount, currency: updated.currency });
+  return NextResponse.json(await repriceBookingIntent(intent, { tipPercent }));
 }

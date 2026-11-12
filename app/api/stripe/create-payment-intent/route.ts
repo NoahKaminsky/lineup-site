@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { platformFeeCentsFor, splitBookingPayment } from "@/app/lib/commission";
+import { BOOKING_DEPOSIT_PERCENT, platformFeeCentsFor, splitBookingPayment } from "@/app/lib/commission";
 import { getStudioPricingForPro } from "@/app/lib/studios";
 import { startPayAtShopBooking } from "@/app/lib/payAtShop";
 import { getBookingWindows, getTimeOffDays, hasFrontDeskClash } from "@/app/lib/busyTimes";
@@ -7,7 +7,7 @@ import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
 
-const DEPOSIT_PERCENT = 20;
+const DEPOSIT_PERCENT = BOOKING_DEPOSIT_PERCENT;
 const CURRENCY = "cad";
 
 function getMonthlyBookingCap(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {

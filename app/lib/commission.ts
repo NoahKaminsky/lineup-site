@@ -18,6 +18,9 @@ export const STUDIO_CARD_FEE_FIXED_CENTS = 30;
 // the pro is paid when the booking is made.
 export const STUDIO_MAX_COMMISSION_PERCENT = 70;
 
+// Share of a booking paid to the pro as soon as it's booked; the rest on completion.
+export const BOOKING_DEPOSIT_PERCENT = 20;
+
 export type BookingSource = "request" | "direct_booking";
 
 export function platformFeeCentsFor(params: {

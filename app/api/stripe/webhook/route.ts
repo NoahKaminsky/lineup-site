@@ -51,6 +51,9 @@ async function releaseTakenSlot(
     console.error("Failed to refund payment for taken slot:", refundError);
   }
 
+  // A gift card used on this payment gets its amount back.
+  await restoreGiftCard(supabase, params.paymentIntentId);
+
   if (params.customerId) {
     await supabase.from("notifications").insert([
       {
@@ -62,6 +65,54 @@ async function releaseTakenSlot(
       },
     ]);
   }
+}
+
+async function restoreGiftCard(supabase: ReturnType<typeof getServiceSupabase>, paymentIntentId: string) {
+  const { error } = await supabase.rpc("restore_gift_card_for_payment", { p_payment_intent: paymentIntentId });
+  if (error) console.error(`Gift card restore failed for ${paymentIntentId}:`, error);
+}
+
+// A gift card on this payment: draw it down now, once (safe on retries).
+// If its balance was spent elsewhere in the meantime, refund the payment and
+// tell the client rather than book them for less than the price. Returns
+// whether the booking should go ahead.
+async function claimGiftCard(
+  supabase: ReturnType<typeof getServiceSupabase>,
+  paymentIntent: { id: string },
+  metadata: Record<string, string>,
+  customerId: string | null,
+  requestId?: string | null
+) {
+  const giftCardId = metadata.gift_card_id;
+  const giftCents = Number(metadata.gift_card_cents || 0);
+  if (!giftCardId || giftCents <= 0) return true;
+
+  const { data, error } = await supabase.rpc("redeem_gift_card_for_payment", {
+    p_card: giftCardId,
+    p_amount: giftCents,
+    p_by: customerId,
+    p_payment_intent: paymentIntent.id,
+  });
+  if (error) throw new Error(`Gift card redeem failed: ${error.message}`); // Stripe retries
+  if (data !== null) return true;
+
+  try {
+    await stripe.refunds.create({ payment_intent: paymentIntent.id });
+  } catch (refundError) {
+    console.error("Refund after gift card shortfall failed:", refundError);
+  }
+  if (customerId) {
+    await supabase.from("notifications").insert([
+      {
+        user_id: customerId,
+        is_read: false,
+        type: "booking_gift_card_failed",
+        title: "Your gift card didn't have enough left for that booking, so you haven't been charged. Please book again.",
+        ...(requestId ? { request_id: requestId } : {}),
+      },
+    ]);
+  }
+  return false;
 }
 
 async function sendBookingConfirmedEmail(bookingId: string) {
@@ -182,6 +233,11 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
     return;
   }
 
+  if (!(await claimGiftCard(supabase, paymentIntent, metadata, requestRow.client_id, requestRow.id))) {
+    await supabase.from("request_offers").update({ status: "pending" }).eq("id", offer.id);
+    return;
+  }
+
   // Prefer the mode the professional actually proposed in their offer — a
   // request can be open to multiple modes, and the offer is what pins down
   // which one this specific booking is for. Fall back to the request's mode
@@ -292,7 +348,11 @@ async function handlePaymentIntentSucceeded(paymentIntentId: string) {
         location_lat: bookingLocation.location_lat,
         location_lng: bookingLocation.location_lng,
         // The service itself, not counting any tip on top.
-        service_price: (amountCents - Number(metadata.tip_cents || 0)) / 100,
+        // The service itself (gift card portion included), not counting any tip.
+        service_price: (amountCents - Number(metadata.tip_cents || 0) + Number(metadata.gift_card_cents || 0)) / 100,
+        ...(Number(metadata.gift_card_cents || 0) > 0 && metadata.gift_card_id
+          ? { gift_card_id: metadata.gift_card_id, gift_card_cents: Number(metadata.gift_card_cents) }
+          : {}),
         payment_status: "paid",
         stripe_payment_intent_id: paymentIntent.id,
         stripe_charge_id: chargeId,
@@ -530,6 +590,8 @@ async function handleDirectBookingPaymentSucceeded(
     return;
   }
 
+  if (!(await claimGiftCard(supabase, paymentIntent, metadata, customerId))) return;
+
   const { data: professionalProfile, error: professionalProfileError } = await supabase
     .from("profiles")
     .select("id, full_name, stripe_account_id, formatted_address, location_place_id, location_lat, location_lng")
@@ -606,7 +668,11 @@ async function handleDirectBookingPaymentSucceeded(
         location_lat: professionalProfile.location_lat ?? null,
         location_lng: professionalProfile.location_lng ?? null,
         // The service itself, not counting any tip on top.
-        service_price: (amountCents - Number(metadata.tip_cents || 0)) / 100,
+        // The service itself (gift card portion included), not counting any tip.
+        service_price: (amountCents - Number(metadata.tip_cents || 0) + Number(metadata.gift_card_cents || 0)) / 100,
+        ...(Number(metadata.gift_card_cents || 0) > 0 && metadata.gift_card_id
+          ? { gift_card_id: metadata.gift_card_id, gift_card_cents: Number(metadata.gift_card_cents) }
+          : {}),
         payment_status: "paid",
         stripe_payment_intent_id: paymentIntent.id,
         stripe_charge_id: chargeId,

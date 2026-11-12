@@ -84,6 +84,14 @@ export async function POST(req: Request) {
 
         refundStatus = "refunded";
         stripeRefundId = refund.id;
+
+        // A gift card used on this booking gets its amount back too.
+        if (booking.gift_card_id) {
+          const { error: restoreError } = await supabase.rpc("restore_gift_card_for_payment", {
+            p_payment_intent: booking.stripe_payment_intent_id,
+          });
+          if (restoreError) console.error("Gift card restore on cancel failed:", restoreError);
+        }
       } catch (refundError) {
         console.error("Booking cancellation refund failed:", refundError);
         refundStatus = "failed";
