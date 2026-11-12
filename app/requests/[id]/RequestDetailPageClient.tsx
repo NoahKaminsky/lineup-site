@@ -35,6 +35,7 @@ import { dismissRequestOnce } from "@/app/lib/requestDismissals";
 import { formatProfessions } from "@/app/lib/professions";
 import { useBidCounts } from "@/app/lib/useBidCounts";
 import BidCountBlip from "@/app/components/BidCountBlip";
+import { useModalSheet } from "@/app/lib/useModalSheet";
 
 type ServiceRequest = {
   id: string;
@@ -277,6 +278,8 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
   const [showBookingSuccessModal, setShowBookingSuccessModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  // Pins the page and keeps the payment sheet inside the visible screen while it's open.
+  const paymentSheetRef = useModalSheet(showPaymentModal);
   const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
   const [selectedOfferForPayment, setSelectedOfferForPayment] =
     useState<RequestOffer | null>(null);
@@ -3097,8 +3100,10 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
       ) : null}
       
       {showPaymentModal && paymentClientSecret && selectedOfferForPayment ? (
-        <div className="lu-fade-in fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-0 sm:items-center sm:p-4">
-          <div className="lu-dialog-in max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-panel">
+        <div ref={paymentSheetRef} role="dialog" aria-modal="true" className="lu-fade-in lu-sheet-overlay z-50 bg-ink/60">
+          {/* The overlay scrolls, the page behind doesn't (see useModalSheet). */}
+          <div className="flex min-h-full items-end justify-center p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:items-center sm:p-4">
+          <div className="lu-dialog-in w-full max-w-lg rounded-panel bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[13px] font-medium text-neutral-500">
@@ -3183,6 +3188,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 )}
               </TipStep>
             </Elements>
+          </div>
           </div>
         </div>
       ) : null}

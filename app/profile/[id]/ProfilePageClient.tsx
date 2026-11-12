@@ -33,6 +33,7 @@ import { fetchBookingSchedule } from "@/app/lib/fetchBusyTimes";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 import SaveHeart from "@/app/components/SaveHeart";
+import { useModalSheet } from "@/app/lib/useModalSheet";
 import { useSavedPros } from "@/app/lib/savedPros";
 import { shopNow } from "@/app/lib/bookingTime";
 
@@ -337,6 +338,14 @@ function formatModeLabel(mode: string) {
   return mode.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+// A service can only be booked straight from the calendar when it has a price
+// to charge. Without one, the client asks for a price by sending a request.
+function hasBookablePrice(service: { price: string | number | null | undefined }) {
+  if (service.price === null || service.price === undefined || service.price === "") return false;
+  const amount = Number(service.price);
+  return Number.isFinite(amount) && amount > 0;
+}
+
 function formatPrice(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === "") return null;
 
@@ -573,6 +582,10 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [bookingSlotKey, setBookingSlotKey] = useState<string | null>(null);
   const [pendingBookingChoice, setPendingBookingChoice] = useState<PendingBookingChoice | null>(null);
+  // Pins the page behind the "confirm booking" sheet and keeps it on screen.
+  const confirmSheetRef = useModalSheet(!!pendingBookingChoice);
+  // Set when the client taps Book before choosing a service.
+  const [serviceNudge, setServiceNudge] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<BookingRow | null>(null);
   const [paymentClientSecret, setPaymentClientSecret] = useState<string | null>(null);
   // "Book now, pay at the shop" (studio pros whose shop allows it).
@@ -1114,6 +1127,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       (service) =>
         service.is_active &&
         service.is_bookable &&
+        hasBookablePrice(service) &&
         Number(service.duration_minutes) <= Number(selectedSlot.duration_minutes)
     );
     if (!preferredServiceId) return fitting;
@@ -1122,6 +1136,19 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       ...fitting.filter((service) => service.id !== preferredServiceId),
     ];
   }, [services, selectedSlot, preferredServiceId]);
+
+  // Services that are bookable but need longer than this opening has. Shown
+  // dimmed under the ones that fit, so a service never just disappears.
+  const servicesTooLongForSelectedSlot = useMemo(() => {
+    if (!selectedSlot) return [];
+    return services.filter(
+      (service) =>
+        service.is_active &&
+        service.is_bookable &&
+        hasBookablePrice(service) &&
+        Number(service.duration_minutes) > Number(selectedSlot.duration_minutes)
+    );
+  }, [services, selectedSlot]);
 
   // The service filling in the selected time: the one the client picked for
   // it, or the service they tapped in the Services list if it fits.
@@ -1297,11 +1324,28 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     return weekIndex === 0 ? `This week · ${start} – ${end}` : weekIndex === 1 ? `Next week · ${start} – ${end}` : `${start} – ${end}`;
   }
 
+  // Pick a time from anywhere it's shown: the slot grid, or the preview that
+  // opens when you hover a day. Selects its day too.
+  function pickSlot(slot: (typeof generatedSlots)[number]) {
+    setSelectedDay(slot.date);
+    setSelectedSlot(slot);
+    setSelectedServiceMode(directBookingModes.length === 1 ? directBookingModes[0] : null);
+    setLocationInput("");
+    setLocationPlaceId("");
+    setLocationLat(null);
+    setLocationLng(null);
+    setMessage("");
+    const minutes = timeToMinutes(slot.start_time);
+    setSelectedPeriod(minutes < 12 * 60 ? "Morning" : minutes < 16 * 60 ? "Afternoon" : "Evening");
+  }
+
   // Hovering a day on the booking strip zooms into its open times.
-  function renderBookingDayLens(date: string) {
+  function renderBookingDayLens(date: string, dismiss?: () => void) {
     const day = bookingCalendarDays.find((item) => item.date === date);
     if (!day) return null;
     const preview = day.slots.slice(0, 9);
+    // Same rule as the slot grid: clients and signed-out visitors can pick.
+    const canPick = !(viewerUserId && !viewerIsCustomer) && viewerUserId !== profile?.id;
     return (
       <div className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06),0_28px_64px_-20px_rgba(0,0,0,0.35)] ring-1 ring-black/5">
         <div className="flex items-end justify-between gap-3 border-b border-neutral-100 px-4 pb-3 pt-4">
@@ -1321,18 +1365,41 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
           <p className="px-4 py-5 text-sm text-neutral-500">Fully booked — try another day.</p>
         ) : (
           <div className="lu-slots grid grid-cols-3 gap-1.5 px-4 py-4">
-            {preview.map((slot) => (
-              <span
-                key={slot.key}
-                className="whitespace-nowrap rounded-lg bg-neutral-100 px-1 py-1.5 text-center text-[12px] font-medium tabular-nums text-neutral-800"
-              >
-                {formatTime(slot.start_time)}
-              </span>
-            ))}
+            {preview.map((slot) =>
+              canPick ? (
+                <button
+                  key={slot.key}
+                  type="button"
+                  onClick={() => {
+                    pickSlot(slot);
+                    dismiss?.();
+                  }}
+                  aria-label={`Book ${formatTime(slot.start_time)} on ${day.dayLabel} ${day.dateLabel}`}
+                  className={`whitespace-nowrap rounded-lg px-1 py-2 text-center text-[12px] font-medium tabular-nums transition-colors ${
+                    selectedSlot?.key === slot.key
+                      ? "bg-ink text-white"
+                      : "bg-neutral-100 text-neutral-800 hover:bg-ink hover:text-white"
+                  }`}
+                >
+                  {formatTime(slot.start_time)}
+                </button>
+              ) : (
+                <span
+                  key={slot.key}
+                  className="whitespace-nowrap rounded-lg bg-neutral-100 px-1 py-1.5 text-center text-[12px] font-medium tabular-nums text-neutral-800"
+                >
+                  {formatTime(slot.start_time)}
+                </span>
+              )
+            )}
             {day.slots.length > preview.length ? (
-              <span className="col-span-3 text-center text-[11px] text-neutral-500">
+              <button
+                type="button"
+                onClick={() => chooseBookingDay(day.date)}
+                className="col-span-3 rounded py-1 text-center text-[11px] text-neutral-500 transition-colors hover:text-ink"
+              >
                 +{day.slots.length - preview.length} more
-              </span>
+              </button>
             ) : null}
           </div>
         )}
@@ -2407,7 +2474,9 @@ if (loading) {
                     </div>
                   </div>
 
-                  <div className={`h-fit rounded-3xl bg-white p-5 ring-1 ring-ink/[0.07] xl:sticky xl:top-[calc(var(--profile-offset,8rem)+1rem)] ${selectedSlot ? "" : "hidden xl:block"}`}>
+                  {/* On phones the ticket stands on the page by itself; the outer
+                      card only appears once there's room for a side column. */}
+                  <div className={`h-fit xl:sticky xl:top-[calc(var(--profile-offset,8rem)+1rem)] xl:rounded-3xl xl:bg-white xl:p-5 xl:ring-1 xl:ring-ink/[0.07] ${selectedSlot ? "" : "hidden xl:block"}`}>
                     {!selectedSlot ? (
                       <div className="px-1 py-2">
                         <p className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Your booking</p>
@@ -2539,11 +2608,12 @@ if (loading) {
                                     aria-checked={picked}
                                     onClick={() => {
                                       setMessage("");
+                                      setServiceNudge(false);
                                       setChosenService({ slotKey: selectedSlot.key, serviceId: service.id });
                                     }}
                                     disabled={bookingSlotKey === selectedSlot.key}
                                     className={`flex w-full items-center gap-3 rounded-2xl p-4 text-left transition disabled:opacity-60 ${
-                                      picked ? "bg-white ring-2 ring-ink" : "bg-neutral-50 ring-1 ring-inset ring-ink/[0.06] hover:bg-white hover:ring-ink/20"
+                                      picked ? "bg-white ring-2 ring-ink" : "bg-white ring-1 ring-inset ring-ink/[0.08] hover:ring-ink/20 xl:bg-neutral-50 xl:ring-ink/[0.06] xl:hover:bg-white"
                                     }`}
                                   >
                                     <span
@@ -2566,18 +2636,45 @@ if (loading) {
                               })}
                             </div>
 
+                            {servicesTooLongForSelectedSlot.length > 0 ? (
+                              <div>
+                                <p className="text-[13px] font-medium text-neutral-500">
+                                  Too long for {formatTime(selectedSlot.start_time)}. Pick an earlier time to book{" "}
+                                  {servicesTooLongForSelectedSlot.length === 1 ? "this" : "one of these"}.
+                                </p>
+                                <ul className="mt-2 divide-y divide-ink/[0.06] rounded-2xl ring-1 ring-inset ring-ink/[0.06]">
+                                  {servicesTooLongForSelectedSlot.map((service) => (
+                                    <li key={service.id} className="flex items-center gap-3 px-4 py-3">
+                                      <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-[15px] font-medium text-neutral-500">{service.service_name}</span>
+                                        <span className="mt-0.5 block text-[13px] text-neutral-500">Needs {service.duration_minutes} min</span>
+                                      </span>
+                                      <span className="shrink-0 text-sm tabular-nums text-neutral-500">{formatPrice(service.price)}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
+
                             <button
                               type="button"
-                              disabled={!activeChosenService || bookingSlotKey === selectedSlot.key}
+                              disabled={bookingSlotKey === selectedSlot.key}
                               onClick={() => {
-                                if (!activeChosenService) return;
+                                if (!activeChosenService) {
+                                  setServiceNudge(true);
+                                  return;
+                                }
                                 if (!selectedServiceMode) {
                                   setMessage("Pick where it happens first.");
                                   return;
                                 }
                                 handleStartBookingConfirmation(activeChosenService);
                               }}
-                              className="flex w-full items-center justify-center gap-2 rounded-full bg-ink px-5 py-4 text-[15px] font-semibold text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,0.6)] transition hover:bg-neutral-800 active:scale-[0.99] disabled:bg-neutral-300 disabled:shadow-none"
+                              className={`flex w-full items-center justify-center gap-2 rounded-full px-5 py-4 text-[15px] font-semibold transition active:scale-[0.99] disabled:opacity-70 ${
+                                activeChosenService
+                                  ? "bg-ink text-white shadow-[0_12px_28px_-14px_rgba(0,0,0,0.6)] hover:bg-neutral-800"
+                                  : "bg-white text-neutral-600 ring-1 ring-inset ring-ink/15 hover:ring-ink/30"
+                              }`}
                             >
                               {bookingSlotKey === selectedSlot.key
                                 ? "Booking…"
@@ -2585,6 +2682,18 @@ if (loading) {
                                   ? `Book for ${formatTime(selectedSlot.start_time)}`
                                   : "Pick a service to book"}
                             </button>
+                            {serviceNudge && !activeChosenService ? (
+                              <p role="status" className="-mt-2 text-center text-[13px] font-medium text-ink">
+                                Tap one of the services above first.
+                              </p>
+                            ) : null}
+                            {/* Booking problems show here, beside the button that caused
+                                them, as well as at the top of the page. */}
+                            {message ? (
+                              <p role="alert" className="-mt-1 rounded-2xl bg-neutral-100 px-4 py-3 text-sm text-neutral-800">
+                                {message}
+                              </p>
+                            ) : null}
                           </div>
                         )}
                       </>
@@ -2656,17 +2765,21 @@ if (loading) {
                                 {service.description ? ` · ${service.description}` : ""}
                               </p>
                             </div>
-                            {formatPrice(service.price) ? (
+                            {hasBookablePrice(service) ? (
                               <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink">
                                 {formatPrice(service.price)}
                               </span>
-                            ) : null}
+                            ) : (
+                              <span className="shrink-0 text-[13px] text-neutral-500">Ask for a price</span>
+                            )}
                           </>
                         );
                         const rowClass =
                           "flex items-center gap-4 border-t border-ink/[0.06] px-5 py-4 first:border-t-0";
 
-                        if (canAct && canDirectBook) {
+                        // No price means nothing to charge, so it goes the request
+                        // route below instead of the calendar.
+                        if (canAct && canDirectBook && hasBookablePrice(service)) {
                           return (
                             <li key={service.id}>
                               <a
@@ -2684,7 +2797,7 @@ if (loading) {
                           );
                         }
                         if (canAct && profileVerified) {
-                          const requestPath = `/requests/new?rebook=1&pro=${profile.id}&service=${encodeURIComponent(service.service_name)}${service.price ? `&price=${service.price}` : ""}`;
+                          const requestPath = `/requests/new?rebook=1&pro=${profile.id}&service=${encodeURIComponent(service.service_name)}${hasBookablePrice(service) ? `&price=${service.price}` : ""}`;
                           return (
                             <li key={service.id}>
                               <Link
@@ -2900,7 +3013,8 @@ if (loading) {
       ) : null}
 
       {pendingBookingChoice ? (
-        <div className="lu-fade-in fixed inset-0 z-[70] flex items-end justify-center bg-ink/50 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+        <div ref={confirmSheetRef} role="dialog" aria-modal="true" className="lu-fade-in lu-sheet-overlay z-[70] bg-ink/50 backdrop-blur-sm">
+          <div className="flex min-h-full items-end justify-center p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:items-center sm:p-4">
           <div className="lu-sheet-in w-full max-w-md rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-7">
             <h2 className="text-[1.6rem] font-semibold leading-[1.1] tracking-[-0.035em] text-ink">
               {pendingBookingChoice.service.service_name}
@@ -3002,6 +3116,7 @@ if (loading) {
                 Back
               </button>
             </div>
+          </div>
           </div>
         </div>
       ) : null}

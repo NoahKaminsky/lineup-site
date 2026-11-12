@@ -441,6 +441,21 @@ main {
   animation: lu-heart-dot 560ms ease-out both;
 }
 
+/* A full-screen sheet (payment, confirm booking). It covers the part of the
+   screen that's actually visible, so on a phone it stays above the keyboard,
+   and it is the only thing that scrolls: the page behind is pinned by
+   useModalSheet. Swipes that reach its top or bottom stop there. */
+.lu-sheet-overlay {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--sheet-top, 0px);
+  height: var(--sheet-height, 100dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* The bell swings once when something new arrives. */
 @keyframes lu-bell {
   0%, 100% { transform: rotate(0deg); }
