@@ -127,7 +127,7 @@ export async function GET(req: Request) {
       })),
       ...(frontDesk || []).map((a) => ({
         id: a.id,
-        kind: a.kind as "walk_in" | "phone",
+        kind: a.kind as "walk_in" | "phone" | "imported",
         professionalId: a.professional_id,
         date: String(a.appointment_date),
         start: String(a.start_time).slice(0, 5),

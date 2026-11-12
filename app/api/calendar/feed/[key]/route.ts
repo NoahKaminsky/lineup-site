@@ -88,7 +88,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ key: st
       start,
       end: end > start ? end : new Date(start.getTime() + 3600_000),
       summary: `${a.service_name || "Appointment"} · ${firstName(a.client_name) || "Client"}`,
-      description: `${a.kind === "walk_in" ? "Walk-in" : "Phone booking"} at the shop, added on LineUp.`,
+      description: a.kind === "imported" ? "Imported from your previous booking app." : `${a.kind === "walk_in" ? "Walk-in" : "Phone booking"} at the shop, added on LineUp.`,
       created: a.created_at,
     });
   }

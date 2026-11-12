@@ -13,7 +13,9 @@ export function studioInviteEmail({
   bookUrl,
   clientName,
   unsubscribeUrl,
+  kind = "shop",
 }: {
+  kind?: "shop" | "pro";
   shopName: string;
   shopAddress: string | null;
   bookUrl: string;
@@ -51,7 +53,7 @@ export function studioInviteEmail({
             <tr>
               <td style="padding:0 36px 24px 36px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; font-size:16px; line-height:26px; color:#333333;">
                 ${greeting}<br /><br />
-                ${shop} is now on LineUp. You can see who&rsquo;s working, pick a service and book an open time whenever it suits you, without calling or messaging.
+                ${shop} is now on LineUp. You can ${kind === "shop" ? "see who&rsquo;s working, " : "see open times, "}pick a service and book whenever it suits you, without calling or messaging.
               </td>
             </tr>
             <tr>
@@ -67,7 +69,7 @@ export function studioInviteEmail({
             </tr>
             <tr>
               <td style="padding:0 36px 36px 36px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; font-size:14px; line-height:22px; color:#666666;">
-                Save the link for next time. If you have a question, just reply to this email and it goes straight to the shop.
+                Save the link for next time. If you have a question, just reply to this email and it goes straight to ${kind === "shop" ? "the shop" : shop}.
               </td>
             </tr>
           </table>

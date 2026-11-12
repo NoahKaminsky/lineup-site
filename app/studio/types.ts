@@ -24,7 +24,7 @@ export type TeamMember = {
 
 export type ScheduleItem = {
   id: string;
-  kind: "online" | "walk_in" | "phone";
+  kind: "online" | "walk_in" | "phone" | "imported";
   professionalId: string;
   date: string;
   start: string;

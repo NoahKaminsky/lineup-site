@@ -60,7 +60,7 @@ type CalendarBooking = BookingRow & {
   client_name: string | null;
   client_avatar_url: string | null;
   // Set on walk-ins/phone-ins booked at a studio's front desk.
-  front_desk?: { kind: "walk_in" | "phone"; clientPhone: string | null; priceCents: number | null };
+  front_desk?: { kind: "walk_in" | "phone" | "imported"; clientPhone: string | null; priceCents: number | null };
 };
 
 type CalendarCache = {
@@ -254,6 +254,8 @@ function BookingCard({
   const payment = booking.front_desk
     ? booking.front_desk.kind === "phone"
       ? "Phone-in"
+      : booking.front_desk.kind === "imported"
+      ? "Imported"
       : "Walk-in"
     : booking.member
     ? "Member"
