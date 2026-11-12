@@ -13,8 +13,9 @@ import { getStudioPricingForPro } from "@/app/lib/studios";
 import { BOOKING_DEPOSIT_PERCENT, platformFeeCentsFor, splitBookingPayment } from "@/app/lib/commission";
 import { stripe } from "@/app/lib/stripe";
 
-// Stripe's smallest card charge in CAD. A card that covers the whole price
-// leaves this much to pay, so every booking still has a real payment behind it.
+// Stripe's smallest card charge in CAD. A total under this can't go on a card:
+// either the gift card covers everything (booked with no card payment, see
+// /api/stripe/gift-card "complete") or it's refused.
 export const MIN_CHARGE_CENTS = 50;
 
 export function listPriceCents(metadata: Record<string, string>, intentAmount: number) {
@@ -59,9 +60,16 @@ export async function repriceBookingIntent(
     studioCutPercent: studioPricing.cutPercent,
   });
 
+  const total = base + tipCents;
+  if (total > 0 && total < MIN_CHARGE_CENTS) {
+    throw new Error("That's too small to pay by card. Pick No tip, or a bigger tip.");
+  }
+  // Fully covered by a gift card: nothing to charge. The card payment is left
+  // as it was and never confirmed; the booking is made from the gift card.
   const updated = await stripe.paymentIntents.update(intent.id, {
-    amount: base + tipCents,
+    ...(total > 0 ? { amount: total } : {}),
     metadata: {
+      gift_only: total === 0 ? "1" : "",
       list_price_cents: String(list),
       base_amount_cents: String(base),
       gift_card_id: giftCents > 0 && giftCardId ? giftCardId : "",
@@ -81,7 +89,7 @@ export async function repriceBookingIntent(
     giftCents: giftCents > 0 ? giftCents : 0,
     baseCents: base,
     tipCents,
-    totalCents: updated.amount,
+    totalCents: total,
     currency: updated.currency,
   };
 }

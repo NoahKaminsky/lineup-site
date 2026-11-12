@@ -71,7 +71,14 @@ export default function PaymentModal({
             },
           }}
         >
-          <TipStep clientSecret={clientSecret} proName={proName}>
+          <TipStep
+            clientSecret={clientSecret}
+            proName={proName}
+            onGiftComplete={() => {
+              onSuccess?.();
+              if (redirectTo) setTimeout(() => (window.location.href = redirectTo), 1200);
+            }}
+          >
             {(summary) => (
               <CheckoutForm
                 onSuccess={onSuccess}

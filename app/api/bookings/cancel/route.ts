@@ -64,7 +64,10 @@ export async function POST(req: Request) {
     let refundStatus: string | null = null;
     let stripeRefundId: string | null = null;
 
-    if (booking.stripe_payment_intent_id) {
+    // Booked entirely with a gift card: no card payment to refund.
+    const charged = Number(booking.total_amount_cents || 0) > 0;
+
+    if (booking.stripe_payment_intent_id && charged) {
       try {
         // Deposits are transferred to the professional's connected account as
         // soon as the booking is confirmed (separate charges & transfers), so
@@ -85,17 +88,20 @@ export async function POST(req: Request) {
         refundStatus = "refunded";
         stripeRefundId = refund.id;
 
-        // A gift card used on this booking gets its amount back too.
-        if (booking.gift_card_id) {
-          const { error: restoreError } = await supabase.rpc("restore_gift_card_for_payment", {
-            p_payment_intent: booking.stripe_payment_intent_id,
-          });
-          if (restoreError) console.error("Gift card restore on cancel failed:", restoreError);
-        }
+
       } catch (refundError) {
         console.error("Booking cancellation refund failed:", refundError);
         refundStatus = "failed";
       }
+    }
+
+    // A gift card used on this booking gets its amount back.
+    if (booking.gift_card_id && booking.stripe_payment_intent_id) {
+      const { error: restoreError } = await supabase.rpc("restore_gift_card_for_payment", {
+        p_payment_intent: booking.stripe_payment_intent_id,
+      });
+      if (restoreError) console.error("Gift card restore on cancel failed:", restoreError);
+      else if (!charged) refundStatus = "refunded";
     }
 
     const cancelledAt = new Date().toISOString();

@@ -65,10 +65,13 @@ async function callGiftCard(paymentIntentId: string, code: string | null) {
 export default function TipStep({
   clientSecret,
   proName,
+  onGiftComplete,
   children,
 }: {
   clientSecret: string;
   proName?: string | null;
+  // The gift card covered everything and the booking was made.
+  onGiftComplete?: () => void;
   // The card form, given the chosen breakdown once a tip is picked.
   children: (summary: TipSummary) => React.ReactNode;
 }) {
@@ -126,6 +129,33 @@ export default function TipStep({
     } finally {
       setGiftBusy(false);
     }
+  }
+
+  const [completing, setCompleting] = useState(false);
+  const [completeMessage, setCompleteMessage] = useState("");
+
+  async function bookWithGiftCard() {
+    setGiftError("");
+    setCompleting(true);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const res = await fetch("/api/stripe/gift-card", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ paymentIntentId, action: "complete" }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setCompleting(false);
+      setGiftError(json.error || "Couldn't make the booking.");
+      return;
+    }
+    setCompleteMessage("Booked with your gift card. Confirming your booking...");
+    onGiftComplete?.();
   }
 
   const name = proName?.split(" ")[0] || "your pro";
@@ -249,7 +279,27 @@ export default function TipStep({
         )
       ) : null}
       {giftError ? <p className="mt-2 text-sm text-red-600">{giftError}</p> : null}
-      <div className="mt-5">{children(summary)}</div>
+      <div className="mt-5">
+        {summary.totalCents === 0 ? (
+          <div className="space-y-4">
+            {completeMessage ? (
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">{completeMessage}</div>
+            ) : (
+              <p className="text-sm text-neutral-600">Your gift card covers the whole booking. Nothing goes on a card.</p>
+            )}
+            <button
+              type="button"
+              onClick={bookWithGiftCard}
+              disabled={completing}
+              className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+            >
+              {completing ? "Booking…" : "Book with gift card"}
+            </button>
+          </div>
+        ) : (
+          children(summary)
+        )}
+      </div>
     </div>
   );
 }
