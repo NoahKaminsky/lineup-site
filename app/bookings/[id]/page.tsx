@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import BookingChat from "@/app/components/BookingChat";
+import RegularCard from "./RegularCard";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { containsProfanity } from "@/app/lib/profanityFilter";
 
@@ -1027,6 +1028,10 @@ export default function BookingDetailPage() {
                 : "You'll pay at the shop. Your saved card is only charged if you miss the appointment."
               : <>Once the appointment is over, you&apos;ll confirm it here so your professional gets paid.</>}
           </p>
+        ) : null}
+
+        {booking.status !== "cancelled" && (isViewerCustomer || isViewerProfessional) ? (
+          <RegularCard bookingId={booking.id} proName={professional?.full_name || "your pro"} />
         ) : null}
 
         {/* Messages: right under the booking, not at the bottom of the page. */}

@@ -17,6 +17,7 @@ import {
 } from "@/app/lib/calendarBookings";
 import type { CalendarInitialData } from "./getInitialData";
 import CalendarSync from "./CalendarSync";
+import RegularsPanel from "./RegularsPanel";
 
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { BOOKING_TIME_ZONE } from "@/app/lib/bookingTime";
@@ -986,6 +987,8 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
         </div>
 
         <VerificationBanner />
+
+        <RegularsPanel />
 
         {message ? (
           <div role="alert" className="mt-6 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
