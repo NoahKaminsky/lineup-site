@@ -711,6 +711,7 @@ function NavbarComponent() {
     { href: "/archive", label: "Archived services", show: true },
     { href: "/services", label: "Services & availability", show: isProfessional },
     { href: "/studio", label: onStudio ? "Your shop" : "Open a shop", show: isProfessional },
+    { href: "/import", label: "Bring your clients over", show: isProfessional },
     { href: "/gift-cards", label: "Gift cards", show: isProfessional },
     { href: "/chairs", label: "Chair openings", show: isProfessional },
     { href: "/analytics", label: "Analytics", show: isProfessional },

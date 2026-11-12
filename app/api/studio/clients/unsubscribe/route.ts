@@ -14,9 +14,13 @@ async function unsubscribe(token: string | null) {
     .from("studio_clients")
     .update({ unsubscribed_at: new Date().toISOString() })
     .eq("unsubscribe_token", token)
-    .select("studio_id")
+    .select("studio_id, professional_id")
     .maybeSingle();
   if (!data) return null;
+  if (!data.studio_id && data.professional_id) {
+    const { data: pro } = await supabase.from("profiles").select("full_name").eq("id", data.professional_id).maybeSingle();
+    return pro?.full_name || "this pro";
+  }
   const { data: studio } = await supabase.from("studios").select("name").eq("id", data.studio_id).maybeSingle();
   return studio?.name || "this shop";
 }
