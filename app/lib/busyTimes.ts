@@ -1,4 +1,5 @@
 import { getServiceSupabase } from "@/app/lib/serverSupabase";
+import { getStandingHolds } from "@/app/lib/standing";
 
 // The times a professional is already booked, for the booking calendars on
 // profiles and Browse. Covers every live booking — direct calendar bookings
@@ -55,7 +56,10 @@ export async function getBusyTimes(professionalIds: string[], fromDate: string, 
     end_time: "24:00",
   }));
 
-  return [...booked, ...frontDesk, ...offDays];
+  // Visits held for regular clients (see app/lib/standing.ts).
+  const held = await getStandingHolds(ids, fromDate, toDate);
+
+  return [...booked, ...frontDesk, ...offDays, ...held];
 }
 
 // Every date (YYYY-MM-DD) inside a pro's time off, clipped to the range.

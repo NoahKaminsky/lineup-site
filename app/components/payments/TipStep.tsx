@@ -13,7 +13,16 @@ import { supabase } from "@/lib/supabaseClient";
 
 const OPTIONS = [0, 15, 18, 20];
 
-export type TipSummary = { baseCents: number; tipCents: number; totalCents: number; currency: string };
+export type TipSummary = {
+  baseCents: number;
+  tipCents: number;
+  totalCents: number;
+  currency: string;
+  // Full service price, and the part a gift card covers (both from the server).
+  listCents?: number;
+  giftCents?: number;
+  note?: string | null;
+};
 
 function money(cents: number, currency = "cad") {
   return new Intl.NumberFormat("en-CA", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100);
@@ -36,13 +45,33 @@ async function callTip(paymentIntentId: string, tipPercent?: number) {
   return json as TipSummary;
 }
 
+async function callGiftCard(paymentIntentId: string, code: string | null) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const res = await fetch("/api/stripe/gift-card", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
+    body: JSON.stringify({ paymentIntentId, ...(code ? { code } : {}) }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || "Couldn't use that gift card.");
+  return json as TipSummary;
+}
+
 export default function TipStep({
   clientSecret,
   proName,
+  onGiftComplete,
   children,
 }: {
   clientSecret: string;
   proName?: string | null;
+  // The gift card covered everything and the booking was made.
+  onGiftComplete?: () => void;
   // The card form, given the chosen breakdown once a tip is picked.
   children: (summary: TipSummary) => React.ReactNode;
 }) {
@@ -53,6 +82,10 @@ export default function TipStep({
   const [summary, setSummary] = useState<TipSummary | null>(null);
   const [saving, setSaving] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [giftOpen, setGiftOpen] = useState(false);
+  const [giftCode, setGiftCode] = useState("");
+  const [giftBusy, setGiftBusy] = useState(false);
+  const [giftError, setGiftError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +115,49 @@ export default function TipStep({
     }
   }
 
+  async function applyGift(code: string | null) {
+    setGiftError("");
+    setGiftBusy(true);
+    try {
+      const next = await callGiftCard(paymentIntentId, code);
+      await elements?.fetchUpdates();
+      setSummary(next);
+      if (code) setGiftOpen(false);
+      setGiftCode("");
+    } catch (err) {
+      setGiftError(err instanceof Error ? err.message : "Couldn't use that gift card.");
+    } finally {
+      setGiftBusy(false);
+    }
+  }
+
+  const [completing, setCompleting] = useState(false);
+  const [completeMessage, setCompleteMessage] = useState("");
+
+  async function bookWithGiftCard() {
+    setGiftError("");
+    setCompleting(true);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const res = await fetch("/api/stripe/gift-card", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      body: JSON.stringify({ paymentIntentId, action: "complete" }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setCompleting(false);
+      setGiftError(json.error || "Couldn't make the booking.");
+      return;
+    }
+    setCompleteMessage("Booked with your gift card. Confirming your booking...");
+    onGiftComplete?.();
+  }
+
   const name = proName?.split(" ")[0] || "your pro";
 
   if (chosen === null || !summary) {
@@ -91,7 +167,7 @@ export default function TipStep({
         <p className="mt-1 text-sm text-neutral-500">100% of your tip goes to {name}.</p>
         <div className="mt-5 grid grid-cols-2 gap-2.5">
           {OPTIONS.map((percent, index) => {
-            const tip = base ? Math.round((base.baseCents * percent) / 100) : null;
+            const tip = base ? Math.round(((base.listCents ?? base.baseCents) * percent) / 100) : null;
             return (
               <button
                 key={percent}
@@ -128,8 +204,24 @@ export default function TipStep({
       <dl className="mt-6 space-y-2 rounded-2xl bg-neutral-50 p-4 text-sm ring-1 ring-ink/[0.06]">
         <div className="flex justify-between text-neutral-600">
           <dt>Service</dt>
-          <dd className="tabular-nums">{money(summary.baseCents, summary.currency)}</dd>
+          <dd className="tabular-nums">{money(summary.listCents ?? summary.baseCents, summary.currency)}</dd>
         </div>
+        {summary.giftCents ? (
+          <div className="flex items-center justify-between text-neutral-600">
+            <dt className="flex items-center gap-2">
+              Gift card
+              <button
+                type="button"
+                disabled={giftBusy}
+                onClick={() => applyGift(null)}
+                className="text-xs font-medium text-ink underline decoration-ink/25 underline-offset-2 hover:decoration-ink disabled:opacity-50"
+              >
+                Remove
+              </button>
+            </dt>
+            <dd className="tabular-nums">−{money(summary.giftCents, summary.currency)}</dd>
+          </div>
+        ) : null}
         <div className="flex items-center justify-between text-neutral-600">
           <dt className="flex items-center gap-2">
             Tip{chosen > 0 ? ` (${chosen}%)` : ""}
@@ -148,7 +240,66 @@ export default function TipStep({
           <dd className="tabular-nums">{money(summary.totalCents, summary.currency)}</dd>
         </div>
       </dl>
-      <div className="mt-5">{children(summary)}</div>
+      {summary.note ? <p className="mt-2 text-xs text-neutral-500">{summary.note}</p> : null}
+      {!summary.giftCents ? (
+        giftOpen ? (
+          <form
+            className="mt-3 flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void applyGift(giftCode);
+            }}
+          >
+            <input
+              value={giftCode}
+              onChange={(e) => setGiftCode(e.target.value.toUpperCase())}
+              placeholder="LU-XXXX-XXXX-XXXX"
+              aria-label="Gift card code"
+              autoComplete="off"
+              spellCheck={false}
+              autoFocus
+              className="h-11 min-w-0 flex-1 rounded-xl bg-white px-3.5 font-mono text-sm tracking-wider text-ink outline-none ring-1 ring-inset ring-ink/15 focus:ring-2 focus:ring-ink"
+            />
+            <button
+              type="submit"
+              disabled={giftBusy || giftCode.replace(/[^A-Za-z0-9]/g, "").length < 12}
+              className="h-11 rounded-full bg-ink px-5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+            >
+              {giftBusy ? "Checking…" : "Apply"}
+            </button>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setGiftOpen(true)}
+            className="mt-3 text-sm font-medium text-ink underline decoration-ink/25 underline-offset-4 hover:decoration-ink"
+          >
+            Have a gift card?
+          </button>
+        )
+      ) : null}
+      {giftError ? <p className="mt-2 text-sm text-red-600">{giftError}</p> : null}
+      <div className="mt-5">
+        {summary.totalCents === 0 ? (
+          <div className="space-y-4">
+            {completeMessage ? (
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-700">{completeMessage}</div>
+            ) : (
+              <p className="text-sm text-neutral-600">Your gift card covers the whole booking. Nothing goes on a card.</p>
+            )}
+            <button
+              type="button"
+              onClick={bookWithGiftCard}
+              disabled={completing}
+              className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+            >
+              {completing ? "Booking…" : "Book with gift card"}
+            </button>
+          </div>
+        ) : (
+          children(summary)
+        )}
+      </div>
     </div>
   );
 }

@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { platformFeeCentsFor, splitBookingPayment } from "@/app/lib/commission";
+import { BOOKING_DEPOSIT_PERCENT, platformFeeCentsFor, splitBookingPayment } from "@/app/lib/commission";
 import { getStudioPricingForPro } from "@/app/lib/studios";
 import { startPayAtShopBooking } from "@/app/lib/payAtShop";
 import { getBookingWindows, getTimeOffDays, hasFrontDeskClash } from "@/app/lib/busyTimes";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
+import { hasStandingHoldClash } from "@/app/lib/standing";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
 
-const DEPOSIT_PERCENT = 20;
+const DEPOSIT_PERCENT = BOOKING_DEPOSIT_PERCENT;
 const CURRENCY = "cad";
 
 function getMonthlyBookingCap(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {
@@ -271,12 +272,39 @@ async function handleDirectBookingIntent(req: Request, body: any) {
   const startMinutes = timeToMinutes(normalizedStart);
   const endMinutes = timeToMinutes(normalizedEnd);
 
+  // Booking a visit held for this client as a regular: it has to be the
+  // series' own next visit, and it may use the time held for it.
+  let standingId: string | null = null;
+  if (typeof body.standingId === "string" && body.standingId) {
+    const { data: series } = await serviceSupabase
+      .from("standing_appointments")
+      .select("id, professional_id, customer_id, service_id, start_time, end_time, next_date, status")
+      .eq("id", body.standingId)
+      .maybeSingle();
+    if (
+      !series ||
+      series.status !== "active" ||
+      series.customer_id !== user.id ||
+      series.professional_id !== professionalId ||
+      series.service_id !== service.id ||
+      String(series.next_date) !== date ||
+      String(series.start_time).slice(0, 5) !== normalizedStart ||
+      String(series.end_time).slice(0, 5) !== normalizedEnd
+    ) {
+      return NextResponse.json({ error: "That regular visit has changed. Open the link again." }, { status: 409 });
+    }
+    standingId = series.id;
+  }
+
   const hasBookingConflict =
     (existingBookings || []).some((booking) => {
       const bookingStart = timeToMinutes(String(booking.start_time).slice(0, 5));
       const bookingEnd = timeToMinutes(String(booking.end_time).slice(0, 5));
       return startMinutes < bookingEnd && endMinutes > bookingStart;
-    }) || (await hasFrontDeskClash(professionalId, date, normalizedStart, normalizedEnd));
+    }) ||
+    (await hasFrontDeskClash(professionalId, date, normalizedStart, normalizedEnd)) ||
+    // Times held for regular clients.
+    (await hasStandingHoldClash(professionalId, date, normalizedStart, normalizedEnd, standingId));
 
   if (hasBookingConflict) {
     return NextResponse.json(
@@ -324,6 +352,7 @@ async function handleDirectBookingIntent(req: Request, body: any) {
     automatic_payment_methods: { enabled: true },
     metadata: {
       flow_type: "direct_booking",
+      ...(standingId ? { standing_id: standingId } : {}),
       professional_id: professionalId,
       customer_id: user.id,
       service_id: service.id,
