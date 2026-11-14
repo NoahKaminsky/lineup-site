@@ -458,6 +458,11 @@ type ProfilePageClientProps = {
   initialData: ProfileDetailInitialData | null;
 };
 
+// A client profile isn't counted as a visit: returns its id, or null for a pro.
+function profileIdForRatingSkip(p: { id: string; role?: string | null }) {
+  return p.role !== "professional" && p.role !== "I am a professional" ? p.id : null;
+}
+
 export default function ProfessionalProfilePage({ initialData }: ProfilePageClientProps) {
   const params = useParams();
   const profileId = params.id as string;
@@ -485,6 +490,29 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
   // A client's profile shows the rating pros have given them.
   const [clientRating, setClientRating] = useState<CustomerRatingSummary | null>(null);
+  // Count one visit per pro per browser session, for the pro's Analytics.
+  // The server skips a pro looking at their own page.
+  const visitedProId = profile && profile.id !== profileIdForRatingSkip(profile) ? profile.id : null;
+  useEffect(() => {
+    if (!visitedProId) return;
+    const key = `lu-visit-${visitedProId}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      /* private mode: still count it */
+    }
+    supabase.auth.getSession().then(({ data }) => {
+      const token = data.session?.access_token;
+      fetch("/api/spotlight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ professionalId: visitedProId, kind: "view", surface: "profile" }),
+        keepalive: true,
+      }).catch(() => {});
+    });
+  }, [visitedProId]);
+
   const profileIdForRating = profile && profile.role !== "professional" && profile.role !== "I am a professional" ? profile.id : null;
   useEffect(() => {
     if (!profileIdForRating) return;

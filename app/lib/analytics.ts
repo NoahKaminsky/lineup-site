@@ -77,7 +77,7 @@ export type AnalyticsSummary = {
   services: { name: string; count: number; sales: number; avg: number; perHour: number }[];
   channels: { key: Channel; label: string; count: number; sales: number }[];
   outcomes: { done: number; cancelled: number; noShow: number; lostSales: number };
-  reach: { views: number; taps: number; saves: number; offersSent: number; offersWon: number; rating: number | null; reviews: number; recentRating: number | null; recentReviews: number };
+  reach: { visits: number; visitBookings: number; views: number; taps: number; saves: number; offersSent: number; offersWon: number; rating: number | null; reviews: number; recentRating: number | null; recentReviews: number };
   team: TeamRow[];
   insights: Insight[];
 };
@@ -474,7 +474,7 @@ export async function buildAnalytics(
     services: [],
     channels: [],
     outcomes: { done: now.length, cancelled: 0, noShow: 0, lostSales: 0 },
-    reach: { views: 0, taps: 0, saves: 0, offersSent: 0, offersWon: 0, rating: null, reviews: 0, recentRating: null, recentReviews: 0 },
+    reach: { visits: 0, visitBookings: 0, views: 0, taps: 0, saves: 0, offersSent: 0, offersWon: 0, rating: null, reviews: 0, recentRating: null, recentReviews: 0 },
     team: [],
     insights: [],
   };
@@ -611,9 +611,10 @@ export async function buildAnalytics(
     }
   };
   /* eslint-enable @typescript-eslint/no-explicit-any */
-  const [views, taps, saves, offersSent, offersWon, reviewRows] = await Promise.all([
-    count("spotlight_events", "id", (q) => q.eq("kind", "view")),
-    count("spotlight_events", "id", (q) => q.eq("kind", "tap")),
+  const [profileVisits, views, taps, saves, offersSent, offersWon, reviewRows] = await Promise.all([
+    count("spotlight_events", "id", (q) => q.eq("kind", "view").eq("surface", "profile")),
+    count("spotlight_events", "id", (q) => q.eq("kind", "view").eq("surface", "explore")),
+    count("spotlight_events", "id", (q) => q.eq("kind", "tap").eq("surface", "explore")),
     count("saved_pros", "professional_id"),
     count("request_offers", "id"),
     count("request_offers", "id", (q) => q.eq("status", "accepted")),
@@ -621,7 +622,11 @@ export async function buildAnalytics(
   ]);
   const recent = reviewRows.filter((r) => r.created_at >= sinceIso);
   const avgOf = (rows: { rating: number }[]) => (rows.length ? Math.round((sum(rows, (r) => r.rating) / rows.length) * 10) / 10 : null);
-  const reach = { views, taps, saves, offersSent, offersWon, rating: avgOf(reviewRows), reviews: reviewRows.length, recentRating: avgOf(recent), recentReviews: recent.length };
+  // Online bookings made in the period, to set against profile visits.
+  const visitBookings = visits.filter(
+    (v) => v.bookingId && v.state !== "cancelled" && v.createdDate && v.createdDate >= from && (v.channel === "online" || v.channel === "pay_at_shop" || v.channel === "regular")
+  ).length;
+  const reach = { visits: profileVisits, visitBookings, views, taps, saves, offersSent, offersWon, rating: avgOf(reviewRows), reviews: reviewRows.length, recentRating: avgOf(recent), recentReviews: recent.length };
 
   // ---- team (shops)
   const team: TeamRow[] =
@@ -740,6 +745,13 @@ export async function buildAnalytics(
         body: `Take a phone number when you mark them done, so they count as clients and show up when they're overdue.`,
       });
     }
+  }
+  if (reach.visits >= 20 && pct(reach.visitBookings, reach.visits) < 10) {
+    insights.push({
+      tone: "info",
+      title: `${reach.visits} profile visits, ${reach.visitBookings} booking${reach.visitBookings === 1 ? "" : "s"}`,
+      body: `People are looking but not booking. Fresh portfolio photos, clear prices and open times this week are what turn a visit into a booking.`,
+    });
   }
   if (onTheBooks.visits > 0) {
     insights.push({ tone: "good", title: `${dollars(onTheBooks.sales)} already booked`, body: `${onTheBooks.visits} appointment${onTheBooks.visits === 1 ? "" : "s"} in the next 30 days${regulars ? `, with ${regulars} regular${regulars === 1 ? "" : "s"} on repeat` : ""}.` });

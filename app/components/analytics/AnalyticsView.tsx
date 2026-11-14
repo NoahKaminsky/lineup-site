@@ -545,9 +545,11 @@ export default function AnalyticsView({ scope }: { scope: Scope }) {
                   </div>
                 </Section>
 
-                <Section title="Getting found" description="This period, on LineUp.">
+                <Section title="Getting found" description="This period, on LineUp. Profile visits started counting in November 2026.">
                   <dl className={`${panelClass} divide-y divide-hairline`}>
                     {[
+                      [shop ? "Visits to the team's profiles" : "Profile visits", String(data.reach.visits)],
+                      ["Booked online", data.reach.visits ? `${data.reach.visitBookings} (${Math.min(Math.round((data.reach.visitBookings / data.reach.visits) * 100), 100)}% of visits)` : String(data.reach.visitBookings)],
                       ["Seen in Explore", String(data.reach.views)],
                       ["Taps through to a profile", data.reach.views ? `${data.reach.taps} (${Math.round((data.reach.taps / data.reach.views) * 100)}%)` : String(data.reach.taps)],
                       ["Saved by clients", String(data.reach.saves)],
