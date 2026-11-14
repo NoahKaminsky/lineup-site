@@ -1,149 +1,27 @@
 "use client";
 
-// The earnings report, for a pro (their own sales) or a shop (every pro's
-// sales through the shop, plus the shop's own income). Pick a year and a
-// month, see the totals, the split by pro, every sale, and download a CSV for
-// the accountant.
+// The earnings report, for a pro (their own sales) or a shop (the shop's own
+// income, plus every pro's sales through it). Pick a year and a month, see
+// the statement, anything that needs fixing, and every sale, then download
+// the LineUp earnings statement (PDF) for the accountant.
 
 import { useEffect, useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { FileText } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 import { peekStudio, studioFetch } from "@/app/studio/studioApi";
-import { Button, EmptyState, Section, Tag, fieldClass, panelClass } from "@/app/studio/ui";
-import type { EarningsRow, EarningsType, PaidVia } from "@/app/lib/earnings";
+import { Button, EmptyState, Field, Section, Sheet, Tag, fieldClass, panelClass } from "@/app/studio/ui";
+import type { AttentionItem, EarningsRow } from "@/app/lib/earnings";
+import { PAID_LABEL, TYPE_LABEL, buildStatement, byMonth, byPro, money, type Line } from "@/app/lib/earningsStatement";
 
 type Scope = "me" | "shop";
-type Response = { scope: Scope; year: number; name: string | null; rows: EarningsRow[] };
+type Response = { scope: Scope; year: number; name: string | null; rows: EarningsRow[]; attention?: AttentionItem[] };
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const FIRST_YEAR = 2026;
-
-const TYPE_LABEL: Record<EarningsType, string> = {
-  online: "Online booking",
-  pay_at_shop: "Booked online, paid at shop",
-  walk_in: "Walk-in",
-  phone: "Phone booking",
-  imported: "Imported appointment",
-  no_show_fee: "No-show fee",
-  gift_card: "Gift card sale",
-  membership: "Membership",
-  booth_rent: "Booth rent",
-};
-
-const PAID_LABEL: Record<PaidVia, string> = {
-  lineup: "LineUp",
-  cash: "Cash",
-  card: "Card at shop",
-  etransfer: "E-transfer",
-  other: "Other",
-  at_shop: "At the shop",
-};
-
-// Rows for work done on a client (as opposed to gift cards, memberships, rent).
-const SERVICE_TYPES: EarningsType[] = ["online", "pay_at_shop", "walk_in", "phone", "imported"];
-
-function money(cents: number) {
-  return (cents / 100).toLocaleString("en-CA", { style: "currency", currency: "CAD" });
-}
+const DETAILS_KEY = "lu-statement-details";
 
 function shortDate(date: string) {
   return new Date(`${date}T00:00:00`).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
-}
-
-type Totals = {
-  count: number;
-  services: number;
-  tips: number;
-  gift: number;
-  fees: number;
-  toShop: number;
-  toPro: number;
-  outside: number;
-  noShow: number;
-  giftSales: number;
-  memberships: number;
-  rent: number;
-};
-
-function totalsOf(rows: EarningsRow[]): Totals {
-  const t: Totals = { count: 0, services: 0, tips: 0, gift: 0, fees: 0, toShop: 0, toPro: 0, outside: 0, noShow: 0, giftSales: 0, memberships: 0, rent: 0 };
-  for (const r of rows) {
-    t.fees += r.lineupFeeCents;
-    t.toShop += r.toShopCents;
-    t.toPro += r.toProCents;
-    if (SERVICE_TYPES.includes(r.type)) {
-      t.count += 1;
-      t.services += r.priceCents;
-      t.tips += r.tipCents;
-      t.gift += r.giftCents;
-      if (r.paidVia !== "lineup") t.outside += r.priceCents + r.tipCents;
-    } else if (r.type === "no_show_fee") t.noShow += r.priceCents;
-    else if (r.type === "gift_card") t.giftSales += r.priceCents;
-    else if (r.type === "membership") t.memberships += r.priceCents;
-    else if (r.type === "booth_rent") t.rent += r.priceCents;
-  }
-  return t;
-}
-
-function csvCell(value: string | number) {
-  const text = String(value);
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-function toCsv(rows: EarningsRow[], scope: Scope) {
-  const head = [
-    "Date",
-    "Type",
-    ...(scope === "shop" ? ["Pro"] : []),
-    "Client",
-    "Item",
-    "Paid through",
-    "Price",
-    "Tip",
-    "Covered by gift card",
-    "LineUp fee",
-    "To shop",
-    scope === "shop" ? "To pro" : "To you",
-    "Note",
-  ];
-  const d = (c: number) => (c / 100).toFixed(2);
-  const lines = rows.map((r) =>
-    [
-      r.date,
-      TYPE_LABEL[r.type],
-      ...(scope === "shop" ? [r.proName || ""] : []),
-      r.client || "",
-      r.item,
-      PAID_LABEL[r.paidVia],
-      d(r.priceCents),
-      d(r.tipCents),
-      d(r.giftCents),
-      d(r.lineupFeeCents),
-      d(r.toShopCents),
-      d(r.toProCents),
-      [
-        r.estimated ? "Shop share estimated from current rate" : "",
-        r.type === "booth_rent" && scope === "me" ? "Rent you paid (a business expense)" : "",
-        r.giftCents ? "Gift card part counted when the card was sold" : "",
-      ]
-        .filter(Boolean)
-        .join("; "),
-    ]
-      .map(csvCell)
-      .join(",")
-  );
-  return [head.join(","), ...lines].join("\n");
-}
-
-function download(filename: string, text: string) {
-  const blob = new Blob(["﻿" + text], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function Stat({ label, value, sub, strong = false }: { label: string; value: string; sub?: string; strong?: boolean }) {
@@ -156,6 +34,28 @@ function Stat({ label, value, sub, strong = false }: { label: string; value: str
   );
 }
 
+function Lines({ lines, total, totalLabel }: { lines: Line[]; total?: number; totalLabel?: string }) {
+  return (
+    <dl className={`${panelClass} divide-y divide-hairline`}>
+      {lines.map((l) => (
+        <div key={l.label} className="flex items-start justify-between gap-4 px-4 py-3 text-sm">
+          <dt className="text-neutral-700">
+            {l.label}
+            {l.note ? <span className="block text-xs text-neutral-500">{l.note}</span> : null}
+          </dt>
+          <dd className="font-medium tabular-nums text-ink">{money(l.cents)}</dd>
+        </div>
+      ))}
+      {totalLabel !== undefined && total !== undefined ? (
+        <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+          <dt className="font-semibold text-ink">{totalLabel}</dt>
+          <dd className="font-semibold tabular-nums text-ink">{money(total)}</dd>
+        </div>
+      ) : null}
+    </dl>
+  );
+}
+
 export default function EarningsReport({ scope }: { scope: Scope }) {
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(thisYear);
@@ -165,6 +65,7 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
   const [loaded, setLoaded] = useState<Record<string, Response>>({});
   const [error, setError] = useState<string | null>(null);
   const [shown, setShown] = useState(50);
+  const [askDetails, setAskDetails] = useState(false);
   const data = loaded[path] || peekStudio<Response>(path);
 
   useEffect(() => {
@@ -183,46 +84,22 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
     };
   }, [path]);
 
+  const monthKey = month === "all" ? null : `${year}-${String(month + 1).padStart(2, "0")}`;
   const rows = useMemo(() => {
     const all = data?.year === year ? data.rows : [];
-    if (month === "all") return all;
-    const key = `${year}-${String(month + 1).padStart(2, "0")}`;
-    return all.filter((r) => r.date.startsWith(key));
-  }, [data, year, month]);
+    return monthKey ? all.filter((r) => r.date.startsWith(monthKey)) : all;
+  }, [data, year, monthKey]);
+  const attention = useMemo(() => {
+    const all = data?.year === year ? data.attention || [] : [];
+    return monthKey ? all.filter((a) => a.date.startsWith(monthKey)) : all;
+  }, [data, year, monthKey]);
 
-  const totals = useMemo(() => totalsOf(rows), [rows]);
-
-  const byMonth = useMemo(() => {
-    if (month !== "all" || !data) return [];
-    return MONTHS.map((label, i) => {
-      const key = `${year}-${String(i + 1).padStart(2, "0")}`;
-      return { label, totals: totalsOf(data.rows.filter((r) => r.date.startsWith(key))) };
-    }).filter((m) => m.totals.count || m.totals.toShop || m.totals.toPro);
-  }, [data, month, year]);
-
-  const byPro = useMemo(() => {
-    if (scope !== "shop") return [];
-    const map = new Map<string, { name: string; rows: EarningsRow[] }>();
-    for (const r of rows) {
-      if (!r.proId) continue;
-      const entry = map.get(r.proId) || { name: r.proName || "Team member", rows: [] };
-      entry.rows.push(r);
-      map.set(r.proId, entry);
-    }
-    return [...map.entries()]
-      .map(([id, v]) => ({ id, name: v.name, totals: totalsOf(v.rows) }))
-      .sort((a, b) => b.totals.services + b.totals.tips - (a.totals.services + a.totals.tips));
-  }, [rows, scope]);
+  const st = useMemo(() => buildStatement(rows, scope), [rows, scope]);
+  const months = useMemo(() => (month === "all" ? byMonth(rows, scope).filter((m) => m.gross || m.costs) : []), [rows, scope, month]);
+  const pros = useMemo(() => (scope === "shop" ? byPro(rows) : []), [rows, scope]);
 
   const period = month === "all" ? String(year) : `${MONTHS[month]} ${year}`;
   const years = Array.from({ length: thisYear - FIRST_YEAR + 1 }, (_, i) => thisYear - i);
-
-  function exportCsv() {
-    const slug = (data?.name || (scope === "shop" ? "shop" : "earnings")).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const when = month === "all" ? String(year) : `${year}-${String(month + 1).padStart(2, "0")}`;
-    download(`lineup-earnings-${slug}-${when}.csv`, toCsv(rows, scope));
-  }
-
   const loading = !data && !error;
 
   return (
@@ -252,9 +129,9 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
           ))}
         </select>
         <div className="ml-auto">
-          <Button onClick={exportCsv} disabled={!rows.length}>
-            <Download className="h-4 w-4" aria-hidden="true" />
-            Download CSV
+          <Button variant="primary" onClick={() => setAskDetails(true)} disabled={loading}>
+            <FileText className="h-4 w-4" aria-hidden="true" />
+            Download statement (PDF)
           </Button>
         </div>
       </div>
@@ -262,12 +139,12 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
       {error ? <p className="text-sm text-[#A30D25]">{error}</p> : null}
 
       {loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
             <div key={i} className="h-24 animate-pulse rounded-2xl bg-neutral-100" />
           ))}
         </div>
-      ) : !rows.length ? (
+      ) : !rows.length && !attention.length ? (
         <EmptyState
           title={`Nothing for ${period}`}
           body={
@@ -278,49 +155,85 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
         />
       ) : (
         <>
-          {scope === "shop" ? (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Stat strong label="Shop earned" value={money(totals.toShop)} sub={period} />
-              <Stat label="Through the shop" value={money(totals.services + totals.tips)} sub={`${totals.count} appointment${totals.count === 1 ? "" : "s"}, tips included`} />
-              <Stat label="To the team" value={money(totals.toPro)} sub={`Tips ${money(totals.tips)}`} />
-              <Stat label="LineUp fees" value={money(totals.fees)} sub="Card processing and fees" />
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Stat strong label="Your take" value={money(totals.toPro)} sub={totals.rent ? `After ${money(totals.rent)} booth rent` : period} />
-              <Stat label="Services" value={money(totals.services)} sub={`${totals.count} appointment${totals.count === 1 ? "" : "s"}`} />
-              <Stat label="Tips" value={money(totals.tips)} />
-              <Stat label="LineUp fees" value={money(totals.fees)} sub={totals.toShop ? `Shop's share ${money(totals.toShop)}` : undefined} />
-            </div>
-          )}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Stat strong label="Net income" value={money(st.net)} sub={period} />
+            <Stat label="Gross income" value={money(st.grossIncome)} sub={scope === "shop" ? "The shop's own income" : "Before fees and commission"} />
+            <Stat label="Costs recorded in LineUp" value={money(st.totalCosts)} />
+          </div>
 
-          <Breakdown scope={scope} totals={totals} rows={rows} />
+          {attention.length ? (
+            <Section
+              title={`Needs attention (${attention.length})`}
+              description="These may keep your totals from being complete. Fix them and the statement updates."
+            >
+              <ul className={`${panelClass} divide-y divide-hairline`}>
+                {attention.slice(0, 20).map((a, i) => (
+                  <li key={`${a.date}-${i}`} className="flex gap-3 px-4 py-3 text-sm">
+                    <span className="w-14 shrink-0 text-xs tabular-nums text-neutral-500">{shortDate(a.date)}</span>
+                    <div className="min-w-0">
+                      <p className="font-medium text-ink">
+                        {a.item}
+                        {scope === "shop" && a.proName ? <span className="font-normal text-neutral-500"> · {a.proName}</span> : null}
+                      </p>
+                      <p className="text-xs text-[#A30D25]">{a.issue}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {attention.length > 20 ? <p className="mt-2 text-xs text-neutral-500">The PDF lists all {attention.length}.</p> : null}
+            </Section>
+          ) : null}
 
-          {byPro.length ? (
-            <Section title="By pro" description="Each pro's sales through the shop. Booth renters keep their sales; the shop gets their rent.">
+          <div className="grid gap-8 lg:grid-cols-2">
+            <Section title="Income">
+              <Lines lines={st.income} total={st.grossIncome} totalLabel="Gross income" />
+            </Section>
+            <Section title="Costs">
+              {st.costs.length ? <Lines lines={st.costs} total={st.totalCosts} totalLabel="Total costs" /> : <p className="text-sm text-neutral-500">None recorded.</p>}
+            </Section>
+          </div>
+
+          {st.activity.length ? (
+            <Section title="Appointments" description="Every kind of booking, counted once. Amounts include tips.">
+              <dl className={`${panelClass} divide-y divide-hairline`}>
+                {st.activity.map((a) => (
+                  <div key={a.label} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+                    <dt className="text-neutral-700">{a.label}</dt>
+                    <dd className="flex gap-6 tabular-nums">
+                      <span className="text-neutral-500">{a.count}</span>
+                      <span className="w-24 text-right font-medium text-ink">{money(a.cents)}</span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </Section>
+          ) : null}
+
+          {pros.length ? (
+            <Section title="Team sales, by pro" description="Each pro's sales through the shop. Booth renters keep their sales; the shop gets their rent.">
               <div className={`${panelClass} overflow-x-auto`}>
-                <table className="w-full min-w-[640px] text-sm">
+                <table className="w-full min-w-[680px] text-sm">
                   <thead>
                     <tr className="border-b border-hairline text-left text-xs text-neutral-500">
                       <th className="px-4 py-3 font-medium">Pro</th>
                       <th className="px-3 py-3 text-right font-medium">Appts</th>
-                      <th className="px-3 py-3 text-right font-medium">Services</th>
+                      <th className="px-3 py-3 text-right font-medium">Sales</th>
                       <th className="px-3 py-3 text-right font-medium">Tips</th>
-                      <th className="px-3 py-3 text-right font-medium">Paid at shop</th>
+                      <th className="px-3 py-3 text-right font-medium">At shop</th>
                       <th className="px-3 py-3 text-right font-medium">To shop</th>
                       <th className="px-4 py-3 text-right font-medium">To pro</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {byPro.map((p) => (
+                    {pros.map((p) => (
                       <tr key={p.id} className="border-b border-hairline last:border-0">
                         <td className="px-4 py-3 font-medium text-ink">{p.name}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{p.totals.count}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{money(p.totals.services)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{money(p.totals.tips)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums text-neutral-500">{money(p.totals.outside)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{money(p.totals.toShop)}</td>
-                        <td className="px-4 py-3 text-right font-medium tabular-nums">{money(p.totals.toPro)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums">{p.count}</td>
+                        <td className="px-3 py-3 text-right tabular-nums">{money(p.sales)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums">{money(p.tips)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums text-neutral-500">{money(p.atShop)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums">{money(p.toShop)}</td>
+                        <td className="px-4 py-3 text-right font-medium tabular-nums">{money(p.toPro)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -329,29 +242,25 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
             </Section>
           ) : null}
 
-          {byMonth.length > 1 ? (
+          {months.length > 1 ? (
             <Section title="By month">
               <div className={`${panelClass} overflow-x-auto`}>
-                <table className="w-full min-w-[520px] text-sm">
+                <table className="w-full min-w-[480px] text-sm">
                   <thead>
                     <tr className="border-b border-hairline text-left text-xs text-neutral-500">
                       <th className="px-4 py-3 font-medium">Month</th>
-                      <th className="px-3 py-3 text-right font-medium">Services</th>
-                      <th className="px-3 py-3 text-right font-medium">Tips</th>
-                      <th className="px-3 py-3 text-right font-medium">LineUp fees</th>
-                      <th className="px-4 py-3 text-right font-medium">{scope === "shop" ? "Shop earned" : "Your take"}</th>
+                      <th className="px-3 py-3 text-right font-medium">Gross</th>
+                      <th className="px-3 py-3 text-right font-medium">Costs</th>
+                      <th className="px-4 py-3 text-right font-medium">Net</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {byMonth.map((m) => (
-                      <tr key={m.label} className="border-b border-hairline last:border-0">
-                        <td className="px-4 py-3 font-medium text-ink">{m.label}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{money(m.totals.services)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{money(m.totals.tips)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{money(m.totals.fees)}</td>
-                        <td className="px-4 py-3 text-right font-medium tabular-nums">
-                          {money(scope === "shop" ? m.totals.toShop : m.totals.toPro)}
-                        </td>
+                    {months.map((m) => (
+                      <tr key={m.month} className="border-b border-hairline last:border-0">
+                        <td className="px-4 py-3 font-medium text-ink">{MONTHS[m.month]}</td>
+                        <td className="px-3 py-3 text-right tabular-nums">{money(m.gross)}</td>
+                        <td className="px-3 py-3 text-right tabular-nums">{money(m.costs)}</td>
+                        <td className="px-4 py-3 text-right font-medium tabular-nums">{money(m.net)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -360,80 +269,137 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
             </Section>
           ) : null}
 
-          <Section title="Every sale" description={`${rows.length} line${rows.length === 1 ? "" : "s"} for ${period}. The CSV has every column.`}>
-            <ul className={`${panelClass} divide-y divide-hairline`}>
-              {rows
-                .slice()
-                .reverse()
-                .slice(0, shown)
-                .map((r) => {
-                  const amount = scope === "shop" ? r.toShopCents + r.toProCents : r.toProCents;
-                  return (
-                    <li key={r.id} className="flex items-center gap-3 px-4 py-3">
-                      <span className="w-14 shrink-0 text-xs tabular-nums text-neutral-500">{shortDate(r.date)}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-ink">{r.item}</p>
-                        <p className="truncate text-xs text-neutral-500">
-                          {[TYPE_LABEL[r.type], scope === "shop" ? r.proName : null, r.client].filter(Boolean).join(" · ")}
-                          {r.tipCents ? ` · tip ${money(r.tipCents)}` : ""}
-                          {r.giftCents ? ` · ${money(r.giftCents)} gift card` : ""}
-                        </p>
-                      </div>
-                      <Tag tone={r.paidVia === "lineup" ? "muted" : "outline"}>{PAID_LABEL[r.paidVia]}</Tag>
-                      <span className={`w-20 shrink-0 text-right text-sm font-medium tabular-nums ${amount < 0 ? "text-neutral-500" : "text-ink"}`}>
-                        {money(amount)}
-                      </span>
-                    </li>
-                  );
-                })}
-            </ul>
-            {rows.length > shown ? (
-              <div className="mt-4 flex justify-center">
-                <Button onClick={() => setShown((n) => n + 100)}>Show more</Button>
-              </div>
-            ) : null}
-          </Section>
+          {rows.length ? (
+            <Section title="Every sale" description={`${rows.length} line${rows.length === 1 ? "" : "s"} for ${period}. The PDF has every column.`}>
+              <ul className={`${panelClass} divide-y divide-hairline`}>
+                {rows
+                  .slice()
+                  .reverse()
+                  .slice(0, shown)
+                  .map((r) => {
+                    const amount = scope === "shop" ? r.toShopCents : r.toProCents;
+                    return (
+                      <li key={r.id} className="flex items-center gap-3 px-4 py-3">
+                        <span className="w-14 shrink-0 text-xs tabular-nums text-neutral-500">{shortDate(r.date)}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-ink">{r.item}</p>
+                          <p className="truncate text-xs text-neutral-500">
+                            {[TYPE_LABEL[r.type], r.channel === "request" ? "from a request" : r.channel === "regular" ? "regular" : null, scope === "shop" ? r.proName : null, r.client]
+                              .filter(Boolean)
+                              .join(" · ")}
+                            {r.tipCents ? ` · tip ${money(r.tipCents)}` : ""}
+                            {r.giftCents ? ` · ${money(r.giftCents)} gift card` : ""}
+                          </p>
+                        </div>
+                        <Tag tone={r.paidVia === "lineup" ? "muted" : "outline"}>{r.paidVia === "at_shop" ? "At the shop" : PAID_LABEL[r.paidVia]}</Tag>
+                        <span className={`w-20 shrink-0 text-right text-sm font-medium tabular-nums ${amount < 0 ? "text-neutral-500" : "text-ink"}`}>
+                          {money(amount)}
+                        </span>
+                      </li>
+                    );
+                  })}
+              </ul>
+              {rows.length > shown ? (
+                <div className="mt-4 flex justify-center">
+                  <Button onClick={() => setShown((n) => n + 100)}>Show more</Button>
+                </div>
+              ) : null}
+            </Section>
+          ) : null}
         </>
       )}
 
       <p className="max-w-2xl text-xs leading-5 text-neutral-500">
-        Amounts are as charged. LineUp doesn&apos;t add GST, so if you&apos;re registered, your prices include it. Money paid at the shop
-        (walk-ins, phone bookings, pay at the shop) is what was recorded when the appointment was marked done; cash you took that
-        isn&apos;t in LineUp still needs to go in your books. A gift card counts when it&apos;s sold, not when it&apos;s used. This is a
-        record to give your accountant, not tax advice.
+        Gross income counts each dollar once: fees, the shop&apos;s commission, booth rent and your LineUp plan are listed as costs. A gift card counts
+        when it&apos;s sold, not when it&apos;s used. Walk-ins and phone bookings count once they&apos;re marked done. LineUp doesn&apos;t add GST, so if
+        you&apos;re registered, your prices include it. This is a record for you and your accountant, not tax advice.
       </p>
+
+      <StatementSheet open={askDetails} onClose={() => setAskDetails(false)} scope={scope} year={year} month={month} />
     </div>
   );
 }
 
-function Breakdown({ scope, totals, rows }: { scope: Scope; totals: Totals; rows: EarningsRow[] }) {
-  const lines =
-    scope === "shop"
-      ? [
-          { label: "Commission from the team", value: rows.filter((r) => SERVICE_TYPES.includes(r.type)).reduce((s, r) => s + r.toShopCents, 0) },
-          { label: "Booth rent", value: rows.filter((r) => r.type === "booth_rent").reduce((s, r) => s + r.toShopCents, 0) },
-          { label: "Memberships", value: rows.filter((r) => r.type === "membership").reduce((s, r) => s + r.toShopCents, 0) },
-          { label: "Gift card sales", value: rows.filter((r) => r.type === "gift_card").reduce((s, r) => s + r.toShopCents, 0) },
-        ]
-      : [
-          { label: "Online bookings", value: rows.filter((r) => r.type === "online").reduce((s, r) => s + r.toProCents, 0) },
-          { label: "Paid at the shop", value: rows.filter((r) => r.paidVia !== "lineup").reduce((s, r) => s + r.toProCents, 0) },
-          { label: "No-show fees", value: rows.filter((r) => r.type === "no_show_fee").reduce((s, r) => s + r.toProCents, 0) },
-          { label: "Gift card sales", value: rows.filter((r) => r.type === "gift_card").reduce((s, r) => s + r.toProCents, 0) },
-          { label: "Booth rent paid", value: -totals.rent },
-        ];
-  const shown = lines.filter((l) => l.value !== 0);
-  if (shown.length < 2) return null;
+// Optional details for the statement header, remembered on this device.
+function StatementSheet({ open, onClose, scope, year, month }: { open: boolean; onClose: () => void; scope: Scope; year: number; month: number | "all" }) {
+  const [name, setName] = useState(() => {
+    try {
+      return (JSON.parse(localStorage.getItem(DETAILS_KEY) || "{}") as { name?: string }).name || "";
+    } catch {
+      return "";
+    }
+  });
+  const [gst, setGst] = useState(() => {
+    try {
+      return (JSON.parse(localStorage.getItem(DETAILS_KEY) || "{}") as { gst?: string }).gst || "";
+    } catch {
+      return "";
+    }
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function download() {
+    setBusy(true);
+    setError(null);
+    try {
+      try {
+        localStorage.setItem(DETAILS_KEY, JSON.stringify({ name: name.trim(), gst: gst.trim() }));
+      } catch {
+        /* storage unavailable */
+      }
+      const params = new URLSearchParams({ scope, year: String(year), month: month === "all" ? "all" : String(month) });
+      if (name.trim()) params.set("name", name.trim());
+      if (gst.trim()) params.set("gst", gst.trim());
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const res = await fetch(`/api/earnings/statement?${params}`, {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Could not make the statement.");
+      }
+      const blob = await res.blob();
+      const filename = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") || "")?.[1] || "lineup-earnings.pdf";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not make the statement.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <Section title={scope === "shop" ? "Where the shop's money came from" : "Where your money came from"}>
-      <dl className={`${panelClass} divide-y divide-hairline`}>
-        {shown.map((l) => (
-          <div key={l.label} className="flex items-center justify-between px-4 py-3 text-sm">
-            <dt className="text-neutral-600">{l.label}</dt>
-            <dd className="font-medium tabular-nums text-ink">{money(l.value)}</dd>
-          </div>
-        ))}
-      </dl>
-    </Section>
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title="Earnings statement"
+      description={`${month === "all" ? `All of ${year}` : `${MONTHS[month]} ${year}`}, as a PDF for your records and your accountant.`}
+      footer={
+        <Button variant="primary" loading={busy} onClick={download}>
+          Download PDF
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        <Field label={scope === "shop" ? "Legal business name" : "Legal name"} htmlFor="st-name" optional hint="As it appears on your tax return.">
+          <input id="st-name" className={fieldClass} value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoComplete="name" />
+        </Field>
+        <Field label="GST/HST number" htmlFor="st-gst" optional hint="If you're registered. Only printed on the statement, not saved by LineUp.">
+          <input id="st-gst" className={fieldClass} value={gst} onChange={(e) => setGst(e.target.value)} maxLength={30} placeholder="123456789 RT0001" />
+        </Field>
+        {error ? <p className="text-[13px] text-[#A30D25]">{error}</p> : null}
+      </div>
+    </Sheet>
   );
 }

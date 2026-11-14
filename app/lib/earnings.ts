@@ -29,7 +29,9 @@ export type EarningsType =
   | "no_show_fee"
   | "gift_card"
   | "membership"
-  | "booth_rent";
+  | "membership_visit"
+  | "booth_rent"
+  | "lineup_plan";
 
 export type PaidVia = "lineup" | "cash" | "card" | "etransfer" | "other" | "at_shop";
 
@@ -50,7 +52,31 @@ export type EarningsRow = {
   toProCents: number;
   // Shop's share worked out from today's commission rate, not recorded at the time.
   estimated?: boolean;
+  // How an online booking came in.
+  channel?: "direct" | "request" | "regular";
 };
+
+// Something that may keep the numbers from being complete.
+export type AttentionItem = {
+  date: string;
+  proId: string | null;
+  proName: string | null;
+  item: string;
+  issue: string;
+};
+
+export type Seller = {
+  kind: "pro" | "shop";
+  name: string;
+  businessName: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  accountId: string;
+  shopName: string | null;
+};
+
+export type EarningsResult = { rows: EarningsRow[]; attention: AttentionItem[]; seller: Seller };
 
 export const TIME_ZONE = "America/Winnipeg";
 
@@ -88,10 +114,18 @@ type BookingRow = {
   membership_id: string | null;
   no_show_fee_cents: number | null;
   no_show_status: string | null;
+  source: string | null;
+  standing_id: string | null;
 };
 
 const BOOKING_COLUMNS =
-  "id, professional_id, customer_id, studio_id, booking_date, status, service_name, service_price, payment_status, refund_status, total_amount_cents, platform_fee_cents, studio_cut_cents, professional_payout_cents, gift_card_cents, membership_id, no_show_fee_cents, no_show_status";
+  "id, professional_id, customer_id, studio_id, booking_date, status, service_name, service_price, payment_status, refund_status, total_amount_cents, platform_fee_cents, studio_cut_cents, professional_payout_cents, gift_card_cents, membership_id, no_show_fee_cents, no_show_status, source, standing_id";
+
+function channelOf(b: BookingRow): EarningsRow["channel"] {
+  if (b.source === "request") return "request";
+  if (b.standing_id) return "regular";
+  return "direct";
+}
 
 type ShopAppointmentRow = {
   id: string;
@@ -154,7 +188,7 @@ async function namesFor(supabase: ServiceClient, ids: (string | null | undefined
 
 function bookingRows(
   bookings: BookingRow[],
-  opts: { today: string; cutPercentFor: (b: BookingRow) => number }
+  opts: { today: string; cutPercentFor: (b: BookingRow) => number; attention: AttentionItem[] }
 ): EarningsRow[] {
   const rows: EarningsRow[] = [];
   for (const b of bookings) {
@@ -182,7 +216,20 @@ function bookingRows(
       });
       continue;
     }
-    if (b.status === "cancelled") continue; // refunded or never charged
+    if (b.status === "cancelled") {
+      // Refunded, or never charged. A paid one whose refund didn't go
+      // through still has the client's money.
+      if (b.payment_status === "paid" && b.refund_status && b.refund_status !== "refunded") {
+        opts.attention.push({
+          date: b.booking_date,
+          proId: b.professional_id,
+          proName: null,
+          item: service,
+          issue: "Cancelled, but the refund didn't go through. Contact LineUp support.",
+        });
+      }
+      continue;
+    }
 
     const price = Math.round(Number(b.service_price || 0) * 100);
 
@@ -199,6 +246,7 @@ function bookingRows(
         id: b.id,
         date: b.booking_date,
         type: "online",
+        channel: channelOf(b),
         proId: b.professional_id,
         proName: null,
         client: b.customer_id,
@@ -211,12 +259,40 @@ function bookingRows(
         toShopCents: toShop,
         toProCents: toPro,
       });
-    } else if (b.payment_status === "pay_at_shop" && b.status === "completed" && !b.membership_id) {
+    } else if (b.payment_status === "pay_at_shop" && b.membership_id && b.status !== "cancelled") {
+      // A member's visit: paid by their membership, counted when it bills.
+      rows.push({
+        id: b.id,
+        date: b.booking_date,
+        type: "membership_visit",
+        channel: channelOf(b),
+        proId: b.professional_id,
+        proName: null,
+        client: b.customer_id,
+        item: service,
+        paidVia: "lineup",
+        priceCents: 0,
+        tipCents: 0,
+        giftCents: 0,
+        lineupFeeCents: 0,
+        toShopCents: 0,
+        toProCents: 0,
+      });
+    } else if (b.payment_status === "pay_at_shop" && b.status !== "completed") {
+      opts.attention.push({
+        date: b.booking_date,
+        proId: b.professional_id,
+        proName: null,
+        item: service,
+        issue: "Booked online to pay at the shop, but not marked done or no-show. Not counted.",
+      });
+    } else if (b.payment_status === "pay_at_shop" && b.status === "completed") {
       const toShop = pct(price, opts.cutPercentFor(b));
       rows.push({
         id: b.id,
         date: b.booking_date,
         type: "pay_at_shop",
+        channel: channelOf(b),
         proId: b.professional_id,
         proName: null,
         client: b.customer_id,
@@ -235,31 +311,58 @@ function bookingRows(
   return rows;
 }
 
-function shopAppointmentRows(list: ShopAppointmentRow[], today: string): EarningsRow[] {
-  return list
-    .filter((a) => a.status === "completed" && a.appointment_date <= today && (cents(a.price_cents) > 0 || cents(a.tip_cents) > 0))
-    .map((a) => {
-      const price = cents(a.price_cents);
-      const tip = cents(a.tip_cents);
-      const toShop = Math.min(cents(a.shop_cut_cents), price);
-      const paid = a.paid_with;
-      return {
-        id: a.id,
+function shopAppointmentRows(list: ShopAppointmentRow[], today: string, attention: AttentionItem[]): EarningsRow[] {
+  const rows: EarningsRow[] = [];
+  const label = { walk_in: "Walk-in", phone: "Phone booking", imported: "Imported appointment" } as const;
+  for (const a of list) {
+    if (a.appointment_date > today) continue;
+    const item = `${label[a.kind]}: ${a.service_name || "Appointment"}`;
+    if (a.status === "booked") {
+      attention.push({
         date: a.appointment_date,
-        type: a.kind,
         proId: a.professional_id,
         proName: null,
-        client: a.client_name,
-        item: a.service_name || "Appointment",
-        paidVia: paid === "cash" || paid === "card" || paid === "etransfer" || paid === "other" ? paid : "at_shop",
-        priceCents: price,
-        tipCents: tip,
-        giftCents: 0,
-        lineupFeeCents: 0,
-        toShopCents: toShop,
-        toProCents: price - toShop + tip,
-      } satisfies EarningsRow;
+        item,
+        issue: "Not marked done or no-show. Not counted.",
+      });
+      continue;
+    }
+    if (a.status !== "completed") continue;
+    const price = cents(a.price_cents);
+    const tip = cents(a.tip_cents);
+    if (!price && !tip) {
+      attention.push({ date: a.appointment_date, proId: a.professional_id, proName: null, item, issue: "Marked done with no price." });
+      continue;
+    }
+    if ("paid_with" in a && !a.paid_with) {
+      attention.push({
+        date: a.appointment_date,
+        proId: a.professional_id,
+        proName: null,
+        item,
+        issue: "Counted, but how they paid wasn't recorded.",
+      });
+    }
+    const toShop = Math.min(cents(a.shop_cut_cents), price);
+    const paid = a.paid_with;
+    rows.push({
+      id: a.id,
+      date: a.appointment_date,
+      type: a.kind,
+      proId: a.professional_id,
+      proName: null,
+      client: a.client_name,
+      item: a.service_name || "Appointment",
+      paidVia: paid === "cash" || paid === "card" || paid === "etransfer" || paid === "other" ? paid : "at_shop",
+      priceCents: price,
+      tipCents: tip,
+      giftCents: 0,
+      lineupFeeCents: 0,
+      toShopCents: toShop,
+      toProCents: price - toShop + tip,
     });
+  }
+  return rows;
 }
 
 function giftCardRows(cards: GiftCardRow[], from: string, to: string, seller: "shop" | "pro"): EarningsRow[] {
@@ -290,8 +393,9 @@ function giftCardRows(cards: GiftCardRow[], from: string, to: string, seller: "s
   return rows;
 }
 
-async function fillNames(supabase: ServiceClient, rows: EarningsRow[], customerIds: Set<string>) {
-  const names = await namesFor(supabase, [...rows.map((r) => r.proId), ...customerIds]);
+async function fillNames(supabase: ServiceClient, rows: EarningsRow[], customerIds: Set<string>, attention: AttentionItem[] = []) {
+  const names = await namesFor(supabase, [...rows.map((r) => r.proId), ...attention.map((a) => a.proId), ...customerIds]);
+  for (const a of attention) if (a.proId) a.proName = names.get(a.proId) || "Team member";
   for (const r of rows) {
     if (r.proId) r.proName = names.get(r.proId) || "Team member";
     // Online rows carry the client's profile id until here.
@@ -303,9 +407,48 @@ function sortRows(rows: EarningsRow[]) {
   return rows.sort((a, b) => (a.date === b.date ? a.item.localeCompare(b.item) : a.date < b.date ? -1 : 1));
 }
 
+// What they paid LineUp for their plan (a business expense).
+async function planInvoices(customerId: string | null | undefined, from: string, to: string): Promise<EarningsRow[]> {
+  if (!customerId) return [];
+  const gte = Math.floor(new Date(`${from}T00:00:00Z`).getTime() / 1000) - 86400;
+  const lte = Math.floor(new Date(`${to}T23:59:59Z`).getTime() / 1000) + 86400;
+  const rows: EarningsRow[] = [];
+  try {
+    for await (const invoice of stripe.invoices.list({ customer: customerId, status: "paid", created: { gte, lte }, limit: 100 })) {
+      const paidAt = invoice.status_transitions?.paid_at || invoice.created;
+      const date = localDate(paidAt);
+      if (date < from || date > to || !invoice.amount_paid) continue;
+      rows.push({
+        id: invoice.id || `plan-${paidAt}`,
+        date,
+        type: "lineup_plan",
+        proId: null,
+        proName: null,
+        client: null,
+        item: "LineUp plan",
+        paidVia: "lineup",
+        priceCents: invoice.amount_paid,
+        tipCents: 0,
+        giftCents: 0,
+        lineupFeeCents: 0,
+        toShopCents: 0,
+        toProCents: 0,
+      });
+    }
+  } catch (error) {
+    console.error(`Earnings: could not list plan invoices for ${customerId}:`, error);
+  }
+  return rows;
+}
+
+function addressOf(...parts: (string | null | undefined)[]) {
+  return parts.find((p) => p && p.trim())?.trim() || null;
+}
+
 // One pro's own earnings: everything they did, at a shop or on their own.
-export async function proEarnings(supabase: ServiceClient, proId: string, from: string, to: string) {
+export async function proEarnings(supabase: ServiceClient, proId: string, from: string, to: string): Promise<EarningsResult> {
   const today = todayLocal();
+  const attention: AttentionItem[] = [];
 
   const [{ data: bookings }, { data: appts }, { data: cards }, { data: memberships }] = await Promise.all([
     supabase.from("bookings").select(BOOKING_COLUMNS).eq("professional_id", proId).gte("booking_date", from).lte("booking_date", to),
@@ -332,10 +475,33 @@ export async function proEarnings(supabase: ServiceClient, proId: string, from: 
 
   const list = (bookings || []) as BookingRow[];
   const rows: EarningsRow[] = [
-    ...bookingRows(list, { today, cutPercentFor: cutFor }),
-    ...shopAppointmentRows((appts || []) as ShopAppointmentRow[], today),
+    ...bookingRows(list, { today, cutPercentFor: cutFor, attention }),
+    ...shopAppointmentRows((appts || []) as ShopAppointmentRow[], today, attention),
     ...giftCardRows((cards || []) as GiftCardRow[], from, to, "pro"),
   ];
+
+  const [{ data: profile }, { data: home }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name, business_name, email, phone_number, formatted_address, address, city, stripe_customer_id")
+      .eq("id", proId)
+      .maybeSingle(),
+    supabase.from("professional_home_base").select("address, own_address").eq("profile_id", proId).maybeSingle(),
+  ]);
+  for (const r of await planInvoices(profile?.stripe_customer_id, from, to)) {
+    rows.push({ ...r, proId, toProCents: -r.priceCents });
+  }
+  const activeShop = memberRows.find((m) => m.status === "active");
+  const seller: Seller = {
+    kind: "pro",
+    name: profile?.full_name || "LineUp professional",
+    businessName: profile?.business_name || null,
+    email: profile?.email || null,
+    phone: profile?.phone_number || null,
+    address: addressOf(home?.own_address, profile?.formatted_address, profile?.address, home?.address, profile?.city),
+    accountId: proId,
+    shopName: (studios || []).find((st) => st.id === activeShop?.studio_id)?.name || null,
+  };
 
   // Booth rent this pro paid: a cost to them, income to the shop.
   for (const m of memberRows) {
@@ -361,14 +527,15 @@ export async function proEarnings(supabase: ServiceClient, proId: string, from: 
     }
   }
 
-  await fillNames(supabase, rows, new Set(list.map((b) => b.customer_id).filter((id): id is string => !!id)));
-  return sortRows(rows);
+  await fillNames(supabase, rows, new Set(list.map((b) => b.customer_id).filter((id): id is string => !!id)), attention);
+  return { rows: sortRows(rows), attention: attention.sort((a, b) => (a.date < b.date ? -1 : 1)), seller };
 }
 
 // The whole shop: every pro's sales through the shop, plus the shop's own
 // income (its cut, booth rent, memberships, the shop's gift cards).
-export async function shopEarnings(supabase: ServiceClient, studio: StudioRow, from: string, to: string) {
+export async function shopEarnings(supabase: ServiceClient, studio: StudioRow, from: string, to: string): Promise<EarningsResult> {
   const today = todayLocal();
+  const attention: AttentionItem[] = [];
 
   const [{ data: bookings }, { data: appts }, { data: cards }, { data: members }, { data: clientMemberships }, { data: plans }] =
     await Promise.all([
@@ -389,10 +556,28 @@ export async function shopEarnings(supabase: ServiceClient, studio: StudioRow, f
 
   const list = (bookings || []) as BookingRow[];
   const rows: EarningsRow[] = [
-    ...bookingRows(list, { today, cutPercentFor: cutFor }),
-    ...shopAppointmentRows((appts || []) as ShopAppointmentRow[], today),
+    ...bookingRows(list, { today, cutPercentFor: cutFor, attention }),
+    ...shopAppointmentRows((appts || []) as ShopAppointmentRow[], today, attention),
     ...giftCardRows((cards || []) as GiftCardRow[], from, to, "shop"),
   ];
+
+  for (const r of await planInvoices(studio.stripe_customer_id, from, to)) rows.push({ ...r, toShopCents: -r.priceCents });
+  const { data: owner } = await supabase
+    .from("profiles")
+    .select("full_name, email, phone_number")
+    .eq("id", studio.owner_id)
+    .maybeSingle();
+  const extra = studio as StudioRow & { address?: string | null; area_label?: string | null };
+  const seller: Seller = {
+    kind: "shop",
+    name: studio.name,
+    businessName: owner?.full_name ? `Owner: ${owner.full_name}` : null,
+    email: owner?.email || null,
+    phone: owner?.phone_number || null,
+    address: addressOf(extra.address, extra.area_label),
+    accountId: studio.id,
+    shopName: studio.name,
+  };
 
   // Booth rent from each renter.
   for (const m of memberRows) {
@@ -445,6 +630,6 @@ export async function shopEarnings(supabase: ServiceClient, studio: StudioRow, f
     }
   }
 
-  await fillNames(supabase, rows, customerIds);
-  return sortRows(rows);
+  await fillNames(supabase, rows, customerIds, attention);
+  return { rows: sortRows(rows), attention: attention.sort((a, b) => (a.date < b.date ? -1 : 1)), seller };
 }
