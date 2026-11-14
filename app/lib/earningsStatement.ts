@@ -11,6 +11,7 @@
 // So net income = what actually ended up with the pro (or shop).
 
 import type { EarningsRow, EarningsType } from "./earnings";
+import { EXPENSE_CATEGORIES, type ExpenseCategory } from "./expenseCategories";
 
 export type Scope = "me" | "shop";
 
@@ -29,6 +30,22 @@ export const TYPE_LABEL: Record<EarningsType, string> = {
   membership_visit: "Membership visit",
   booth_rent: "Booth rent",
   lineup_plan: "LineUp plan",
+  product: "Product sale",
+  expense: "Expense",
+};
+
+// Where each kind of expense generally goes on the T2125.
+const EXPENSE_LINE: Record<ExpenseCategory, string> = {
+  supplies: "line 8811",
+  rent: "line 8910",
+  tools: "capital cost allowance, or line 8811 if small",
+  advertising: "line 8521",
+  insurance: "line 8690",
+  licences: "line 8760",
+  phone: "line 9220",
+  vehicle: "line 9281",
+  education: "line 9270",
+  other: "line 9270",
 };
 
 export const PAID_LABEL: Record<EarningsRow["paidVia"], string> = {
@@ -68,6 +85,11 @@ export function buildStatement(rows: EarningsRow[], scope: Scope): Statement {
   const memberships = of(rows, "membership");
   const rent = of(rows, "booth_rent");
   const plan = of(rows, "lineup_plan");
+  const products = of(rows, "product");
+  const expenses = of(rows, "expense");
+  const expenseLines: Line[] = (Object.keys(EXPENSE_CATEGORIES) as ExpenseCategory[])
+    .map((c) => ({ label: EXPENSE_CATEGORIES[c], cents: sum(expenses.filter((r) => r.category === c), (r) => r.priceCents), note: `You added these. Generally T2125 ${EXPENSE_LINE[c]}` }))
+    .filter((l) => l.cents);
 
   let income: Line[];
   let costs: Line[];
@@ -80,12 +102,14 @@ export function buildStatement(rows: EarningsRow[], scope: Scope): Statement {
       { label: "Tips", cents: sum(services, (r) => r.tipCents) },
       { label: "No-show fees", cents: sum(noShow, (r) => r.priceCents) },
       { label: "Gift card sales", cents: sum(giftSales, (r) => r.priceCents), note: "Counted when sold" },
+      { label: "Product sales", cents: sum(products, (r) => r.priceCents), note: "Logged by you" },
     ];
     costs = [
       { label: "LineUp booking and payment fees", cents: sum(rows, (r) => r.lineupFeeCents) },
       { label: "Shop commission", cents: sum(services, (r) => r.toShopCents), note: "The shop's share of your bookings" },
       { label: "Booth rent paid", cents: sum(rent, (r) => r.priceCents) },
       { label: "LineUp plan", cents: sum(plan, (r) => r.priceCents) },
+      ...expenseLines,
     ];
     const giftUsed = sum(online, (r) => r.giftCents);
     if (giftUsed) memo.push({ label: "Services paid with gift cards", cents: giftUsed, note: "Not counted again; gift cards count when sold" });
@@ -95,10 +119,12 @@ export function buildStatement(rows: EarningsRow[], scope: Scope): Statement {
       { label: "Booth rent", cents: sum(rent, (r) => r.priceCents) },
       { label: "Memberships", cents: sum(memberships, (r) => r.priceCents) },
       { label: "Gift card sales", cents: sum(giftSales, (r) => r.priceCents), note: "Counted when sold" },
+      { label: "Product sales", cents: sum(products, (r) => r.priceCents), note: "Logged by the shop" },
     ];
     costs = [
       { label: "LineUp payment fees", cents: sum([...rent, ...memberships, ...giftSales], (r) => r.lineupFeeCents), note: "On rent, memberships and gift cards" },
       { label: "LineUp plan", cents: sum(plan, (r) => r.priceCents) },
+      ...expenseLines,
     ];
     memo.push(
       { label: "Team sales through the shop", cents: sum(services, (r) => r.priceCents - r.giftCents), note: "Before the shop's commission" },
@@ -107,11 +133,14 @@ export function buildStatement(rows: EarningsRow[], scope: Scope): Statement {
     );
   }
 
+  const gstPaid = sum(expenses, (r) => r.gstCents || 0);
+  if (gstPaid) memo.push({ label: "GST/HST paid on expenses", cents: gstPaid, note: "Included in the expense amounts. Claimable if you're registered" });
+
   const grossIncome = sum(income, (l) => l.cents);
   const totalCosts = sum(costs, (l) => l.cents);
 
   // How the money arrived (client payments for this seller's income).
-  const via = (v: EarningsRow["paidVia"]) => atShop.filter((r) => r.paidVia === v);
+  const via = (v: EarningsRow["paidVia"]) => [...atShop, ...products].filter((r) => r.paidVia === v);
   const received: Line[] = [
     {
       label: scope === "me" ? "Paid out to you by LineUp" : "Paid out to the shop by LineUp",
@@ -145,8 +174,8 @@ export function buildStatement(rows: EarningsRow[], scope: Scope): Statement {
 
   const taxableSales =
     scope === "me"
-      ? sum(online, (r) => r.priceCents - r.giftCents) + sum(atShop, (r) => r.priceCents) + sum(noShow, (r) => r.priceCents)
-      : sum(services, (r) => r.toShopCents) + sum(rent, (r) => r.priceCents) + sum(memberships, (r) => r.priceCents);
+      ? sum(online, (r) => r.priceCents - r.giftCents) + sum(atShop, (r) => r.priceCents) + sum(noShow, (r) => r.priceCents) + sum(products, (r) => r.priceCents)
+      : sum(services, (r) => r.toShopCents) + sum(rent, (r) => r.priceCents) + sum(memberships, (r) => r.priceCents) + sum(products, (r) => r.priceCents);
 
   return {
     income: income.filter((l) => l.cents),

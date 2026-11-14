@@ -6,11 +6,12 @@
 // the LineUp earnings statement (PDF) for the accountant.
 
 import { useEffect, useMemo, useState } from "react";
-import { FileText } from "lucide-react";
+import { FileText, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { peekStudio, studioFetch } from "@/app/studio/studioApi";
-import { Button, EmptyState, Field, Section, Sheet, Tag, fieldClass, panelClass } from "@/app/studio/ui";
+import { Button, EmptyState, Field, Section, Segmented, Sheet, Tag, fieldClass, panelClass } from "@/app/studio/ui";
 import type { AttentionItem, EarningsRow } from "@/app/lib/earnings";
+import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/app/lib/expenseCategories";
 import { PAID_LABEL, TYPE_LABEL, buildStatement, byMonth, byPro, money, type Line } from "@/app/lib/earningsStatement";
 
 type Scope = "me" | "shop";
@@ -66,6 +67,18 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
   const [error, setError] = useState<string | null>(null);
   const [shown, setShown] = useState(50);
   const [askDetails, setAskDetails] = useState(false);
+  const [adding, setAdding] = useState<EntryKind | null>(null);
+  const [tick, setTick] = useState(0);
+  const [removing, setRemoving] = useState<string | null>(null);
+
+  async function remove(r: EarningsRow) {
+    if (!r.entry || !window.confirm(`Remove "${r.item}" from your records?`)) return;
+    setRemoving(r.id);
+    const res = await studioFetch<{ error?: string }>(`/api/earnings/entries?scope=${scope}&kind=${r.entry}&id=${r.id}`, { method: "DELETE" });
+    setRemoving(null);
+    if (!res.ok) return setError(res.data.error || "Could not remove that.");
+    setTick((n) => n + 1);
+  }
   const data = loaded[path] || peekStudio<Response>(path);
 
   useEffect(() => {
@@ -82,7 +95,7 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, tick]);
 
   const monthKey = month === "all" ? null : `${year}-${String(month + 1).padStart(2, "0")}`;
   const rows = useMemo(() => {
@@ -136,6 +149,23 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {scope === "me" ? (
+          <Button onClick={() => setAdding("sale")}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Log a cash or walk-in sale
+          </Button>
+        ) : null}
+        <Button onClick={() => setAdding("product")}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Log a product sale
+        </Button>
+        <Button onClick={() => setAdding("expense")}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Add an expense
+        </Button>
+      </div>
+
       {error ? <p className="text-sm text-[#A30D25]">{error}</p> : null}
 
       {loading ? (
@@ -150,7 +180,7 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
           body={
             scope === "shop"
               ? "Sales show up here once an appointment's date has passed. Mark walk-ins and phone bookings done in the Calendar so they count."
-              : "Sales show up here once an appointment's date has passed."
+              : "Sales show up here once an appointment's date has passed. Took cash from a client who didn't book? Log it above."
           }
         />
       ) : (
@@ -158,7 +188,7 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
           <div className="grid gap-3 sm:grid-cols-3">
             <Stat strong label="Net income" value={money(st.net)} sub={period} />
             <Stat label="Gross income" value={money(st.grossIncome)} sub={scope === "shop" ? "The shop's own income" : "Before fees and commission"} />
-            <Stat label="Costs recorded in LineUp" value={money(st.totalCosts)} />
+            <Stat label="Costs" value={money(st.totalCosts)} />
           </div>
 
           {attention.length ? (
@@ -295,6 +325,16 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
                         <span className={`w-20 shrink-0 text-right text-sm font-medium tabular-nums ${amount < 0 ? "text-neutral-500" : "text-ink"}`}>
                           {money(amount)}
                         </span>
+                        {r.entry ? (
+                          <button
+                            type="button"
+                            onClick={() => void remove(r)}
+                            disabled={removing === r.id}
+                            className="shrink-0 text-xs text-neutral-500 underline underline-offset-2 hover:text-[#A30D25] disabled:opacity-50"
+                          >
+                            Remove
+                          </button>
+                        ) : null}
                       </li>
                     );
                   })}
@@ -311,10 +351,12 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
 
       <p className="max-w-2xl text-xs leading-5 text-neutral-500">
         Gross income counts each dollar once: fees, the shop&apos;s commission, booth rent and your LineUp plan are listed as costs. A gift card counts
-        when it&apos;s sold, not when it&apos;s used. Walk-ins and phone bookings count once they&apos;re marked done. LineUp doesn&apos;t add GST, so if
+        when it&apos;s sold, not when it&apos;s used. Walk-ins and phone bookings count once they&apos;re marked done. Expenses and sales you log here
+        go on the statement too; keep the receipts. LineUp doesn&apos;t add GST, so if
         you&apos;re registered, your prices include it. This is a record for you and your accountant, not tax advice.
       </p>
 
+      {adding ? <EntrySheet key={adding} kind={adding} scope={scope} onClose={() => setAdding(null)} onSaved={() => setTick((n) => n + 1)} /> : null}
       <StatementSheet open={askDetails} onClose={() => setAskDetails(false)} scope={scope} year={year} month={month} />
     </div>
   );
@@ -398,6 +440,139 @@ function StatementSheet({ open, onClose, scope, year, month }: { open: boolean; 
         <Field label="GST/HST number" htmlFor="st-gst" optional hint="If you're registered. Only printed on the statement, not saved by LineUp.">
           <input id="st-gst" className={fieldClass} value={gst} onChange={(e) => setGst(e.target.value)} maxLength={30} placeholder="123456789 RT0001" />
         </Field>
+        {error ? <p className="text-[13px] text-[#A30D25]">{error}</p> : null}
+      </div>
+    </Sheet>
+  );
+}
+
+type EntryKind = "sale" | "product" | "expense";
+type PaidWith = "cash" | "card" | "etransfer" | "other";
+
+const ENTRY_TITLE: Record<EntryKind, [string, string]> = {
+  sale: ["Log a sale", "A client who paid you directly and didn't book on LineUp. Nothing is charged."],
+  product: ["Log a product sale", "Something sold over the counter, like pomade or beard oil."],
+  expense: ["Add an expense", "A cost of doing business. It comes off your net income on the statement."],
+};
+
+function toCents(value: string) {
+  const n = Number(value.replace(/[$,\s]/g, ""));
+  return value.trim() && Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null;
+}
+
+// One form for the three things logged by hand.
+function EntrySheet({ kind, scope, onClose, onSaved }: { kind: EntryKind; scope: Scope; onClose: () => void; onSaved: () => void }) {
+  const today = new Date().toLocaleDateString("en-CA");
+  const [date, setDate] = useState(today);
+  const [what, setWhat] = useState("");
+  const [client, setClient] = useState("");
+  const [amount, setAmount] = useState("");
+  const [extra, setExtra] = useState(""); // tip (sale) or GST (expense)
+  const [paidWith, setPaidWith] = useState<PaidWith>("cash");
+  const [category, setCategory] = useState<ExpenseCategory>("supplies");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(0);
+
+  async function save() {
+    const amountCents = toCents(amount);
+    if (!amountCents) return setError("Enter the amount.");
+    const extraCents = extra.trim() ? toCents(extra) : 0;
+    if (extraCents === null) return setError(kind === "sale" ? "That tip doesn't look right." : "That GST amount doesn't look right.");
+    if (kind !== "expense" && !what.trim()) return setError(kind === "sale" ? "What was the service?" : "What was sold?");
+    setBusy(true);
+    setError(null);
+    const body =
+      kind === "sale"
+        ? { scope, kind, date, service: what, clientName: client, priceCents: amountCents, tipCents: extraCents, paidWith }
+        : kind === "product"
+        ? { scope, kind, date, item: what, amountCents, paidWith }
+        : { scope, kind, date, category, amountCents, gstCents: extraCents, note: what };
+    const res = await studioFetch<{ error?: string }>("/api/earnings/entries", { method: "POST", body });
+    setBusy(false);
+    if (!res.ok) return setError(res.data.error || "Could not save that.");
+    onSaved();
+    // Stay open for the next one: people log a week's worth at a time.
+    setSaved((n) => n + 1);
+    setWhat("");
+    setClient("");
+    setAmount("");
+    setExtra("");
+  }
+
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      title={ENTRY_TITLE[kind][0]}
+      description={ENTRY_TITLE[kind][1]}
+      footer={
+        <>
+          <Button onClick={onClose}>Done</Button>
+          <Button variant="primary" loading={busy} onClick={() => void save()}>
+            Save
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {saved ? <p className="rounded-xl bg-ink/[0.04] px-3 py-2 text-[13px] text-neutral-700">Saved {saved}. Add another, or tap Done.</p> : null}
+        <Field label="Date" htmlFor="en-date">
+          <input id="en-date" type="date" className={fieldClass} value={date} max={today} onChange={(e) => setDate(e.target.value)} />
+        </Field>
+        {kind === "expense" ? (
+          <Field label="Category" htmlFor="en-cat">
+            <select id="en-cat" className={fieldClass} value={category} onChange={(e) => setCategory(e.target.value as ExpenseCategory)}>
+              {(Object.keys(EXPENSE_CATEGORIES) as ExpenseCategory[]).map((c) => (
+                <option key={c} value={c}>
+                  {EXPENSE_CATEGORIES[c]}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
+        <Field label={kind === "sale" ? "Service" : kind === "product" ? "Product" : "Note"} htmlFor="en-what" optional={kind === "expense"}>
+          <input
+            id="en-what"
+            className={fieldClass}
+            value={what}
+            onChange={(e) => setWhat(e.target.value)}
+            maxLength={120}
+            placeholder={kind === "sale" ? "Haircut" : kind === "product" ? "Pomade" : "Clipper blades from Sally's"}
+          />
+        </Field>
+        {kind === "sale" ? (
+          <Field label="Client" htmlFor="en-client" optional hint="A name lets them count as a returning client in Analytics.">
+            <input id="en-client" className={fieldClass} value={client} onChange={(e) => setClient(e.target.value)} maxLength={80} />
+          </Field>
+        ) : null}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={kind === "expense" ? "Amount, tax included" : kind === "sale" ? "Price" : "Sold for"} htmlFor="en-amount">
+            <input id="en-amount" inputMode="decimal" className={fieldClass} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+          </Field>
+          {kind !== "product" ? (
+            <Field label={kind === "sale" ? "Tip" : "GST/HST in that"} htmlFor="en-extra" optional>
+              <input id="en-extra" inputMode="decimal" className={fieldClass} value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="0.00" />
+            </Field>
+          ) : null}
+        </div>
+        {kind !== "expense" ? (
+          <div>
+            <p className="mb-1.5 text-[13px] font-medium text-neutral-800">How did they pay?</p>
+            <Segmented
+              label="How they paid"
+              size="sm"
+              value={paidWith}
+              onChange={setPaidWith}
+              options={[
+                { value: "cash", label: "Cash" },
+                { value: "card", label: "Card" },
+                { value: "etransfer", label: "E-transfer" },
+                { value: "other", label: "Other" },
+              ]}
+            />
+          </div>
+        ) : null}
         {error ? <p className="text-[13px] text-[#A30D25]">{error}</p> : null}
       </div>
     </Sheet>

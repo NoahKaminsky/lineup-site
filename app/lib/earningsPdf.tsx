@@ -231,7 +231,7 @@ function StatementDoc(input: StatementInput) {
               <Text style={s.kpiValue}>{money(st.grossIncome)}</Text>
             </View>
             <View style={[s.kpi, { marginRight: 0 }]}>
-              <Text style={s.kpiLabel}>Costs recorded in LineUp</Text>
+              <Text style={s.kpiLabel}>Costs</Text>
               <Text style={s.kpiValue}>{money(st.totalCosts)}</Text>
             </View>
           </View>
@@ -244,10 +244,10 @@ function StatementDoc(input: StatementInput) {
           </Text>
           <Table lines={st.income} total={st.grossIncome} totalLabel="Gross income (generally T2125, line 8299)" />
 
-          <Text style={s.h2}>2. Costs recorded in LineUp</Text>
+          <Text style={s.h2}>2. Costs</Text>
           <Text style={s.intro}>
-            Business costs LineUp knows about.{scope === "me" ? " Booth rent is generally claimed on T2125, line 8910." : ""} Add your other expenses
-            (supplies, tools, phone, vehicle) yourself.
+            Fees and rent LineUp recorded, plus any expenses you added.{scope === "me" ? " Booth rent is generally claimed on T2125, line 8910." : ""} Expenses you
+            haven&apos;t added in LineUp still belong on your return.
           </Text>
           <Table lines={st.costs} total={st.totalCosts} totalLabel="Total costs" />
 
@@ -312,7 +312,7 @@ function StatementDoc(input: StatementInput) {
           <View style={s.callout} wrap={false}>
             <Text style={[s.small, s.bold]}>GST/HST</Text>
             <Text style={s.small}>
-              Taxable sales this period: {money(st.taxableSales)} (services{scope === "shop" ? ", commission, rent and memberships" : " and no-show fees"}; tips
+              Taxable sales this period: {money(st.taxableSales)} (services{scope === "shop" ? ", commission, rent, memberships and products" : ", products and no-show fees"}; tips
               and gift card sales left out). LineUp doesn&apos;t add GST/HST to prices. If you&apos;re registered, the GST/HST you owe is included in these
               amounts. You must register once taxable sales pass $30,000 in four calendar quarters in a row.
             </Text>

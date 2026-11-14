@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, Lock } from "lucide-react";
 import { peekStudio, studioFetch } from "@/app/studio/studioApi";
-import { EmptyState, Section, Segmented, Tag, buttonClass, panelClass } from "@/app/studio/ui";
+import { Button, EmptyState, Section, Segmented, Tag, buttonClass, fieldClass, panelClass } from "@/app/studio/ui";
 import type { AnalyticsSummary, Pair, TeamRow } from "@/app/lib/analytics";
 
 type Scope = "me" | "shop";
@@ -173,7 +173,7 @@ const TEAM_COLS: { key: TeamKey; label: string; fmt: (t: TeamRow) => string; low
   { key: "shopCents", label: "To shop", fmt: (t) => cad(t.shopCents) },
 ];
 
-function TeamTable({ team }: { team: TeamRow[] }) {
+function TeamTable({ team, onPick }: { team: TeamRow[]; onPick: (id: string) => void }) {
   const [sort, setSort] = useState<TeamKey>("sales");
   const col = TEAM_COLS.find((c) => c.key === sort)!;
   const rows = useMemo(() => {
@@ -204,7 +204,9 @@ function TeamTable({ team }: { team: TeamRow[] }) {
             <tr key={t.id} className="border-b border-hairline last:border-0">
               <td className="px-4 py-3 font-medium text-ink">
                 <span className="mr-2 inline-block w-4 text-xs tabular-nums text-neutral-400">{i + 1}</span>
-                {t.name}
+                <button type="button" onClick={() => onPick(t.id)} className="underline decoration-neutral-300 underline-offset-4 hover:decoration-ink">
+                  {t.name}
+                </button>
               </td>
               {TEAM_COLS.map((c) => {
                 const top = t.visits > 0 && t[c.key] !== null && best(c.key, c.lowIsGood) === t[c.key];
@@ -248,9 +250,91 @@ function LockedCard({ scope }: { scope: Scope }) {
   );
 }
 
-export default function AnalyticsView({ scope }: { scope: Scope }) {
+function GoalCard({ goal, scope, onSaved }: { goal: AnalyticsSummary["goal"]; scope: Scope; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(goal.cents ? String(Math.round(goal.cents / 100)) : "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save(cents: number | null) {
+    setBusy(true);
+    setError(null);
+    const res = await studioFetch<{ error?: string }>("/api/analytics/goal", { method: "POST", body: { scope, cents } });
+    setBusy(false);
+    if (!res.ok) return setError(res.data.error || "Could not save the goal.");
+    setEditing(false);
+    onSaved();
+  }
+
+  const form = (
+    <form
+      className="mt-3 flex flex-wrap items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const n = Number(value.replace(/[$,\s]/g, ""));
+        if (!Number.isFinite(n) || n < 0) return setError("Enter a dollar amount.");
+        void save(n ? Math.round(n * 100) : null);
+      }}
+    >
+      <span className="text-sm text-neutral-500">$</span>
+      <input inputMode="decimal" aria-label="Monthly sales goal in dollars" className={`${fieldClass} h-10 w-32`} value={value} onChange={(e) => setValue(e.target.value)} placeholder="4000" />
+      <Button variant="primary" type="submit" loading={busy}>
+        Save goal
+      </Button>
+      {goal.cents ? (
+        <Button type="button" onClick={() => void save(null)} disabled={busy}>
+          Remove
+        </Button>
+      ) : null}
+      {error ? <p className="w-full text-[13px] text-[#A30D25]">{error}</p> : null}
+    </form>
+  );
+
+  if (!goal.cents) {
+    return (
+      <div className={`${panelClass} p-4`}>
+        <p className="text-sm font-semibold text-ink">Set a sales goal for {goal.month}</p>
+        <p className="mt-1 text-sm text-neutral-600">
+          {cad(goal.soFar)} so far, {cad(goal.booked)} more booked. A goal shows whether you&apos;re on pace, here and in your Monday email.
+        </p>
+        {form}
+      </div>
+    );
+  }
+  const reached = Math.min(Math.round((goal.soFar / goal.cents) * 100), 100);
+  const withBooked = Math.min(Math.round(((goal.soFar + goal.booked) / goal.cents) * 100), 100);
+  const onPace = goal.pace >= goal.cents;
+  return (
+    <div className={`${panelClass} p-4`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-semibold text-ink">
+          {goal.month} goal: <span className="tabular-nums">{cad(goal.soFar)}</span> of <span className="tabular-nums">{cad(goal.cents)}</span>
+        </p>
+        <button type="button" onClick={() => setEditing((v) => !v)} className="text-xs text-neutral-500 underline underline-offset-2 hover:text-ink">
+          {editing ? "Cancel" : "Change"}
+        </button>
+      </div>
+      <div className="relative mt-3 h-2.5 w-full overflow-hidden rounded-full bg-ink/[0.07]" role="img" aria-label={`${reached}% of the goal reached, ${withBooked}% with what's booked`}>
+        <div className="absolute inset-y-0 left-0 rounded-full bg-neutral-400" style={{ width: `${withBooked}%` }} />
+        <div className="absolute inset-y-0 left-0 rounded-full bg-ink" style={{ width: `${reached}%` }} />
+      </div>
+      <p className="mt-2 text-sm text-neutral-600">
+        {goal.soFar >= goal.cents
+          ? `Goal reached, with ${goal.daysLeft} day${goal.daysLeft === 1 ? "" : "s"} to go.`
+          : `${cad(goal.booked)} more is booked. On pace for ${cad(goal.pace)}, ${onPace ? "ahead of" : `${cad(goal.cents - goal.pace)} short of`} the goal with ${goal.daysLeft} day${goal.daysLeft === 1 ? "" : "s"} left.`}
+      </p>
+      {editing ? form : null}
+    </div>
+  );
+}
+
+export default function AnalyticsView({ scope: ownScope }: { scope: Scope }) {
   const [days, setDays] = useState<Days>("90");
-  const path = `/api/analytics?scope=${scope}&days=${days}`;
+  const [pro, setPro] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const [nudging, setNudging] = useState<string | null>(null);
+  const [nudgeNote, setNudgeNote] = useState<string | null>(null);
+  const path = `/api/analytics?scope=${ownScope}&days=${days}${pro ? `&pro=${pro}` : ""}`;
   const [loaded, setLoaded] = useState<Record<string, AnalyticsSummary>>({});
   const [error, setError] = useState<{ message: string; needsPlan?: boolean } | null>(null);
   const data = loaded[path] || peekStudio<AnalyticsSummary>(path);
@@ -269,9 +353,20 @@ export default function AnalyticsView({ scope }: { scope: Scope }) {
     return () => {
       cancelled = true;
     };
-  }, [path]);
+  }, [path, tick]);
 
-  if (error?.needsPlan) return <LockedCard scope={scope} />;
+  async function nudge(customerIds: string[] | "all") {
+    if (customerIds === "all" && !window.confirm("Send a come-back note to every overdue client who hasn't had one in the last 30 days?")) return;
+    setNudging(customerIds === "all" ? "all" : customerIds[0]);
+    setNudgeNote(null);
+    const res = await studioFetch<{ sent?: number; skipped?: string; error?: string }>("/api/analytics/winback", { method: "POST", body: { scope: ownScope, customerIds } });
+    setNudging(null);
+    if (!res.ok) return setNudgeNote(res.data.error || "Could not send.");
+    setNudgeNote(res.data.sent ? `Sent to ${res.data.sent} client${res.data.sent === 1 ? "" : "s"}.` : res.data.skipped || "Nothing to send.");
+    setTick((n) => n + 1);
+  }
+
+  if (error?.needsPlan) return <LockedCard scope={ownScope} />;
   if (error && !data) return <p className="text-sm text-[#A30D25]">{error.message}</p>;
   if (!data) {
     return (
@@ -284,7 +379,11 @@ export default function AnalyticsView({ scope }: { scope: Scope }) {
   }
 
   const k = data.kpis;
+  // A shop owner looking at one pro sees the pro's layout, read-only.
+  const scope: Scope = data.viewing ? "me" : ownScope;
   const shop = scope === "shop";
+  const canNudge = !data.viewing && !data.locked;
+  const nudgeable = data.clients.atRisk.filter((c) => c.customerId && c.nudgedDaysAgo === null);
   const s = data.schedule;
   const maxChannel = Math.max(...data.channels.map((c) => c.count), 1);
   const maxService = Math.max(...data.services.map((x) => x.sales), 1);
@@ -307,6 +406,16 @@ export default function AnalyticsView({ scope }: { scope: Scope }) {
           {shortDate(data.range.from)} to {shortDate(data.range.to)}, compared with the period before
         </p>
       </div>
+
+      {data.viewing ? (
+        <div className={`${panelClass} flex flex-wrap items-center justify-between gap-3 p-4`}>
+          <p className="text-sm text-ink">
+            <span className="font-semibold">{data.viewing.name}</span>
+            <span className="text-neutral-500"> · their work at the shop</span>
+          </p>
+          <Button onClick={() => setPro(null)}>Back to the whole shop</Button>
+        </div>
+      ) : null}
 
       {data.empty ? (
         <EmptyState
@@ -351,6 +460,8 @@ export default function AnalyticsView({ scope }: { scope: Scope }) {
             ) : null}
           </div>
 
+          {!data.viewing ? <GoalCard key={`${data.goal.cents}`} goal={data.goal} scope={ownScope} onSaved={() => setTick((n) => n + 1)} /> : null}
+
           <Section title="Sales over time">
             <div className={`${panelClass} p-4 sm:p-5`}>
               <TrendChart data={data.trend} />
@@ -371,8 +482,8 @@ export default function AnalyticsView({ scope }: { scope: Scope }) {
           ) : (
             <>
               {shop && data.team.length ? (
-                <Section title="The team" description="Tap a column to rank by it. The best number in each column is in bold.">
-                  <TeamTable team={data.team} />
+                <Section title="The team" description="Tap a column to rank by it, or a name to see that pro on their own. The best number in each column is in bold.">
+                  <TeamTable team={data.team} onPick={setPro} />
                 </Section>
               ) : null}
 
@@ -383,13 +494,29 @@ export default function AnalyticsView({ scope }: { scope: Scope }) {
                     ? `${data.clients.atRiskCount} overdue with nothing booked. One visit each is worth about ${cad(data.clients.atRiskValue)}.`
                     : "Clients who usually come back sooner and have nothing booked show up here."
                 }
+                actions={
+                  canNudge && nudgeable.length > 1 ? (
+                    <Button variant="primary" loading={nudging === "all"} onClick={() => void nudge("all")}>
+                      Nudge all {nudgeable.length}
+                    </Button>
+                  ) : undefined
+                }
               >
+                {nudgeNote ? <p className="mb-3 text-sm text-neutral-600">{nudgeNote}</p> : null}
                 {data.clients.atRisk.length ? (
                   <ul className={`${panelClass} divide-y divide-hairline`}>
                     {data.clients.atRisk.slice(0, 12).map((c, i) => (
                       <li key={`${c.name}-${i}`} className="flex items-center gap-3 px-4 py-3">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-ink">{c.name}</p>
+                          <p className="truncate text-sm font-medium text-ink">
+                            {c.bookingId ? (
+                              <Link href={`/bookings/${c.bookingId}`} className="underline decoration-neutral-300 underline-offset-4">
+                                {c.name}
+                              </Link>
+                            ) : (
+                              c.name
+                            )}
+                          </p>
                           <p className="truncate text-xs text-neutral-500">
                             Last in {shortDate(c.last)}, {c.daysSince} days ago
                             {c.usualGap ? ` · usually every ${c.usualGap} days` : " · came once"}
@@ -402,17 +529,27 @@ export default function AnalyticsView({ scope }: { scope: Scope }) {
                             {c.visits} visit{c.visits === 1 ? "" : "s"}
                           </p>
                         </div>
-                        {c.bookingId ? (
-                          <Link href={`/bookings/${c.bookingId}`} className={buttonClass("secondary", "sm")}>
-                            Message
-                          </Link>
-                        ) : null}
+                        {!canNudge ? null : c.nudgedDaysAgo !== null ? (
+                          <Tag tone="muted">Nudged {c.nudgedDaysAgo === 0 ? "today" : `${c.nudgedDaysAgo}d ago`}</Tag>
+                        ) : c.customerId ? (
+                          <Button size="sm" loading={nudging === c.customerId} disabled={nudging !== null} onClick={() => void nudge([c.customerId as string])}>
+                            Nudge
+                          </Button>
+                        ) : (
+                          <Tag tone="outline">No account</Tag>
+                        )}
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <p className={`${panelClass} px-4 py-6 text-center text-sm text-neutral-500`}>Nobody is overdue. Nice.</p>
                 )}
+                {canNudge && data.clients.atRisk.length ? (
+                  <p className="mt-2 text-xs text-neutral-500">
+                    A nudge sends a LineUp notification and an email with a link to open times, at most once every 30 days per client. Walk-ins without a
+                    LineUp account can&apos;t be nudged.
+                  </p>
+                ) : null}
               </Section>
 
               <div className="grid gap-8 lg:grid-cols-2">

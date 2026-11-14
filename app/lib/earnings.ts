@@ -16,6 +16,7 @@ import { stripe } from "./stripe";
 import { getServiceSupabase } from "./serverSupabase";
 import { giftCardFeeCents } from "./giftCards";
 import { fetchAll } from "./fetchAll";
+import { EXPENSE_CATEGORIES, type ExpenseCategory } from "./expenseCategories";
 import { MEMBERSHIP_FEE_PERCENT, NO_SHOW_LINEUP_PERCENT, RENT_PROCESSING_FEE_PERCENT } from "./commission";
 import { effectiveCutPercent, type StudioMemberRow, type StudioRow } from "./studios";
 
@@ -32,7 +33,11 @@ export type EarningsType =
   | "membership"
   | "membership_visit"
   | "booth_rent"
-  | "lineup_plan";
+  | "lineup_plan"
+  | "product"
+  | "expense";
+
+
 
 export type PaidVia = "lineup" | "cash" | "card" | "etransfer" | "other" | "at_shop";
 
@@ -55,6 +60,10 @@ export type EarningsRow = {
   estimated?: boolean;
   // How an online booking came in.
   channel?: "direct" | "request" | "regular";
+  // Logged by hand on the Earnings page, so it can be removed there.
+  entry?: "sale" | "product" | "expense";
+  category?: ExpenseCategory;
+  gstCents?: number;
 };
 
 // Something that may keep the numbers from being complete.
@@ -350,6 +359,7 @@ function shopAppointmentRows(list: ShopAppointmentRow[], today: string, attentio
       id: a.id,
       date: a.appointment_date,
       type: a.kind,
+      ...(a.studio_id ? {} : a.kind === "walk_in" ? { entry: "sale" as const } : {}),
       proId: a.professional_id,
       proName: null,
       client: a.client_name,
@@ -442,6 +452,65 @@ async function planInvoices(customerId: string | null | undefined, from: string,
   return rows;
 }
 
+// Product sales and expenses logged by hand, for a pro (studioId null) or a shop.
+async function manualRows(supabase: ServiceClient, who: { proId?: string; studioId?: string }, from: string, to: string): Promise<EarningsRow[]> {
+  const rows: EarningsRow[] = [];
+  const shop = !!who.studioId;
+  try {
+    let pq = supabase.from("product_sales").select("*").gte("sale_date", from).lte("sale_date", to);
+    pq = shop ? pq.eq("studio_id", who.studioId as string) : pq.eq("professional_id", who.proId as string).is("studio_id", null);
+    const { data: products } = await pq.limit(5000);
+    for (const p of products || []) {
+      const paid = p.paid_with;
+      rows.push({
+        id: `prod-${p.id}`,
+        date: p.sale_date,
+        type: "product",
+        entry: "product",
+        proId: shop ? p.professional_id : who.proId || null,
+        proName: null,
+        client: null,
+        item: p.item,
+        paidVia: paid === "cash" || paid === "card" || paid === "etransfer" || paid === "other" ? paid : "at_shop",
+        priceCents: p.amount_cents,
+        tipCents: 0,
+        giftCents: 0,
+        lineupFeeCents: 0,
+        toShopCents: shop ? p.amount_cents : 0,
+        toProCents: shop ? 0 : p.amount_cents,
+      });
+    }
+    let eq = supabase.from("business_expenses").select("*").gte("expense_date", from).lte("expense_date", to);
+    eq = shop ? eq.eq("studio_id", who.studioId as string) : eq.eq("owner_id", who.proId as string).is("studio_id", null);
+    const { data: expenses } = await eq.limit(5000);
+    for (const e of expenses || []) {
+      const category = (e.category in EXPENSE_CATEGORIES ? e.category : "other") as ExpenseCategory;
+      rows.push({
+        id: `exp-${e.id}`,
+        date: e.expense_date,
+        type: "expense",
+        entry: "expense",
+        category,
+        gstCents: e.gst_cents || 0,
+        proId: null,
+        proName: null,
+        client: null,
+        item: e.note ? `${EXPENSE_CATEGORIES[category]}: ${e.note}` : EXPENSE_CATEGORIES[category],
+        paidVia: "other",
+        priceCents: e.amount_cents,
+        tipCents: 0,
+        giftCents: 0,
+        lineupFeeCents: 0,
+        toShopCents: shop ? -e.amount_cents : 0,
+        toProCents: shop ? 0 : -e.amount_cents,
+      });
+    }
+  } catch (error) {
+    console.error("Earnings: could not load logged sales and expenses:", error);
+  }
+  return rows;
+}
+
 function addressOf(...parts: (string | null | undefined)[]) {
   return parts.find((p) => p && p.trim())?.trim() || null;
 }
@@ -480,6 +549,8 @@ export async function proEarnings(supabase: ServiceClient, proId: string, from: 
     ...shopAppointmentRows((appts || []) as ShopAppointmentRow[], today, attention),
     ...giftCardRows((cards || []) as GiftCardRow[], from, to, "pro"),
   ];
+
+  rows.push(...(await manualRows(supabase, { proId }, from, to)));
 
   const [{ data: profile }, { data: home }] = await Promise.all([
     supabase
@@ -563,6 +634,7 @@ export async function shopEarnings(supabase: ServiceClient, studio: StudioRow, f
   ];
 
   for (const r of await planInvoices(studio.stripe_customer_id, from, to)) rows.push({ ...r, toShopCents: -r.priceCents });
+  rows.push(...(await manualRows(supabase, { studioId: studio.id }, from, to)));
   const { data: owner } = await supabase
     .from("profiles")
     .select("full_name, email, phone_number")

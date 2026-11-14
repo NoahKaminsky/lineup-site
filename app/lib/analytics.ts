@@ -13,7 +13,7 @@ import { effectiveCutPercent, type StudioMemberRow, type StudioRow } from "./stu
 
 type ServiceClient = ReturnType<typeof getServiceSupabase>;
 
-export type RangeDays = 30 | 90 | 365;
+export type RangeDays = 7 | 30 | 90 | 365;
 export type Pair = { now: number; prev: number };
 export type Channel = "online" | "request" | "regular" | "pay_at_shop" | "membership" | "walk_in" | "phone" | "imported";
 
@@ -39,6 +39,8 @@ export type AnalyticsSummary = {
   scope: "me" | "shop";
   name: string | null;
   locked: boolean; // basic plan: headline numbers and the trend only
+  viewing: { id: string; name: string } | null; // a shop owner looking at one pro
+  goal: { cents: number | null; month: string; soFar: number; booked: number; pace: number; daysLeft: number };
   empty: boolean;
   range: { days: RangeDays; from: string; to: string; label: string };
   kpis: {
@@ -60,7 +62,7 @@ export type AnalyticsSummary = {
     fresh: number;
     returning: number;
     top: { name: string; visits: number; spend: number; last: string }[];
-    atRisk: { name: string; last: string; daysSince: number; usualGap: number | null; visits: number; spend: number; avgTicket: number; proName: string | null; bookingId: string | null }[];
+    atRisk: { name: string; last: string; daysSince: number; usualGap: number | null; visits: number; spend: number; avgTicket: number; proName: string | null; bookingId: string | null; customerId: string | null; proId: string; nudgedDaysAgo: number | null }[];
     atRiskCount: number;
     atRiskValue: number;
   };
@@ -275,7 +277,17 @@ function monthStart(date: string, back: number) {
 
 export async function buildAnalytics(
   supabase: ServiceClient,
-  opts: { scope: "me" | "shop"; userId: string; studio?: StudioRow | null; days: RangeDays; locked: boolean; name: string | null }
+  opts: {
+    scope: "me" | "shop";
+    userId: string;
+    studio?: StudioRow | null;
+    days: RangeDays;
+    locked: boolean;
+    name: string | null;
+    onlyStudioId?: string | null; // one pro's work at this shop only
+    viewing?: { id: string; name: string } | null;
+    goalCents?: number | null;
+  }
 ): Promise<AnalyticsSummary> {
   const { scope, days } = opts;
   const today = todayLocal();
@@ -290,12 +302,16 @@ export async function buildAnalytics(
   // ---- every visit, all time (lifetime numbers need the history)
   const [bookings, frontDesk] = await Promise.all([
     fetchAll<BookingRow>((a, b) => {
-      const q = supabase.from("bookings").select(BOOKING_COLUMNS);
-      return (shopId ? q.eq("studio_id", shopId) : q.eq("professional_id", opts.userId)).order("id").range(a, b);
+      let q = supabase.from("bookings").select(BOOKING_COLUMNS);
+      q = shopId ? q.eq("studio_id", shopId) : q.eq("professional_id", opts.userId);
+      if (opts.onlyStudioId) q = q.eq("studio_id", opts.onlyStudioId);
+      return q.order("id").range(a, b);
     }),
     fetchAll<FrontDeskRow>((a, b) => {
-      const q = supabase.from("shop_appointments").select("*");
-      return (shopId ? q.eq("studio_id", shopId) : q.eq("professional_id", opts.userId)).order("id").range(a, b);
+      let q = supabase.from("shop_appointments").select("*");
+      q = shopId ? q.eq("studio_id", shopId) : q.eq("professional_id", opts.userId);
+      if (opts.onlyStudioId) q = q.eq("studio_id", opts.onlyStudioId);
+      return q.order("id").range(a, b);
     }),
   ]);
 
@@ -419,7 +435,7 @@ export async function buildAnalytics(
       });
     }
   } else {
-    const size = days === 30 ? 1 : 7;
+    const size = days <= 30 ? 1 : 7;
     const count = Math.ceil(days / size);
     for (let i = count - 1; i >= 0; i--) {
       const end = addDays(to, -i * size);
@@ -458,12 +474,30 @@ export async function buildAnalytics(
     to,
     label: days === 365 ? "Last 12 months" : `Last ${days} days`,
   };
+
+  // ---- this month against the goal
+  const monthFrom = `${today.slice(0, 7)}-01`;
+  const monthEnd = addDays(monthStart(today, -1), -1);
+  const soFar = sum(done.filter((v) => v.date >= monthFrom), (v) => v.sales);
+  const bookedRest = sum(upcoming.filter((v) => v.date <= monthEnd), (v) => v.sales);
+  const elapsed = diffDays(today, monthFrom) + 1;
+  const monthDays = diffDays(monthEnd, monthFrom) + 1;
+  const goal = {
+    cents: opts.goalCents ?? null,
+    month: new Date(`${monthFrom}T00:00:00Z`).toLocaleDateString("en-CA", { month: "long", timeZone: "UTC" }),
+    soFar,
+    booked: bookedRest,
+    pace: Math.max(Math.round((soFar / elapsed) * monthDays), soFar + bookedRest),
+    daysLeft: monthDays - elapsed,
+  };
   const empty = done.length === 0 && upcoming.length === 0;
 
   const base: AnalyticsSummary = {
     scope,
     name: opts.name,
     locked: opts.locked,
+    viewing: opts.viewing || null,
+    goal,
     empty,
     range,
     kpis,
@@ -481,15 +515,18 @@ export async function buildAnalytics(
   if (opts.locked) return base;
 
   // ---- clients
-  type ClientAgg = { key: string; name: string; dates: string[]; spend: number; lastPro: string; lastBooking: string | null };
+  type ClientAgg = { key: string; name: string; dates: string[]; spend: number; lastPro: string; lastBooking: string | null; customerId: string | null };
   const byClient = new Map<string, ClientAgg>();
   for (const v of done.slice().sort((a, b) => (a.date < b.date ? -1 : 1))) {
     if (!v.clientKey) continue;
-    const c = byClient.get(v.clientKey) || { key: v.clientKey, name: v.clientName || "Client", dates: [], spend: 0, lastPro: v.proId, lastBooking: null };
+    const c = byClient.get(v.clientKey) || { key: v.clientKey, name: v.clientName || "Client", dates: [], spend: 0, lastPro: v.proId, lastBooking: null, customerId: null };
     c.dates.push(v.date);
     c.spend += v.sales + v.tip;
     c.lastPro = v.proId;
-    if (v.bookingId) c.lastBooking = v.bookingId;
+    if (v.bookingId) {
+      c.lastBooking = v.bookingId;
+      c.customerId = v.clientKey;
+    }
     if (v.clientName) c.name = v.clientName;
     byClient.set(v.clientKey, c);
   }
@@ -508,6 +545,23 @@ export async function buildAnalytics(
     .filter((x) => x.overdue && !hasUpcoming.has(x.c.key))
     .sort((a, b) => b.c.spend - a.c.spend);
 
+  // Who's been nudged in the last 30 days (table may not exist yet).
+  const nudged = new Map<string, number>();
+  try {
+    const { data } = await supabase
+      .from("winback_nudges")
+      .select("professional_id, customer_id, created_at")
+      .in("professional_id", teamIds.length ? teamIds : [opts.userId])
+      .gte("created_at", new Date(Date.now() - 30 * DAY).toISOString());
+    for (const n of data || []) {
+      const ago = Math.floor((Date.now() - Date.parse(n.created_at)) / DAY);
+      const k = `${n.professional_id}:${n.customer_id}`;
+      if (!nudged.has(k) || ago < nudged.get(k)!) nudged.set(k, ago);
+    }
+  } catch {
+    /* no log yet */
+  }
+
   const clients: AnalyticsSummary["clients"] = {
     active: activeKeys.size,
     fresh,
@@ -525,7 +579,10 @@ export async function buildAnalytics(
       spend: x.c.spend,
       avgTicket: Math.round(x.c.spend / x.c.dates.length),
       proName: scope === "shop" ? proName(x.c.lastPro) : null,
-      bookingId: scope === "me" ? x.c.lastBooking : null,
+      bookingId: scope === "me" && !opts.viewing ? x.c.lastBooking : null,
+      customerId: x.c.customerId,
+      proId: x.c.lastPro,
+      nudgedDaysAgo: x.c.customerId ? nudged.get(`${x.c.lastPro}:${x.c.customerId}`) ?? null : null,
     })),
     atRiskCount: atRiskAll.length,
     atRiskValue: sum(atRiskAll, (x) => Math.round(x.c.spend / x.c.dates.length)),
