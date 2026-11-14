@@ -18,7 +18,15 @@ type AdminUser = {
   is_featured: boolean;
   is_founding_artist: boolean;
   created_at: string;
+  // The shop they own, if any.
+  shop: { id: string; name: string; plan: string | null; status: string | null; paid: boolean } | null;
 };
+
+const SHOP_PLAN_OPTIONS = [
+  { value: "", label: "No shop plan" },
+  { value: "studio", label: "Studio (free)" },
+  { value: "studio_plus", label: "Studio Plus (free)" },
+];
 
 type ContentType = "requests" | "bookings" | "reviews" | "portfolio" | "messages";
 
@@ -195,6 +203,31 @@ export default function AdminPage() {
     );
     setMessage("Updated.");
     setSavingUserId(null);
+  }
+
+  const [savingShopId, setSavingShopId] = useState<string | null>(null);
+
+  async function handleSetShopPlan(user: AdminUser, plan: string) {
+    if (!user.shop) return;
+    setSavingShopId(user.id);
+    setMessage("");
+    const res = await authedFetch("/api/admin/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id, shopPlan: plan }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setSavingShopId(null);
+    if (!res.ok) {
+      setMessage(json.error || "Could not update the shop's plan.");
+      return;
+    }
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === user.id && u.shop ? { ...u, shop: { ...u.shop, plan: plan || null, status: plan ? "active" : null } } : u
+      )
+    );
+    setMessage(plan ? `${user.shop.name} is on ${plan === "studio_plus" ? "Studio Plus" : "Studio"}, free.` : `${user.shop.name}'s plan was removed.`);
   }
 
   async function handleToggleFeatured(userId: string, next: boolean) {
@@ -408,6 +441,28 @@ export default function AdminPage() {
                               <option key={opt.value} value={opt.value}>{opt.label}</option>
                             ))}
                           </select>
+                          {u.shop ? (
+                            <div className="mt-2">
+                              <p className="text-xs text-neutral-500">Shop: {u.shop.name}</p>
+                              {u.shop.paid ? (
+                                <p className="mt-1 text-xs text-neutral-600">
+                                  {u.shop.plan === "studio_plus" ? "Studio Plus" : u.shop.plan === "studio" ? "Studio" : "No plan"}, paid through Stripe
+                                </p>
+                              ) : (
+                                <select
+                                  value={u.shop.plan && ["active", "trialing"].includes(u.shop.status || "") ? u.shop.plan : ""}
+                                  disabled={savingShopId === u.id}
+                                  onChange={(e) => handleSetShopPlan(u, e.target.value)}
+                                  aria-label={`Shop plan for ${u.shop.name}`}
+                                  className="mt-1 rounded-md border border-neutral-300 px-2 py-1 text-sm disabled:opacity-60"
+                                >
+                                  {SHOP_PLAN_OPTIONS.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                          ) : null}
                         </td>
                         <td className="px-3 py-2">
                           <select
