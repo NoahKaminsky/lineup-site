@@ -136,7 +136,7 @@ function StudioShell({ children }: { children: ReactNode }) {
   const section = pathname.replace(/^\/studio\/?/, "").split("/")[0] || "";
   // Chairs and the client list are for managers. A regular member's shop appointments are already
   // on their own Calendar (tagged "Shop"), so the team calendar is for managers.
-  const sections = STUDIO_SECTIONS.filter((s) => (s.slug === "chairs" || s.slug === "calendar" || s.slug === "clients" || s.slug === "earnings" ? me.canManage : true));
+  const sections = STUDIO_SECTIONS.filter((s) => (s.slug === "chairs" || s.slug === "calendar" || s.slug === "clients" || s.slug === "earnings" || s.slug === "analytics" ? me.canManage : true));
   const proCount = studio.proCount ?? (data.team || []).filter((m) => m.status === "active").length;
 
   return (

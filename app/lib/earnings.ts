@@ -15,6 +15,7 @@
 import { stripe } from "./stripe";
 import { getServiceSupabase } from "./serverSupabase";
 import { giftCardFeeCents } from "./giftCards";
+import { fetchAll } from "./fetchAll";
 import { MEMBERSHIP_FEE_PERCENT, NO_SHOW_LINEUP_PERCENT, RENT_PROCESSING_FEE_PERCENT } from "./commission";
 import { effectiveCutPercent, type StudioMemberRow, type StudioRow } from "./studios";
 
@@ -451,8 +452,8 @@ export async function proEarnings(supabase: ServiceClient, proId: string, from: 
   const attention: AttentionItem[] = [];
 
   const [{ data: bookings }, { data: appts }, { data: cards }, { data: memberships }] = await Promise.all([
-    supabase.from("bookings").select(BOOKING_COLUMNS).eq("professional_id", proId).gte("booking_date", from).lte("booking_date", to),
-    supabase.from("shop_appointments").select("*").eq("professional_id", proId).gte("appointment_date", from).lte("appointment_date", to),
+    fetchAll<BookingRow>((a, b) => supabase.from("bookings").select(BOOKING_COLUMNS).eq("professional_id", proId).gte("booking_date", from).lte("booking_date", to).order("id").range(a, b)).then((data) => ({ data })),
+    fetchAll<ShopAppointmentRow>((a, b) => supabase.from("shop_appointments").select("*").eq("professional_id", proId).gte("appointment_date", from).lte("appointment_date", to).order("id").range(a, b)).then((data) => ({ data })),
     supabase
       .from("gift_cards")
       .select("id, professional_id, studio_id, amount_cents, buyer_name, recipient_name, activated_at")
@@ -539,8 +540,8 @@ export async function shopEarnings(supabase: ServiceClient, studio: StudioRow, f
 
   const [{ data: bookings }, { data: appts }, { data: cards }, { data: members }, { data: clientMemberships }, { data: plans }] =
     await Promise.all([
-      supabase.from("bookings").select(BOOKING_COLUMNS).eq("studio_id", studio.id).gte("booking_date", from).lte("booking_date", to),
-      supabase.from("shop_appointments").select("*").eq("studio_id", studio.id).gte("appointment_date", from).lte("appointment_date", to),
+      fetchAll<BookingRow>((a, b) => supabase.from("bookings").select(BOOKING_COLUMNS).eq("studio_id", studio.id).gte("booking_date", from).lte("booking_date", to).order("id").range(a, b)).then((data) => ({ data })),
+      fetchAll<ShopAppointmentRow>((a, b) => supabase.from("shop_appointments").select("*").eq("studio_id", studio.id).gte("appointment_date", from).lte("appointment_date", to).order("id").range(a, b)).then((data) => ({ data })),
       supabase
         .from("gift_cards")
         .select("id, professional_id, studio_id, amount_cents, buyer_name, recipient_name, activated_at")

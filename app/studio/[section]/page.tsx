@@ -10,6 +10,7 @@ import MembershipsView from "../Memberships";
 import ChairsView from "../Chairs";
 import ClientsView from "../Clients";
 import SettingsView from "../Settings";
+import AnalyticsView from "@/app/components/analytics/AnalyticsView";
 import EarningsReport from "@/app/components/earnings/EarningsReport";
 
 export default function StudioSectionPage({ params }: { params: Promise<{ section: string }> }) {
@@ -31,6 +32,8 @@ export default function StudioSectionPage({ params }: { params: Promise<{ sectio
       return <MembershipsView {...props} />;
     case "chairs":
       return me.canManage ? <ChairsView {...props} /> : <OnlyManagers />;
+    case "analytics":
+      return me.canManage ? <ShopAnalytics /> : <OnlyManagers />;
     case "earnings":
       return me.canManage ? <ShopEarnings /> : <OnlyManagers />;
     case "settings":
@@ -58,6 +61,20 @@ function ShopEarnings() {
       </p>
       <div className="mt-6">
         <EarningsReport scope="shop" />
+      </div>
+    </div>
+  );
+}
+
+function ShopAnalytics() {
+  return (
+    <div>
+      <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Analytics</h2>
+      <p className="mt-1 max-w-xl text-sm leading-6 text-neutral-500">
+        How the shop is doing and what to do about it: every pro side by side, clients due back, and the hours that sit empty.
+      </p>
+      <div className="mt-6">
+        <AnalyticsView scope="shop" />
       </div>
     </div>
   );

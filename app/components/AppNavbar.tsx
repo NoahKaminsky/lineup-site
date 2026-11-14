@@ -701,6 +701,7 @@ function NavbarComponent() {
     ? [
         { href: "/studio/settings", label: "Shop settings", show: true },
         { href: "/studio/memberships", label: "Memberships", show: true },
+        { href: "/studio/analytics", label: "Shop analytics", show: true },
         { href: "/studio/earnings", label: "Earnings", show: true },
         { href: "/gift-cards", label: "Gift cards", show: true },
         { href: "/account", label: "Account", show: true },
