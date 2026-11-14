@@ -10,6 +10,7 @@ import MembershipsView from "../Memberships";
 import ChairsView from "../Chairs";
 import ClientsView from "../Clients";
 import SettingsView from "../Settings";
+import EarningsReport from "@/app/components/earnings/EarningsReport";
 
 export default function StudioSectionPage({ params }: { params: Promise<{ section: string }> }) {
   const { section } = use(params);
@@ -30,6 +31,8 @@ export default function StudioSectionPage({ params }: { params: Promise<{ sectio
       return <MembershipsView {...props} />;
     case "chairs":
       return me.canManage ? <ChairsView {...props} /> : <OnlyManagers />;
+    case "earnings":
+      return me.canManage ? <ShopEarnings /> : <OnlyManagers />;
     case "settings":
       return me.isOwner ? <SettingsView {...props} redirectTo={redirectTo} /> : <OnlyManagers owner />;
     default:
@@ -42,5 +45,20 @@ function OnlyManagers({ owner = false }: { owner?: boolean }) {
     <p className="py-10 text-center text-sm text-neutral-500">
       Only the shop&apos;s {owner ? "owner" : "owner and managers"} can open this.
     </p>
+  );
+}
+
+function ShopEarnings() {
+  return (
+    <div>
+      <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Earnings</h2>
+      <p className="mt-1 max-w-xl text-sm leading-6 text-neutral-500">
+        Everything that came through the shop: each pro&apos;s sales, the shop&apos;s cut, booth rent, memberships and gift cards.
+        Walk-ins and phone bookings count once they&apos;re marked done.
+      </p>
+      <div className="mt-6">
+        <EarningsReport scope="shop" />
+      </div>
+    </div>
   );
 }

@@ -14,6 +14,7 @@ import { effectiveCutPercent, errorMessage, getStudioForUser, isStudioLive, type
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const STATUSES = ["booked", "completed", "cancelled", "no_show"] as const;
+const PAID_WITH = ["cash", "card", "etransfer", "other"];
 
 function addMinutes(time: string, minutes: number) {
   const [h, m] = time.split(":").map(Number);
@@ -167,7 +168,45 @@ export async function PATCH(req: Request) {
       }
     }
 
-    const { error } = await supabase.from("shop_appointments").update({ status }).eq("id", appointment.id);
+    // Marking it done records how the client paid, for the earnings report.
+    const update: Record<string, unknown> = { status };
+    if (status === "completed") {
+      const paidWith = body?.paidWith;
+      if (paidWith !== undefined && paidWith !== null) {
+        if (!PAID_WITH.includes(paidWith)) return NextResponse.json({ error: "Pick how they paid." }, { status: 400 });
+        update.paid_with = paidWith;
+      }
+      if (body?.tipCents !== undefined && body?.tipCents !== null && body?.tipCents !== "") {
+        const tip = Math.round(Number(body.tipCents));
+        if (!Number.isFinite(tip) || tip < 0 || tip > 1_000_000) {
+          return NextResponse.json({ error: "That tip doesn't look right." }, { status: 400 });
+        }
+        update.tip_cents = tip;
+      }
+      if (body?.priceCents !== undefined && body?.priceCents !== null && body?.priceCents !== "") {
+        const price = Math.round(Number(body.priceCents));
+        if (!Number.isFinite(price) || price < 0 || price > 10_000_000) {
+          return NextResponse.json({ error: "That price doesn't look right." }, { status: 400 });
+        }
+        // A changed price changes the shop's share too.
+        const { data: member } = await supabase
+          .from("studio_members")
+          .select("*")
+          .eq("studio_id", ctx.studio.id)
+          .eq("profile_id", appointment.professional_id)
+          .maybeSingle<StudioMemberRow>();
+        update.price_cents = price;
+        update.shop_cut_cents = Math.round(price * (effectiveCutPercent(ctx.studio, member || null) / 100));
+      }
+    }
+
+    let { error } = await supabase.from("shop_appointments").update(update).eq("id", appointment.id);
+    if (error?.code === "42703") {
+      // The earnings migration hasn't run yet: save the status and price alone.
+      delete update.paid_with;
+      delete update.tip_cents;
+      ({ error } = await supabase.from("shop_appointments").update(update).eq("id", appointment.id));
+    }
     if (error) {
       const taken = error.code === "23P01";
       return NextResponse.json({ error: taken ? "That time has been booked since." : error.message }, { status: taken ? 409 : 500 });

@@ -59,7 +59,7 @@ export async function GET(req: Request) {
         .in("status", ["confirmed", "completion_requested", "completed", "cancelled"]),
       supabase
         .from("shop_appointments")
-        .select("id, professional_id, kind, client_name, client_phone, service_name, appointment_date, start_time, end_time, price_cents, status, note")
+        .select("*") // how they paid and the tip, once recorded
         .eq("studio_id", ctx.studio.id)
         .in("professional_id", ids)
         .gte("appointment_date", from)
@@ -139,6 +139,8 @@ export async function GET(req: Request) {
         clientName: a.client_name,
         clientPhone: a.client_phone,
         priceCents: a.price_cents,
+        paidWith: (a.paid_with as string | null) ?? null,
+        tipCents: Number(a.tip_cents) || 0,
         note: a.note,
       })),
     ].sort((x, y) => (x.date + x.start).localeCompare(y.date + y.start));
