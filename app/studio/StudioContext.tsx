@@ -32,6 +32,7 @@ export const STUDIO_SECTIONS = [
   { slug: "requests", label: "Requests" },
   { slug: "team", label: "Team" },
   { slug: "clients", label: "Clients" },
+  { slug: "import", label: "Import" },
   { slug: "memberships", label: "Memberships" },
   { slug: "chairs", label: "Chairs" },
   { slug: "analytics", label: "Analytics" },

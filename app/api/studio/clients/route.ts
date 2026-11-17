@@ -4,6 +4,7 @@ import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@
 import { getStudioForUser, isStudioLive, errorMessage } from "@/app/lib/studios";
 import { getSiteUrl } from "@/app/lib/siteUrl";
 import { studioInviteEmail } from "@/lib/email/studioClientInvite";
+import { ImportNotReadyError, createBatch, finishBatch, readSource } from "@/app/lib/importBatch";
 
 // A shop's own client list.
 //   GET                                        the list, with who's invited / on LineUp
@@ -120,7 +121,7 @@ export async function POST(req: Request) {
       }
 
       const seen = new Set<string>();
-      const rows = [];
+      const rows: { studio_id: string; email: string; name: string | null; phone: string | null; added_by: string; import_batch_id?: string }[] = [];
       let skipped = 0;
       for (const raw of incoming) {
         const email = String(raw?.email || "").trim().toLowerCase();
@@ -146,6 +147,24 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: `A shop's list can hold up to ${MAX_LIST} clients. Contact LineUp for more.` }, { status: 409 });
       }
 
+      if (!rows.length) return NextResponse.json({ error: "No clients with an email address were found." }, { status: 400 });
+
+      // One import batch per upload, so the whole list can be undone at once.
+      let batchId: string | null = null;
+      try {
+        batchId = await createBatch(supabase, {
+          kind: "clients",
+          studioId: ctx.studio.id,
+          professionalId: null,
+          createdBy: user.id,
+          ...readSource(body),
+          rowCount: incoming.length,
+        });
+      } catch (error) {
+        if (!(error instanceof ImportNotReadyError)) throw error;
+      }
+      if (batchId) for (const r of rows) r.import_batch_id = batchId;
+
       // Existing clients are left exactly as they are (including unsubscribes).
       let added = 0;
       for (let i = 0; i < rows.length; i += 500) {
@@ -156,6 +175,7 @@ export async function POST(req: Request) {
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
         added += data?.length || 0;
       }
+      if (batchId) await finishBatch(supabase, batchId, { added, problems: skipped });
       return NextResponse.json({ ok: true, added, alreadyThere: rows.length - added, skipped });
     }
 

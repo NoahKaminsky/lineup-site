@@ -322,7 +322,7 @@ function ImportSheet({
         "/api/studio/clients",
         {
           method: "POST",
-          body: { action: "import", consent, rows: rows.slice(i, i + 2000) },
+          body: { action: "import", consent, rows: rows.slice(i, i + 2000), fileName },
         },
       );
       if (!res.ok) {

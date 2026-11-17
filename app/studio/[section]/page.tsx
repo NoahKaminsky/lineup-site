@@ -9,6 +9,7 @@ import TeamView from "../Team";
 import MembershipsView from "../Memberships";
 import ChairsView from "../Chairs";
 import ClientsView from "../Clients";
+import ImportView from "../Import";
 import SettingsView from "../Settings";
 import AnalyticsView from "@/app/components/analytics/AnalyticsView";
 import EarningsReport from "@/app/components/earnings/EarningsReport";
@@ -28,6 +29,8 @@ export default function StudioSectionPage({ params }: { params: Promise<{ sectio
       return <TeamView {...props} />;
     case "clients":
       return me.canManage ? <ClientsView {...props} /> : <OnlyManagers />;
+    case "import":
+      return me.canManage ? <ImportView {...props} /> : <OnlyManagers />;
     case "memberships":
       return <MembershipsView {...props} />;
     case "chairs":

@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
-import { Armchair, CalendarDays, Contact, Crown, Inbox, LineChart, Receipt, Sun, Users, type LucideIcon } from "lucide-react";
+import { Armchair, CalendarDays, Contact, Crown, FileUp, Inbox, LineChart, Receipt, Sun, Users, type LucideIcon } from "lucide-react";
 import { studioHref } from "./StudioContext";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -15,6 +15,7 @@ const ICONS: Record<string, LucideIcon> = {
   requests: Inbox,
   team: Users,
   clients: Contact,
+  import: FileUp,
   memberships: Crown,
   chairs: Armchair,
   analytics: LineChart,
