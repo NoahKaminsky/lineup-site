@@ -354,6 +354,10 @@ export type Payouts = {
     availableCents: number; // in Stripe now, ready for the next payout
     pendingCents: number; // in Stripe now, not yet available
   };
+  nextPayout: { date: string; cents: number } | null; // the soonest one on its way
+  lastPayout: { date: string; cents: number } | null; // the most recent one that arrived
+  // "none": no Stripe account yet; "incomplete": set up started, payouts off.
+  stripe: "ready" | "incomplete" | "none";
 };
 
 export async function payoutsFor(
@@ -378,7 +382,7 @@ export async function payoutsFor(
     const { data } = await supabase.from("profiles").select("stripe_account_id").eq("id", who.proId).maybeSingle();
     account = data?.stripe_account_id || null;
   }
-  if (!account) return { ...totals, bank: null };
+  if (!account) return { ...totals, bank: null, nextPayout: null, lastPayout: null, stripe: "none" };
 
   try {
     const bank = { paidCents: 0, scheduledCents: 0, availableCents: 0, pendingCents: 0 };
@@ -390,9 +394,20 @@ export async function payoutsFor(
     const balance = await stripe.balance.retrieve({}, { stripeAccount: account });
     bank.availableCents = balance.available.filter((b) => b.currency === "cad").reduce((s, b) => s + b.amount, 0);
     bank.pendingCents = balance.pending.filter((b) => b.currency === "cad").reduce((s, b) => s + b.amount, 0);
-    return { ...totals, bank };
+
+    // Next and last payout, whenever they are (not just in this period).
+    let nextPayout: Payouts["nextPayout"] = null;
+    let lastPayout: Payouts["lastPayout"] = null;
+    for await (const p of stripe.payouts.list({ limit: 20 }, { stripeAccount: account })) {
+      if (p.currency !== "cad") continue;
+      const date = localDate(p.arrival_date);
+      if ((p.status === "pending" || p.status === "in_transit") && (!nextPayout || date < nextPayout.date)) nextPayout = { date, cents: p.amount };
+      if (p.status === "paid" && (!lastPayout || date > lastPayout.date)) lastPayout = { date, cents: p.amount };
+    }
+    const acct = await stripe.accounts.retrieve(account);
+    return { ...totals, bank, nextPayout, lastPayout, stripe: acct.payouts_enabled ? "ready" : "incomplete" };
   } catch (error) {
     console.error("Earnings: could not read Stripe payouts:", error);
-    return { ...totals, bank: null };
+    return { ...totals, bank: null, nextPayout: null, lastPayout: null, stripe: "incomplete" };
   }
 }

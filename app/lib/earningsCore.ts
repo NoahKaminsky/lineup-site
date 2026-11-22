@@ -563,3 +563,159 @@ export function payoutTotals(bookings: PayoutBooking[], scope: Scope) {
   }
   return { sentToStripeCents: sent, heldUntilDoneCents: held, heldAfterDoneCents: heldAfterDone };
 }
+
+// ── Date ranges (shop clock) ────────────────────────────────────────────
+
+export type RangeKind = "week" | "month" | "year" | "custom";
+
+const addDaysKey = (key: string, n: number) => {
+  const d = new Date(`${key}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+// This week (Monday to Sunday), this month or this year, around `today`.
+export function rangeFor(kind: Exclude<RangeKind, "custom">, today: string): { from: string; to: string } {
+  if (kind === "year") return { from: `${today.slice(0, 4)}-01-01`, to: `${today.slice(0, 4)}-12-31` };
+  if (kind === "month") {
+    const [y, m] = today.split("-").map(Number);
+    const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return { from: `${today.slice(0, 7)}-01`, to: `${today.slice(0, 7)}-${String(last).padStart(2, "0")}` };
+  }
+  const dow = new Date(`${today}T12:00:00Z`).getUTCDay(); // 0 Sunday
+  const from = addDaysKey(today, -((dow + 6) % 7));
+  return { from, to: addDaysKey(from, 6) };
+}
+
+// A custom range the owner typed: valid dates, in order, at most two years.
+export function checkRange(from: string, to: string): string | null {
+  const DATE = /^\d{4}-\d{2}-\d{2}$/;
+  if (!DATE.test(from) || !DATE.test(to) || Number.isNaN(Date.parse(from)) || Number.isNaN(Date.parse(to))) return "Pick a start and an end date.";
+  if (to < from) return "The end date is before the start date.";
+  if (Date.parse(to) - Date.parse(from) > 731 * 86_400_000) return "Pick a range of two years or less.";
+  if (from < "2025-01-01") return "Pick dates from 2025 on.";
+  return null;
+}
+
+export function inRange(rows: EarningsRow[], from: string, to: string) {
+  return rows.filter((r) => r.date >= from && r.date <= to);
+}
+
+// ── What one line paid ──────────────────────────────────────────────────
+
+export type BreakdownLine = { label: string; cents: number };
+
+// Every amount on one line, from the client's price to what the pro (or
+// shop) received. Fees and cuts are negative.
+export function lineBreakdown(r: EarningsRow, scope: Scope): { lines: BreakdownLine[]; received: number } {
+  const lines: BreakdownLine[] = [];
+  const add = (label: string, cents: number) => cents && lines.push({ label, cents });
+  if (r.type === "expense") {
+    add("Expense", -r.priceCents);
+    return { lines, received: scope === "shop" ? r.toShopCents : r.toProCents };
+  }
+  add(r.type === "booth_rent" ? (scope === "shop" ? "Rent paid by the pro" : "Booth rent") : r.type === "gift_card" ? "Gift card sold" : "Price", r.type === "booth_rent" && scope === "me" ? -r.priceCents : r.priceCents);
+  add("Tip", r.tipCents);
+  add("Paid with a gift card (counted when the card sold)", -r.giftCents);
+  add("Refunded to the client", -r.refundCents);
+  const own = !(scope === "me" && r.type === "booth_rent");
+  if (own) {
+    add("LineUp commission", -(r.lineupFeeCents - r.cardFeeCents));
+    add("Card processing fee", -r.cardFeeCents);
+  }
+  if (scope === "me" && r.type !== "booth_rent") add("Shop commission", -r.toShopCents);
+  else if (scope === "shop" && SERVICE_TYPES.includes(r.type)) add("Paid to the pro", -r.toProCents);
+  if (r.chargebackCents) lines.push({ label: "Disputed by the client's bank (not taken from you)", cents: r.chargebackCents });
+  return { lines, received: scope === "shop" ? r.toShopCents : r.toProCents };
+}
+
+// ── The shop's own money vs the team's ──────────────────────────────────
+
+export type ShopSplit = {
+  shopOwn: { commission: number; boothRent: number; memberships: number; giftCards: number; products: number; ownerServices: number; fees: number; total: number };
+  team: { proId: string; name: string; gross: number; shopCut: number; take: number; count: number }[];
+  teamTake: number;
+};
+
+// The owner's own appointments are the shop's money; everyone else's take
+// belongs to them.
+export function shopSplit(rows: EarningsRow[], ownerId: string | null): ShopSplit {
+  const s = summarize(rows, "shop");
+  const services = ofType(rows, ...SERVICE_TYPES);
+  const ownerServices = sum(services.filter((r) => r.proId && r.proId === ownerId), (r) => r.toProCents);
+  const byPro = new Map<string, ShopSplit["team"][number]>();
+  for (const r of services) {
+    if (!r.proId || r.proId === ownerId) continue;
+    const p = byPro.get(r.proId) || { proId: r.proId, name: r.proName || "Team member", gross: 0, shopCut: 0, take: 0, count: 0 };
+    p.gross += r.priceCents + r.tipCents;
+    p.shopCut += r.toShopCents;
+    p.take += r.toProCents;
+    p.count++;
+    byPro.set(r.proId, p);
+  }
+  const team = [...byPro.values()].sort((a, b) => b.gross - a.gross);
+  const fees = s.lineupCommission + s.cardFees;
+  return {
+    shopOwn: {
+      commission: s.shopCommission,
+      boothRent: s.boothRent,
+      memberships: s.memberships,
+      giftCards: s.giftCardSales,
+      products: s.productSales,
+      ownerServices,
+      fees,
+      total: s.net + ownerServices,
+    },
+    team,
+    teamTake: sum(team, (p) => p.take),
+  };
+}
+
+// ── Booth rent: paid, due, late ─────────────────────────────────────────
+
+export type RentMember = {
+  proId: string;
+  name: string;
+  rentCents: number | null;
+  rentInterval: string | null;
+  rentStatus: string | null;
+  periodEnd: string | null; // ISO; the next rent is charged then
+};
+
+export function boothRentStatus(members: RentMember[], rows: EarningsRow[]) {
+  return members.map((m) => {
+    const paid = sum(rows.filter((r) => r.type === "booth_rent" && r.proId === m.proId), (r) => r.priceCents);
+    const late = m.rentStatus === "past_due" || m.rentStatus === "unpaid";
+    return {
+      proId: m.proId,
+      name: m.name,
+      paidCents: paid,
+      late,
+      dueCents: m.rentCents || 0,
+      dueDate: m.periodEnd ? m.periodEnd.slice(0, 10) : null,
+      interval: m.rentInterval === "week" ? "week" : "month",
+    };
+  });
+}
+
+// ── The sentence at the top ─────────────────────────────────────────────
+
+const dollars = (c: number) =>
+  (c / 100).toLocaleString("en-CA", { style: "currency", currency: "CAD", minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
+
+export function headline(
+  s: Summary,
+  p: { heldUntilDoneCents: number; bank: { paidCents: number } | null } | null,
+  period: string, // "this week", "in November", "from Nov 3 to Nov 9"
+  scope: Scope
+) {
+  const who = scope === "shop" ? "The shop" : "You";
+  const first = s.net >= 0 ? `${who} made ${dollars(s.net)} ${period}.` : `${who} spent ${dollars(-s.net)} more than ${scope === "shop" ? "it" : "you"} took in ${period}.`;
+  const parts: string[] = [];
+  if (p?.bank?.paidCents) parts.push(`${dollars(p.bank.paidCents)} is already in ${scope === "shop" ? "the shop's" : "your"} bank`);
+  if (p?.heldUntilDoneCents) parts.push(`${dollars(p.heldUntilDoneCents)} arrives after ${scope === "shop" ? "the team's" : "your"} next appointments are done`);
+  if (s.recordedByHand) parts.push(`${dollars(s.recordedByHand)} was paid at the shop`);
+  if (!parts.length) return first;
+  const last = parts.pop()!;
+  return `${first} ${parts.length ? `${parts.join(", ")} and ${last}` : last[0].toUpperCase() + last.slice(1)}.`.replace(/^(\w)/, (c) => c.toUpperCase());
+}
