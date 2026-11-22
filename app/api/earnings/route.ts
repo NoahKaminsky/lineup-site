@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { getStudioForUser, errorMessage } from "@/app/lib/studios";
-import { proEarnings, shopEarnings, todayLocal } from "@/app/lib/earnings";
+import { payoutsFor, proEarnings, shopEarnings, todayLocal } from "@/app/lib/earnings";
 
 // GET /api/earnings?scope=me|shop&year=2026
 //   me:   the signed-in pro's own sales for the year.
@@ -29,8 +29,8 @@ export async function GET(req: Request) {
       const ctx = await getStudioForUser(supabase, user.id);
       if (!ctx) return NextResponse.json({ error: "You're not on a shop's team." }, { status: 404 });
       if (!ctx.canManage) return NextResponse.json({ error: "Only the owner and managers can see the shop's earnings." }, { status: 403 });
-      const result = await shopEarnings(supabase, ctx.studio, from, to);
-      return NextResponse.json({ scope, year, name: ctx.studio.name, rows: result.rows, attention: result.attention });
+      const [result, payouts] = await Promise.all([shopEarnings(supabase, ctx.studio, from, to), payoutsFor(supabase, { studio: ctx.studio }, from, to)]);
+      return NextResponse.json({ scope, year, name: ctx.studio.name, rows: result.rows, attention: result.attention, payouts });
     }
 
     const { data: profile } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).maybeSingle();
@@ -38,8 +38,8 @@ export async function GET(req: Request) {
     if (!role || role.includes("customer")) {
       return NextResponse.json({ error: "Earnings are for professionals." }, { status: 403 });
     }
-    const result = await proEarnings(supabase, user.id, from, to);
-    return NextResponse.json({ scope, year, name: profile?.full_name || null, rows: result.rows, attention: result.attention });
+    const [result, payouts] = await Promise.all([proEarnings(supabase, user.id, from, to), payoutsFor(supabase, { proId: user.id }, from, to)]);
+    return NextResponse.json({ scope, year, name: profile?.full_name || null, rows: result.rows, attention: result.attention, payouts });
   } catch (error) {
     console.error("GET /api/earnings failed:", error);
     return NextResponse.json({ error: errorMessage(error, "Could not load earnings.") }, { status: 500 });

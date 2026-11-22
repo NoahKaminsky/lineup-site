@@ -45,7 +45,8 @@ function Delta({ pair, kind = "percent", goodWhenDown = false }: { pair: { now: 
 
 function Kpi({ label, value, sub, delta, strong = false }: { label: string; value: string; sub?: ReactNode; delta?: ReactNode; strong?: boolean }) {
   return (
-    <div className={`${panelClass} p-4 ${strong ? "bg-ink text-white ring-0" : ""}`}>
+    // Not panelClass when highlighted: its bg-surface would win over bg-ink.
+    <div className={strong ? "rounded-2xl bg-ink p-4 text-white" : `${panelClass} p-4`}>
       <p className={`text-xs font-medium ${strong ? "text-white/70" : "text-neutral-500"}`}>{label}</p>
       <p className="mt-1.5 text-2xl font-semibold tabular-nums tracking-[-0.02em]">{value}</p>
       <div className={`mt-1 min-h-4 text-xs ${strong ? "text-white/60 [&_span]:!text-white/80" : "text-neutral-500"}`}>{delta || sub}</div>

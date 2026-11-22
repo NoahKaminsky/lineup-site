@@ -11,12 +11,14 @@
 // So net income = what actually ended up with the pro (or shop).
 
 import type { EarningsRow, EarningsType } from "./earnings";
+import { summarize, type Summary } from "./earningsCore";
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from "./expenseCategories";
 
 export type Scope = "me" | "shop";
 
-export const SERVICE_TYPES: EarningsType[] = ["online", "pay_at_shop", "walk_in", "phone", "imported"];
-const AT_SHOP_TYPES: EarningsType[] = ["pay_at_shop", "walk_in", "phone", "imported"];
+// Imported appointments never become earnings rows (see earningsCore).
+export const SERVICE_TYPES: EarningsType[] = ["online", "pay_at_shop", "walk_in", "phone"];
+const AT_SHOP_TYPES: EarningsType[] = ["pay_at_shop", "walk_in", "phone"];
 
 export const TYPE_LABEL: Record<EarningsType, string> = {
   online: "Online booking",
@@ -71,25 +73,28 @@ export type Statement = {
   // Appointments by how they came in.
   activity: { label: string; count: number; cents: number }[];
   taxableSales: number; // services and no-show fees, tips and gift card sales excluded
+  // The same totals as every other screen (earningsCore.summarize).
+  summary: Summary;
 };
 
 const sum = <T,>(rows: T[], f: (r: T) => number) => rows.reduce((s, r) => s + f(r), 0);
 const of = (rows: EarningsRow[], ...types: EarningsType[]) => rows.filter((r) => types.includes(r.type));
 
 export function buildStatement(rows: EarningsRow[], scope: Scope): Statement {
+  // Every total comes from the one shared summary; this only lays it out.
+  const t = summarize(rows, scope);
   const online = of(rows, "online");
   const atShop = of(rows, ...AT_SHOP_TYPES);
   const services = of(rows, ...SERVICE_TYPES);
   const noShow = of(rows, "no_show_fee");
-  const giftSales = of(rows, "gift_card");
   const memberships = of(rows, "membership");
   const rent = of(rows, "booth_rent");
-  const plan = of(rows, "lineup_plan");
   const products = of(rows, "product");
   const expenses = of(rows, "expense");
   const expenseLines: Line[] = (Object.keys(EXPENSE_CATEGORIES) as ExpenseCategory[])
     .map((c) => ({ label: EXPENSE_CATEGORIES[c], cents: sum(expenses.filter((r) => r.category === c), (r) => r.priceCents), note: `You added these. Generally T2125 ${EXPENSE_LINE[c]}` }))
     .filter((l) => l.cents);
+  const atShopSales = summarize(atShop, scope).grossServiceSales;
 
   let income: Line[];
   let costs: Line[];
@@ -97,41 +102,45 @@ export function buildStatement(rows: EarningsRow[], scope: Scope): Statement {
 
   if (scope === "me") {
     income = [
-      { label: "Services paid through LineUp", cents: sum(online, (r) => r.priceCents - r.giftCents) },
-      { label: "Services paid at the shop", cents: sum(atShop, (r) => r.priceCents), note: "Walk-ins, phone and imported bookings, pay at the shop" },
-      { label: "Tips", cents: sum(services, (r) => r.tipCents) },
-      { label: "No-show fees", cents: sum(noShow, (r) => r.priceCents) },
-      { label: "Gift card sales", cents: sum(giftSales, (r) => r.priceCents), note: "Counted when sold" },
-      { label: "Product sales", cents: sum(products, (r) => r.priceCents), note: "Logged by you" },
+      { label: "Services paid through LineUp", cents: t.grossServiceSales - atShopSales, note: "Through LineUp" },
+      { label: "Services paid at the shop", cents: atShopSales, note: "Recorded by hand: walk-ins, phone, pay at the shop" },
+      { label: "Tips", cents: t.tips },
+      { label: "No-show fees", cents: t.noShowFees, note: "Through LineUp" },
+      { label: "Gift card sales", cents: t.giftCardSales, note: "Through LineUp, counted when sold" },
+      { label: "Product sales", cents: t.productSales, note: "Recorded by you" },
     ];
     costs = [
-      { label: "LineUp booking and payment fees", cents: sum(rows, (r) => r.lineupFeeCents) },
-      { label: "Shop commission", cents: sum(services, (r) => r.toShopCents), note: "The shop's share of your bookings" },
-      { label: "Booth rent paid", cents: sum(rent, (r) => r.priceCents) },
-      { label: "LineUp plan", cents: sum(plan, (r) => r.priceCents) },
+      { label: "Refunds to clients", cents: t.refunds, note: "Cancelled bookings paid back" },
+      { label: "LineUp commission", cents: t.lineupCommission, note: "Taken out of the price, never added on top" },
+      { label: "Card processing fees", cents: t.cardFees, note: "Passed through at cost" },
+      { label: "Shop commission", cents: t.shopCommission, note: "The shop's share of your bookings" },
+      { label: "Booth rent paid", cents: t.boothRent },
+      { label: "LineUp plan", cents: t.lineupPlan },
       ...expenseLines,
     ];
-    const giftUsed = sum(online, (r) => r.giftCents);
-    if (giftUsed) memo.push({ label: "Services paid with gift cards", cents: giftUsed, note: "Not counted again; gift cards count when sold" });
   } else {
     income = [
-      { label: "Commission from the team", cents: sum(services, (r) => r.toShopCents) },
-      { label: "Booth rent", cents: sum(rent, (r) => r.priceCents) },
-      { label: "Memberships", cents: sum(memberships, (r) => r.priceCents) },
-      { label: "Gift card sales", cents: sum(giftSales, (r) => r.priceCents), note: "Counted when sold" },
-      { label: "Product sales", cents: sum(products, (r) => r.priceCents), note: "Logged by the shop" },
+      { label: "Commission from the team", cents: t.shopCommission },
+      { label: "Booth rent", cents: t.boothRent, note: "Through LineUp" },
+      { label: "Memberships", cents: t.memberships, note: "Through LineUp" },
+      { label: "Gift card sales", cents: t.giftCardSales, note: "Through LineUp, counted when sold" },
+      { label: "Product sales", cents: t.productSales, note: "Recorded by the shop" },
     ];
     costs = [
-      { label: "LineUp payment fees", cents: sum([...rent, ...memberships, ...giftSales], (r) => r.lineupFeeCents), note: "On rent, memberships and gift cards" },
-      { label: "LineUp plan", cents: sum(plan, (r) => r.priceCents) },
+      { label: "LineUp fees", cents: t.lineupCommission, note: "On memberships and gift cards" },
+      { label: "Card processing fees", cents: t.cardFees, note: "On rent and gift cards, at cost" },
+      { label: "LineUp plan", cents: t.lineupPlan },
       ...expenseLines,
     ];
     memo.push(
       { label: "Team sales through the shop", cents: sum(services, (r) => r.priceCents - r.giftCents), note: "Before the shop's commission" },
-      { label: "Team tips", cents: sum(services, (r) => r.tipCents), note: "All go to the pro" },
+      { label: "Team tips", cents: t.tips, note: "All go to the pro" },
       { label: "Paid to the team", cents: sum(services, (r) => r.toProCents) }
     );
   }
+  if (t.giftCardRedemptions) memo.push({ label: "Services paid with gift cards", cents: t.giftCardRedemptions, note: "Not counted again; gift cards count when sold" });
+  if (t.chargebacks) memo.push({ label: "Chargebacks", cents: t.chargebacks, note: "Disputed by a client's bank. Not taken from these earnings" });
+  if (t.recordedByHand) memo.push({ label: "Recorded by hand", cents: t.recordedByHand, note: "Walk-ins, phone, pay at the shop and products, with tips" });
 
   const gstPaid = sum(expenses, (r) => r.gstCents || 0);
   if (gstPaid) memo.push({ label: "GST/HST paid on expenses", cents: gstPaid, note: "Included in the expense amounts. Claimable if you're registered" });
@@ -165,7 +174,6 @@ export function buildStatement(rows: EarningsRow[], scope: Scope): Statement {
     ["Membership visits", of(rows, "membership_visit"), () => 0],
     ["Walk-ins", of(rows, "walk_in"), (r) => r.priceCents + r.tipCents],
     ["Phone bookings", of(rows, "phone"), (r) => r.priceCents + r.tipCents],
-    ["Imported appointments", of(rows, "imported"), (r) => r.priceCents + r.tipCents],
     ["No-shows charged", noShow, (r) => r.priceCents],
   ];
   const activity = activityRows
@@ -177,12 +185,16 @@ export function buildStatement(rows: EarningsRow[], scope: Scope): Statement {
       ? sum(online, (r) => r.priceCents - r.giftCents) + sum(atShop, (r) => r.priceCents) + sum(noShow, (r) => r.priceCents) + sum(products, (r) => r.priceCents)
       : sum(services, (r) => r.toShopCents) + sum(rent, (r) => r.priceCents) + sum(memberships, (r) => r.priceCents) + sum(products, (r) => r.priceCents);
 
+  // Laid out, the lines must still come to the shared total.
+  if (grossIncome - totalCosts !== t.net) console.error(`Earnings statement out of balance: ${grossIncome - totalCosts} vs ${t.net}`);
+
   return {
+    summary: t,
     income: income.filter((l) => l.cents),
     grossIncome,
     costs: costs.filter((l) => l.cents),
     totalCosts,
-    net: grossIncome - totalCosts,
+    net: t.net,
     memo: memo.filter((l) => l.cents),
     received,
     activity,

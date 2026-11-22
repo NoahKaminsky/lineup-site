@@ -10,12 +10,12 @@ import { FileText, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { peekStudio, studioFetch } from "@/app/studio/studioApi";
 import { Button, EmptyState, Field, Section, Segmented, Sheet, Tag, fieldClass, panelClass } from "@/app/studio/ui";
-import type { AttentionItem, EarningsRow } from "@/app/lib/earnings";
+import type { AttentionItem, EarningsRow, Payouts } from "@/app/lib/earnings";
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/app/lib/expenseCategories";
 import { PAID_LABEL, TYPE_LABEL, buildStatement, byMonth, byPro, money, type Line } from "@/app/lib/earningsStatement";
 
 type Scope = "me" | "shop";
-type Response = { scope: Scope; year: number; name: string | null; rows: EarningsRow[]; attention?: AttentionItem[] };
+type Response = { scope: Scope; year: number; name: string | null; rows: EarningsRow[]; attention?: AttentionItem[]; payouts?: Payouts };
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const FIRST_YEAR = 2026;
@@ -27,7 +27,9 @@ function shortDate(date: string) {
 
 function Stat({ label, value, sub, strong = false }: { label: string; value: string; sub?: string; strong?: boolean }) {
   return (
-    <div className={`${panelClass} p-4 ${strong ? "bg-ink text-white ring-0" : ""}`}>
+    // The highlighted card can't share panelClass: its bg-surface would win
+    // over bg-ink and leave white text on white.
+    <div className={strong ? "rounded-2xl bg-ink p-4 text-white" : `${panelClass} p-4`}>
       <p className={`text-xs font-medium ${strong ? "text-white/70" : "text-neutral-500"}`}>{label}</p>
       <p className="mt-1.5 text-xl font-semibold tabular-nums tracking-[-0.02em]">{value}</p>
       {sub ? <p className={`mt-1 text-xs ${strong ? "text-white/60" : "text-neutral-500"}`}>{sub}</p> : null}
@@ -222,6 +224,42 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
               {st.costs.length ? <Lines lines={st.costs} total={st.totalCosts} totalLabel="Total costs" /> : <p className="text-sm text-neutral-500">None recorded.</p>}
             </Section>
           </div>
+
+          {data?.payouts && data.year === year ? (
+            <Section
+              title={`Where the money is, ${year}`}
+              description={
+                scope === "shop"
+                  ? "The shop's cut of bookings paid through LineUp, and what Stripe has paid to the shop's bank."
+                  : "Your share of bookings paid through LineUp: 20% is sent when a client books, the rest once the appointment is done."
+              }
+            >
+              <Lines
+                lines={[
+                  {
+                    label: scope === "shop" ? "The shop's cut of bookings, sent to its Stripe account" : "Sent to your Stripe account",
+                    cents: data.payouts.sentToStripeCents,
+                    note: scope === "shop" ? "Memberships, rent and gift cards reach Stripe directly" : "Through LineUp",
+                  },
+                  { label: "Held until appointments are done", cents: data.payouts.heldUntilDoneCents },
+                  ...(data.payouts.heldAfterDoneCents
+                    ? [{ label: "Of that, already done but not sent yet", cents: data.payouts.heldAfterDoneCents, note: "If this stays, contact LineUp support" }]
+                    : []),
+                  ...(data.payouts.bank
+                    ? [
+                        { label: "Paid to your bank", cents: data.payouts.bank.paidCents, note: "By Stripe, this year" },
+                        { label: "On its way to your bank", cents: data.payouts.bank.scheduledCents, note: "Scheduled by Stripe" },
+                        { label: "In Stripe, ready to pay out", cents: data.payouts.bank.availableCents },
+                        { label: "In Stripe, not available yet", cents: data.payouts.bank.pendingCents },
+                      ]
+                    : []),
+                ]}
+              />
+              {!data.payouts.bank ? (
+                <p className="mt-2 text-xs text-neutral-500">Connect payouts in your account to see what Stripe has sent to your bank.</p>
+              ) : null}
+            </Section>
+          ) : null}
 
           {st.activity.length ? (
             <Section title="Appointments" description="Every kind of booking, counted once. Amounts include tips.">

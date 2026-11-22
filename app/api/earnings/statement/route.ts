@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { getStudioForUser, errorMessage } from "@/app/lib/studios";
-import { proEarnings, shopEarnings, todayLocal } from "@/app/lib/earnings";
+import { payoutsFor, proEarnings, shopEarnings, todayLocal } from "@/app/lib/earnings";
 import { renderStatementPdf } from "@/app/lib/earningsPdf";
 
 // GET /api/earnings/statement?scope=me|shop&year=2026[&month=0-11][&name=…][&gst=…]
@@ -36,16 +36,17 @@ export async function GET(req: Request) {
 
     const supabase = getServiceSupabase();
     let result;
+    let payouts = null;
     if (scope === "shop") {
       const ctx = await getStudioForUser(supabase, user.id);
       if (!ctx) return NextResponse.json({ error: "You're not on a shop's team." }, { status: 404 });
       if (!ctx.canManage) return NextResponse.json({ error: "Only the owner and managers can see the shop's earnings." }, { status: 403 });
-      result = await shopEarnings(supabase, ctx.studio, from, to);
+      [result, payouts] = await Promise.all([shopEarnings(supabase, ctx.studio, from, to), payoutsFor(supabase, { studio: ctx.studio }, from, to)]);
     } else {
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
       const role = String(profile?.role || "").toLowerCase();
       if (!role || role.includes("customer")) return NextResponse.json({ error: "Earnings are for professionals." }, { status: 403 });
-      result = await proEarnings(supabase, user.id, from, to);
+      [result, payouts] = await Promise.all([proEarnings(supabase, user.id, from, to), payoutsFor(supabase, { proId: user.id }, from, to)]);
     }
 
     const pdf = await renderStatementPdf({
@@ -57,6 +58,7 @@ export async function GET(req: Request) {
       attention: result.attention,
       legalName: clean(url.searchParams.get("name"), 100),
       gstNumber: clean(url.searchParams.get("gst"), 30),
+      payouts,
     });
 
     const slug = result.seller.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "earnings";
