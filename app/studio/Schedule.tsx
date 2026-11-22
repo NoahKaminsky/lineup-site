@@ -63,9 +63,16 @@ function statusTag(item: ScheduleItem) {
   return null;
 }
 
+const PAID_WITH_LABEL: Record<string, string> = { cash: "cash", card: "card", etransfer: "e-transfer", other: "other" };
+
 function paymentLine(item: ScheduleItem) {
   if (item.source === "independent") return "Their own appointment, away from the shop";
   const price = item.priceCents !== null ? formatCad(item.priceCents) : null;
+  if (item.kind !== "online" && item.status === "completed" && item.paidWith) {
+    return `Paid ${price ? `${price} ` : ""}by ${PAID_WITH_LABEL[item.paidWith] || item.paidWith}${
+      item.tipCents ? `, ${formatCad(item.tipCents)} tip` : ""
+    }`;
+  }
   if (item.kind !== "online") {
     return `${item.kind === "phone" ? "Phone-in" : item.kind === "imported" ? "Imported" : "Walk-in"}${price ? `, ${price} at the shop` : ", paid at the shop"}`;
   }
@@ -656,6 +663,9 @@ export function AppointmentSheet({
   setNotice: SectionProps["setNotice"];
   onChanged: () => void;
 }) {
+  // The appointment whose "how did they pay" form is open.
+  const [checkoutFor, setCheckoutFor] = useState<string | null>(null);
+  const checkout = !!item && checkoutFor === item.id;
   if (!item) return <Sheet open={false} onClose={onClose} title="">{null}</Sheet>;
 
   const frontDesk = item.kind !== "online";
@@ -663,10 +673,14 @@ export function AppointmentSheet({
   const canNoShowOnline =
     !frontDesk && item.payAtShop && item.status === "confirmed" && startsPassed(item, NO_SHOW_GRACE_MIN);
 
-  async function setStatus(status: "completed" | "no_show" | "cancelled", success: string) {
+  async function setStatus(
+    status: "completed" | "no_show" | "cancelled",
+    success: string,
+    payment?: { paidWith: string; tipCents: number; priceCents: number | null }
+  ) {
     if (status === "cancelled" && !window.confirm("Cancel this appointment? The time opens up again.")) return;
     await run(`fd-${item!.id}`, async () => {
-      const res = await studioFetch("/api/studio/front-desk", { method: "PATCH", body: { id: item!.id, status } });
+      const res = await studioFetch("/api/studio/front-desk", { method: "PATCH", body: { id: item!.id, status, ...(payment || {}) } });
       if (!res.ok) {
         setNotice({ tone: "error", text: res.data.error || "Could not update it." });
         return;
@@ -720,14 +734,26 @@ export function AppointmentSheet({
                   { label: "Cancel appointment", danger: true, onSelect: () => setStatus("cancelled", "Cancelled. The time is open again.") },
                 ]}
               />
-              <Button variant="primary" loading={busy === `fd-${item.id}`} onClick={() => setStatus("completed", "Marked done.")}>
-                Mark done
-              </Button>
+              {checkout ? (
+                <Button variant="primary" type="submit" form="fd-checkout" loading={busy === `fd-${item.id}`}>
+                  Save, mark done
+                </Button>
+              ) : (
+                <Button variant="primary" onClick={() => setCheckoutFor(item.id)}>
+                  Mark done
+                </Button>
+              )}
             </>
           ) : null}
         </>
       }
     >
+      {checkout && openFrontDesk ? (
+        <CheckoutForm
+          item={item}
+          onSubmit={(payment) => setStatus("completed", "Marked done.", payment)}
+        />
+      ) : null}
       <dl className="divide-y divide-hairline text-sm">
         <div className="flex items-center justify-between gap-4 py-3.5">
           <dt className="text-neutral-500">With</dt>
@@ -1025,6 +1051,68 @@ function NewAppointmentForm({
       <Field label="Note" htmlFor="na-note" optional>
         <input id="na-note" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} className={fieldClass} />
       </Field>
+    </form>
+  );
+}
+
+// Marking a walk-in, phone-in or imported appointment done: what they paid,
+// how, and the tip. Feeds the earnings report.
+function CheckoutForm({
+  item,
+  onSubmit,
+}: {
+  item: ScheduleItem;
+  onSubmit: (payment: { paidWith: string; tipCents: number; priceCents: number | null }) => void;
+}) {
+  const [paidWith, setPaidWith] = useState<"cash" | "card" | "etransfer" | "other">("cash");
+  const [price, setPrice] = useState(item.priceCents !== null ? (item.priceCents / 100).toFixed(2) : "");
+  const [tip, setTip] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function toCents(value: string) {
+    const n = Number(value.replace(/[$,\s]/g, ""));
+    return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null;
+  }
+
+  return (
+    <form
+      id="fd-checkout"
+      className="mb-5 space-y-4 rounded-2xl bg-ink/[0.03] p-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const priceCents = price.trim() ? toCents(price) : null;
+        const tipCents = tip.trim() ? toCents(tip) : 0;
+        if (price.trim() && priceCents === null) return setError("That price doesn't look right.");
+        if (tipCents === null) return setError("That tip doesn't look right.");
+        setError(null);
+        onSubmit({ paidWith, tipCents, priceCents });
+      }}
+    >
+      <div>
+        <p className="mb-1.5 text-[13px] font-medium text-neutral-800">How did they pay?</p>
+        <Segmented
+          label="How they paid"
+          size="sm"
+          value={paidWith}
+          onChange={setPaidWith}
+          options={[
+            { value: "cash", label: "Cash" },
+            { value: "card", label: "Card" },
+            { value: "etransfer", label: "E-transfer" },
+            { value: "other", label: "Other" },
+          ]}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Price" htmlFor="fd-price">
+          <input id="fd-price" inputMode="decimal" className={fieldClass} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" />
+        </Field>
+        <Field label="Tip" htmlFor="fd-tip" optional>
+          <input id="fd-tip" inputMode="decimal" className={fieldClass} value={tip} onChange={(e) => setTip(e.target.value)} placeholder="0.00" />
+        </Field>
+      </div>
+      {error ? <p className="text-[13px] text-[#A30D25]">{error}</p> : null}
+      <p className="text-xs leading-5 text-neutral-500">This goes in the shop&apos;s earnings report. Nothing is charged.</p>
     </form>
   );
 }

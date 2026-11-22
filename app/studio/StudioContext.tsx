@@ -34,6 +34,8 @@ export const STUDIO_SECTIONS = [
   { slug: "clients", label: "Clients" },
   { slug: "memberships", label: "Memberships" },
   { slug: "chairs", label: "Chairs" },
+  { slug: "analytics", label: "Analytics" },
+  { slug: "earnings", label: "Earnings" },
 ] as const;
 
 export function studioHref(slug: string) {

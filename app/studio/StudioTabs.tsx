@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
-import { Armchair, CalendarDays, Contact, Crown, Inbox, Sun, Users, type LucideIcon } from "lucide-react";
+import { Armchair, CalendarDays, Contact, Crown, Inbox, LineChart, Receipt, Sun, Users, type LucideIcon } from "lucide-react";
 import { studioHref } from "./StudioContext";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -17,6 +17,8 @@ const ICONS: Record<string, LucideIcon> = {
   clients: Contact,
   memberships: Crown,
   chairs: Armchair,
+  analytics: LineChart,
+  earnings: Receipt,
 };
 
 export default function StudioTabs({

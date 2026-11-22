@@ -38,6 +38,9 @@ export type ScheduleItem = {
   clientName: string | null;
   clientPhone: string | null;
   priceCents: number | null;
+  // Walk-ins and phone-ins marked done: how the client paid, and the tip.
+  paidWith?: string | null;
+  tipCents?: number;
   note: string | null;
 };
 
