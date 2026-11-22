@@ -20,7 +20,7 @@ const MONTHS: Record<string, number> = {
   jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12,
 };
 
-function splitRows(text: string, delimiter: string): string[][] {
+export function splitRows(text: string, delimiter: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = "";
@@ -102,7 +102,7 @@ export function parseTime(raw: string): string | null {
 }
 
 // "45", "45 min", "1h 30m", "1:30", "90 minutes", "1.5 hours".
-function parseMinutes(raw: string): number | null {
+export function parseMinutes(raw: string): number | null {
   const s = raw.trim().toLowerCase();
   if (!s) return null;
   let m = s.match(/^(\d{1,2}):(\d{2})$/);
@@ -114,7 +114,7 @@ function parseMinutes(raw: string): number | null {
   return m ? +m[1] : null;
 }
 
-function addMinutes(time: string, minutes: number) {
+export function addMinutes(time: string, minutes: number) {
   const total = +time.slice(0, 2) * 60 + +time.slice(3, 5) + minutes;
   if (total >= 24 * 60) return "23:59";
   return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;

@@ -99,3 +99,15 @@ export function shopNow(at: Date = new Date()) {
     minutes: Number(get("hour")) * 60 + Number(get("minute")),
   };
 }
+
+// The shop-clock date and time ("2026-11-20", "14:30") of a real instant,
+// e.g. an event in a calendar file stored in UTC. Uses the same Manitoba
+// rules as appointmentInstant, so the two round-trip.
+export function shopDateTimeOf(instant: Date) {
+  const wall = new Date(instant.getTime() + zoneOffsetMs(instant));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    date: `${wall.getUTCFullYear()}-${pad(wall.getUTCMonth() + 1)}-${pad(wall.getUTCDate())}`,
+    time: `${pad(wall.getUTCHours())}:${pad(wall.getUTCMinutes())}`,
+  };
+}

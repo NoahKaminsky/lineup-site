@@ -1,18 +1,16 @@
 "use client";
 
-// Import: move the shop's calendar over from another booking app. The owner
-// or a manager picks whose appointments a file holds, checks the preview, and
-// adds them. They hold that pro's time so nobody books over them; nobody is
-// messaged or charged, and they stay out of analytics and earnings. Every
-// upload is listed below and can be undone in one go.
+// Import: bring the shop's calendar over from another app (see
+// ./calendarImport), and the list of past imports with Undo.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Undo2, Upload } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Undo2 } from "lucide-react";
 import { studioFetch } from "./studioApi";
-import { Button, EmptyState, Field, Section, Tag, fieldClass, panelClass } from "./ui";
-import { isBookable, localDateKey, time12, type SectionProps } from "./types";
-import { parseAppointments } from "@/app/lib/appointmentImport";
-import { SOURCE_APPS, SOURCE_APP_LABELS, type SourceApp } from "@/app/lib/importSources";
+import { Button, EmptyState, Section, Tag, panelClass } from "./ui";
+import { isBookable, type SectionProps } from "./types";
+import { studioHref } from "./StudioContext";
+import { SOURCE_APP_LABELS, type SourceApp } from "@/app/lib/importSources";
+import CalendarImport, { type ClashChecker } from "./calendarImport/CalendarImport";
 
 type Batch = {
   id: string;
@@ -34,26 +32,19 @@ type Batch = {
 
 type ImportsResponse = { ready: boolean; live: boolean; batches: Batch[] };
 
-function prettyDate(d: string) {
-  return new Date(`${d}T12:00:00Z`).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
-}
-
 function when(iso: string) {
   return new Date(iso).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 export default function ImportView({ data, setNotice }: SectionProps) {
-  const team = useMemo(() => (data.team || []).filter(isBookable), [data.team]);
+  const team = useMemo(
+    () => (data.team || []).filter(isBookable).map((m) => ({ id: m.profileId!, name: m.name || "Team member" })),
+    [data.team]
+  );
   const names = useMemo(() => new Map((data.team || []).map((m) => [m.profileId, m.name || "Team member"])), [data.team]);
 
   const [imports, setImports] = useState<ImportsResponse | null>(null);
-  const [proId, setProId] = useState("");
-  const [sourceApp, setSourceApp] = useState<SourceApp>("other");
-  const [text, setText] = useState("");
-  const [fileName, setFileName] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [undoing, setUndoing] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement | null>(null);
 
   const load = useCallback(async () => {
     const res = await studioFetch<ImportsResponse>("/api/studio/import");
@@ -73,52 +64,20 @@ export default function ImportView({ data, setNotice }: SectionProps) {
     };
   }, [setNotice]);
 
-  const parsed = useMemo(() => parseAppointments(text), [text]);
-  const today = localDateKey(new Date());
-  const upcoming = parsed.appointments.filter((a) => a.date >= today);
-  const pastCount = parsed.appointments.length - upcoming.length;
-
-  function clear() {
-    setText("");
-    setFileName(null);
-  }
-
-  async function readFile(file: File) {
-    if (file.size > 5 * 1024 * 1024) {
-      return setNotice({ tone: "error", text: "That file is over 5 MB. Export just the upcoming appointments." });
-    }
-    setFileName(file.name);
-    setText(await file.text());
-  }
-
-  async function save() {
-    if (!proId) return setNotice({ tone: "error", text: "Pick whose appointments these are first." });
-    setSaving(true);
-    const res = await studioFetch<{ added: number; clashCount: number; clashes: string[]; problems: number }>("/api/studio/import", {
+  // Read-only: which preview rows land on time already taken.
+  const checkClashes: ClashChecker = useCallback(async (items) => {
+    if (!items.length) return {};
+    const res = await studioFetch<{ clashes: Record<string, string> }>("/api/studio/import", {
       method: "POST",
-      body: { action: "appointments", professionalId: proId, rows: upcoming, sourceApp, sourceType: "csv", fileName },
+      body: { action: "check-clashes", items },
     });
-    setSaving(false);
-    if (!res.ok) return setNotice({ tone: "error", text: res.data.error || "Couldn't add those appointments." });
-    const { added, clashCount } = res.data;
-    setNotice({
-      tone: "success",
-      text: `Added ${added} ${added === 1 ? "appointment" : "appointments"} to ${names.get(proId) || "their"} calendar.${
-        clashCount ? ` ${clashCount} overlapped something already booked and ${clashCount === 1 ? "was" : "were"} skipped.` : ""
-      }`,
-    });
-    clear();
-    void load();
-  }
+    if (!res.ok) throw new Error(res.data.error || "Clash check failed");
+    return res.data.clashes || {};
+  }, []);
 
   async function undo(batch: Batch) {
     const what = batch.kind === "clients" ? "clients" : "appointments";
-    if (
-      !window.confirm(
-        `Undo this import? ${batch.removable} ${what} from it will be removed. Anything already marked done or already emailed is kept.`
-      )
-    )
-      return;
+    if (!window.confirm(`Undo this import? ${batch.removable} ${what} from it will be removed. Anything already marked done or already emailed is kept.`)) return;
     setUndoing(batch.id);
     const res = await studioFetch<{ removed: number; kept: number }>("/api/studio/import", { method: "POST", body: { action: "undo-batch", id: batch.id } });
     setUndoing(null);
@@ -130,103 +89,13 @@ export default function ImportView({ data, setNotice }: SectionProps) {
     void load();
   }
 
-  if (imports && !imports.ready) {
-    return <EmptyState title="Importing is being switched on" body="Check back in a little while." />;
-  }
-
   return (
-    <div className="space-y-10">
-      <Section
-        title="Import appointments"
-        description="Moving from Squire, Booksy, Fresha, Vagaro or Square? Export each pro's upcoming appointments as a CSV and add them to their LineUp calendar. They hold the time so nobody books over them. Nobody gets a message and nobody is charged."
-      >
-        {imports && !imports.live ? (
-          <p className="mb-5 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">Importing is part of the Studio plans. Start a plan under Settings.</p>
-        ) : null}
-        <div className={`${panelClass} space-y-5 p-5 sm:p-6`}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Whose appointments" htmlFor="import-pro">
-              <select id="import-pro" value={proId} onChange={(e) => setProId(e.target.value)} className={fieldClass}>
-                <option value="">Pick a team member</option>
-                {team.map((m) => (
-                  <option key={m.profileId!} value={m.profileId!}>
-                    {m.name || "Team member"}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Exported from" htmlFor="import-source">
-              <select id="import-source" value={sourceApp} onChange={(e) => setSourceApp(e.target.value as SourceApp)} className={fieldClass}>
-                {SOURCE_APPS.map((s) => (
-                  <option key={s} value={s}>
-                    {SOURCE_APP_LABELS[s]}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
-
-          <div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv,.txt,text/csv,text/plain"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void readFile(file);
-                e.target.value = "";
-              }}
-            />
-            <Button onClick={() => fileRef.current?.click()}>
-              <Upload className="h-4 w-4" aria-hidden="true" />
-              {fileName ? `Chosen: ${fileName}` : "Choose a CSV file"}
-            </Button>
-          </div>
-
-          {text ? (
-            <div>
-              <p className="text-sm font-medium text-ink">
-                Found {upcoming.length} upcoming {upcoming.length === 1 ? "appointment" : "appointments"}
-                {pastCount ? ` (${pastCount} in the past, left out)` : ""}.
-              </p>
-              {upcoming.some((a) => a.guessedEnd) ? (
-                <p className="mt-1 text-xs text-neutral-500">Some rows had no end time or length, so they&apos;re set to one hour.</p>
-              ) : null}
-              {parsed.problems.length ? (
-                <p className="mt-1 text-xs text-red-700">
-                  {parsed.problems.length} {parsed.problems.length === 1 ? "row" : "rows"} couldn&apos;t be read:{" "}
-                  {parsed.problems.slice(0, 3).map((p) => `line ${p.line}: ${p.reason}`).join("; ")}
-                  {parsed.problems.length > 3 ? "…" : ""}
-                </p>
-              ) : null}
-              {upcoming.length ? (
-                <ul className="mt-3 divide-y divide-hairline rounded-2xl bg-neutral-50 text-sm ring-1 ring-ink/[0.06]">
-                  {upcoming.slice(0, 5).map((a, i) => (
-                    <li key={i} className="flex justify-between gap-3 px-4 py-2.5">
-                      <span className="truncate">
-                        {a.clientName || "Client"} · {a.service || "Appointment"}
-                      </span>
-                      <span className="shrink-0 text-neutral-500">
-                        {prettyDate(a.date)}, {time12(a.start)}–{time12(a.end)}
-                      </span>
-                    </li>
-                  ))}
-                  {upcoming.length > 5 ? <li className="px-4 py-2.5 text-neutral-400">and {upcoming.length - 5} more</li> : null}
-                </ul>
-              ) : null}
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button variant="primary" onClick={save} loading={saving} disabled={!upcoming.length || !proId || (imports ? !imports.live : true)}>
-                  {proId ? `Add ${upcoming.length} to ${names.get(proId) || "their"} calendar` : "Pick a team member"}
-                </Button>
-                <Button variant="ghost" onClick={clear}>
-                  Clear
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </Section>
+    <div className="space-y-12">
+      {team.length ? (
+        <CalendarImport team={team} teamHref={studioHref("team")} checkClashes={checkClashes} />
+      ) : (
+        <EmptyState title="Add your team first" body="Appointments are matched to the people on your team, so invite them before importing." />
+      )}
 
       <Section title="Past imports" description="Undo removes everything an import added that hasn't been used yet. Appointments already marked done, and clients already emailed, are kept.">
         {!imports ? (

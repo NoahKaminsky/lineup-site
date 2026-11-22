@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
 import { getStudioForUser, isStudioLive, errorMessage } from "@/app/lib/studios";
+import { BLOCKING_BOOKING_STATUSES, getFrontDeskTimes, getTimeOffDays } from "@/app/lib/busyTimes";
+import { getStandingHolds } from "@/app/lib/standing";
 import {
   ImportNotReadyError,
   MAX_APPOINTMENT_ROWS,
@@ -15,12 +17,19 @@ import {
 //   GET                                                   the shop's imports, newest first
 //   POST { action: "appointments", professionalId, rows } hold one pro's upcoming appointments
 //   POST { action: "undo-batch", id }                     undo a whole import
+//   POST { action: "check-clashes", items }               preview only: which rows clash
+//                                                         with what's already on LineUp
 // The shop's owner and managers only, and only for active members of their
 // own shop. Imported appointments block that pro's time; nobody is messaged
 // or charged, and they stay out of analytics, earnings and plan limits.
 // (The shop's client list is imported under /api/studio/clients.)
 
 export const maxDuration = 300;
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME = /^\d{2}:\d{2}$/;
+const MAX_CLASH_ITEMS = 5000;
+type ClashItem = { key: string; proId: string; date: string; start: string; end: string };
 
 async function context(req: Request) {
   const user = await getAuthenticatedUser(req);
@@ -88,6 +97,61 @@ export async function POST(req: Request) {
         rows,
       });
       return NextResponse.json({ ok: true, batchId, ...result });
+    }
+
+    // Preview: nothing is written. Each item is one appointment from the
+    // owner's files; we say which ones land on time that's already taken.
+    if (body?.action === "check-clashes") {
+      const items = (Array.isArray(body.items) ? body.items.slice(0, MAX_CLASH_ITEMS) : []).filter(
+        (i: ClashItem) =>
+          i && typeof i.key === "string" && typeof i.proId === "string" && DATE.test(i.date) && TIME.test(i.start) && TIME.test(i.end)
+      ) as ClashItem[];
+      if (!items.length) return NextResponse.json({ clashes: {} });
+
+      // Only this shop's own team.
+      const { data: members } = await supabase
+        .from("studio_members")
+        .select("profile_id")
+        .eq("studio_id", ctx.studio.id)
+        .eq("status", "active");
+      const team = new Set((members || []).map((m) => m.profile_id as string));
+      const mine = items.filter((i) => team.has(i.proId));
+      if (!mine.length) return NextResponse.json({ clashes: {} });
+
+      const ids = [...new Set(mine.map((i) => i.proId))];
+      const dates = mine.map((i) => i.date).sort();
+      const from = dates[0];
+      const to = dates[dates.length - 1];
+      const [{ data: booked, error }, frontDesk, offDays, held] = await Promise.all([
+        supabase
+          .from("bookings")
+          .select("professional_id, booking_date, start_time, end_time")
+          .in("professional_id", ids)
+          .in("status", BLOCKING_BOOKING_STATUSES)
+          .gte("booking_date", from)
+          .lte("booking_date", to),
+        getFrontDeskTimes(ids, from, to),
+        getTimeOffDays(ids, from, to),
+        getStandingHolds(ids, from, to),
+      ]);
+      if (error) throw error;
+
+      type Busy = { pro: string; date: string; start: string; end: string; what: string };
+      const busy: Busy[] = [
+        ...(booked || []).map((b) => ({ pro: b.professional_id, date: String(b.booking_date), start: String(b.start_time).slice(0, 5), end: String(b.end_time).slice(0, 5), what: "a LineUp booking" })),
+        ...frontDesk.map((b) => ({ pro: b.professional_id, date: b.booking_date, start: b.start_time, end: b.end_time, what: "something already on their calendar" })),
+        ...offDays.map((d) => ({ pro: d.professional_id, date: d.date, start: "00:00", end: "24:00", what: "their time off" })),
+        ...held.map((b) => ({ pro: b.professional_id, date: b.booking_date, start: b.start_time, end: b.end_time, what: "a regular client's visit" })),
+      ];
+      const byDay = new Map<string, Busy[]>();
+      for (const b of busy) byDay.set(`${b.pro}|${b.date}`, [...(byDay.get(`${b.pro}|${b.date}`) || []), b]);
+
+      const clashes: Record<string, string> = {};
+      for (const i of mine) {
+        const hit = (byDay.get(`${i.proId}|${i.date}`) || []).find((b) => i.start < b.end && i.end > b.start);
+        if (hit) clashes[i.key] = hit.what;
+      }
+      return NextResponse.json({ clashes });
     }
 
     if (body?.action === "undo-batch") {
