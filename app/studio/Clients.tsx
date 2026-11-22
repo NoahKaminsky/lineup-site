@@ -23,7 +23,7 @@ import type { SectionProps } from "./types";
 type Client = {
   id: string;
   name: string | null;
-  email: string;
+  email: string | null;
   phone: string | null;
   addedAt: string;
   invitedAt: string | null;
@@ -82,7 +82,7 @@ export default function ClientsView({ data, setNotice }: SectionProps) {
   }, [setNotice]);
 
   const clients = useMemo(() => list?.clients ?? [], [list]);
-  const toInvite = clients.filter((c) => !c.invitedAt && !c.unsubscribed);
+  const toInvite = clients.filter((c) => !c.invitedAt && !c.unsubscribed && !!c.email);
   const invited = clients.filter((c) => c.invitedAt).length;
   const joined = clients.filter((c) => c.onLineUp).length;
 
@@ -91,7 +91,7 @@ export default function ClientsView({ data, setNotice }: SectionProps) {
     if (!q) return clients;
     return clients.filter(
       (c) =>
-        c.email.includes(q) ||
+        (c.email || "").includes(q) ||
         (c.name || "").toLowerCase().includes(q) ||
         (c.phone || "").includes(q),
     );
@@ -194,12 +194,10 @@ export default function ClientsView({ data, setNotice }: SectionProps) {
                 <li key={c.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-medium text-ink">
-                      {c.name || c.email}
+                      {c.name || c.email || c.phone}
                     </p>
                     <p className="truncate text-sm text-neutral-500">
-                      {c.name ? c.email : null}
-                      {c.name && c.phone ? " · " : null}
-                      {c.phone}
+                      {[c.name ? c.email : null, c.name || c.email ? c.phone : null].filter(Boolean).join(" · ")}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
@@ -212,7 +210,7 @@ export default function ClientsView({ data, setNotice }: SectionProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      aria-label={`Remove ${c.name || c.email}`}
+                      aria-label={`Remove ${c.name || c.email || c.phone}`}
                       loading={removing === c.id}
                       onClick={() => remove(c)}
                     >
@@ -322,7 +320,7 @@ function ImportSheet({
         "/api/studio/clients",
         {
           method: "POST",
-          body: { action: "import", consent, rows: rows.slice(i, i + 2000) },
+          body: { action: "import", consent, rows: rows.slice(i, i + 2000), fileName },
         },
       );
       if (!res.ok) {

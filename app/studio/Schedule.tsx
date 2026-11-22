@@ -5,7 +5,8 @@
 // for now. Month view is the overview; picking a day opens it.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Phone, Plus } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, FileUp, Phone, Plus } from "lucide-react";
 import { formatCad, studioFetch } from "./studioApi";
 import { Avatar, Button, Field, Menu, Segmented, Sheet, Tag, buttonClass, fieldClass, panelClass, SIGNAL } from "./ui";
 import {
@@ -150,7 +151,8 @@ export default function ScheduleView({ data, busy, run, setNotice }: SectionProp
   const atShopCents = active
     .filter((i) => (i.kind !== "online" || i.payAtShop) && i.status !== "completed")
     .reduce((sum, i) => sum + (i.priceCents || 0), 0);
-  const walkIns = active.filter((i) => i.kind !== "online").length;
+  const walkIns = active.filter((i) => i.kind === "walk_in" || i.kind === "phone").length;
+  const imported = active.filter((i) => i.kind === "imported").length;
 
   return (
     <div>
@@ -208,6 +210,16 @@ export default function ScheduleView({ data, busy, run, setNotice }: SectionProp
               { value: "month", label: "Month" },
             ]}
           />
+          {me.canManage ? (
+            <Link
+              href="/studio/import"
+              aria-label="Import your calendar"
+              className={buttonClass("secondary", "md", "shrink-0 max-sm:w-10 max-sm:px-0")}
+            >
+              <FileUp className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden lg:inline">Import your calendar</span>
+            </Link>
+          ) : null}
           {canBook ? (
             <Button
               variant="primary"
@@ -233,9 +245,20 @@ export default function ScheduleView({ data, busy, run, setNotice }: SectionProp
           {items === null
             ? "Loading…"
             : active.length === 0
-            ? "Nothing booked."
+            ? me.canManage
+              ? (
+                  <>
+                    Nothing booked.{" "}
+                    <Link href="/studio/import" className="font-medium text-ink underline underline-offset-2">
+                      Moving from another app? Import your calendar
+                    </Link>
+                    .
+                  </>
+                )
+              : "Nothing booked."
             : `${active.length} ${active.length === 1 ? "appointment" : "appointments"}${
                 walkIns ? `, ${walkIns} ${walkIns === 1 ? "walk-in" : "walk-ins"}` : ""
+              }${imported ? `, ${imported} imported` : ""
               }${atShopCents ? `. ${formatCad(atShopCents)} to collect at the shop.` : "."}`}
         </p>
       ) : null}

@@ -4,6 +4,7 @@ import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@
 import { getStudioForUser, isStudioLive, errorMessage } from "@/app/lib/studios";
 import { getSiteUrl } from "@/app/lib/siteUrl";
 import { studioInviteEmail } from "@/lib/email/studioClientInvite";
+import { ImportNotReadyError, createBatch, finishBatch, readSource } from "@/app/lib/importBatch";
 
 // A shop's own client list.
 //   GET                                        the list, with who's invited / on LineUp
@@ -28,7 +29,7 @@ const BATCH_SIZE = 100; // Resend's batch limit
 type Row = {
   id: string;
   name: string | null;
-  email: string;
+  email: string | null;
   phone: string | null;
   created_at: string;
   invited_at: string | null;
@@ -71,7 +72,7 @@ export async function GET(req: Request) {
     }
 
     // Who already has a LineUp account (by email).
-    const emails = (data || []).map((r) => r.email);
+    const emails = (data || []).map((r) => r.email).filter((e): e is string => !!e);
     const onLineUp = new Set<string>();
     for (let i = 0; i < emails.length; i += 500) {
       const { data: found } = await supabase.from("profiles").select("email").in("email", emails.slice(i, i + 500));
@@ -91,7 +92,7 @@ export async function GET(req: Request) {
         addedAt: r.created_at,
         invitedAt: r.invited_at,
         unsubscribed: !!r.unsubscribed_at,
-        onLineUp: onLineUp.has(r.email),
+        onLineUp: !!r.email && onLineUp.has(r.email),
       })),
     });
   } catch (error) {
@@ -120,7 +121,7 @@ export async function POST(req: Request) {
       }
 
       const seen = new Set<string>();
-      const rows = [];
+      const rows: { studio_id: string; email: string; name: string | null; phone: string | null; added_by: string; import_batch_id?: string }[] = [];
       let skipped = 0;
       for (const raw of incoming) {
         const email = String(raw?.email || "").trim().toLowerCase();
@@ -146,6 +147,24 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: `A shop's list can hold up to ${MAX_LIST} clients. Contact LineUp for more.` }, { status: 409 });
       }
 
+      if (!rows.length) return NextResponse.json({ error: "No clients with an email address were found." }, { status: 400 });
+
+      // One import batch per upload, so the whole list can be undone at once.
+      let batchId: string | null = null;
+      try {
+        batchId = await createBatch(supabase, {
+          kind: "clients",
+          studioId: ctx.studio.id,
+          professionalId: null,
+          createdBy: user.id,
+          ...readSource(body),
+          rowCount: incoming.length,
+        });
+      } catch (error) {
+        if (!(error instanceof ImportNotReadyError)) throw error;
+      }
+      if (batchId) for (const r of rows) r.import_batch_id = batchId;
+
       // Existing clients are left exactly as they are (including unsubscribes).
       let added = 0;
       for (let i = 0; i < rows.length; i += 500) {
@@ -156,6 +175,7 @@ export async function POST(req: Request) {
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
         added += data?.length || 0;
       }
+      if (batchId) await finishBatch(supabase, batchId, { added, problems: skipped });
       return NextResponse.json({ ok: true, added, alreadyThere: rows.length - added, skipped });
     }
 
@@ -183,11 +203,14 @@ export async function POST(req: Request) {
         .select("id, name, email, phone, created_at, invited_at, unsubscribed_at, unsubscribe_token")
         .eq("studio_id", studio.id)
         .is("invited_at", null)
-        .is("unsubscribed_at", null);
+        .is("unsubscribed_at", null)
+        // Clients brought over with only a phone number can't be emailed.
+        .not("email", "is", null);
       if (Array.isArray(body.ids) && body.ids.length) query = query.in("id", body.ids.slice(0, MAX_LIST));
       const { data, error } = await query.limit(MAX_LIST);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      const pending = (data || []) as Row[];
+      // Only clients with an email can get the invite (the query skips the rest too).
+      const pending = ((data || []) as Row[]).filter((r): r is Row & { email: string } => !!r.email);
       if (!pending.length) return NextResponse.json({ error: "Everyone on your list has already been invited." }, { status: 400 });
 
       // The page must echo the count it showed, so a stale screen can't

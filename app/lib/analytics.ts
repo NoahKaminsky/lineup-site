@@ -1,6 +1,6 @@
 // Analytics for a pro or a whole shop, worked out from real records: every
 // booking (online, requests, regulars, pay at the shop, membership visits) and
-// every front-desk appointment (walk-ins, phone, imported).
+// every front-desk appointment (walk-ins, phone). Imported appointments are left out.
 //
 // The point is to answer the questions that make money: is the business
 // growing, who is overdue to come back, which hours sit empty, which services
@@ -308,7 +308,9 @@ export async function buildAnalytics(
       return q.order("id").range(a, b);
     }),
     fetchAll<FrontDeskRow>((a, b) => {
-      let q = supabase.from("shop_appointments").select("*");
+      // Imported appointments (moved over from another app) hold time on the
+      // calendar but aren't LineUp activity, so analytics leaves them out.
+      let q = supabase.from("shop_appointments").select("*").neq("kind", "imported");
       q = shopId ? q.eq("studio_id", shopId) : q.eq("professional_id", opts.userId);
       if (opts.onlyStudioId) q = q.eq("studio_id", opts.onlyStudioId);
       return q.order("id").range(a, b);

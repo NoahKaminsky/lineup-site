@@ -7,14 +7,27 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, Mail, Trash2, Upload, Users } from "lucide-react";
+import { CalendarDays, History, Mail, Trash2, Undo2, Upload, Users } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { parseAppointments } from "@/app/lib/appointmentImport";
 import { parseClientList } from "@/app/studio/clientImport";
+import { SOURCE_APPS, SOURCE_APP_LABELS, type SourceApp } from "@/app/lib/importSources";
 
 type Appt = { id: string; client: string; service: string; date: string; start: string; end: string };
 type Client = { id: string; name: string | null; email: string; phone: string | null; invited: boolean; unsubscribed: boolean };
-type State = { subscribed: boolean; ready: boolean; appointments: Appt[]; clients: Client[] };
+type Batch = {
+  id: string;
+  kind: "appointments" | "clients";
+  createdAt: string;
+  sourceApp: SourceApp;
+  fileNames: string[];
+  addedCount: number;
+  clashCount: number;
+  undoneAt: string | null;
+  keptCount: number;
+  removable: number;
+};
+type State = { subscribed: boolean; ready: boolean; appointments: Appt[]; clients: Client[]; batches?: Batch[] };
 
 async function api<T>(path: string, init: RequestInit = {}) {
   const {
@@ -76,6 +89,7 @@ export default function ImportPage() {
   const [clientText, setClientText] = useState("");
   const [clientFile, setClientFile] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
+  const [sourceApp, setSourceApp] = useState<SourceApp>("other");
 
   async function reload() {
     const res = await api<State>("/api/pro/import");
@@ -107,7 +121,7 @@ export default function ImportPage() {
     setNotice(null);
     const res = await api<{ added: number; past: number; clashCount: number; clashes: string[] }>("/api/pro/import", {
       method: "POST",
-      body: JSON.stringify({ action: "appointments", rows: upcoming }),
+      body: JSON.stringify({ action: "appointments", rows: upcoming, sourceApp, sourceType: "csv", fileName: apptFile }),
     });
     setBusy(null);
     if (!res.ok) return setNotice({ tone: "error", text: res.json.error || "Couldn't add those." });
@@ -128,7 +142,7 @@ export default function ImportPage() {
     setNotice(null);
     const res = await api<{ added: number; alreadyThere: number }>("/api/pro/import", {
       method: "POST",
-      body: JSON.stringify({ action: "clients", consent, rows: clients.clients }),
+      body: JSON.stringify({ action: "clients", consent, rows: clients.clients, sourceApp, sourceType: "csv", fileName: clientFile }),
     });
     setBusy(null);
     if (!res.ok) return setNotice({ tone: "error", text: res.json.error || "Couldn't add your clients." });
@@ -149,6 +163,17 @@ export default function ImportPage() {
     setBusy(null);
     if (!res.ok && !res.json.sent) return setNotice({ tone: "error", text: res.json.error || "The invites didn't send." });
     setNotice({ tone: "ok", text: `Invites sent to ${res.json.sent}.${res.json.failed ? ` ${res.json.failed} didn't go through.` : ""}` });
+    void reload();
+  }
+
+  async function undo(b: Batch) {
+    const what = b.kind === "clients" ? "clients" : "appointments";
+    if (!window.confirm(`Undo this import? ${b.removable} ${what} from it will be removed. Anything already marked done or already emailed is kept.`)) return;
+    setBusy(`undo-${b.id}`);
+    const res = await api<{ removed: number; kept: number }>("/api/pro/import", { method: "POST", body: JSON.stringify({ action: "undo-batch", id: b.id }) });
+    setBusy(null);
+    if (!res.ok) return setNotice({ tone: "error", text: res.json.error || "Couldn't undo that import." });
+    setNotice({ tone: "ok", text: `Import undone: ${res.json.removed} removed${res.json.kept ? `, ${res.json.kept} kept because they were already done or emailed` : ""}.` });
     void reload();
   }
 
@@ -187,6 +212,17 @@ export default function ImportPage() {
             {notice.text}
           </p>
         ) : null}
+
+        <label className={`block ${!state.subscribed ? "pointer-events-none opacity-50" : ""}`}>
+          <span className="mb-1.5 block text-[13px] font-medium text-neutral-800">Exporting from</span>
+          <select value={sourceApp} onChange={(e) => setSourceApp(e.target.value as SourceApp)} className="h-11 w-full max-w-xs rounded-xl bg-white px-3.5 text-sm ring-1 ring-inset ring-ink/15">
+            {SOURCE_APPS.map((app) => (
+              <option key={app} value={app}>
+                {SOURCE_APP_LABELS[app]}
+              </option>
+            ))}
+          </select>
+        </label>
 
         {/* ── Appointments ───────────────────────────────────── */}
         <section className={`${panel} ${!state.subscribed ? "pointer-events-none opacity-50" : ""}`}>
@@ -335,6 +371,46 @@ export default function ImportPage() {
             </div>
           ) : null}
         </section>
+
+        {/* ── Past imports ───────────────────────────────────── */}
+        {state.batches?.length ? (
+          <section className={panel}>
+            <div className="flex items-start gap-3">
+              <History className="mt-0.5 h-5 w-5 shrink-0 text-neutral-500" aria-hidden="true" />
+              <div>
+                <h2 className="text-lg font-semibold tracking-[-0.02em]">Past imports</h2>
+                <p className="mt-1 text-sm leading-6 text-neutral-500">
+                  Undo takes out everything an import added that hasn&apos;t been used yet. Appointments already marked done, and clients already emailed, stay.
+                </p>
+              </div>
+            </div>
+            <ul className="mt-5 divide-y divide-hairline rounded-2xl ring-1 ring-ink/[0.06]">
+              {state.batches.map((b) => (
+                <li key={b.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium">
+                      {b.addedCount} {b.kind === "clients" ? (b.addedCount === 1 ? "client" : "clients") : b.addedCount === 1 ? "appointment" : "appointments"}
+                    </span>
+                    <span className="block truncate text-xs text-neutral-500">
+                      {new Date(b.createdAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })} · {SOURCE_APP_LABELS[b.sourceApp] || "Another app"}
+                      {b.fileNames[0] ? ` · ${b.fileNames[0]}` : ""}
+                    </span>
+                  </span>
+                  {b.undoneAt ? (
+                    <span className="text-xs text-neutral-500">{b.keptCount ? `Undone, ${b.keptCount} kept` : "Undone"}</span>
+                  ) : b.removable ? (
+                    <button type="button" onClick={() => undo(b)} disabled={busy === `undo-${b.id}`} className={secondary}>
+                      <Undo2 className="h-4 w-4" aria-hidden="true" />
+                      {busy === `undo-${b.id}` ? "Undoing…" : "Undo"}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-neutral-500">Nothing left to undo</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </div>
     </main>
   );

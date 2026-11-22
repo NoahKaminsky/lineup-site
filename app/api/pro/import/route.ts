@@ -2,11 +2,20 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
 import { getMembershipForProfile } from "@/app/lib/studios";
-import { hasOnlineBookingClash } from "@/app/lib/busyTimes";
 import { shopNow } from "@/app/lib/bookingTime";
 import { getSiteUrl } from "@/app/lib/siteUrl";
 import { getProfileHref } from "@/app/lib/profileLink";
 import { studioInviteEmail } from "@/lib/email/studioClientInvite";
+import {
+  ImportNotReadyError,
+  MAX_APPOINTMENT_ROWS,
+  createBatch,
+  finishBatch,
+  insertImportedAppointments,
+  listBatches,
+  readSource,
+  undoBatch,
+} from "@/app/lib/importBatch";
 
 // A pro brings their book over from another app.
 //   GET                                           what they've imported so far
@@ -25,9 +34,6 @@ import { studioInviteEmail } from "@/lib/email/studioClientInvite";
 export const maxDuration = 300;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const TIME = /^\d{2}:\d{2}$/;
-const MAX_ROWS = 1000;
 
 async function context(req: Request) {
   const user = await getAuthenticatedUser(req);
@@ -59,7 +65,7 @@ export async function GET(req: Request) {
   const { supabase, user, subscribed } = c;
   const today = shopNow().dateKey;
 
-  const [{ data: appointments }, { data: clients, error: clientsError }] = await Promise.all([
+  const [{ data: appointments }, { data: clients, error: clientsError }, batches] = await Promise.all([
     supabase
       .from("shop_appointments")
       .select("id, client_name, service_name, appointment_date, start_time, end_time, status")
@@ -76,11 +82,13 @@ export async function GET(req: Request) {
       .eq("professional_id", user.id)
       .order("created_at", { ascending: false })
       .limit(5000),
+    listBatches(supabase, { professionalId: user.id }).catch(() => null),
   ]);
 
   return NextResponse.json({
     subscribed,
     ready: !clientsError,
+    batches: batches || [],
     appointments: (appointments || []).map((a) => ({
       id: a.id,
       client: a.client_name,
@@ -114,50 +122,34 @@ export async function POST(req: Request) {
 
     // ── Appointments ─────────────────────────────────────────
     if (body?.action === "appointments") {
-      const rows = Array.isArray(body.rows) ? body.rows.slice(0, MAX_ROWS) : [];
+      const rows = Array.isArray(body.rows) ? body.rows.slice(0, MAX_APPOINTMENT_ROWS) : [];
       if (!rows.length) return NextResponse.json({ error: "There are no appointments to add." }, { status: 400 });
-      const today = shopNow().dateKey;
+      const source = readSource(body);
+      const batchId = await createBatch(supabase, {
+        kind: "appointments",
+        studioId,
+        professionalId: user.id,
+        createdBy: user.id,
+        ...source,
+        rowCount: rows.length,
+      });
+      const result = await insertImportedAppointments(supabase, { batchId, studioId, professionalId: user.id, createdBy: user.id, rows });
+      return NextResponse.json({ ok: true, batchId, ...result });
+    }
 
-      let added = 0;
-      let past = 0;
-      const clashes: string[] = [];
-      for (const raw of rows) {
-        const date = String(raw?.date || "");
-        const start = String(raw?.start || "");
-        const end = String(raw?.end || "");
-        if (!DATE.test(date) || !TIME.test(start) || !TIME.test(end) || end <= start) continue;
-        if (date < today) {
-          past++;
-          continue;
-        }
-        if (await hasOnlineBookingClash(user.id, date, start, end)) {
-          clashes.push(`${date} ${start}`);
-          continue;
-        }
-        const price = Number(raw?.priceCents);
-        const { error } = await supabase.from("shop_appointments").insert({
-          studio_id: studioId,
-          professional_id: user.id,
-          created_by: user.id,
-          kind: "imported",
-          client_name: clean(raw?.clientName, 80) || "Client",
-          client_phone: clean(raw?.clientPhone, 30),
-          service_name: clean(raw?.service, 120) || "Appointment",
-          appointment_date: date,
-          start_time: start,
-          end_time: end,
-          price_cents: Number.isFinite(price) && price > 0 && price <= 10_000_000 ? Math.round(price) : null,
-          status: "booked",
-          note: "Imported from another booking app",
-        });
-        if (!error) added++;
-        // 23P01: overlaps something already on the calendar (or imported twice).
-        else if (error.code === "23P01") clashes.push(`${date} ${start}`);
-        else if (error.code === "23514" || error.code === "23502") {
-          return NextResponse.json({ error: "Importing appointments is still being switched on. Try again soon." }, { status: 503 });
-        } else throw error;
-      }
-      return NextResponse.json({ ok: true, added, past, clashes: clashes.slice(0, 50), clashCount: clashes.length });
+    // Undo one whole import of the pro's own.
+    if (body?.action === "undo-batch") {
+      if (typeof body.id !== "string") return NextResponse.json({ error: "Missing import." }, { status: 400 });
+      const { data: batch } = await supabase
+        .from("import_batches")
+        .select("id, undone_at")
+        .eq("id", body.id)
+        .eq("professional_id", user.id)
+        .eq("created_by", user.id)
+        .maybeSingle();
+      if (!batch) return NextResponse.json({ error: "That import wasn't found." }, { status: 404 });
+      if (batch.undone_at) return NextResponse.json({ error: "That import was already undone." }, { status: 409 });
+      return NextResponse.json({ ok: true, ...(await undoBatch(supabase, batch.id, user.id)) });
     }
 
     if (body?.action === "remove-appointment") {
@@ -175,7 +167,7 @@ export async function POST(req: Request) {
       if (body.consent !== true) return NextResponse.json({ error: "Confirm these are your own clients first." }, { status: 400 });
       const incoming = Array.isArray(body.rows) ? body.rows.slice(0, 2000) : [];
       const seen = new Set<string>();
-      const rows = [];
+      const rows: { professional_id: string; email: string; name: string | null; phone: string | null; added_by: string; import_batch_id?: string }[] = [];
       for (const raw of incoming) {
         const email = String(raw?.email || "").trim().toLowerCase();
         if (!EMAIL_RE.test(email) || email.length > 254 || seen.has(email)) continue;
@@ -183,6 +175,15 @@ export async function POST(req: Request) {
         rows.push({ professional_id: user.id, email, name: clean(raw?.name, 120), phone: clean(raw?.phone, 40), added_by: user.id });
       }
       if (!rows.length) return NextResponse.json({ error: "No clients with an email address were found." }, { status: 400 });
+      const batchId = await createBatch(supabase, {
+        kind: "clients",
+        studioId: null,
+        professionalId: user.id,
+        createdBy: user.id,
+        ...readSource(body),
+        rowCount: incoming.length,
+      });
+      for (const r of rows) r.import_batch_id = batchId;
       let added = 0;
       for (let i = 0; i < rows.length; i += 500) {
         const { data, error } = await supabase
@@ -197,6 +198,7 @@ export async function POST(req: Request) {
         }
         added += data?.length || 0;
       }
+      await finishBatch(supabase, batchId, { added, problems: incoming.length - rows.length });
       return NextResponse.json({ ok: true, added, alreadyThere: rows.length - added });
     }
 
@@ -213,6 +215,7 @@ export async function POST(req: Request) {
         .eq("professional_id", user.id)
         .is("invited_at", null)
         .is("unsubscribed_at", null)
+        .not("email", "is", null)
         .limit(5000);
       if (!pending?.length) return NextResponse.json({ error: "Everyone on your list has already been invited." }, { status: 400 });
       if (typeof body.confirmCount === "number" && body.confirmCount !== pending.length) {
@@ -271,6 +274,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (error) {
+    if (error instanceof ImportNotReadyError) {
+      return NextResponse.json({ error: "Importing is still being switched on. Try again soon." }, { status: 503 });
+    }
     console.error("POST /api/pro/import failed:", error);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }

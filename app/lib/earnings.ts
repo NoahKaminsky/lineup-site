@@ -3,9 +3,9 @@
 //
 // Money through LineUp (online bookings, no-show fees, gift cards,
 // memberships, booth rent) comes from what LineUp actually charged and paid
-// out. Money paid at the shop (walk-ins, phone-ins, imported appointments and
-// "pay at the shop" bookings) never touched LineUp, so it's what the front
-// desk recorded.
+// out. Money paid at the shop (walk-ins, phone-ins and "pay at the shop"
+// bookings) never touched LineUp, so it's what the front desk recorded.
+// Imported appointments (moved over from another app) are left out entirely.
 //
 // Every line balances:  price + tip - covered by gift card - LineUp fee
 //                       = to shop + to pro
@@ -522,7 +522,7 @@ export async function proEarnings(supabase: ServiceClient, proId: string, from: 
 
   const [{ data: bookings }, { data: appts }, { data: cards }, { data: memberships }] = await Promise.all([
     fetchAll<BookingRow>((a, b) => supabase.from("bookings").select(BOOKING_COLUMNS).eq("professional_id", proId).gte("booking_date", from).lte("booking_date", to).order("id").range(a, b)).then((data) => ({ data })),
-    fetchAll<ShopAppointmentRow>((a, b) => supabase.from("shop_appointments").select("*").eq("professional_id", proId).gte("appointment_date", from).lte("appointment_date", to).order("id").range(a, b)).then((data) => ({ data })),
+    fetchAll<ShopAppointmentRow>((a, b) => supabase.from("shop_appointments").select("*").neq("kind", "imported").eq("professional_id", proId).gte("appointment_date", from).lte("appointment_date", to).order("id").range(a, b)).then((data) => ({ data })),
     supabase
       .from("gift_cards")
       .select("id, professional_id, studio_id, amount_cents, buyer_name, recipient_name, activated_at")
@@ -612,7 +612,7 @@ export async function shopEarnings(supabase: ServiceClient, studio: StudioRow, f
   const [{ data: bookings }, { data: appts }, { data: cards }, { data: members }, { data: clientMemberships }, { data: plans }] =
     await Promise.all([
       fetchAll<BookingRow>((a, b) => supabase.from("bookings").select(BOOKING_COLUMNS).eq("studio_id", studio.id).gte("booking_date", from).lte("booking_date", to).order("id").range(a, b)).then((data) => ({ data })),
-      fetchAll<ShopAppointmentRow>((a, b) => supabase.from("shop_appointments").select("*").eq("studio_id", studio.id).gte("appointment_date", from).lte("appointment_date", to).order("id").range(a, b)).then((data) => ({ data })),
+      fetchAll<ShopAppointmentRow>((a, b) => supabase.from("shop_appointments").select("*").neq("kind", "imported").eq("studio_id", studio.id).gte("appointment_date", from).lte("appointment_date", to).order("id").range(a, b)).then((data) => ({ data })),
       supabase
         .from("gift_cards")
         .select("id, professional_id, studio_id, amount_cents, buyer_name, recipient_name, activated_at")

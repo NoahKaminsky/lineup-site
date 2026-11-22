@@ -1,0 +1,8 @@
+Date,Time,Barber,Client,Phone,Email,Service,Duration,Price,Status
+11/26/2026,10:00 AM,Alex,Jordan Lee,(204) 555-0134,jordan@example.com,Skin Fade,45 min,$40.00,Confirmed
+11/26/2026,11:00 AM,Sam R.,Casey Nguyen,204-555-0177,,Beard Trim,30 min,$25.00,Confirmed
+11/27/2026,2:30 PM,Taylor,Devon Brooks,,,Haircut,30 min,$35.00,Confirmed
+11/27/2026,3:00 PM,Alex,Priya Shah,,,Kids Cut,30 min,$25.00,Cancelled
+11/28/2026,9:15 AM,Jamie Chen,Ava Wright,,ava@example.com,Line Up,15 min,$15.00,Confirmed
+11/02/2026,1:00 PM,Alex,Noor Ali,,,Skin Fade,45 min,$40.00,Completed
+not a date,10:00 AM,Alex,Bad Row,,,Haircut,30 min,$35.00,Confirmed
