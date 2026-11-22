@@ -10,11 +10,14 @@ import { Button, fieldClass, panelClass } from "../ui";
 import { time12 } from "../types";
 import { shopNow } from "@/app/lib/bookingTime";
 import type { Confidence, ImportRow, SkippedRow, TeamPro } from "@/app/lib/calendarImport/types";
-import type { ClashChecker } from "./CalendarImport";
+import type { ClashChecker, SaveInputRow } from "./CalendarImport";
+import type { SaveSummary } from "./Summary";
 
 type ReviewFile = { id: string; name: string; rows: ImportRow[]; skipped: SkippedRow[] };
 type Filter = "all" | "check" | "clash" | "past" | "skipped";
-type Row = ImportRow & { past: boolean; clash: string | null };
+type Row = ImportRow & { past: boolean; clash: string | null; already: boolean };
+// The clash checker marks rows that an earlier import already added.
+const ALREADY = "__already__";
 
 const PAGE = 60;
 
@@ -34,6 +37,8 @@ export default function Review({
   overrides,
   setOverrides,
   onBack,
+  save,
+  onSaved,
 }: {
   files: ReviewFile[];
   team: TeamPro[];
@@ -43,7 +48,11 @@ export default function Review({
   overrides: Record<string, string>;
   setOverrides: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   onBack: () => void;
+  save: (rows: SaveInputRow[], unmatched: number, onProgress: (done: number, total: number) => void) => Promise<SaveSummary>;
+  onSaved: (summary: SaveSummary) => void;
 }) {
+  const [saving, setSaving] = useState<{ done: number; total: number } | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [shown, setShown] = useState(PAGE);
   const [serverClashes, setServerClashes] = useState<Record<string, string> | null>(null);
@@ -96,18 +105,20 @@ export default function Review({
     const seen = new Map<string, Row[]>();
     return base.map((r) => {
       const past = r.date < now.dateKey || (r.date === now.dateKey && r.end <= nowTime);
-      let clash = !past ? serverClashes?.[r.key] || null : null;
+      const server = serverClashes?.[r.key] || null;
+      const already = server === ALREADY;
+      let clash = !past && !already ? server : null;
       if (r.proId && !past) {
         const sameDay = seen.get(`${r.proId}|${r.date}`) || [];
         const twin = sameDay.find((o) => o.start === r.start && o.end === r.end);
         const overlap = sameDay.find((o) => r.start < o.end && r.end > o.start);
-        if (twin) clash = clash || "the same appointment, listed twice in your files";
-        else if (overlap) clash = clash || "another appointment in your files";
-        const row = { ...r, past, clash };
+        if (!already && twin) clash = clash || "the same appointment, listed twice in your files";
+        else if (!already && overlap) clash = clash || "another appointment in your files";
+        const row = { ...r, past, clash, already };
         seen.set(`${r.proId}|${r.date}`, [...sameDay, row]);
         return row;
       }
-      return { ...r, past, clash };
+      return { ...r, past, clash, already };
     });
   }, [base, serverClashes, now.dateKey, nowTime]);
 
@@ -132,6 +143,38 @@ export default function Review({
 
   const visible =
     filter === "check" ? needsCheck : filter === "clash" ? clashes : filter === "past" ? past : filter === "skipped" ? [] : rows;
+
+  // Everything with a team member picked: upcoming ones block time, past
+  // ones become client history.
+  const toSave: SaveInputRow[] = rows
+    .filter((r) => r.proId)
+    .map((r) => ({
+      key: r.key,
+      proId: r.proId!,
+      date: r.date,
+      start: r.start,
+      end: r.end,
+      clientName: r.clientName,
+      clientPhone: r.clientPhone,
+      clientEmail: r.clientEmail,
+      service: r.service,
+      priceCents: r.priceCents,
+    }));
+
+  async function confirm() {
+    setSaveError(null);
+    setSaving({ done: 0, total: toSave.length });
+    try {
+      const summary = await save(toSave, unmatched.length, (done, total) => setSaving({ done, total }));
+      const byKey = new Map(rows.map((r) => [r.key, r.clientName]));
+      summary.skipped = summary.skipped.map((s) => ({ ...s, client: byKey.get(s.key) || null }));
+      onSaved(summary);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Something went wrong, so nothing was added. Please try again.");
+    } finally {
+      setSaving(null);
+    }
+  }
 
   function setPro(key: string, proId: string) {
     setOverrides((o) => ({ ...o, [key]: proId }));
@@ -328,13 +371,24 @@ export default function Review({
         <p className={`${panelClass} px-5 py-8 text-center text-sm text-neutral-500`}>Nothing here.</p>
       )}
 
-      <div className={`${panelClass} flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between`}>
-        <p className="text-sm leading-6 text-neutral-600">
-          Nothing has been added yet. Adding these to your team&apos;s calendars is coming next.
-        </p>
-        <Button variant="primary" disabled>
-          Add to calendars
-        </Button>
+      <div className={`${panelClass} space-y-3 px-5 py-4`}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm leading-6 text-neutral-600" role={saving ? "status" : undefined}>
+            {saving
+              ? `Adding ${saving.done.toLocaleString("en-CA")} of ${saving.total.toLocaleString("en-CA")}…`
+              : `Nothing has been added yet. Anything overlapping a booking already in LineUp is skipped, never replaced, and nobody gets a message.${
+                  unmatched.length ? ` The ${plural(unmatched.length, "appointment")} with nobody picked will be left out.` : ""
+                }`}
+          </p>
+          <Button variant="primary" loading={!!saving} disabled={!toSave.length || !!saving} onClick={confirm} className="shrink-0">
+            {toSave.length ? `Add ${plural(toSave.length, "appointment")}` : "Add to calendars"}
+          </Button>
+        </div>
+        {saveError ? (
+          <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm leading-6 text-red-800">
+            {saveError}
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -349,6 +403,7 @@ function StatusIcon({ row }: { row: Row }) {
 
 function Flags({ row, compact = false }: { row: Row; compact?: boolean }) {
   const flags: { icon: React.ReactNode; text: string; strong?: boolean }[] = [];
+  if (row.already) flags.push({ icon: <CircleCheck className="h-3.5 w-3.5" aria-hidden="true" />, text: "Already in LineUp from an earlier import" });
   if (row.clash) flags.push({ icon: <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />, text: `Clashes with ${row.clash}`, strong: true });
   if (row.past) flags.push({ icon: <History className="h-3.5 w-3.5" aria-hidden="true" />, text: "Already happened, client history only" });
   if (!row.proId) flags.push({ icon: <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />, text: row.staffText ? `"${row.staffText}" isn't on your team` : "Pick who this is for" });

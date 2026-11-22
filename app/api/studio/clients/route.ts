@@ -29,7 +29,7 @@ const BATCH_SIZE = 100; // Resend's batch limit
 type Row = {
   id: string;
   name: string | null;
-  email: string;
+  email: string | null;
   phone: string | null;
   created_at: string;
   invited_at: string | null;
@@ -72,7 +72,7 @@ export async function GET(req: Request) {
     }
 
     // Who already has a LineUp account (by email).
-    const emails = (data || []).map((r) => r.email);
+    const emails = (data || []).map((r) => r.email).filter((e): e is string => !!e);
     const onLineUp = new Set<string>();
     for (let i = 0; i < emails.length; i += 500) {
       const { data: found } = await supabase.from("profiles").select("email").in("email", emails.slice(i, i + 500));
@@ -92,7 +92,7 @@ export async function GET(req: Request) {
         addedAt: r.created_at,
         invitedAt: r.invited_at,
         unsubscribed: !!r.unsubscribed_at,
-        onLineUp: onLineUp.has(r.email),
+        onLineUp: !!r.email && onLineUp.has(r.email),
       })),
     });
   } catch (error) {
@@ -203,11 +203,14 @@ export async function POST(req: Request) {
         .select("id, name, email, phone, created_at, invited_at, unsubscribed_at, unsubscribe_token")
         .eq("studio_id", studio.id)
         .is("invited_at", null)
-        .is("unsubscribed_at", null);
+        .is("unsubscribed_at", null)
+        // Clients brought over with only a phone number can't be emailed.
+        .not("email", "is", null);
       if (Array.isArray(body.ids) && body.ids.length) query = query.in("id", body.ids.slice(0, MAX_LIST));
       const { data, error } = await query.limit(MAX_LIST);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      const pending = (data || []) as Row[];
+      // Only clients with an email can get the invite (the query skips the rest too).
+      const pending = ((data || []) as Row[]).filter((r): r is Row & { email: string } => !!r.email);
       if (!pending.length) return NextResponse.json({ error: "Everyone on your list has already been invited." }, { status: 400 });
 
       // The page must echo the count it showed, so a stale screen can't

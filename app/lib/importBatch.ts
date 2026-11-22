@@ -172,6 +172,8 @@ export type BatchSummary = {
   keptCount: number;
   // Rows from this batch that undo would still remove right now.
   removable: number;
+  status: "saving" | "done" | "failed";
+  summary: Record<string, unknown>;
 };
 
 type BatchRow = {
@@ -190,11 +192,13 @@ type BatchRow = {
   problem_count: number;
   undone_at: string | null;
   kept_count: number;
+  status?: "saving" | "done" | "failed";
+  summary?: Record<string, unknown>;
 };
 
 // The batches for a shop, or the ones a pro ran for themselves, newest first.
 export async function listBatches(supabase: ServiceClient, scope: { studioId: string } | { professionalId: string }) {
-  let q = supabase.from("import_batches").select("*").order("created_at", { ascending: false }).limit(50);
+  let q = supabase.from("import_batches").select("*").neq("status", "failed").order("created_at", { ascending: false }).limit(50);
   q = "studioId" in scope ? q.eq("studio_id", scope.studioId) : q.eq("professional_id", scope.professionalId).eq("created_by", scope.professionalId);
   const { data, error } = await q;
   if (error) {
@@ -206,7 +210,7 @@ export async function listBatches(supabase: ServiceClient, scope: { studioId: st
   const removable = new Map<string, number>();
   if (open.length) {
     const [{ data: appts }, { data: clients }] = await Promise.all([
-      supabase.from("shop_appointments").select("import_batch_id").in("import_batch_id", open).eq("kind", "imported").eq("status", "booked"),
+      supabase.from("shop_appointments").select("import_batch_id").in("import_batch_id", open).eq("kind", "imported").in("status", ["booked", "completed", "cancelled"]).is("paid_with", null),
       supabase.from("studio_clients").select("import_batch_id").in("import_batch_id", open).is("invited_at", null),
     ]);
     for (const r of [...(appts || []), ...(clients || [])]) {
@@ -232,41 +236,116 @@ export async function listBatches(supabase: ServiceClient, scope: { studioId: st
       undoneAt: b.undone_at,
       keptCount: b.kept_count,
       removable: removable.get(b.id) || 0,
+      status: b.status || "done",
+      summary: b.summary || {},
     })
   );
 }
 
-// Undo a whole import. Appointments still just "booked" are deleted (their
-// times open up again); ones already marked done, cancelled or no-show are
-// kept as a record. Clients nobody has emailed yet are deleted; ones already
-// invited stay so they never get a second invite.
+// Undo a whole import, and nothing else:
+//   appointments: the batch's own, unless someone has since recorded a
+//     payment on one (marked done and paid at the front desk) or it's a
+//     no-show; their times open up again
+//   clients: only ones this batch created that haven't since been invited
+//     (messaged), edited, unsubscribed, or booked (a LineUp booking or a
+//     walk-in with the same email or phone after the import)
+//   links between clients and pros that this batch made
+// Blanks the batch filled in on clients the shop already had stay filled.
 //
 // The caller has already checked the batch belongs to this shop or pro.
 export async function undoBatch(supabase: ServiceClient, batchId: string, userId: string) {
+  const { data: batch } = await supabase.from("import_batches").select("id, studio_id, created_at").eq("id", batchId).maybeSingle();
+  if (!batch) throw new Error("Import not found");
+
+  // Clients whose visit counts change once this batch's appointments go.
+  const { data: touched } = await supabase
+    .from("shop_appointments")
+    .select("studio_client_id")
+    .eq("import_batch_id", batchId)
+    .not("studio_client_id", "is", null);
+
   const { data: appts, error: apptError } = await supabase
     .from("shop_appointments")
     .delete()
     .eq("import_batch_id", batchId)
     .eq("kind", "imported")
-    .eq("status", "booked")
+    .in("status", ["booked", "completed", "cancelled"])
+    .is("paid_with", null)
     .select("id");
   if (apptError) throw apptError;
-  const { data: clients, error: clientError } = await supabase
+
+  // Clients this batch created that nobody has used since.
+  const { data: candidates, error: candError } = await supabase
     .from("studio_clients")
-    .delete()
+    .select("id, email, phone_norm")
     .eq("import_batch_id", batchId)
     .is("invited_at", null)
-    .select("id");
-  if (clientError) throw clientError;
+    .is("edited_at", null)
+    .is("unsubscribed_at", null);
+  if (candError) throw candError;
+  const used = new Set<string>();
+  if (candidates?.length) {
+    const ids = candidates.map((c) => c.id as string);
+    // Still linked to an appointment that stays (paid, no-show, or a walk-in).
+    const { data: stillLinked } = await supabase.from("shop_appointments").select("studio_client_id").in("studio_client_id", ids);
+    for (const a of stillLinked || []) used.add(a.studio_client_id as string);
+    // Walked in or phoned since, at this shop, by phone number.
+    if (batch.studio_id) {
+      const { data: walkIns } = await supabase
+        .from("shop_appointments")
+        .select("client_phone")
+        .eq("studio_id", batch.studio_id)
+        .neq("kind", "imported")
+        .gte("created_at", batch.created_at);
+      const phones = new Set((walkIns || []).map((w) => normalisePhone(w.client_phone)).filter(Boolean));
+      for (const c of candidates) if (c.phone_norm && phones.has(c.phone_norm)) used.add(c.id as string);
+    }
+    // Booked on LineUp since, by email.
+    const emails = candidates.map((c) => c.email).filter((e): e is string => !!e);
+    if (emails.length) {
+      const { data: people } = await supabase.from("profiles").select("id, email").in("email", emails);
+      const byId = new Map((people || []).map((p) => [p.id as string, String(p.email).toLowerCase()]));
+      if (byId.size) {
+        const { data: booked } = await supabase
+          .from("bookings")
+          .select("customer_id")
+          .in("customer_id", [...byId.keys()])
+          .gte("created_at", batch.created_at);
+        const bookedEmails = new Set((booked || []).map((b) => byId.get(b.customer_id as string)));
+        for (const c of candidates) if (c.email && bookedEmails.has(c.email.toLowerCase())) used.add(c.id as string);
+      }
+    }
+  }
+  const removable = (candidates || []).map((c) => c.id as string).filter((id) => !used.has(id));
+  let clientsRemoved = 0;
+  for (let i = 0; i < removable.length; i += 500) {
+    const { data, error } = await supabase.from("studio_clients").delete().in("id", removable.slice(i, i + 500)).select("id");
+    if (error) throw error;
+    clientsRemoved += data?.length || 0;
+  }
+  await supabase.from("studio_client_pros").delete().eq("import_batch_id", batchId);
 
-  const [{ count: keptAppts }, { count: keptClients }] = await Promise.all([
+  // Recount visits for clients the shop keeps.
+  const keptClients = [...new Set((touched || []).map((t) => t.studio_client_id as string))].filter((id) => !removable.includes(id));
+  if (batch.studio_id && keptClients.length) {
+    const { refreshClientLinks } = await import("@/app/lib/importSave");
+    await refreshClientLinks(supabase, batch.studio_id, keptClients, null);
+  }
+
+  const [{ count: keptAppts }, { count: keptClientCount }] = await Promise.all([
     supabase.from("shop_appointments").select("id", { count: "exact", head: true }).eq("import_batch_id", batchId),
     supabase.from("studio_clients").select("id", { count: "exact", head: true }).eq("import_batch_id", batchId),
   ]);
-  const kept = (keptAppts || 0) + (keptClients || 0);
+  const kept = (keptAppts || 0) + (keptClientCount || 0);
   await supabase
     .from("import_batches")
     .update({ undone_at: new Date().toISOString(), undone_by: userId, kept_count: kept })
     .eq("id", batchId);
-  return { removed: (appts?.length || 0) + (clients?.length || 0), kept };
+  return { removed: (appts?.length || 0) + clientsRemoved, appointmentsRemoved: appts?.length || 0, clientsRemoved, kept };
+}
+
+function normalisePhone(raw: string | null | undefined) {
+  let d = String(raw || "").replace(/\D/g, "");
+  if (d.length === 11 && d.startsWith("1")) d = d.slice(1);
+  return d.length === 10 ? `+1${d}` : null;
 }

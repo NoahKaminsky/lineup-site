@@ -10,9 +10,27 @@ import { FileText, Loader2, Trash2, Upload, X } from "lucide-react";
 import { Button, Field, Segmented, fieldClass, panelClass } from "../ui";
 import ExportHelp from "./ExportHelp";
 import Review from "./Review";
+import Summary, { type SaveSummary } from "./Summary";
 import { parseIcs } from "@/app/lib/calendarImport/ics";
 import { CSV_FIELDS, csvRows, readCsv, type CsvMapping, type CsvTable } from "@/app/lib/calendarImport/csv";
 import type { ParsedFile, TeamPro } from "@/app/lib/calendarImport/types";
+
+export type SaveInputRow = {
+  key: string;
+  proId: string;
+  date: string;
+  start: string;
+  end: string;
+  clientName: string | null;
+  clientPhone: string | null;
+  clientEmail: string | null;
+  service: string | null;
+  priceCents: number | null;
+};
+export type SaveImport = (
+  input: { rows: SaveInputRow[]; unmatched: number; fileNames: string[]; sourceApp: string; sourceType: "ics" | "csv" },
+  onProgress: (done: number, total: number) => void
+) => Promise<SaveSummary>;
 
 export type ClashChecker = (
   items: { key: string; proId: string; date: string; start: string; end: string }[]
@@ -41,12 +59,17 @@ function newId() {
 export default function CalendarImport({
   team,
   teamHref,
+  calendarHref,
   checkClashes,
+  saveImport,
 }: {
   team: TeamPro[];
   teamHref: string;
+  calendarHref: string;
   checkClashes: ClashChecker;
+  saveImport: SaveImport;
 }) {
+  const [summary, setSummary] = useState<SaveSummary | null>(null);
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [step, setStep] = useState<"upload" | "review">("upload");
   const [dragging, setDragging] = useState(false);
@@ -137,6 +160,36 @@ export default function CalendarImport({
     [ready]
   );
 
+  // Where the files came from, for the import history.
+  const source = useMemo(() => {
+    const guess = ready.map((f) => {
+      if (f.kind === "csv") return "other";
+      const head = (f.text || "").slice(0, 400);
+      return /apple/i.test(head) ? "apple" : /google/i.test(head) ? "google" : "other";
+    });
+    return {
+      sourceApp: guess.length && guess.every((g) => g === guess[0]) ? guess[0] : "other",
+      sourceType: (ready.every((f) => f.kind === "ics") ? "ics" : "csv") as "ics" | "csv",
+      fileNames: ready.map((f) => f.name),
+    };
+  }, [ready]);
+
+  if (summary) {
+    return (
+      <Summary
+        summary={summary}
+        team={team}
+        calendarHref={calendarHref}
+        onAnother={() => {
+          setSummary(null);
+          setFiles([]);
+          setOverrides({});
+          setStep("upload");
+        }}
+      />
+    );
+  }
+
   if (step === "review") {
     return (
       <Review
@@ -147,6 +200,8 @@ export default function CalendarImport({
         overrides={overrides}
         setOverrides={setOverrides}
         onBack={() => setStep("upload")}
+        save={(rows, unmatched, onProgress) => saveImport({ rows, unmatched, ...source }, onProgress)}
+        onSaved={setSummary}
       />
     );
   }

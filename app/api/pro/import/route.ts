@@ -215,6 +215,7 @@ export async function POST(req: Request) {
         .eq("professional_id", user.id)
         .is("invited_at", null)
         .is("unsubscribed_at", null)
+        .not("email", "is", null)
         .limit(5000);
       if (!pending?.length) return NextResponse.json({ error: "Everyone on your list has already been invited." }, { status: 400 });
       if (typeof body.confirmCount === "number" && body.confirmCount !== pending.length) {

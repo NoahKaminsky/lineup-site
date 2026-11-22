@@ -151,7 +151,8 @@ export default function ScheduleView({ data, busy, run, setNotice }: SectionProp
   const atShopCents = active
     .filter((i) => (i.kind !== "online" || i.payAtShop) && i.status !== "completed")
     .reduce((sum, i) => sum + (i.priceCents || 0), 0);
-  const walkIns = active.filter((i) => i.kind !== "online").length;
+  const walkIns = active.filter((i) => i.kind === "walk_in" || i.kind === "phone").length;
+  const imported = active.filter((i) => i.kind === "imported").length;
 
   return (
     <div>
@@ -257,6 +258,7 @@ export default function ScheduleView({ data, busy, run, setNotice }: SectionProp
               : "Nothing booked."
             : `${active.length} ${active.length === 1 ? "appointment" : "appointments"}${
                 walkIns ? `, ${walkIns} ${walkIns === 1 ? "walk-in" : "walk-ins"}` : ""
+              }${imported ? `, ${imported} imported` : ""
               }${atShopCents ? `. ${formatCad(atShopCents)} to collect at the shop.` : "."}`}
         </p>
       ) : null}
