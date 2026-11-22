@@ -6,6 +6,7 @@
 // growing, who is overdue to come back, which hours sit empty, which services
 // and which pros earn the most per hour, and what's already on the books.
 
+import { bookingVisitMoney, shopVisitMoney } from "./earningsCore";
 import { getServiceSupabase } from "./serverSupabase";
 import { todayLocal } from "./earnings";
 import { fetchAll } from "./fetchAll";
@@ -151,9 +152,10 @@ type BookingRow = {
   source: string | null;
   standing_id: string | null;
   created_at: string | null;
+  refund_status?: string | null;
 };
 const BOOKING_COLUMNS =
-  "id, professional_id, customer_id, studio_id, booking_date, start_time, end_time, duration_minutes, status, service_name, service_price, payment_status, total_amount_cents, platform_fee_cents, studio_cut_cents, gift_card_cents, membership_id, no_show_status, source, standing_id, created_at";
+  "id, professional_id, customer_id, studio_id, booking_date, start_time, end_time, duration_minutes, status, service_name, service_price, payment_status, refund_status, total_amount_cents, platform_fee_cents, studio_cut_cents, gift_card_cents, membership_id, no_show_status, source, standing_id, created_at";
 
 type FrontDeskRow = {
   id: string;
@@ -179,14 +181,12 @@ function localDay(iso: string | null) {
 }
 
 function bookingVisit(b: BookingRow, today: string, cutPercent: number): Visit {
-  const price = Math.round(Number(b.service_price || 0) * 100);
-  const paid = b.payment_status === "paid";
   const member = b.payment_status === "pay_at_shop" && !!b.membership_id;
-  const gift = Number(b.gift_card_cents) || 0;
-  const tip = paid ? Math.max((Number(b.total_amount_cents) || 0) - (price - gift), 0) : 0;
-  const fee = paid ? Number(b.platform_fee_cents) || 0 : 0;
-  const shop = paid ? Number(b.studio_cut_cents) || 0 : member ? 0 : Math.round((price * cutPercent) / 100);
-  const sales = member ? 0 : price;
+  // Money worked out by the shared earnings rules (app/lib/earningsCore).
+  const { sales, tip, shop, take } = bookingVisitMoney(
+    { ...b, refund_status: b.refund_status ?? null, no_show_fee_cents: null },
+    cutPercent
+  );
   const start = minutesOf(b.start_time);
   const minutes = Math.max(b.end_time ? minutesOf(b.end_time) - start : Number(b.duration_minutes) || 0, 0) || Number(b.duration_minutes) || 30;
   const state: Visit["state"] =
@@ -204,7 +204,7 @@ function bookingVisit(b: BookingRow, today: string, cutPercent: number): Visit {
     service: b.service_name || "Service",
     sales,
     tip,
-    take: Math.max(sales + tip - fee - shop, 0),
+    take,
     shop,
     state,
     channel,
@@ -213,9 +213,7 @@ function bookingVisit(b: BookingRow, today: string, cutPercent: number): Visit {
 }
 
 function frontDeskVisit(a: FrontDeskRow, today: string): Visit {
-  const price = Number(a.price_cents) || 0;
-  const tip = Number(a.tip_cents) || 0;
-  const shop = Math.min(Number(a.shop_cut_cents) || 0, price);
+  const { sales: price, tip, shop, take } = shopVisitMoney(a);
   const start = minutesOf(a.start_time);
   const phone = (a.client_phone || "").replace(/\D/g, "");
   const name = (a.client_name || "").trim();
@@ -234,7 +232,7 @@ function frontDeskVisit(a: FrontDeskRow, today: string): Visit {
     service: a.service_name || "Appointment",
     sales: price,
     tip,
-    take: price - shop + tip,
+    take,
     shop,
     state,
     channel: a.kind,

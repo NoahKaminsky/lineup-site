@@ -14,66 +14,32 @@
 
 import { stripe } from "./stripe";
 import { getServiceSupabase } from "./serverSupabase";
-import { giftCardFeeCents } from "./giftCards";
 import { fetchAll } from "./fetchAll";
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from "./expenseCategories";
-import { MEMBERSHIP_FEE_PERCENT, NO_SHOW_LINEUP_PERCENT, RENT_PROCESSING_FEE_PERCENT } from "./commission";
 import { effectiveCutPercent, type StudioMemberRow, type StudioRow } from "./studios";
+import {
+  bookingEarnings,
+  boothRentRow,
+  chargebackRow,
+  expenseRow,
+  giftCardSaleRow,
+  membershipRow,
+  payoutTotals,
+  planRow,
+  productRow,
+  shopAppointmentEarnings,
+  type AttentionItem,
+  type BookingInput,
+  type EarningsRow,
+  type PayoutBooking,
+  type ShopAppointmentInput,
+} from "./earningsCore";
+
+// The calculations live in ./earningsCore (pure, tested). This file only
+// loads the records for a pro or a shop and hands them over.
+export type { AttentionItem, EarningsRow, EarningsType, PaidVia } from "./earningsCore";
 
 type ServiceClient = ReturnType<typeof getServiceSupabase>;
-
-export type EarningsType =
-  | "online"
-  | "pay_at_shop"
-  | "walk_in"
-  | "phone"
-  | "imported"
-  | "no_show_fee"
-  | "gift_card"
-  | "membership"
-  | "membership_visit"
-  | "booth_rent"
-  | "lineup_plan"
-  | "product"
-  | "expense";
-
-
-
-export type PaidVia = "lineup" | "cash" | "card" | "etransfer" | "other" | "at_shop";
-
-export type EarningsRow = {
-  id: string;
-  date: string; // YYYY-MM-DD, local
-  type: EarningsType;
-  proId: string | null;
-  proName: string | null;
-  client: string | null;
-  item: string;
-  paidVia: PaidVia;
-  priceCents: number;
-  tipCents: number;
-  giftCents: number;
-  lineupFeeCents: number;
-  toShopCents: number;
-  toProCents: number;
-  // Shop's share worked out from today's commission rate, not recorded at the time.
-  estimated?: boolean;
-  // How an online booking came in.
-  channel?: "direct" | "request" | "regular";
-  // Logged by hand on the Earnings page, so it can be removed there.
-  entry?: "sale" | "product" | "expense";
-  category?: ExpenseCategory;
-  gstCents?: number;
-};
-
-// Something that may keep the numbers from being complete.
-export type AttentionItem = {
-  date: string;
-  proId: string | null;
-  proName: string | null;
-  item: string;
-  issue: string;
-};
 
 export type Seller = {
   kind: "pro" | "shop";
@@ -98,59 +64,10 @@ export function todayLocal() {
   return new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
 }
 
-function cents(value: unknown) {
-  const n = Math.round(Number(value) || 0);
-  return Number.isFinite(n) ? n : 0;
-}
-
-const pct = (amount: number, percent: number) => Math.round((amount * percent) / 100);
-
-type BookingRow = {
-  id: string;
-  professional_id: string;
-  customer_id: string | null;
-  studio_id: string | null;
-  booking_date: string;
-  status: string | null;
-  service_name: string | null;
-  service_price: number | null;
-  payment_status: string | null;
-  refund_status: string | null;
-  total_amount_cents: number | null;
-  platform_fee_cents: number | null;
-  studio_cut_cents: number | null;
-  professional_payout_cents: number | null;
-  gift_card_cents: number | null;
-  membership_id: string | null;
-  no_show_fee_cents: number | null;
-  no_show_status: string | null;
-  source: string | null;
-  standing_id: string | null;
-};
-
 const BOOKING_COLUMNS =
-  "id, professional_id, customer_id, studio_id, booking_date, status, service_name, service_price, payment_status, refund_status, total_amount_cents, platform_fee_cents, studio_cut_cents, professional_payout_cents, gift_card_cents, membership_id, no_show_fee_cents, no_show_status, source, standing_id";
+  "id, professional_id, customer_id, studio_id, booking_date, status, service_name, service_price, payment_status, refund_status, total_amount_cents, platform_fee_cents, studio_cut_cents, gift_card_cents, membership_id, no_show_fee_cents, no_show_status, source, standing_id, stripe_charge_id";
 
-function channelOf(b: BookingRow): EarningsRow["channel"] {
-  if (b.source === "request") return "request";
-  if (b.standing_id) return "regular";
-  return "direct";
-}
-
-type ShopAppointmentRow = {
-  id: string;
-  studio_id: string | null;
-  professional_id: string;
-  kind: "walk_in" | "phone" | "imported";
-  client_name: string | null;
-  service_name: string | null;
-  appointment_date: string;
-  price_cents: number | null;
-  shop_cut_cents: number | null;
-  status: string;
-  paid_with?: string | null;
-  tip_cents?: number | null;
-};
+type BookingRow = BookingInput & { stripe_charge_id?: string | null };
 
 type GiftCardRow = {
   id: string;
@@ -162,28 +79,75 @@ type GiftCardRow = {
   activated_at: string | null;
 };
 
-// Paid invoices of one Stripe subscription in the period.
-async function paidInvoices(subscriptionId: string, from: string, to: string) {
-  // Pad a day each side for time zones, then filter on the local date.
-  const gte = Math.floor(new Date(`${from}T00:00:00Z`).getTime() / 1000) - 86400;
-  const lte = Math.floor(new Date(`${to}T23:59:59Z`).getTime() / 1000) + 86400;
+const padRange = (from: string, to: string) => ({
+  gte: Math.floor(new Date(`${from}T00:00:00Z`).getTime() / 1000) - 86400,
+  lte: Math.floor(new Date(`${to}T23:59:59Z`).getTime() / 1000) + 86400,
+});
+
+// Paid invoices (a subscription's, or a customer's) in the period.
+async function paidInvoices(filter: { subscription: string } | { customer: string }, from: string, to: string) {
   const out: { id: string; date: string; amount: number }[] = [];
   try {
-    for await (const invoice of stripe.invoices.list({
-      subscription: subscriptionId,
-      status: "paid",
-      created: { gte, lte },
-      limit: 100,
-    })) {
+    for await (const invoice of stripe.invoices.list({ ...filter, status: "paid", created: padRange(from, to), limit: 100 })) {
       const paidAt = invoice.status_transitions?.paid_at || invoice.created;
       const date = localDate(paidAt);
       if (date < from || date > to || !invoice.amount_paid) continue;
-      out.push({ id: invoice.id || `${subscriptionId}-${paidAt}`, date, amount: invoice.amount_paid });
+      out.push({ id: invoice.id || `inv-${paidAt}`, date, amount: invoice.amount_paid });
     }
   } catch (error) {
-    console.error(`Earnings: could not list invoices for ${subscriptionId}:`, error);
+    console.error("Earnings: could not list invoices:", error);
   }
   return out;
+}
+
+// Chargebacks on these bookings' charges, read from Stripe (nothing stored).
+async function chargebacks(bookings: BookingRow[], from: string, to: string): Promise<EarningsRow[]> {
+  const byCharge = new Map(bookings.filter((b) => b.stripe_charge_id).map((b) => [b.stripe_charge_id as string, b]));
+  if (!byCharge.size) return [];
+  const rows: EarningsRow[] = [];
+  try {
+    for await (const d of stripe.disputes.list({ created: padRange(from, to), limit: 100 })) {
+      const chargeId = typeof d.charge === "string" ? d.charge : d.charge?.id;
+      const b = chargeId ? byCharge.get(chargeId) : undefined;
+      if (!b) continue;
+      const date = localDate(d.created);
+      if (date < from || date > to) continue;
+      rows.push(chargebackRow({ id: d.id, date, amount: d.amount, status: d.status }, b));
+    }
+  } catch (error) {
+    console.error("Earnings: could not list disputes:", error);
+  }
+  return rows;
+}
+
+function bookingRows(bookings: BookingRow[], today: string, cutPercentFor: (b: BookingRow) => number, attention: AttentionItem[]) {
+  const rows: EarningsRow[] = [];
+  for (const b of bookings) {
+    const r = bookingEarnings(b, { today, cutPercent: cutPercentFor(b) });
+    rows.push(...r.rows);
+    attention.push(...r.attention);
+  }
+  return rows;
+}
+
+function shopAppointmentRows(list: ShopAppointmentInput[], today: string, attention: AttentionItem[]) {
+  const rows: EarningsRow[] = [];
+  for (const a of list) {
+    const r = shopAppointmentEarnings(a, today);
+    rows.push(...r.rows);
+    attention.push(...r.attention);
+  }
+  return rows;
+}
+
+function giftCardRows(cards: GiftCardRow[], from: string, to: string, seller: "shop" | "pro") {
+  const rows: EarningsRow[] = [];
+  for (const g of cards) {
+    if (!g.activated_at) continue;
+    const date = localDate(new Date(g.activated_at).getTime() / 1000);
+    if (date >= from && date <= to) rows.push(giftCardSaleRow(g, date, seller));
+  }
+  return rows;
 }
 
 async function namesFor(supabase: ServiceClient, ids: (string | null | undefined)[]) {
@@ -196,220 +160,11 @@ async function namesFor(supabase: ServiceClient, ids: (string | null | undefined
   return names;
 }
 
-function bookingRows(
-  bookings: BookingRow[],
-  opts: { today: string; cutPercentFor: (b: BookingRow) => number; attention: AttentionItem[] }
-): EarningsRow[] {
-  const rows: EarningsRow[] = [];
-  for (const b of bookings) {
-    if (b.booking_date > opts.today) continue; // upcoming: not earned yet
-    const service = b.service_name || "Booking";
-
-    if (b.no_show_status === "charged" && cents(b.no_show_fee_cents) > 0) {
-      const fee = cents(b.no_show_fee_cents);
-      const lineup = pct(fee, NO_SHOW_LINEUP_PERCENT);
-      rows.push({
-        id: `ns-${b.id}`,
-        date: b.booking_date,
-        type: "no_show_fee",
-        proId: b.professional_id,
-        proName: null,
-        client: b.customer_id,
-        item: `No-show fee: ${service}`,
-        paidVia: "lineup",
-        priceCents: fee,
-        tipCents: 0,
-        giftCents: 0,
-        lineupFeeCents: lineup,
-        toShopCents: 0,
-        toProCents: fee - lineup,
-      });
-      continue;
-    }
-    if (b.status === "cancelled") {
-      // Refunded, or never charged. A paid one whose refund didn't go
-      // through still has the client's money.
-      if (b.payment_status === "paid" && b.refund_status && b.refund_status !== "refunded") {
-        opts.attention.push({
-          date: b.booking_date,
-          proId: b.professional_id,
-          proName: null,
-          item: service,
-          issue: "Cancelled, but the refund didn't go through. Contact LineUp support.",
-        });
-      }
-      continue;
-    }
-
-    const price = Math.round(Number(b.service_price || 0) * 100);
-
-    if (b.payment_status === "paid") {
-      const gift = cents(b.gift_card_cents);
-      const total = cents(b.total_amount_cents);
-      const lineup = cents(b.platform_fee_cents);
-      const toShop = cents(b.studio_cut_cents);
-      // A booking fully covered by a gift card charged nothing; everything
-      // else charged price - gift + tip.
-      const tip = Math.max(total - (price - gift), 0);
-      const toPro = Math.max(price + tip - gift - lineup - toShop, 0);
-      rows.push({
-        id: b.id,
-        date: b.booking_date,
-        type: "online",
-        channel: channelOf(b),
-        proId: b.professional_id,
-        proName: null,
-        client: b.customer_id,
-        item: service,
-        paidVia: "lineup",
-        priceCents: price,
-        tipCents: tip,
-        giftCents: gift,
-        lineupFeeCents: lineup,
-        toShopCents: toShop,
-        toProCents: toPro,
-      });
-    } else if (b.payment_status === "pay_at_shop" && b.membership_id && b.status !== "cancelled") {
-      // A member's visit: paid by their membership, counted when it bills.
-      rows.push({
-        id: b.id,
-        date: b.booking_date,
-        type: "membership_visit",
-        channel: channelOf(b),
-        proId: b.professional_id,
-        proName: null,
-        client: b.customer_id,
-        item: service,
-        paidVia: "lineup",
-        priceCents: 0,
-        tipCents: 0,
-        giftCents: 0,
-        lineupFeeCents: 0,
-        toShopCents: 0,
-        toProCents: 0,
-      });
-    } else if (b.payment_status === "pay_at_shop" && b.status !== "completed") {
-      opts.attention.push({
-        date: b.booking_date,
-        proId: b.professional_id,
-        proName: null,
-        item: service,
-        issue: "Booked online to pay at the shop, but not marked done or no-show. Not counted.",
-      });
-    } else if (b.payment_status === "pay_at_shop" && b.status === "completed") {
-      const toShop = pct(price, opts.cutPercentFor(b));
-      rows.push({
-        id: b.id,
-        date: b.booking_date,
-        type: "pay_at_shop",
-        channel: channelOf(b),
-        proId: b.professional_id,
-        proName: null,
-        client: b.customer_id,
-        item: service,
-        paidVia: "at_shop",
-        priceCents: price,
-        tipCents: 0,
-        giftCents: 0,
-        lineupFeeCents: 0,
-        toShopCents: toShop,
-        toProCents: price - toShop,
-        estimated: toShop > 0,
-      });
-    }
-  }
-  return rows;
-}
-
-function shopAppointmentRows(list: ShopAppointmentRow[], today: string, attention: AttentionItem[]): EarningsRow[] {
-  const rows: EarningsRow[] = [];
-  const label = { walk_in: "Walk-in", phone: "Phone booking", imported: "Imported appointment" } as const;
-  for (const a of list) {
-    if (a.appointment_date > today) continue;
-    const item = `${label[a.kind]}: ${a.service_name || "Appointment"}`;
-    if (a.status === "booked") {
-      attention.push({
-        date: a.appointment_date,
-        proId: a.professional_id,
-        proName: null,
-        item,
-        issue: "Not marked done or no-show. Not counted.",
-      });
-      continue;
-    }
-    if (a.status !== "completed") continue;
-    const price = cents(a.price_cents);
-    const tip = cents(a.tip_cents);
-    if (!price && !tip) {
-      attention.push({ date: a.appointment_date, proId: a.professional_id, proName: null, item, issue: "Marked done with no price." });
-      continue;
-    }
-    if ("paid_with" in a && !a.paid_with) {
-      attention.push({
-        date: a.appointment_date,
-        proId: a.professional_id,
-        proName: null,
-        item,
-        issue: "Counted, but how they paid wasn't recorded.",
-      });
-    }
-    const toShop = Math.min(cents(a.shop_cut_cents), price);
-    const paid = a.paid_with;
-    rows.push({
-      id: a.id,
-      date: a.appointment_date,
-      type: a.kind,
-      ...(a.studio_id ? {} : a.kind === "walk_in" ? { entry: "sale" as const } : {}),
-      proId: a.professional_id,
-      proName: null,
-      client: a.client_name,
-      item: a.service_name || "Appointment",
-      paidVia: paid === "cash" || paid === "card" || paid === "etransfer" || paid === "other" ? paid : "at_shop",
-      priceCents: price,
-      tipCents: tip,
-      giftCents: 0,
-      lineupFeeCents: 0,
-      toShopCents: toShop,
-      toProCents: price - toShop + tip,
-    });
-  }
-  return rows;
-}
-
-function giftCardRows(cards: GiftCardRow[], from: string, to: string, seller: "shop" | "pro"): EarningsRow[] {
-  const rows: EarningsRow[] = [];
-  for (const g of cards) {
-    if (!g.activated_at) continue;
-    const date = localDate(new Date(g.activated_at).getTime() / 1000);
-    if (date < from || date > to) continue;
-    const amount = cents(g.amount_cents);
-    const fee = Math.min(giftCardFeeCents(amount), amount);
-    rows.push({
-      id: `gc-${g.id}`,
-      date,
-      type: "gift_card",
-      proId: seller === "pro" ? g.professional_id : null,
-      proName: null,
-      client: g.buyer_name || g.recipient_name || null,
-      item: "Gift card sold",
-      paidVia: "lineup",
-      priceCents: amount,
-      tipCents: 0,
-      giftCents: 0,
-      lineupFeeCents: fee,
-      toShopCents: seller === "shop" ? amount - fee : 0,
-      toProCents: seller === "pro" ? amount - fee : 0,
-    });
-  }
-  return rows;
-}
-
 async function fillNames(supabase: ServiceClient, rows: EarningsRow[], customerIds: Set<string>, attention: AttentionItem[] = []) {
   const names = await namesFor(supabase, [...rows.map((r) => r.proId), ...attention.map((a) => a.proId), ...customerIds]);
   for (const a of attention) if (a.proId) a.proName = names.get(a.proId) || "Team member";
   for (const r of rows) {
     if (r.proId) r.proName = names.get(r.proId) || "Team member";
-    // Online rows carry the client's profile id until here.
     if (r.client && customerIds.has(r.client)) r.client = names.get(r.client) || "Client";
   }
 }
@@ -418,92 +173,22 @@ function sortRows(rows: EarningsRow[]) {
   return rows.sort((a, b) => (a.date === b.date ? a.item.localeCompare(b.item) : a.date < b.date ? -1 : 1));
 }
 
-// What they paid LineUp for their plan (a business expense).
-async function planInvoices(customerId: string | null | undefined, from: string, to: string): Promise<EarningsRow[]> {
-  if (!customerId) return [];
-  const gte = Math.floor(new Date(`${from}T00:00:00Z`).getTime() / 1000) - 86400;
-  const lte = Math.floor(new Date(`${to}T23:59:59Z`).getTime() / 1000) + 86400;
-  const rows: EarningsRow[] = [];
-  try {
-    for await (const invoice of stripe.invoices.list({ customer: customerId, status: "paid", created: { gte, lte }, limit: 100 })) {
-      const paidAt = invoice.status_transitions?.paid_at || invoice.created;
-      const date = localDate(paidAt);
-      if (date < from || date > to || !invoice.amount_paid) continue;
-      rows.push({
-        id: invoice.id || `plan-${paidAt}`,
-        date,
-        type: "lineup_plan",
-        proId: null,
-        proName: null,
-        client: null,
-        item: "LineUp plan",
-        paidVia: "lineup",
-        priceCents: invoice.amount_paid,
-        tipCents: 0,
-        giftCents: 0,
-        lineupFeeCents: 0,
-        toShopCents: 0,
-        toProCents: 0,
-      });
-    }
-  } catch (error) {
-    console.error(`Earnings: could not list plan invoices for ${customerId}:`, error);
-  }
-  return rows;
-}
-
 // Product sales and expenses logged by hand, for a pro (studioId null) or a shop.
 async function manualRows(supabase: ServiceClient, who: { proId?: string; studioId?: string }, from: string, to: string): Promise<EarningsRow[]> {
   const rows: EarningsRow[] = [];
-  const shop = !!who.studioId;
+  const side = who.studioId ? "shop" : "pro";
   try {
     let pq = supabase.from("product_sales").select("*").gte("sale_date", from).lte("sale_date", to);
-    pq = shop ? pq.eq("studio_id", who.studioId as string) : pq.eq("professional_id", who.proId as string).is("studio_id", null);
+    pq = side === "shop" ? pq.eq("studio_id", who.studioId as string) : pq.eq("professional_id", who.proId as string).is("studio_id", null);
     const { data: products } = await pq.limit(5000);
-    for (const p of products || []) {
-      const paid = p.paid_with;
-      rows.push({
-        id: `prod-${p.id}`,
-        date: p.sale_date,
-        type: "product",
-        entry: "product",
-        proId: shop ? p.professional_id : who.proId || null,
-        proName: null,
-        client: null,
-        item: p.item,
-        paidVia: paid === "cash" || paid === "card" || paid === "etransfer" || paid === "other" ? paid : "at_shop",
-        priceCents: p.amount_cents,
-        tipCents: 0,
-        giftCents: 0,
-        lineupFeeCents: 0,
-        toShopCents: shop ? p.amount_cents : 0,
-        toProCents: shop ? 0 : p.amount_cents,
-      });
-    }
+    for (const p of products || []) rows.push(productRow(p, side, side === "shop" ? p.professional_id : who.proId || null));
     let eq = supabase.from("business_expenses").select("*").gte("expense_date", from).lte("expense_date", to);
-    eq = shop ? eq.eq("studio_id", who.studioId as string) : eq.eq("owner_id", who.proId as string).is("studio_id", null);
+    eq = side === "shop" ? eq.eq("studio_id", who.studioId as string) : eq.eq("owner_id", who.proId as string).is("studio_id", null);
     const { data: expenses } = await eq.limit(5000);
     for (const e of expenses || []) {
       const category = (e.category in EXPENSE_CATEGORIES ? e.category : "other") as ExpenseCategory;
-      rows.push({
-        id: `exp-${e.id}`,
-        date: e.expense_date,
-        type: "expense",
-        entry: "expense",
-        category,
-        gstCents: e.gst_cents || 0,
-        proId: null,
-        proName: null,
-        client: null,
-        item: e.note ? `${EXPENSE_CATEGORIES[category]}: ${e.note}` : EXPENSE_CATEGORIES[category],
-        paidVia: "other",
-        priceCents: e.amount_cents,
-        tipCents: 0,
-        giftCents: 0,
-        lineupFeeCents: 0,
-        toShopCents: shop ? -e.amount_cents : 0,
-        toProCents: shop ? 0 : -e.amount_cents,
-      });
+      const label = e.note ? `${EXPENSE_CATEGORIES[category]}: ${e.note}` : EXPENSE_CATEGORIES[category];
+      rows.push(expenseRow(e, category, label, side));
     }
   } catch (error) {
     console.error("Earnings: could not load logged sales and expenses:", error);
@@ -522,7 +207,7 @@ export async function proEarnings(supabase: ServiceClient, proId: string, from: 
 
   const [{ data: bookings }, { data: appts }, { data: cards }, { data: memberships }] = await Promise.all([
     fetchAll<BookingRow>((a, b) => supabase.from("bookings").select(BOOKING_COLUMNS).eq("professional_id", proId).gte("booking_date", from).lte("booking_date", to).order("id").range(a, b)).then((data) => ({ data })),
-    fetchAll<ShopAppointmentRow>((a, b) => supabase.from("shop_appointments").select("*").neq("kind", "imported").eq("professional_id", proId).gte("appointment_date", from).lte("appointment_date", to).order("id").range(a, b)).then((data) => ({ data })),
+    fetchAll<ShopAppointmentInput>((a, b) => supabase.from("shop_appointments").select("*").neq("kind", "imported").eq("professional_id", proId).gte("appointment_date", from).lte("appointment_date", to).order("id").range(a, b)).then((data) => ({ data })),
     supabase
       .from("gift_cards")
       .select("id, professional_id, studio_id, amount_cents, buyer_name, recipient_name, activated_at")
@@ -545,12 +230,13 @@ export async function proEarnings(supabase: ServiceClient, proId: string, from: 
 
   const list = (bookings || []) as BookingRow[];
   const rows: EarningsRow[] = [
-    ...bookingRows(list, { today, cutPercentFor: cutFor, attention }),
-    ...shopAppointmentRows((appts || []) as ShopAppointmentRow[], today, attention),
+    ...bookingRows(list, today, cutFor, attention),
+    ...shopAppointmentRows((appts || []) as ShopAppointmentInput[], today, attention),
     ...giftCardRows((cards || []) as GiftCardRow[], from, to, "pro"),
   ];
 
   rows.push(...(await manualRows(supabase, { proId }, from, to)));
+  rows.push(...(await chargebacks(list, from, to)));
 
   const [{ data: profile }, { data: home }] = await Promise.all([
     supabase
@@ -560,8 +246,8 @@ export async function proEarnings(supabase: ServiceClient, proId: string, from: 
       .maybeSingle(),
     supabase.from("professional_home_base").select("address, own_address").eq("profile_id", proId).maybeSingle(),
   ]);
-  for (const r of await planInvoices(profile?.stripe_customer_id, from, to)) {
-    rows.push({ ...r, proId, toProCents: -r.priceCents });
+  if (profile?.stripe_customer_id) {
+    for (const inv of await paidInvoices({ customer: profile.stripe_customer_id }, from, to)) rows.push(planRow(inv, "pro", proId));
   }
   const activeShop = memberRows.find((m) => m.status === "active");
   const seller: Seller = {
@@ -578,25 +264,7 @@ export async function proEarnings(supabase: ServiceClient, proId: string, from: 
   // Booth rent this pro paid: a cost to them, income to the shop.
   for (const m of memberRows) {
     if (!m.rent_subscription_id) continue;
-    for (const inv of await paidInvoices(m.rent_subscription_id, from, to)) {
-      const fee = pct(inv.amount, RENT_PROCESSING_FEE_PERCENT);
-      rows.push({
-        id: inv.id,
-        date: inv.date,
-        type: "booth_rent",
-        proId,
-        proName: null,
-        client: null,
-        item: "Booth rent paid",
-        paidVia: "lineup",
-        priceCents: inv.amount,
-        tipCents: 0,
-        giftCents: 0,
-        lineupFeeCents: fee,
-        toShopCents: inv.amount - fee,
-        toProCents: -inv.amount,
-      });
-    }
+    for (const inv of await paidInvoices({ subscription: m.rent_subscription_id }, from, to)) rows.push(boothRentRow(inv, "pro", proId));
   }
 
   await fillNames(supabase, rows, new Set(list.map((b) => b.customer_id).filter((id): id is string => !!id)), attention);
@@ -612,7 +280,7 @@ export async function shopEarnings(supabase: ServiceClient, studio: StudioRow, f
   const [{ data: bookings }, { data: appts }, { data: cards }, { data: members }, { data: clientMemberships }, { data: plans }] =
     await Promise.all([
       fetchAll<BookingRow>((a, b) => supabase.from("bookings").select(BOOKING_COLUMNS).eq("studio_id", studio.id).gte("booking_date", from).lte("booking_date", to).order("id").range(a, b)).then((data) => ({ data })),
-      fetchAll<ShopAppointmentRow>((a, b) => supabase.from("shop_appointments").select("*").neq("kind", "imported").eq("studio_id", studio.id).gte("appointment_date", from).lte("appointment_date", to).order("id").range(a, b)).then((data) => ({ data })),
+      fetchAll<ShopAppointmentInput>((a, b) => supabase.from("shop_appointments").select("*").neq("kind", "imported").eq("studio_id", studio.id).gte("appointment_date", from).lte("appointment_date", to).order("id").range(a, b)).then((data) => ({ data })),
       supabase
         .from("gift_cards")
         .select("id, professional_id, studio_id, amount_cents, buyer_name, recipient_name, activated_at")
@@ -628,13 +296,16 @@ export async function shopEarnings(supabase: ServiceClient, studio: StudioRow, f
 
   const list = (bookings || []) as BookingRow[];
   const rows: EarningsRow[] = [
-    ...bookingRows(list, { today, cutPercentFor: cutFor, attention }),
-    ...shopAppointmentRows((appts || []) as ShopAppointmentRow[], today, attention),
+    ...bookingRows(list, today, cutFor, attention),
+    ...shopAppointmentRows((appts || []) as ShopAppointmentInput[], today, attention),
     ...giftCardRows((cards || []) as GiftCardRow[], from, to, "shop"),
   ];
 
-  for (const r of await planInvoices(studio.stripe_customer_id, from, to)) rows.push({ ...r, toShopCents: -r.priceCents });
+  if (studio.stripe_customer_id) {
+    for (const inv of await paidInvoices({ customer: studio.stripe_customer_id }, from, to)) rows.push(planRow(inv, "shop", null));
+  }
   rows.push(...(await manualRows(supabase, { studioId: studio.id }, from, to)));
+  rows.push(...(await chargebacks(list, from, to)));
   const { data: owner } = await supabase
     .from("profiles")
     .select("full_name, email, phone_number")
@@ -655,25 +326,7 @@ export async function shopEarnings(supabase: ServiceClient, studio: StudioRow, f
   // Booth rent from each renter.
   for (const m of memberRows) {
     if (!m.rent_subscription_id) continue;
-    for (const inv of await paidInvoices(m.rent_subscription_id, from, to)) {
-      const fee = pct(inv.amount, RENT_PROCESSING_FEE_PERCENT);
-      rows.push({
-        id: inv.id,
-        date: inv.date,
-        type: "booth_rent",
-        proId: m.profile_id,
-        proName: null,
-        client: null,
-        item: "Booth rent",
-        paidVia: "lineup",
-        priceCents: inv.amount,
-        tipCents: 0,
-        giftCents: 0,
-        lineupFeeCents: fee,
-        toShopCents: inv.amount - fee,
-        toProCents: 0,
-      });
-    }
+    for (const inv of await paidInvoices({ subscription: m.rent_subscription_id }, from, to)) rows.push(boothRentRow(inv, "shop", m.profile_id));
   }
 
   // Client memberships.
@@ -681,28 +334,65 @@ export async function shopEarnings(supabase: ServiceClient, studio: StudioRow, f
   for (const cm of clientMemberships || []) {
     if (!cm.stripe_subscription_id) continue;
     const plan = (plans || []).find((p) => p.id === cm.plan_id);
-    for (const inv of await paidInvoices(cm.stripe_subscription_id, from, to)) {
-      const fee = pct(inv.amount, MEMBERSHIP_FEE_PERCENT);
-      if (cm.customer_id) customerIds.add(cm.customer_id);
-      rows.push({
-        id: inv.id,
-        date: inv.date,
-        type: "membership",
-        proId: null,
-        proName: null,
-        client: cm.customer_id,
-        item: plan?.name ? `Membership: ${plan.name}` : "Membership",
-        paidVia: "lineup",
-        priceCents: inv.amount,
-        tipCents: 0,
-        giftCents: 0,
-        lineupFeeCents: fee,
-        toShopCents: inv.amount - fee,
-        toProCents: 0,
-      });
-    }
+    if (cm.customer_id) customerIds.add(cm.customer_id);
+    for (const inv of await paidInvoices({ subscription: cm.stripe_subscription_id }, from, to)) rows.push(membershipRow(inv, cm.customer_id, plan?.name || null));
   }
 
   await fillNames(supabase, rows, customerIds, attention);
   return { rows: sortRows(rows), attention: attention.sort((a, b) => (a.date < b.date ? -1 : 1)), seller };
+}
+
+// Where the money is for this pro or shop, for bookings in the period, plus
+// what Stripe has paid to their bank (read only, nothing is moved).
+export type Payouts = {
+  sentToStripeCents: number; // sent to their Stripe account by LineUp
+  heldUntilDoneCents: number; // waiting for appointments to be done
+  heldAfterDoneCents: number; // part of that: done, but not sent yet
+  bank: null | {
+    paidCents: number; // arrived in their bank in the period
+    scheduledCents: number; // on its way to their bank
+    availableCents: number; // in Stripe now, ready for the next payout
+    pendingCents: number; // in Stripe now, not yet available
+  };
+};
+
+export async function payoutsFor(
+  supabase: ServiceClient,
+  who: { proId: string } | { studio: StudioRow },
+  from: string,
+  to: string
+): Promise<Payouts> {
+  const shop = "studio" in who;
+  const cols =
+    "status, payment_status, refund_status, deposit_amount_cents, remaining_payout_cents, studio_cut_cents, stripe_deposit_transfer_id, stripe_final_transfer_id, stripe_studio_transfer_id, no_show_status, no_show_fee_cents, stripe_no_show_transfer_id";
+  const bookings = await fetchAll<PayoutBooking>((a, b) => {
+    let q = supabase.from("bookings").select(cols).in("payment_status", ["paid", "pay_at_shop"]).gte("booking_date", from).lte("booking_date", to);
+    q = shop ? q.eq("studio_id", who.studio.id) : q.eq("professional_id", who.proId);
+    return q.order("id").range(a, b);
+  });
+  const totals = payoutTotals(bookings, shop ? "shop" : "me");
+
+  let account: string | null = null;
+  if (shop) account = (who.studio as StudioRow & { stripe_account_id?: string | null }).stripe_account_id || null;
+  else {
+    const { data } = await supabase.from("profiles").select("stripe_account_id").eq("id", who.proId).maybeSingle();
+    account = data?.stripe_account_id || null;
+  }
+  if (!account) return { ...totals, bank: null };
+
+  try {
+    const bank = { paidCents: 0, scheduledCents: 0, availableCents: 0, pendingCents: 0 };
+    for await (const p of stripe.payouts.list({ arrival_date: padRange(from, to), limit: 100 }, { stripeAccount: account })) {
+      if (p.currency !== "cad") continue;
+      if (p.status === "paid") bank.paidCents += p.amount;
+      else if (p.status === "pending" || p.status === "in_transit") bank.scheduledCents += p.amount;
+    }
+    const balance = await stripe.balance.retrieve({}, { stripeAccount: account });
+    bank.availableCents = balance.available.filter((b) => b.currency === "cad").reduce((s, b) => s + b.amount, 0);
+    bank.pendingCents = balance.pending.filter((b) => b.currency === "cad").reduce((s, b) => s + b.amount, 0);
+    return { ...totals, bank };
+  } catch (error) {
+    console.error("Earnings: could not read Stripe payouts:", error);
+    return { ...totals, bank: null };
+  }
 }

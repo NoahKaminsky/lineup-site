@@ -5,7 +5,7 @@
 // anything that needs fixing, and every sale behind the totals.
 
 import { Document, Page, Path, StyleSheet, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer";
-import type { AttentionItem, EarningsRow, Seller } from "./earnings";
+import type { AttentionItem, EarningsRow, Seller, Payouts } from "./earnings";
 import { PAID_LABEL, TYPE_LABEL, buildStatement, byMonth, byPro, money, quarters, type Line, type Scope } from "./earningsStatement";
 import { LU_MARK_PATHS, LU_MARK_VIEWBOX } from "./luMarkPaths";
 
@@ -156,6 +156,7 @@ export type StatementInput = {
   attention: AttentionItem[];
   legalName?: string | null;
   gstNumber?: string | null;
+  payouts?: Payouts | null;
 };
 
 function StatementDoc(input: StatementInput) {
@@ -283,6 +284,23 @@ function StatementDoc(input: StatementInput) {
           <Text style={s.h2}>4. How the money arrived</Text>
           <Text style={s.intro}>Payouts from LineUp go to the bank account linked to Stripe. Money collected at the shop is what was recorded when each appointment was marked done.</Text>
           <Table lines={st.received} />
+          {input.payouts ? (
+            <Table
+              lines={[
+                { label: "Sent to the Stripe account by LineUp", cents: input.payouts.sentToStripeCents, note: "For bookings in this period" },
+                { label: "Held until appointments are done", cents: input.payouts.heldUntilDoneCents },
+                ...(input.payouts.heldAfterDoneCents
+                  ? [{ label: "Of that, already done but not sent yet", cents: input.payouts.heldAfterDoneCents }]
+                  : []),
+                ...(input.payouts.bank
+                  ? [
+                      { label: "Paid to the bank by Stripe", cents: input.payouts.bank.paidCents },
+                      { label: "On its way to the bank", cents: input.payouts.bank.scheduledCents, note: "Scheduled by Stripe" },
+                    ]
+                  : []),
+              ]}
+            />
+          ) : null}
 
           <Text style={s.h2}>5. Paid through LineUp, by quarter</Text>
           <Text style={s.intro}>
