@@ -7,6 +7,8 @@
 import { Document, Page, Path, StyleSheet, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import type { AttentionItem, EarningsRow, Seller, Payouts } from "./earnings";
 import { PAID_LABEL, TYPE_LABEL, buildStatement, byMonth, byPro, money, quarters, type Line, type Scope } from "./earningsStatement";
+import { DISCLAIMER } from "./taxCategories";
+import type { TaxLine, TaxTransaction, TaxYear } from "./taxYear";
 import { LU_MARK_PATHS, LU_MARK_VIEWBOX } from "./luMarkPaths";
 
 const INK = "#0a0a0a";
@@ -453,4 +455,173 @@ function StatementDoc(input: StatementInput) {
 
 export async function renderStatementPdf(input: StatementInput) {
   return renderToBuffer(<StatementDoc {...input} />);
+}
+
+// ── Year-end tax statement ──────────────────────────────────────────────
+
+export type TaxStatementInput = {
+  year: number;
+  scope: Scope;
+  seller: Seller;
+  legalName: string | null;
+  gstNumber: string | null;
+  tax: TaxYear;
+  transactions: TaxTransaction[];
+};
+
+function TaxLines({ lines, total, totalLabel }: { lines: TaxLine[]; total?: number; totalLabel?: string }) {
+  return (
+    <View>
+      {lines.map((l) => (
+        <View key={l.key} style={s.row}>
+          <Text style={s.cellLabel}>
+            {l.label}
+            {l.auto ? <Text style={s.muted}>  (added by LineUp)</Text> : null}
+          </Text>
+          <Text style={{ width: 60, color: MUTED }}>{l.line ? `Line ${l.line}` : ""}</Text>
+          <Text style={s.cellAmt}>{money(l.cents)}</Text>
+        </View>
+      ))}
+      {totalLabel !== undefined && total !== undefined ? (
+        <View style={s.rowTotal}>
+          <Text style={[s.cellLabel, s.bold]}>{totalLabel}</Text>
+          <Text style={[s.cellAmt, s.bold]}>{money(total)}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function TaxStatementDoc(input: TaxStatementInput) {
+  const { year, seller, tax, transactions } = input;
+  const id = `${seller.accountId.slice(0, 8).toUpperCase()}-TAX${year}`;
+  const name = input.legalName || seller.businessName || seller.name;
+  const summary = tax.layout === "summary";
+  return (
+    <Document title={`LineUp tax year ${year}`} author="LineUp">
+      <Page size="LETTER" style={s.page}>
+        <View style={s.band}>
+          <View style={s.brand}>
+            <Mark />
+            <Text style={s.wordmark}>LineUp</Text>
+          </View>
+          <View style={s.bandRight}>
+            <Text style={s.bandTitle}>{summary ? "Income and expense summary" : "Tax year statement"}</Text>
+            <Text style={s.bandSub}>January 1 to December 31, {year}</Text>
+          </View>
+        </View>
+        <View style={s.body}>
+          <View style={s.seller}>
+            <View style={s.sellerCol}>
+              <Text style={s.label}>Business</Text>
+              <Text style={s.sellerName}>{name}</Text>
+              {seller.address ? <Text style={s.small}>{seller.address}</Text> : null}
+              {seller.email ? <Text style={s.small}>{seller.email}</Text> : null}
+            </View>
+            <View style={s.sellerCol}>
+              <Text style={s.label}>GST/HST number</Text>
+              <Text style={s.small}>{input.gstNumber || "Not registered, or not saved"}</Text>
+              <Text style={[s.label, { marginTop: 8 }]}>Year-end</Text>
+              <Text style={s.small}>December 31, {year}</Text>
+            </View>
+          </View>
+
+          <View style={s.callout}>
+            <Text style={s.small}>{DISCLAIMER}</Text>
+            {!summary ? (
+              <Text style={[s.small, s.muted, { marginTop: 3 }]}>
+                Laid out like the T2125 (Statement of Business or Professional Activities). Line numbers are a guide; have your accountant confirm them.
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={[s.kpis, { marginTop: 14 }]}>
+            <View style={s.kpi}>
+              <Text style={s.kpiLabel}>Gross income</Text>
+              <Text style={s.kpiValue}>{money(tax.grossIncome)}</Text>
+            </View>
+            <View style={s.kpi}>
+              <Text style={s.kpiLabel}>Expenses</Text>
+              <Text style={s.kpiValue}>{money(tax.totalExpenses)}</Text>
+            </View>
+            <View style={s.kpiStrong}>
+              <Text style={s.kpiLabelStrong}>Net income</Text>
+              <Text style={s.kpiValueStrong}>{money(tax.net)}</Text>
+            </View>
+          </View>
+
+          <Text style={s.h2}>{summary ? "Revenue" : "Gross income"}</Text>
+          <TaxLines lines={tax.income} total={tax.grossIncome} totalLabel={summary ? "Total revenue" : "Gross income"} />
+
+          <Text style={s.h2}>Expenses LineUp already knows about</Text>
+          {tax.autoExpenses.length ? <TaxLines lines={tax.autoExpenses} /> : <Text style={s.intro}>None this year.</Text>}
+
+          <Text style={s.h2}>Expenses you added</Text>
+          {tax.ownExpenses.length ? <TaxLines lines={tax.ownExpenses} /> : <Text style={s.intro}>None this year.</Text>}
+          <View style={s.rowTotal}>
+            <Text style={[s.cellLabel, s.bold]}>Total expenses</Text>
+            <Text style={[s.cellAmt, s.bold]}>{money(tax.totalExpenses)}</Text>
+          </View>
+          <View style={s.rowTotal}>
+            <Text style={[s.cellLabel, s.bold]}>Net income</Text>
+            <Text style={[s.cellAmt, s.bold]}>{money(tax.net)}</Text>
+          </View>
+
+          <Text style={s.h2}>Month by month</Text>
+          <View style={s.row}>
+            <Text style={[s.cellLabel, s.th]}>Month</Text>
+            <Text style={[s.cellAmt, s.th]}>Income</Text>
+            <Text style={[s.cellAmt, s.th]}>Expenses</Text>
+            <Text style={[s.cellAmt, s.th]}>Net</Text>
+          </View>
+          {tax.months.map((m) => (
+            <View key={m.month} style={s.row} wrap={false}>
+              <Text style={s.cellLabel}>{MONTHS[m.month]}</Text>
+              <Text style={s.cellAmt}>{money(m.income)}</Text>
+              <Text style={s.cellAmt}>{money(m.expenses)}</Text>
+              <Text style={s.cellAmt}>{money(m.net)}</Text>
+            </View>
+          ))}
+        </View>
+        <Footer id={id} />
+      </Page>
+      <Page size="LETTER" style={s.page}>
+        <View style={s.body}>
+          <Text style={[s.h2, { marginTop: 28 }]}>Every transaction</Text>
+          <Text style={s.intro}>{DISCLAIMER}</Text>
+          <View style={[s.tx, { borderBottomColor: INK }]}>
+            <Text style={[s.th, { width: 44 }]}>Date</Text>
+            <Text style={[s.th, { flex: 1 }]}>Item</Text>
+            <Text style={[s.th, { width: 70 }]}>How paid</Text>
+            <Text style={[s.th, { width: 50, textAlign: "right" }]}>Price</Text>
+            <Text style={[s.th, { width: 40, textAlign: "right" }]}>Tip</Text>
+            <Text style={[s.th, { width: 44, textAlign: "right" }]}>Fees</Text>
+            <Text style={[s.th, { width: 44, textAlign: "right" }]}>Shop</Text>
+            <Text style={[s.th, { width: 56, textAlign: "right" }]}>Received</Text>
+          </View>
+          {transactions.length === 0 ? <Text style={[s.intro, { marginTop: 6 }]}>No transactions this year.</Text> : null}
+          {transactions.map((t, i) => (
+            <View key={`${t.date}-${i}`} style={s.tx} wrap={false}>
+              <Text style={{ width: 44 }}>{t.date.slice(5)}</Text>
+              <View style={{ flex: 1, paddingRight: 4 }}>
+                <Text>{t.item}</Text>
+                <Text style={{ color: MUTED, fontSize: 6.5, marginTop: 1 }}>{[t.kind, t.who].filter(Boolean).join(", ")}</Text>
+              </View>
+              <Text style={{ width: 70 }}>{t.source}</Text>
+              <Text style={{ width: 50, textAlign: "right" }}>{money(t.priceCents)}</Text>
+              <Text style={{ width: 40, textAlign: "right" }}>{t.tipCents ? money(t.tipCents) : "–"}</Text>
+              <Text style={{ width: 44, textAlign: "right" }}>{t.feesCents ? money(t.feesCents) : "–"}</Text>
+              <Text style={{ width: 44, textAlign: "right" }}>{t.shopCents ? money(t.shopCents) : "–"}</Text>
+              <Text style={{ width: 56, textAlign: "right" }}>{money(t.amountCents)}</Text>
+            </View>
+          ))}
+        </View>
+        <Footer id={id} />
+      </Page>
+    </Document>
+  );
+}
+
+export async function renderTaxStatementPdf(input: TaxStatementInput) {
+  return renderToBuffer(<TaxStatementDoc {...input} />);
 }

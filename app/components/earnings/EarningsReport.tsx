@@ -14,6 +14,7 @@ import { Button, EmptyState, Field, Section, Segmented, Sheet, Tag, fieldClass, 
 import type { AttentionItem, EarningsRow, Payouts } from "@/app/lib/earnings";
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/app/lib/expenseCategories";
 import { PAID_LABEL, TYPE_LABEL, buildStatement, money, type Line } from "@/app/lib/earningsStatement";
+import TaxYear from "./TaxYear";
 import { boothRentStatus, checkRange, headline, lineBreakdown, rangeFor, shopSplit, type RangeKind, type RentMember } from "@/app/lib/earningsCore";
 
 type Scope = "me" | "shop";
@@ -78,7 +79,26 @@ function SkeletonBlock({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse rounded-2xl bg-neutral-100 ${className}`} />;
 }
 
+// Earnings and the Tax year, as two tabs.
 export default function EarningsReport({ scope }: { scope: Scope }) {
+  const [view, setView] = useState<"earnings" | "tax">("earnings");
+  return (
+    <div className="space-y-6">
+      <Segmented
+        label="Earnings view"
+        value={view}
+        onChange={setView}
+        options={[
+          { value: "earnings", label: "Earnings" },
+          { value: "tax", label: "Tax year" },
+        ]}
+      />
+      {view === "tax" ? <TaxYear scope={scope} /> : <EarningsView scope={scope} />}
+    </div>
+  );
+}
+
+function EarningsView({ scope }: { scope: Scope }) {
   const [range, setRange] = useState<RangeKind>("week");
   const [custom, setCustom] = useState<{ from: string; to: string }>(() => rangeFor("month", todayKey()));
   const [draft, setDraft] = useState(custom);
