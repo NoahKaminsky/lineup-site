@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
-import AnalyticsView from "@/app/components/analytics/AnalyticsView";
+import ProAnalytics from "@/app/components/analytics/ProAnalytics";
 
 // A pro's analytics: what's growing, who's overdue, which hours sit empty.
 export default function AnalyticsPage() {
@@ -45,7 +45,7 @@ export default function AnalyticsPage() {
       <div className="mx-auto max-w-5xl py-10">
         <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Analytics</h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-500">
-          How your business is doing and where the next dollar is: clients due back, open hours, and the services worth your time.
+          Where your money comes from, which clients are slipping away, where your calendar loses money, and what to do about it this week. Payouts, fees and statements stay on Earnings.
           {onShop ? (
             <>
               {" "}
@@ -57,7 +57,7 @@ export default function AnalyticsPage() {
             </>
           ) : null}
         </p>
-        <div className="mt-8">{ready ? <AnalyticsView scope="me" /> : <div className="h-40 animate-pulse rounded-2xl bg-neutral-100" />}</div>
+        <div className="mt-8">{ready ? <ProAnalytics /> : <div className="h-40 animate-pulse rounded-2xl bg-neutral-100" />}</div>
       </div>
     </main>
   );

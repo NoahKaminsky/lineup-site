@@ -3,13 +3,12 @@ import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupaba
 import { getStudioForUser, isStudioLive, errorMessage } from "@/app/lib/studios";
 import { buildAnalytics } from "@/app/lib/analytics";
 import { sendPushToUser } from "@/app/lib/push";
-import { createEmailLayout, escapeHtml, sendEmail } from "@/app/lib/email";
 import { getSiteUrl } from "@/app/lib/siteUrl";
 import { getProfileHref } from "@/app/lib/profileLink";
 
 // POST /api/analytics/winback { scope: "me" | "shop", customerIds: string[] | "all" }
 // Sends a "time to come back?" note to overdue clients: a LineUp
-// notification, a push, and an email unless they've opted out. The overdue
+// notification and a push. Never an email. The overdue
 // list is worked out again here, so only clients who really are overdue (and
 // are this pro's or this shop's) can be nudged, at most once every 30 days.
 
@@ -48,7 +47,7 @@ export async function POST(req: Request) {
 
     const site = getSiteUrl("https://www.lineup-aesthetics.ca");
     const ids = [...new Set([...targets.map((t) => t.customerId as string), ...targets.map((t) => t.proId)])];
-    const { data: people } = await supabase.from("profiles").select("id, username, full_name, email, unsubscribed_from_marketing").in("id", ids);
+    const { data: people } = await supabase.from("profiles").select("id, username, full_name").in("id", ids);
     const byId = new Map((people || []).map((p) => [p.id, p]));
 
     let sent = 0;
@@ -61,31 +60,9 @@ export async function POST(req: Request) {
       if (logError) throw logError;
 
       const proName = pro.full_name || "your pro";
-      const first = proName.split(" ")[0];
       const link = `${site}${getProfileHref(pro)}#availability`;
       await supabase.from("notifications").insert([{ user_id: client.id, is_read: false, type: "rebook_nudge", title: `${proName} has open times. Ready for your next visit?` }]);
       await sendPushToUser(client.id, { title: `Ready for your next visit?`, body: `${proName} has open times this week.`, url: link }).catch(() => {});
-      if (client.email && !client.unsubscribed_from_marketing) {
-        try {
-          await sendEmail({
-            to: client.email,
-            subject: `${first} has open times for you`,
-            html: createEmailLayout({
-              title: `Ready for your next visit?`,
-              preview: `It's been a while since your last visit with ${proName}.`,
-              ctaLabel: `See ${first}'s open times`,
-              ctaUrl: link,
-              content: `
-                <p style="margin:0 0 16px 0;">Hi${client.full_name ? ` ${escapeHtml(client.full_name.split(" ")[0])}` : ""},</p>
-                <p style="margin:0 0 16px 0;">It's been a while since your last visit with <strong>${escapeHtml(proName)}</strong>, and there are open times coming up.</p>
-                <p style="margin:0;color:#666666;font-size:13px;">You're getting this because you've booked ${escapeHtml(first)} on LineUp before. <a href="${site}/unsubscribe?email=${encodeURIComponent(client.email)}" style="color:#666666;">Stop these emails</a>.</p>
-              `,
-            }),
-          });
-        } catch (emailError) {
-          console.error(`Win-back email failed for ${client.id}:`, emailError);
-        }
-      }
       sent++;
     }
     return NextResponse.json({ ok: true, sent });

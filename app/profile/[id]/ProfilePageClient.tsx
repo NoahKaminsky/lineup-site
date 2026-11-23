@@ -1,5 +1,6 @@
 "use client";
 
+import { readPending, visitSource } from "@/app/lib/bookingSource";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
@@ -502,12 +503,24 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
     } catch {
       /* private mode: still count it */
     }
+    // Where they found this pro (Discover, Spotlight, a boost, their link).
+    const nav = performance.getEntriesByType?.("navigation")[0] as PerformanceNavigationTiming | undefined;
+    const via = visitSource({
+      path: window.location.pathname,
+      search: window.location.search,
+      origin: window.location.origin,
+      referrer: document.referrer,
+      firstLoadUrl: nav?.name || null,
+      href: window.location.href,
+      pending: readPending(),
+      now: Date.now(),
+    });
     supabase.auth.getSession().then(({ data }) => {
       const token = data.session?.access_token;
       fetch("/api/spotlight", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ professionalId: visitedProId, kind: "view", surface: "profile" }),
+        body: JSON.stringify({ professionalId: visitedProId, kind: "view", surface: "profile", via }),
         keepalive: true,
       }).catch(() => {});
     });
