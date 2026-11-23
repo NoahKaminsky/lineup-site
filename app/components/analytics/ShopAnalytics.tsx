@@ -45,9 +45,9 @@ function Team({ s, onPick }: { s: S; onPick: (id: string) => void }) {
     <Card id="team" title="Team" state={st(s)} suggestion={d?.suggestion as never} headline={d ? `${rows.length} pro${rows.length === 1 ? "" : "s"}` : undefined} sub={d && rows.length === 1 ? "The comparison fills in once a second pro joins." : null}>
       {d ? (
         <>
-          {d.flags.length ? (
+          {d.flags.some((f: { text: string }) => !String(d.suggestion?.text || "").startsWith(f.text)) ? (
             <ul className="mb-4 space-y-1.5">
-              {(d.flags as { proId: string; text: string }[]).map((f) => (
+              {(d.flags as { proId: string; text: string }[]).filter((f) => !String(d.suggestion?.text || "").startsWith(f.text)).map((f) => (
                 <li key={f.text} className="rounded-lg bg-neutral-50 px-3 py-2 text-sm text-ink">
                   {f.text}
                 </li>
@@ -74,7 +74,7 @@ function Team({ s, onPick }: { s: S; onPick: (id: string) => void }) {
                     <span className="tabular-nums text-ink">{TEAM_COLS.find((c) => c.key === sort)!.fmt(t)}</span>
                   </div>
                   <p className="mt-1 text-xs text-neutral-500">
-                    {cad(t.revenue)} · {pctOr(t.use)} of hours booked · {cad(t.perHour)}/h · rebook {pctOr(t.rebook)} · {t.noShows} no-shows
+                    {cad(t.revenue)} · {t.use === null ? "no weekly hours set" : `${pctOr(t.use)} of hours booked`} · {cad(t.perHour)}/h · rebook {pctOr(t.rebook)} · {t.noShows} no-show{t.noShows === 1 ? "" : "s"}
                   </p>
                 </button>
               </li>
@@ -306,10 +306,10 @@ export default function ShopAnalytics() {
                       <li key={c.proId} className="py-2.5 text-sm">
                         <div className="flex justify-between gap-3">
                           <span className="text-ink">{c.name}</span>
-                          <span className="tabular-nums text-ink">{cad(c.revenuePerChairHour)} per chair-hour</span>
+                          <span className="tabular-nums text-ink">{c.use === null ? "No weekly hours set" : `${cad(c.revenuePerChairHour)} per chair-hour`}</span>
                         </div>
                         <p className="text-xs text-neutral-500">
-                          {pctOr(c.use)} used · {c.emptyHours} empty hours{c.emptiestDay ? ` · ${DAYS[c.emptiestDay.dow]}s ${c.emptiestDay.emptyPercent}% empty` : ""}
+                          {c.use === null ? "Set their hours in Calendar to see how full their chair is." : `${pctOr(c.use)} used · ${c.emptyHours} empty hours${c.emptiestDay ? ` · ${DAYS[c.emptiestDay.dow]}s ${c.emptiestDay.emptyPercent}% empty` : ""}`}
                         </p>
                       </li>
                     ))}

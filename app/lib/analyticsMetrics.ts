@@ -84,24 +84,23 @@ export function firstVisits(visits: AVisit[]) {
   return first;
 }
 
-// Of the clients seen in a period, the share who already have a later visit
-// (done or booked). A client seen in the last 3 weeks with nothing booked
-// yet is left out: it's too soon to say, and counting them would make every
-// recent period look worse. Needs at least 3 clients to mean anything.
+// Of the visits in a period, the share followed by another visit or a
+// booking from the same client. A visit in the last 3 weeks with nothing
+// after it yet is left out: it's too soon to say, and counting it would make
+// every recent period look worse. Needs at least 3 visits to mean anything.
 export const REBOOK_GRACE_DAYS = 21;
 export function rebookRate(visits: AVisit[], p: Period, today?: string): number | null {
-  const last = new Map<string, string>();
   const latest = new Map<string, string>();
   for (const v of visits) {
     if (!v.clientKey || (v.state !== "done" && v.state !== "upcoming") || v.imported) continue;
     if ((latest.get(v.clientKey) || "") < v.date) latest.set(v.clientKey, v.date);
-    if (v.state === "done" && inP(v, p) && (last.get(v.clientKey) || "") < v.date) last.set(v.clientKey, v.date);
   }
   let back = 0;
   let counted = 0;
-  for (const [k, d] of last) {
-    const rebooked = (latest.get(k) || "") > d;
-    if (!rebooked && today && diffDays(today, d) < REBOOK_GRACE_DAYS) continue;
+  for (const v of visits) {
+    if (!v.clientKey || v.state !== "done" || v.imported || !inP(v, p)) continue;
+    const rebooked = (latest.get(v.clientKey) || "") > v.date;
+    if (!rebooked && today && diffDays(today, v.date) < REBOOK_GRACE_DAYS) continue;
     counted++;
     if (rebooked) back++;
   }
