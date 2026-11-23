@@ -547,7 +547,7 @@ export default function AnalyticsView({ scope: ownScope }: { scope: Scope }) {
                 )}
                 {canNudge && data.clients.atRisk.length ? (
                   <p className="mt-2 text-xs text-neutral-500">
-                    A nudge sends a LineUp notification and an email with a link to open times, at most once every 30 days per client. Walk-ins without a
+                    A nudge sends a LineUp notification and a push with a link to open times, at most once every 30 days per client. Walk-ins without a
                     LineUp account can&apos;t be nudged.
                   </p>
                 ) : null}
