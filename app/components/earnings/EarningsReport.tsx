@@ -144,12 +144,14 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
 
   const period =
     range === "week" ? "this week" : range === "month" ? "this month" : range === "year" ? `in ${from.slice(0, 4)}` : `from ${shortDate(from)} to ${shortDate(to)}`;
-  const sentence = data ? headline(st.summary, data.payouts || null, period, scope) : "";
+  // For a shop, the top figure is the shop's own money, owner's own appointments included.
+  const topCents = split ? split.shopOwn.total : st.net;
+  const sentence = data ? headline({ ...st.summary, net: topCents }, data.payouts || null, period, scope) : "";
   const pdfMonth: number | "all" = from.slice(0, 7) === to.slice(0, 7) ? Number(from.slice(5, 7)) - 1 : "all";
   const p = data?.payouts;
 
   const rangeTabs = (
-    <div role="tablist" aria-label="Range" className="-mx-1 flex gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div role="tablist" aria-label="Range" className="-mx-1 flex gap-1 overflow-x-auto px-1 [scrollbar-width:none] lg:shrink-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden">
       {RANGES.map((r) => (
         <button
           key={r.value}
@@ -172,26 +174,31 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
 
   const customError = range === "custom" ? checkRange(draft.from, draft.to) : null;
 
+  const actions = (
+    <div className="flex flex-wrap gap-2">
+      {scope === "me" ? (
+        <Button onClick={() => setAdding("sale")}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Add a walk-in payment
+        </Button>
+      ) : null}
+      <Button onClick={() => setAdding("expense")}>
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        Add an expense
+      </Button>
+      <Button variant="ghost" onClick={() => setAskDetails(true)} disabled={!data}>
+        <FileText className="h-4 w-4" aria-hidden="true" />
+        Statement (PDF)
+      </Button>
+    </div>
+  );
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         {rangeTabs}
-        <div className="flex flex-wrap gap-2">
-          {scope === "me" ? (
-            <Button onClick={() => setAdding("sale")}>
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Add a walk-in payment
-            </Button>
-          ) : null}
-          <Button onClick={() => setAdding("expense")}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Add an expense
-          </Button>
-          <Button variant="ghost" onClick={() => setAskDetails(true)} disabled={!data}>
-            <FileText className="h-4 w-4" aria-hidden="true" />
-            Statement (PDF)
-          </Button>
-        </div>
+        {/* On laptops the actions sit up here; on phones they come after the figures. */}
+        <div className="hidden lg:block">{actions}</div>
       </div>
 
       {range === "custom" ? (
@@ -221,7 +228,7 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
           </Button>
         </div>
       ) : !data ? (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" aria-busy="true" aria-label="Loading earnings">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" aria-busy="true" aria-label="Loading earnings">
           <div className="space-y-4">
             <SkeletonBlock className="h-36" />
             <SkeletonBlock className="h-40" />
@@ -234,17 +241,19 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
           </div>
         </div>
       ) : (
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
           {/* Left: the figures. On phones this all comes first. */}
           <div className="space-y-8">
             <div className={`${panelClass} p-5 sm:p-6`}>
-              <p className="text-sm text-neutral-500">{scope === "shop" ? "The shop's net" : "Your net earnings"} {period}</p>
-              <p className="mt-1 text-4xl font-semibold tabular-nums tracking-[-0.03em] text-ink">{money(st.net)}</p>
+              <p className="text-sm text-neutral-500">{scope === "shop" ? "The shop's own money" : "Your net earnings"} {period}</p>
+              <p className="mt-1 text-4xl font-semibold tabular-nums tracking-[-0.03em] text-ink">{money(topCents)}</p>
               <p className="mt-3 text-[15px] leading-7 text-neutral-700">{sentence}</p>
               {error ? <p className="mt-2 text-sm text-[#A30D25]">{error}</p> : null}
             </div>
 
             <OnTheWay payouts={p} scope={scope} onOpenStripe={openStripe} opening={opening} />
+
+            <div className="lg:hidden">{actions}</div>
 
             {attention.length ? (
               <Section title={`Needs a look (${attention.length})`} description="These can keep your totals from being complete.">
@@ -319,7 +328,7 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
                           </span>
                           <span className="text-neutral-500">
                             {money(r.dueCents)} a {r.interval}
-                            {r.dueDate ? `, next ${shortDate(r.dueDate)}` : ""}
+                            {r.dueDate ? `, ${r.dueDate < (data?.today || "") ? "was due" : "next"} ${shortDate(r.dueDate)}` : ""}
                           </span>
                           {r.late ? <Tag tone="ink">Late: last payment failed</Tag> : <Tag tone="outline">Up to date</Tag>}
                         </li>
@@ -328,7 +337,7 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
                   </Section>
                 ) : null}
               </>
-            ) : (
+            ) : !rows.length ? null : (
               <Section title="From sales to what you keep">
                 <Lines
                   lines={[
@@ -614,7 +623,7 @@ type EntryKind = "sale" | "product" | "expense";
 type PaidWith = "cash" | "card" | "etransfer" | "other";
 
 const ENTRY_TITLE: Record<EntryKind, [string, string]> = {
-  sale: ["Log a sale", "A client who paid you directly and didn't book on LineUp. Nothing is charged."],
+  sale: ["Add a walk-in payment", "A client who paid you directly and didn't book on LineUp. Nothing is charged."],
   product: ["Log a product sale", "Something sold over the counter, like pomade or beard oil."],
   expense: ["Add an expense", "A cost of doing business. It comes off your net income on the statement."],
 };

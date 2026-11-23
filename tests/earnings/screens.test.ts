@@ -125,6 +125,15 @@ describe("the sentence at the top", () => {
       "You made $1,241 this week. $860 is already in your bank and $380 arrives after your next appointments are done."
     );
   });
+  it("says why money is waiting", () => {
+    const s = summarize(rows(paid("a", "p1", "2026-11-20", 10000)), "me");
+    expect(headline(s, { heldUntilDoneCents: 8500, heldAfterDoneCents: 8500, bank: null, stripe: "none" }, "this week", "me")).toBe(
+      "You made $85 this week. $85 is waiting until your payouts are set up."
+    );
+    expect(headline(s, { heldUntilDoneCents: 8500, heldAfterDoneCents: 2000, bank: null, stripe: "ready" }, "this week", "me")).toBe(
+      "You made $85 this week. $65 arrives after your next appointments are done and $20 from finished appointments hasn't been sent yet."
+    );
+  });
   it("stays short when there's nothing else to say", () => {
     const s = summarize([], "me");
     expect(headline(s, null, "this week", "me")).toBe("You made $0 this week.");

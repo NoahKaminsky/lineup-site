@@ -705,17 +705,26 @@ const dollars = (c: number) =>
 
 export function headline(
   s: Summary,
-  p: { heldUntilDoneCents: number; bank: { paidCents: number } | null } | null,
+  p: { heldUntilDoneCents: number; heldAfterDoneCents?: number; bank: { paidCents: number } | null; stripe?: "ready" | "incomplete" | "none" } | null,
   period: string, // "this week", "in November", "from Nov 3 to Nov 9"
   scope: Scope
 ) {
   const who = scope === "shop" ? "The shop" : "You";
+  const your = scope === "shop" ? "the shop's" : "your";
   const first = s.net >= 0 ? `${who} made ${dollars(s.net)} ${period}.` : `${who} spent ${dollars(-s.net)} more than ${scope === "shop" ? "it" : "you"} took in ${period}.`;
   const parts: string[] = [];
-  if (p?.bank?.paidCents) parts.push(`${dollars(p.bank.paidCents)} is already in ${scope === "shop" ? "the shop's" : "your"} bank`);
-  if (p?.heldUntilDoneCents) parts.push(`${dollars(p.heldUntilDoneCents)} arrives after ${scope === "shop" ? "the team's" : "your"} next appointments are done`);
+  if (p?.bank?.paidCents) parts.push(`${dollars(p.bank.paidCents)} is already in ${your} bank`);
+  const held = p?.heldUntilDoneCents || 0;
+  if (held && p?.stripe && p.stripe !== "ready") {
+    parts.push(`${dollars(held)} is waiting until ${your} payouts are set up`);
+  } else if (held) {
+    const afterDone = Math.min(p?.heldAfterDoneCents || 0, held);
+    if (held - afterDone) parts.push(`${dollars(held - afterDone)} arrives after ${scope === "shop" ? "the team's" : "your"} next appointments are done`);
+    if (afterDone) parts.push(`${dollars(afterDone)} from finished appointments hasn't been sent yet`);
+  }
   if (s.recordedByHand) parts.push(`${dollars(s.recordedByHand)} was paid at the shop`);
   if (!parts.length) return first;
   const last = parts.pop()!;
-  return `${first} ${parts.length ? `${parts.join(", ")} and ${last}` : last[0].toUpperCase() + last.slice(1)}.`.replace(/^(\w)/, (c) => c.toUpperCase());
+  const rest = parts.length ? `${parts.join(", ")} and ${last}` : last;
+  return `${first} ${rest[0].toUpperCase()}${rest.slice(1)}.`;
 }

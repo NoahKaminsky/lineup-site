@@ -42,14 +42,20 @@ export async function GET(req: Request) {
         payoutsFor(supabase, { studio: ctx.studio }, from, to),
         supabase
           .from("studio_members")
-          .select("profile_id, arrangement, rent_cents, rent_interval, rent_status, rent_current_period_end, profile:profiles(full_name)")
+          .select("profile_id, arrangement, rent_cents, rent_interval, rent_status, rent_current_period_end")
           .eq("studio_id", ctx.studio.id)
           .eq("status", "active")
           .eq("arrangement", "booth_rent"),
       ]);
+      if (members.error) throw members.error;
+      const renterIds = (members.data || []).map((m) => m.profile_id).filter((id): id is string => !!id);
+      const { data: renterProfiles } = renterIds.length
+        ? await supabase.from("profiles").select("id, full_name").in("id", renterIds)
+        : { data: [] as { id: string; full_name: string | null }[] };
+      const names = new Map((renterProfiles || []).map((p) => [p.id, p.full_name]));
       const rent: RentMember[] = (members.data || []).map((m) => ({
         proId: m.profile_id as string,
-        name: ((m.profile as { full_name?: string } | null)?.full_name as string) || "Team member",
+        name: names.get(m.profile_id as string) || "Team member",
         rentCents: m.rent_cents,
         rentInterval: m.rent_interval,
         rentStatus: m.rent_status,
