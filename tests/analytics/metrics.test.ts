@@ -279,6 +279,14 @@ describe("suggestion rules", () => {
 });
 
 describe("rebook rate is fair to recent periods", () => {
+  it("counts each visit, so a regular seen often this month counts as rebooked", () => {
+    const vv = (key: string, date: string) => ({ date, startMin: 600, minutes: 60, clientKey: key, service: "Cut", sales: 1, state: "done" as const });
+    const regular = ["2026-11-02", "2026-11-09", "2026-11-16", "2026-11-23"].map((d) => vv("r", d));
+    const once = [vv("o", "2026-10-20")];
+    // Three of the regular's visits have a later one; the Nov 23 one is too recent; Oct 20 isn't in November.
+    expect(rebookRate([...regular, ...once], { from: "2026-11-01", to: "2026-11-23" }, "2026-11-23")).toBe(100);
+    expect(rebookRate([...regular, ...once], { from: "2026-10-01", to: "2026-11-23" }, "2026-11-23")).toBe(75);
+  });
   it("clients seen in the last 3 weeks with nothing booked aren't counted yet", () => {
     const vv = (key: string, date: string, state: "done" | "upcoming" = "done") => ({ date, startMin: 600, minutes: 60, clientKey: key, service: "Cut", sales: 1, state });
     const visits = [
