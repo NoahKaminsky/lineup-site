@@ -85,22 +85,31 @@ export function firstVisits(visits: AVisit[]) {
 }
 
 // Of the clients seen in a period, the share who already have a later visit
-// (done or booked). Needs at least 3 clients to mean anything.
-export function rebookRate(visits: AVisit[], p: Period): number | null {
+// (done or booked). A client seen in the last 3 weeks with nothing booked
+// yet is left out: it's too soon to say, and counting them would make every
+// recent period look worse. Needs at least 3 clients to mean anything.
+export const REBOOK_GRACE_DAYS = 21;
+export function rebookRate(visits: AVisit[], p: Period, today?: string): number | null {
   const last = new Map<string, string>();
   const latest = new Map<string, string>();
   for (const v of visits) {
-    if (!v.clientKey || (v.state !== "done" && v.state !== "upcoming")) continue;
+    if (!v.clientKey || (v.state !== "done" && v.state !== "upcoming") || v.imported) continue;
     if ((latest.get(v.clientKey) || "") < v.date) latest.set(v.clientKey, v.date);
     if (v.state === "done" && inP(v, p) && (last.get(v.clientKey) || "") < v.date) last.set(v.clientKey, v.date);
   }
-  if (last.size < 3) return null;
   let back = 0;
-  for (const [k, d] of last) if ((latest.get(k) || "") > d) back++;
-  return pct(back, last.size);
+  let counted = 0;
+  for (const [k, d] of last) {
+    const rebooked = (latest.get(k) || "") > d;
+    if (!rebooked && today && diffDays(today, d) < REBOOK_GRACE_DAYS) continue;
+    counted++;
+    if (rebooked) back++;
+  }
+  if (counted < 3) return null;
+  return pct(back, counted);
 }
 
-export function overview(visits: AVisit[], p: Period, cmp: Period) {
+export function overview(visits: AVisit[], p: Period, cmp: Period, today?: string) {
   const first = firstVisits(visits);
   const one = (q: Period) => {
     const done = visits.filter((v) => paidDone(v) && inP(v, q));
@@ -110,7 +119,7 @@ export function overview(visits: AVisit[], p: Period, cmp: Period) {
       bookings: done.length,
       avgTicket: paid.length ? Math.round(sum(paid, (v) => v.sales) / paid.length) : 0,
       newClients: [...first.values()].filter((d) => d >= q.from && d <= q.to).length,
-      rebook: rebookRate(visits, q),
+      rebook: rebookRate(visits, q, today),
     };
   };
   const a = one(p);

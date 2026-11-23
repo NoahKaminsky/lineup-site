@@ -18,6 +18,7 @@ import {
   openTimeValue,
   overview,
   periodFor,
+  rebookRate,
   recurringWords,
   requestStats,
   retentionCohorts,
@@ -275,4 +276,21 @@ describe("suggestion rules", () => {
     expect(new Set(all.map((s) => s.section)).size).toBe(all.length);
   });
   it("addDays crosses months", () => expect(addDays("2026-11-30", 1)).toBe("2026-12-01"));
+});
+
+describe("rebook rate is fair to recent periods", () => {
+  it("clients seen in the last 3 weeks with nothing booked aren't counted yet", () => {
+    const vv = (key: string, date: string, state: "done" | "upcoming" = "done") => ({ date, startMin: 600, minutes: 60, clientKey: key, service: "Cut", sales: 1, state });
+    const visits = [
+      vv("a", "2026-10-05"), vv("a", "2026-11-01"), // came back
+      vv("b", "2026-10-10"), vv("b", "2026-11-05"), // came back
+      vv("c", "2026-10-20"), vv("c", "2026-12-01", "upcoming"), // booked
+      vv("d", "2026-10-08"), // not back
+      vv("e", "2026-10-25"), // not back: too soon to tell on Nov 10, counted by Nov 22
+    ];
+    const oct = { from: "2026-10-01", to: "2026-10-31" };
+    expect(rebookRate(visits, oct)).toBe(60); // 3 of 5
+    expect(rebookRate(visits, oct, "2026-11-10")).toBe(75); // e left out: 3 of 4
+    expect(rebookRate(visits, oct, "2026-11-22")).toBe(60); // e counted: 3 of 5
+  });
 });

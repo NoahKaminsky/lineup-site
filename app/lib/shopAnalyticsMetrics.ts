@@ -15,7 +15,7 @@ const done = (v: AVisit) => v.state === "done" && !v.imported;
 
 export type ProInput = { id: string; name: string; open: OpenHours; offDays?: Set<string>; rating: number | null; offers: { sent: number; won: number } };
 
-export function proStats(visits: ShopVisit[], pro: ProInput, p: Period) {
+export function proStats(visits: ShopVisit[], pro: ProInput, p: Period, today?: string) {
   const mine = visits.filter((v) => v.proId === pro.id);
   const worked = mine.filter((v) => done(v) && inP(v, p));
   const h = heatmap(mine, pro.open, p, pro.offDays);
@@ -29,7 +29,7 @@ export function proStats(visits: ShopVisit[], pro: ProInput, p: Period) {
     bookedHours: Math.round((bookedMinutes / 60) * 10) / 10,
     use: h.openMinutes > 0 ? Math.min(pct(h.bookedMinutes, h.openMinutes) as number, 100) : null,
     perHour: bookedMinutes > 0 ? Math.round(revenue / (bookedMinutes / 60)) : 0,
-    rebook: rebookRate(mine, p),
+    rebook: rebookRate(mine, p, today),
     rating: pro.rating,
     noShows: mine.filter((v) => v.state === "no_show" && inP(v, p)).length,
     winRate: pct(pro.offers.won, pro.offers.sent),

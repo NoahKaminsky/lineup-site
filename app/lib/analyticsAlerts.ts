@@ -33,7 +33,7 @@ export function alertsFor(i: AlertInput): Alert[] {
     out.push({ key: `revenue_drop:${i.weekKey}`, title: `Revenue is down ${down}% this week`, body: `${cad(i.weekRevenue)} so far, against a usual week of about ${cad(i.usualWeekRevenue)}.`, windowDays: 7 });
   }
   if (i.weekNoShows >= ALERT_RULES.noShowSpike && i.weekNoShows >= Math.max(i.usualWeekNoShows * 2, 1)) {
-    out.push({ key: `no_shows:${i.weekKey}`, title: `${i.weekNoShows} no-shows this week`, body: `Usually it's about ${Math.round(i.usualWeekNoShows)} a week. A no-show fee helps.`, windowDays: 7 });
+    out.push({ key: `no_shows:${i.weekKey}`, title: `${i.weekNoShows} no-shows this week`, body: `${i.usualWeekNoShows < 1 ? "Usually there are none" : `Usually it's about ${Math.round(i.usualWeekNoShows)} a week`}. A no-show fee helps.`, windowDays: 7 });
   }
   for (const d of i.rebookDrops || []) {
     if (d.from - d.to < ALERT_RULES.rebookDropPoints) continue;

@@ -221,7 +221,7 @@ const pick = (list: Suggestion[]) => list[0] || null;
 async function overviewSection(c: Ctx) {
   const all = await loadVisits(c.db, c.proId, c.today);
   const visits = filterService(all, c.service);
-  const o = overview(visits, c.period, c.compare);
+  const o = overview(visits, c.period, c.compare, c.today);
   const services = [...new Set(all.filter((v) => !v.imported && v.state !== "cancelled").map((v) => v.service))].sort();
   const { data: reviews } = await c.db.from("professional_reviews").select("rating, created_at").eq("professional_id", c.proId).limit(5000);
   const avg = (rows: { rating: number }[]) => (rows.length ? Math.round((sum(rows, (r) => r.rating) / rows.length) * 10) / 10 : null);

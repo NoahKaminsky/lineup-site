@@ -44,7 +44,7 @@ export async function shopSection(name: ShopSectionName, c: ShopCtx): Promise<Re
         shopEarnings(c.db, c.studio, c.compare.from, c.compare.to),
       ]);
       const v = filterService(visits, c.service);
-      const o = overview(v, c.period, c.compare);
+      const o = overview(v, c.period, c.compare, c.today);
       const own = (rows: typeof now.rows) => {
         const s = summarize(rows, "shop");
         return { commission: s.shopCommission, boothRent: s.boothRent, memberships: s.memberships, total: s.shopCommission + s.boothRent + s.memberships };
@@ -87,9 +87,9 @@ export async function shopSection(name: ShopSectionName, c: ShopCtx): Promise<Re
           };
         });
       const v = filterService(visits as ShopVisit[], c.service);
-      const now = prosFor(c.period).map((p) => proStats(v, p, c.period));
+      const now = prosFor(c.period).map((p) => proStats(v, p, c.period, c.today));
       if (name === "team") {
-        const prev = prosFor(c.compare).map((p) => proStats(v, p, c.compare));
+        const prev = prosFor(c.compare).map((p) => proStats(v, p, c.compare, c.today));
         const flags = teamFlags(now, prev, "against the comparison period");
         return { team: now, prev, flags, suggestion: pick(shopSuggestions({ team: { flags: flags.map((f) => f.text), pros: now.length } })) };
       }
@@ -189,7 +189,7 @@ export async function shopSection(name: ShopSectionName, c: ShopCtx): Promise<Re
       const r = (Array.isArray(data) ? data[0] : data) as { shops: number; median_ticket_cents: number | null; median_rebook: number | null } | null;
       const last90 = { from: addDays(c.today, -89), to: c.today };
       const v = await loadVisitsBy(c.db, "studio_id", c.studio.id, c.today);
-      const o = overview(v, last90, last90);
+      const o = overview(v, last90, last90, c.today);
       const cmp = localShopCompare({ shops: r?.shops || 0, medianTicket: r?.median_ticket_cents ?? null, medianRebook: r?.median_rebook ?? null }, { avgTicket: o.avgTicket.now || 0, rebook: o.rebook.now });
       return { ...cmp, mine: { avgTicket: o.avgTicket.now, rebook: o.rebook.now }, suggestion: pick(shopSuggestions({ local: { enough: cmp.enough, ticketVs: cmp.enough ? cmp.ticketVs : null, rebookVs: cmp.enough ? cmp.rebookVs : null } })) };
     }
@@ -230,7 +230,7 @@ export async function refreshAlerts(db: DB, who: { proId?: string; studio?: Stud
     rebookDrops = t.ids
       .map((id) => {
         const mine = visits.filter((v) => v.proId === id);
-        return { proId: id, name: t.name(id), from: rebookRate(mine, lastMonth), to: rebookRate(mine, thisMonth) };
+        return { proId: id, name: t.name(id), from: rebookRate(mine, lastMonth, today), to: rebookRate(mine, thisMonth, today) };
       })
       .filter((d): d is { proId: string; name: string; from: number; to: number } => d.from !== null && d.to !== null);
   }
