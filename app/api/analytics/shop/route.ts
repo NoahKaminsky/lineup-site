@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     const timing: Record<string, number> = { auth: Date.now() - started };
     const url = new URL(req.url);
     const name = url.searchParams.get("section") || "";
-    if (name !== "pro" && !SHOP_SECTIONS.includes(name as ShopSectionName)) return NextResponse.json({ error: "Unknown section." }, { status: 400 });
+    if (name !== "pro" && name !== "all" && !SHOP_SECTIONS.includes(name as ShopSectionName)) return NextResponse.json({ error: "Unknown section." }, { status: 400 });
 
     const db = getServiceSupabase();
     const ctx = await getStudioForUser(db, user.id);
@@ -62,6 +62,23 @@ export async function GET(req: Request) {
         overdue: atRisk(visits, today).length,
         ms: Date.now() - started,
       });
+    }
+
+    if (name === "all") {
+      // Every section in one request, sharing one load of the shop's data.
+      // Nine separate requests queue against each other on the server.
+      const c = { db, studio: ctx.studio, userId: user.id, today, period: q.period, compare: q.compare, service: q.service, accessToken: bearer(req) };
+      const results = await Promise.all(
+        SHOP_SECTIONS.map(async (s) => {
+          try {
+            return [s, await shopSection(s, c)] as const;
+          } catch (e) {
+            console.error(`shop analytics section ${s} failed:`, e);
+            return [s, { error: errorMessage(e, "Could not load this section.") }] as const;
+          }
+        })
+      );
+      return NextResponse.json({ section: "all", today, period: q.period, compare: q.compare, sections: Object.fromEntries(results), ms: Date.now() - started, timing: { ...timing, ...Object.fromEntries(loadTimes) } });
     }
 
     const data = await shopSection(name as ShopSectionName, { db, studio: ctx.studio, userId: user.id, today, period: q.period, compare: q.compare, service: q.service, accessToken: bearer(req) });

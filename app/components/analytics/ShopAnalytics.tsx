@@ -10,7 +10,7 @@ import Link from "next/link";
 import { studioFetch } from "@/app/studio/studioApi";
 import { Button, Segmented, Sheet, buttonClass, fieldClass, panelClass } from "@/app/studio/ui";
 import type { ShopSuggestion } from "@/app/lib/analyticsInsights";
-import { AlertsList, Bars, Card, CsvLinks, Delta, Kpi, PdfButton, RevenueChart, cad, qs, st, useSection, type Query, type S } from "./ProAnalytics";
+import { AlertsList, Bars, Card, CsvLinks, Delta, Kpi, PdfButton, RevenueChart, cad, qs, st, type Query, type S } from "./ProAnalytics";
 import { SHOP_SAMPLE } from "./shopAnalyticsSample";
 
 const BASE = "/api/analytics/shop";
@@ -156,23 +156,47 @@ function ProSheet({ id, q, onClose }: { id: string | null; q: Query; onClose: ()
   );
 }
 
+// The whole page in one request (nine at once queue on the server).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Sections = Record<string, any>;
+function useShopSections(q: Query) {
+  const key = qs(q);
+  const [retry, setRetry] = useState(0);
+  const [state, setState] = useState<{ key: string; sections: Sections | null; error: string | null; needsPlan: boolean } | null>(null);
+  useEffect(() => {
+    let live = true;
+    studioFetch<{ sections?: Sections; error?: string; needsPlan?: boolean }>(`${BASE}?section=all&${key}`).then((res) => {
+      if (!live) return;
+      setState({ key: `${key}#${retry}`, sections: res.ok ? res.data.sections || null : null, error: res.ok ? null : res.data.error || "Could not load the shop's analytics.", needsPlan: !!res.data.needsPlan });
+    });
+    return () => {
+      live = false;
+    };
+  }, [key, retry]);
+  const current = state?.key === `${key}#${retry}` ? state : null;
+  return { sections: current?.sections || null, error: current?.error || null, needsPlan: !!current?.needsPlan, loading: !current, retry: () => setRetry((n) => n + 1) };
+}
+
 export default function ShopAnalytics() {
   const [q, setQ] = useState<Query>({ period: "month", from: "", to: "", compare: "previous", service: "" });
   const [draft, setDraft] = useState({ from: "", to: "" });
   const [pro, setPro] = useState<string | null>(null);
   const tick = 0;
-  const live = useSection("overview", q, tick, false, BASE);
-  const sample = !!live.needsPlan;
-  const sampled = useSection("overview", q, tick, true, BASE, SHOP_SAMPLE as never);
-  const overview = sample ? sampled : live;
-  const team = useSection("team", q, tick, sample, BASE, SHOP_SAMPLE as never);
-  const chairs = useSection("chairs", q, tick, sample, BASE, SHOP_SAMPLE as never);
-  const channels = useSection("channels", q, tick, sample, BASE, SHOP_SAMPLE as never);
-  const clients = useSection("clients", q, tick, sample, BASE, SHOP_SAMPLE as never);
-  const memberships = useSection("memberships", q, tick, sample, BASE, SHOP_SAMPLE as never);
-  const rent = useSection("rent", q, tick, sample, BASE, SHOP_SAMPLE as never);
-  const forecast = useSection("forecast", q, tick, sample, BASE, SHOP_SAMPLE as never);
-  const local = useSection("local", q, tick, sample, BASE, SHOP_SAMPLE as never);
+  const all = useShopSections(q);
+  const sample = all.needsPlan;
+  const pick = (name: keyof typeof SHOP_SAMPLE): S =>
+    sample
+      ? { data: SHOP_SAMPLE[name] as never, locked: false, error: null, needsPlan: false, loading: false, retry: () => {} }
+      : { data: (all.sections?.[name] && !all.sections[name].error ? all.sections[name] : null) as never, locked: false, error: all.error || all.sections?.[name]?.error || null, needsPlan: false, loading: all.loading, retry: all.retry };
+  const overview = pick("overview");
+  const team = pick("team");
+  const chairs = pick("chairs");
+  const channels = pick("channels");
+  const clients = pick("clients");
+  const memberships = pick("memberships");
+  const rent = pick("rent");
+  const forecast = pick("forecast");
+  const local = pick("local");
 
   const o = overview.data;
   const services: string[] = o?.services || [];
