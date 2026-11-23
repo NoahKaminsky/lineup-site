@@ -1,40 +1,55 @@
 "use client";
 
-// The earnings report, for a pro (their own sales) or a shop (the shop's own
-// income, plus every pro's sales through it). Pick a year and a month, see
-// the statement, anything that needs fixing, and every sale, then download
-// the LineUp earnings statement (PDF) for the accountant.
+// Earnings, for a pro (their own money) or a shop (the shop's own money and
+// the team's). Pick a range, read the sentence at the top, see what's on its
+// way, and open any line to see every fee. Every number comes from
+// app/lib/earningsCore; this file only lays them out.
 
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Plus } from "lucide-react";
+import Link from "next/link";
+import { AlertCircle, ArrowUpRight, ChevronDown, FileText, Landmark, Plus, RotateCw, Wallet } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { peekStudio, studioFetch } from "@/app/studio/studioApi";
 import { Button, EmptyState, Field, Section, Segmented, Sheet, Tag, fieldClass, panelClass } from "@/app/studio/ui";
 import type { AttentionItem, EarningsRow, Payouts } from "@/app/lib/earnings";
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/app/lib/expenseCategories";
-import { PAID_LABEL, TYPE_LABEL, buildStatement, byMonth, byPro, money, type Line } from "@/app/lib/earningsStatement";
+import { PAID_LABEL, TYPE_LABEL, buildStatement, money, type Line } from "@/app/lib/earningsStatement";
+import { boothRentStatus, checkRange, headline, lineBreakdown, rangeFor, shopSplit, type RangeKind, type RentMember } from "@/app/lib/earningsCore";
 
 type Scope = "me" | "shop";
-type Response = { scope: Scope; year: number; name: string | null; rows: EarningsRow[]; attention?: AttentionItem[]; payouts?: Payouts };
+type Response = {
+  scope: Scope;
+  year: number;
+  from: string;
+  to: string;
+  today: string;
+  name: string | null;
+  rows: EarningsRow[];
+  attention?: AttentionItem[];
+  payouts?: Payouts;
+  // pro
+  inShop?: boolean;
+  solo?: boolean;
+  // shop
+  ownerId?: string;
+  rent?: RentMember[];
+};
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const FIRST_YEAR = 2026;
 const DETAILS_KEY = "lu-statement-details";
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const RANGES: { value: RangeKind; label: string }[] = [
+  { value: "week", label: "This week" },
+  { value: "month", label: "This month" },
+  { value: "year", label: "This year" },
+  { value: "custom", label: "Custom" },
+];
 
 function shortDate(date: string) {
-  return new Date(`${date}T00:00:00`).toLocaleDateString("en-CA", { month: "short", day: "numeric" });
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-function Stat({ label, value, sub, strong = false }: { label: string; value: string; sub?: string; strong?: boolean }) {
-  return (
-    // The highlighted card can't share panelClass: its bg-surface would win
-    // over bg-ink and leave white text on white.
-    <div className={strong ? "rounded-2xl bg-ink p-4 text-white" : `${panelClass} p-4`}>
-      <p className={`text-xs font-medium ${strong ? "text-white/70" : "text-neutral-500"}`}>{label}</p>
-      <p className="mt-1.5 text-xl font-semibold tabular-nums tracking-[-0.02em]">{value}</p>
-      {sub ? <p className={`mt-1 text-xs ${strong ? "text-white/60" : "text-neutral-500"}`}>{sub}</p> : null}
-    </div>
-  );
+function todayKey() {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Etc/GMT+5" });
 }
 
 function Lines({ lines, total, totalLabel }: { lines: Line[]; total?: number; totalLabel?: string }) {
@@ -59,28 +74,25 @@ function Lines({ lines, total, totalLabel }: { lines: Line[]; total?: number; to
   );
 }
 
+function SkeletonBlock({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-2xl bg-neutral-100 ${className}`} />;
+}
+
 export default function EarningsReport({ scope }: { scope: Scope }) {
-  const thisYear = new Date().getFullYear();
-  const [year, setYear] = useState(thisYear);
-  const [month, setMonth] = useState<number | "all">(new Date().getMonth());
-  const path = `/api/earnings?scope=${scope}&year=${year}`;
-  // Answers by year; a year not loaded yet shows this device's last copy.
+  const [range, setRange] = useState<RangeKind>("week");
+  const [custom, setCustom] = useState<{ from: string; to: string }>(() => rangeFor("month", todayKey()));
+  const [draft, setDraft] = useState(custom);
   const [loaded, setLoaded] = useState<Record<string, Response>>({});
   const [error, setError] = useState<string | null>(null);
-  const [shown, setShown] = useState(50);
+  const [shown, setShown] = useState(40);
   const [askDetails, setAskDetails] = useState(false);
   const [adding, setAdding] = useState<EntryKind | null>(null);
   const [tick, setTick] = useState(0);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
 
-  async function remove(r: EarningsRow) {
-    if (!r.entry || !window.confirm(`Remove "${r.item}" from your records?`)) return;
-    setRemoving(r.id);
-    const res = await studioFetch<{ error?: string }>(`/api/earnings/entries?scope=${scope}&kind=${r.entry}&id=${r.id}`, { method: "DELETE" });
-    setRemoving(null);
-    if (!res.ok) return setError(res.data.error || "Could not remove that.");
-    setTick((n) => n + 1);
-  }
+  const { from, to } = range === "custom" ? custom : rangeFor(range, todayKey());
+  const path = `/api/earnings?scope=${scope}&from=${from}&to=${to}`;
   const data = loaded[path] || peekStudio<Response>(path);
 
   useEffect(() => {
@@ -88,7 +100,7 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
     studioFetch<Response>(path).then((res) => {
       if (cancelled) return;
       if (!res.ok) {
-        setError(res.data.error || "Could not load earnings.");
+        setError(res.data.error || "We couldn't load your earnings.");
         return;
       }
       setError(null);
@@ -99,304 +111,427 @@ export default function EarningsReport({ scope }: { scope: Scope }) {
     };
   }, [path, tick]);
 
-  const monthKey = month === "all" ? null : `${year}-${String(month + 1).padStart(2, "0")}`;
-  const rows = useMemo(() => {
-    const all = data?.year === year ? data.rows : [];
-    return monthKey ? all.filter((r) => r.date.startsWith(monthKey)) : all;
-  }, [data, year, monthKey]);
-  const attention = useMemo(() => {
-    const all = data?.year === year ? data.attention || [] : [];
-    return monthKey ? all.filter((a) => a.date.startsWith(monthKey)) : all;
-  }, [data, year, monthKey]);
+  async function remove(r: EarningsRow) {
+    if (!r.entry || !window.confirm(`Remove "${r.item}" from your records?`)) return;
+    setRemoving(r.id);
+    const res = await studioFetch<{ error?: string }>(`/api/earnings/entries?scope=${scope}&kind=${r.entry}&id=${r.id}`, { method: "DELETE" });
+    setRemoving(null);
+    if (!res.ok) return setError(res.data.error || "Could not remove that.");
+    setTick((n) => n + 1);
+  }
 
+  async function openStripe() {
+    setOpening(true);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const res = await fetch("/api/stripe/connect/dashboard-link", {
+      method: "POST",
+      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+    });
+    const json = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+    setOpening(false);
+    if (json.url) window.location.href = json.url;
+    else setError(json.error || "We couldn't open Stripe. Try again from your account.");
+  }
+
+  const rows = useMemo(() => data?.rows || [], [data]);
+  const attention = data?.attention || [];
   const st = useMemo(() => buildStatement(rows, scope), [rows, scope]);
-  const months = useMemo(() => (month === "all" ? byMonth(rows, scope).filter((m) => m.gross || m.costs) : []), [rows, scope, month]);
-  const pros = useMemo(() => (scope === "shop" ? byPro(rows) : []), [rows, scope]);
+  const split = useMemo(() => (scope === "shop" ? shopSplit(rows, data?.ownerId || null) : null), [rows, scope, data?.ownerId]);
+  const rentMembers = data?.rent;
+  const rent = useMemo(() => (scope === "shop" && rentMembers?.length ? boothRentStatus(rentMembers, rows) : []), [scope, rentMembers, rows]);
 
-  const period = month === "all" ? String(year) : `${MONTHS[month]} ${year}`;
-  const years = Array.from({ length: thisYear - FIRST_YEAR + 1 }, (_, i) => thisYear - i);
-  const loading = !data && !error;
+  const period =
+    range === "week" ? "this week" : range === "month" ? "this month" : range === "year" ? `in ${from.slice(0, 4)}` : `from ${shortDate(from)} to ${shortDate(to)}`;
+  // For a shop, the top figure is the shop's own money, owner's own appointments included.
+  const topCents = split ? split.shopOwn.total : st.net;
+  const sentence = data ? headline({ ...st.summary, net: topCents }, data.payouts || null, period, scope) : "";
+  const pdfMonth: number | "all" = from.slice(0, 7) === to.slice(0, 7) ? Number(from.slice(5, 7)) - 1 : "all";
+  const p = data?.payouts;
+
+  const rangeTabs = (
+    <div role="tablist" aria-label="Range" className="-mx-1 flex gap-1 overflow-x-auto px-1 [scrollbar-width:none] lg:shrink-0 lg:overflow-visible [&::-webkit-scrollbar]:hidden">
+      {RANGES.map((r) => (
+        <button
+          key={r.value}
+          type="button"
+          role="tab"
+          aria-selected={range === r.value}
+          onClick={() => {
+            setRange(r.value);
+            setShown(40);
+          }}
+          className={`h-9 shrink-0 rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30 ${
+            range === r.value ? "bg-ink text-white" : "bg-ink/[0.05] text-neutral-600 hover:text-ink"
+          }`}
+        >
+          {r.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const customError = range === "custom" ? checkRange(draft.from, draft.to) : null;
+
+  const actions = (
+    <div className="flex flex-wrap gap-2">
+      {scope === "me" ? (
+        <Button onClick={() => setAdding("sale")}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Add a walk-in payment
+        </Button>
+      ) : null}
+      <Button onClick={() => setAdding("expense")}>
+        <Plus className="h-4 w-4" aria-hidden="true" />
+        Add an expense
+      </Button>
+      <Button variant="ghost" onClick={() => setAskDetails(true)} disabled={!data}>
+        <FileText className="h-4 w-4" aria-hidden="true" />
+        Statement (PDF)
+      </Button>
+    </div>
+  );
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-wrap items-center gap-2">
-        <select aria-label="Year" value={year} onChange={(e) => setYear(Number(e.target.value))} className={`${fieldClass} h-10 w-auto pr-8`}>
-          {years.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Month"
-          value={month}
-          onChange={(e) => {
-            setMonth(e.target.value === "all" ? "all" : Number(e.target.value));
-            setShown(50);
-          }}
-          className={`${fieldClass} h-10 w-auto pr-8`}
-        >
-          <option value="all">Whole year</option>
-          {MONTHS.map((m, i) => (
-            <option key={m} value={i}>
-              {m}
-            </option>
-          ))}
-        </select>
-        <div className="ml-auto">
-          <Button variant="primary" onClick={() => setAskDetails(true)} disabled={loading}>
-            <FileText className="h-4 w-4" aria-hidden="true" />
-            Download statement (PDF)
-          </Button>
-        </div>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        {rangeTabs}
+        {/* On laptops the actions sit up here; on phones they come after the figures. */}
+        <div className="hidden lg:block">{actions}</div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {scope === "me" ? (
-          <Button onClick={() => setAdding("sale")}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Log a cash or walk-in sale
+      {range === "custom" ? (
+        <div className={`${panelClass} flex flex-col gap-3 p-4 sm:flex-row sm:items-end`}>
+          <Field label="From" htmlFor="earn-from" className="sm:w-44">
+            <input id="earn-from" type="date" value={draft.from} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} className={fieldClass} />
+          </Field>
+          <Field label="To" htmlFor="earn-to" className="sm:w-44">
+            <input id="earn-to" type="date" value={draft.to} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} className={fieldClass} />
+          </Field>
+          <Button variant="primary" disabled={!!customError} onClick={() => setCustom(draft)}>
+            Show
           </Button>
-        ) : null}
-        <Button onClick={() => setAdding("product")}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Log a product sale
-        </Button>
-        <Button onClick={() => setAdding("expense")}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Add an expense
-        </Button>
-      </div>
-
-      {error ? <p className="text-sm text-[#A30D25]">{error}</p> : null}
-
-      {loading ? (
-        <div className="grid gap-3 sm:grid-cols-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl bg-neutral-100" />
-          ))}
+          {customError ? <p className="text-sm text-neutral-500">{customError}</p> : null}
         </div>
-      ) : !rows.length && !attention.length ? (
-        <EmptyState
-          title={`Nothing for ${period}`}
-          body={
-            scope === "shop"
-              ? "Sales show up here once an appointment's date has passed. Mark walk-ins and phone bookings done in the Calendar so they count."
-              : "Sales show up here once an appointment's date has passed. Took cash from a client who didn't book? Log it above."
-          }
-        />
+      ) : null}
+
+      {error && !data ? (
+        <div className={`${panelClass} flex flex-col items-start gap-3 p-5`} role="alert">
+          <p className="flex items-center gap-2 text-sm font-medium text-ink">
+            <AlertCircle className="h-4 w-4" aria-hidden="true" />
+            {error}
+          </p>
+          <Button onClick={() => setTick((n) => n + 1)}>
+            <RotateCw className="h-4 w-4" aria-hidden="true" />
+            Try again
+          </Button>
+        </div>
+      ) : !data ? (
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" aria-busy="true" aria-label="Loading earnings">
+          <div className="space-y-4">
+            <SkeletonBlock className="h-36" />
+            <SkeletonBlock className="h-40" />
+            <SkeletonBlock className="h-64" />
+          </div>
+          <div className="space-y-2">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <SkeletonBlock key={i} className="h-14" />
+            ))}
+          </div>
+        </div>
       ) : (
-        <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Stat strong label="Net income" value={money(st.net)} sub={period} />
-            <Stat label="Gross income" value={money(st.grossIncome)} sub={scope === "shop" ? "The shop's own income" : "Before fees and commission"} />
-            <Stat label="Costs" value={money(st.totalCosts)} />
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+          {/* Left: the figures. On phones this all comes first. */}
+          <div className="space-y-8">
+            <div className={`${panelClass} p-5 sm:p-6`}>
+              <p className="text-sm text-neutral-500">{scope === "shop" ? "The shop's own money" : "Your net earnings"} {period}</p>
+              <p className="mt-1 text-4xl font-semibold tabular-nums tracking-[-0.03em] text-ink">{money(topCents)}</p>
+              <p className="mt-3 text-[15px] leading-7 text-neutral-700">{sentence}</p>
+              {error ? <p className="mt-2 text-sm text-[#A30D25]">{error}</p> : null}
+            </div>
+
+            <OnTheWay payouts={p} scope={scope} onOpenStripe={openStripe} opening={opening} />
+
+            <div className="lg:hidden">{actions}</div>
+
+            {attention.length ? (
+              <Section title={`Needs a look (${attention.length})`} description="These can keep your totals from being complete.">
+                <ul className={`${panelClass} divide-y divide-hairline`}>
+                  {attention.slice(0, 10).map((a, i) => (
+                    <li key={`${a.date}-${i}`} className="flex gap-3 px-4 py-3 text-sm">
+                      <span className="w-14 shrink-0 text-xs tabular-nums text-neutral-500">{shortDate(a.date)}</span>
+                      <div className="min-w-0">
+                        <p className="font-medium text-ink">
+                          {a.item}
+                          {scope === "shop" && a.proName ? <span className="font-normal text-neutral-500"> · {a.proName}</span> : null}
+                        </p>
+                        <p className="text-xs text-neutral-600">{a.issue}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            ) : null}
+
+            {scope === "shop" && split ? (
+              <>
+                <Section title="The shop's own money" description="What the shop keeps: its cut, rent, memberships, gift cards, products and the owner's own appointments.">
+                  <Lines
+                    lines={[
+                      { label: "Commission from the team", cents: split.shopOwn.commission },
+                      { label: "Booth rent", cents: split.shopOwn.boothRent },
+                      { label: "Memberships", cents: split.shopOwn.memberships },
+                      { label: "Gift card sales", cents: split.shopOwn.giftCards },
+                      { label: "Product sales", cents: split.shopOwn.products },
+                      { label: "Owner's own appointments", cents: split.shopOwn.ownerServices, note: "What the owner took home from their own clients" },
+                      ...(st.summary.lineupCommission + st.summary.cardFees ? [{ label: "LineUp and card fees", cents: -(st.summary.lineupCommission + st.summary.cardFees) }] : []),
+                      ...(st.summary.lineupPlan ? [{ label: "LineUp plan", cents: -st.summary.lineupPlan }] : []),
+                      ...(st.summary.expenses ? [{ label: "Expenses", cents: -st.summary.expenses }] : []),
+                    ].filter((l) => l.cents)}
+                    total={split.shopOwn.total}
+                    totalLabel="The shop's own money"
+                  />
+                </Section>
+
+                <Section title="Money that belongs to your team" description="Each pro's sales through the shop, the shop's cut, and what they keep.">
+                  {split.team.length ? (
+                    <ul className={`${panelClass} divide-y divide-hairline`}>
+                      {split.team.map((t) => (
+                        <li key={t.proId} className="grid grid-cols-2 gap-y-1 px-4 py-3 text-sm sm:grid-cols-[1fr_auto_auto_auto] sm:items-center sm:gap-x-6">
+                          <span className="col-span-2 font-medium text-ink sm:col-span-1">
+                            {t.name} <span className="font-normal text-neutral-500">· {t.count}</span>
+                          </span>
+                          <span className="text-neutral-500 sm:text-right">
+                            Gross <span className="tabular-nums text-ink">{money(t.gross)}</span>
+                          </span>
+                          <span className="text-right text-neutral-500">
+                            Shop <span className="tabular-nums text-ink">{money(t.shopCut)}</span>
+                          </span>
+                          <span className="col-span-2 text-right font-medium tabular-nums text-ink sm:col-span-1">Their take {money(t.take)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-neutral-500">No team sales {period}.</p>
+                  )}
+                </Section>
+
+                {rent.length ? (
+                  <Section title="Booth rent" description={`Paid ${period}, and what's due next.`}>
+                    <ul className={`${panelClass} divide-y divide-hairline`}>
+                      {rent.map((r) => (
+                        <li key={r.proId} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm">
+                          <span className="min-w-0 flex-1 font-medium text-ink">{r.name}</span>
+                          <span className="text-neutral-500">
+                            Paid <span className="tabular-nums text-ink">{money(r.paidCents)}</span>
+                          </span>
+                          <span className="text-neutral-500">
+                            {money(r.dueCents)} a {r.interval}
+                            {r.dueDate ? `, ${r.dueDate < (data?.today || "") ? "was due" : "next"} ${shortDate(r.dueDate)}` : ""}
+                          </span>
+                          {r.late ? <Tag tone="ink">Late: last payment failed</Tag> : <Tag tone="outline">Up to date</Tag>}
+                        </li>
+                      ))}
+                    </ul>
+                  </Section>
+                ) : null}
+              </>
+            ) : !rows.length ? null : (
+              <Section title="From sales to what you keep">
+                <Lines
+                  lines={[
+                    ...st.income,
+                    ...st.costs.map((c) => ({ ...c, cents: -c.cents })),
+                  ]}
+                  total={st.net}
+                  totalLabel="What you keep"
+                />
+              </Section>
+            )}
           </div>
 
-          {attention.length ? (
-            <Section
-              title={`Needs attention (${attention.length})`}
-              description="These may keep your totals from being complete. Fix them and the statement updates."
-            >
-              <ul className={`${panelClass} divide-y divide-hairline`}>
-                {attention.slice(0, 20).map((a, i) => (
-                  <li key={`${a.date}-${i}`} className="flex gap-3 px-4 py-3 text-sm">
-                    <span className="w-14 shrink-0 text-xs tabular-nums text-neutral-500">{shortDate(a.date)}</span>
-                    <div className="min-w-0">
-                      <p className="font-medium text-ink">
-                        {a.item}
-                        {scope === "shop" && a.proName ? <span className="font-normal text-neutral-500"> · {a.proName}</span> : null}
-                      </p>
-                      <p className="text-xs text-[#A30D25]">{a.issue}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              {attention.length > 20 ? <p className="mt-2 text-xs text-neutral-500">The PDF lists all {attention.length}.</p> : null}
-            </Section>
-          ) : null}
-
-          <div className="grid gap-8 lg:grid-cols-2">
-            <Section title="Income">
-              <Lines lines={st.income} total={st.grossIncome} totalLabel="Gross income" />
-            </Section>
-            <Section title="Costs">
-              {st.costs.length ? <Lines lines={st.costs} total={st.totalCosts} totalLabel="Total costs" /> : <p className="text-sm text-neutral-500">None recorded.</p>}
-            </Section>
-          </div>
-
-          {data?.payouts && data.year === year ? (
-            <Section
-              title={`Where the money is, ${year}`}
-              description={
-                scope === "shop"
-                  ? "The shop's cut of bookings paid through LineUp, and what Stripe has paid to the shop's bank."
-                  : "Your share of bookings paid through LineUp: 20% is sent when a client books, the rest once the appointment is done."
-              }
-            >
-              <Lines
-                lines={[
-                  {
-                    label: scope === "shop" ? "The shop's cut of bookings, sent to its Stripe account" : "Sent to your Stripe account",
-                    cents: data.payouts.sentToStripeCents,
-                    note: scope === "shop" ? "Memberships, rent and gift cards reach Stripe directly" : "Through LineUp",
-                  },
-                  { label: "Held until appointments are done", cents: data.payouts.heldUntilDoneCents },
-                  ...(data.payouts.heldAfterDoneCents
-                    ? [{ label: "Of that, already done but not sent yet", cents: data.payouts.heldAfterDoneCents, note: "If this stays, contact LineUp support" }]
-                    : []),
-                  ...(data.payouts.bank
-                    ? [
-                        { label: "Paid to your bank", cents: data.payouts.bank.paidCents, note: "By Stripe, this year" },
-                        { label: "On its way to your bank", cents: data.payouts.bank.scheduledCents, note: "Scheduled by Stripe" },
-                        { label: "In Stripe, ready to pay out", cents: data.payouts.bank.availableCents },
-                        { label: "In Stripe, not available yet", cents: data.payouts.bank.pendingCents },
-                      ]
-                    : []),
-                ]}
-              />
-              {!data.payouts.bank ? (
-                <p className="mt-2 text-xs text-neutral-500">Connect payouts in your account to see what Stripe has sent to your bank.</p>
-              ) : null}
-            </Section>
-          ) : null}
-
-          {st.activity.length ? (
-            <Section title="Appointments" description="Every kind of booking, counted once. Amounts include tips.">
-              <dl className={`${panelClass} divide-y divide-hairline`}>
-                {st.activity.map((a) => (
-                  <div key={a.label} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
-                    <dt className="text-neutral-700">{a.label}</dt>
-                    <dd className="flex gap-6 tabular-nums">
-                      <span className="text-neutral-500">{a.count}</span>
-                      <span className="w-24 text-right font-medium text-ink">{money(a.cents)}</span>
-                    </dd>
+          {/* Right: every line, newest first. */}
+          <Section
+            title="Every booking and sale"
+            description={rows.length ? `${rows.length} ${rows.length === 1 ? "line" : "lines"} ${period}. Open one to see every fee.` : undefined}
+          >
+            {rows.length ? (
+              <>
+                <ul className={`${panelClass} divide-y divide-hairline`}>
+                  {rows
+                    .slice()
+                    .reverse()
+                    .slice(0, shown)
+                    .map((r) => (
+                      <TransactionRow key={r.id} row={r} scope={scope} onRemove={r.entry ? () => void remove(r) : undefined} removing={removing === r.id} />
+                    ))}
+                </ul>
+                {rows.length > shown ? (
+                  <div className="mt-4 flex justify-center">
+                    <Button onClick={() => setShown((n) => n + 100)}>Show more</Button>
                   </div>
-                ))}
-              </dl>
-            </Section>
-          ) : null}
-
-          {pros.length ? (
-            <Section title="Team sales, by pro" description="Each pro's sales through the shop. Booth renters keep their sales; the shop gets their rent.">
-              <div className={`${panelClass} overflow-x-auto`}>
-                <table className="w-full min-w-[680px] text-sm">
-                  <thead>
-                    <tr className="border-b border-hairline text-left text-xs text-neutral-500">
-                      <th className="px-4 py-3 font-medium">Pro</th>
-                      <th className="px-3 py-3 text-right font-medium">Appts</th>
-                      <th className="px-3 py-3 text-right font-medium">Sales</th>
-                      <th className="px-3 py-3 text-right font-medium">Tips</th>
-                      <th className="px-3 py-3 text-right font-medium">At shop</th>
-                      <th className="px-3 py-3 text-right font-medium">To shop</th>
-                      <th className="px-4 py-3 text-right font-medium">To pro</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pros.map((p) => (
-                      <tr key={p.id} className="border-b border-hairline last:border-0">
-                        <td className="px-4 py-3 font-medium text-ink">{p.name}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{p.count}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{money(p.sales)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{money(p.tips)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums text-neutral-500">{money(p.atShop)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{money(p.toShop)}</td>
-                        <td className="px-4 py-3 text-right font-medium tabular-nums">{money(p.toPro)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Section>
-          ) : null}
-
-          {months.length > 1 ? (
-            <Section title="By month">
-              <div className={`${panelClass} overflow-x-auto`}>
-                <table className="w-full min-w-[480px] text-sm">
-                  <thead>
-                    <tr className="border-b border-hairline text-left text-xs text-neutral-500">
-                      <th className="px-4 py-3 font-medium">Month</th>
-                      <th className="px-3 py-3 text-right font-medium">Gross</th>
-                      <th className="px-3 py-3 text-right font-medium">Costs</th>
-                      <th className="px-4 py-3 text-right font-medium">Net</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {months.map((m) => (
-                      <tr key={m.month} className="border-b border-hairline last:border-0">
-                        <td className="px-4 py-3 font-medium text-ink">{MONTHS[m.month]}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{money(m.gross)}</td>
-                        <td className="px-3 py-3 text-right tabular-nums">{money(m.costs)}</td>
-                        <td className="px-4 py-3 text-right font-medium tabular-nums">{money(m.net)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Section>
-          ) : null}
-
-          {rows.length ? (
-            <Section title="Every sale" description={`${rows.length} line${rows.length === 1 ? "" : "s"} for ${period}. The PDF has every column.`}>
-              <ul className={`${panelClass} divide-y divide-hairline`}>
-                {rows
-                  .slice()
-                  .reverse()
-                  .slice(0, shown)
-                  .map((r) => {
-                    const amount = scope === "shop" ? r.toShopCents : r.toProCents;
-                    return (
-                      <li key={r.id} className="flex items-center gap-3 px-4 py-3">
-                        <span className="w-14 shrink-0 text-xs tabular-nums text-neutral-500">{shortDate(r.date)}</span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-ink">{r.item}</p>
-                          <p className="truncate text-xs text-neutral-500">
-                            {[TYPE_LABEL[r.type], r.channel === "request" ? "from a request" : r.channel === "regular" ? "regular" : null, scope === "shop" ? r.proName : null, r.client]
-                              .filter(Boolean)
-                              .join(" · ")}
-                            {r.tipCents ? ` · tip ${money(r.tipCents)}` : ""}
-                            {r.giftCents ? ` · ${money(r.giftCents)} gift card` : ""}
-                          </p>
-                        </div>
-                        <Tag tone={r.paidVia === "lineup" ? "muted" : "outline"}>{r.paidVia === "at_shop" ? "At the shop" : PAID_LABEL[r.paidVia]}</Tag>
-                        <span className={`w-20 shrink-0 text-right text-sm font-medium tabular-nums ${amount < 0 ? "text-neutral-500" : "text-ink"}`}>
-                          {money(amount)}
-                        </span>
-                        {r.entry ? (
-                          <button
-                            type="button"
-                            onClick={() => void remove(r)}
-                            disabled={removing === r.id}
-                            className="shrink-0 text-xs text-neutral-500 underline underline-offset-2 hover:text-[#A30D25] disabled:opacity-50"
-                          >
-                            Remove
-                          </button>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-              </ul>
-              {rows.length > shown ? (
-                <div className="mt-4 flex justify-center">
-                  <Button onClick={() => setShown((n) => n + 100)}>Show more</Button>
-                </div>
-              ) : null}
-            </Section>
-          ) : null}
-        </>
+                ) : null}
+              </>
+            ) : (
+              <EmptyState
+                title={`Nothing ${period} yet`}
+                body={
+                  scope === "shop"
+                    ? "Your team's first booking will show up here. Walk-ins and phone bookings count once they're marked done on the Calendar."
+                    : "Your first booking will show up here. Share your booking link to get one, or add a walk-in payment you took in person."
+                }
+                action={
+                  scope === "shop" ? (
+                    <Link href="/studio/calendar" className="text-sm font-medium text-ink underline underline-offset-2">
+                      Open the Calendar
+                    </Link>
+                  ) : (
+                    <Link href="/account" className="text-sm font-medium text-ink underline underline-offset-2">
+                      Get your booking link
+                    </Link>
+                  )
+                }
+              />
+            )}
+          </Section>
+        </div>
       )}
 
       <p className="max-w-2xl text-xs leading-5 text-neutral-500">
-        Gross income counts each dollar once: fees, the shop&apos;s commission, booth rent and your LineUp plan are listed as costs. A gift card counts
-        when it&apos;s sold, not when it&apos;s used. Walk-ins and phone bookings count once they&apos;re marked done. Expenses and sales you log here
-        go on the statement too; keep the receipts. LineUp doesn&apos;t add GST, so if
-        you&apos;re registered, your prices include it. This is a record for you and your accountant, not tax advice.
+        Commission is taken out of the price, never added on top. A gift card counts when it&apos;s sold, not when it&apos;s used. Walk-ins and phone
+        bookings count once they&apos;re marked done. LineUp doesn&apos;t add GST, so if you&apos;re registered, your prices include it. This is a record for
+        you and your accountant, not tax advice.
       </p>
 
       {adding ? <EntrySheet key={adding} kind={adding} scope={scope} onClose={() => setAdding(null)} onSaved={() => setTick((n) => n + 1)} /> : null}
-      <StatementSheet open={askDetails} onClose={() => setAskDetails(false)} scope={scope} year={year} month={month} />
+      <StatementSheet open={askDetails} onClose={() => setAskDetails(false)} scope={scope} year={Number(from.slice(0, 4))} month={pdfMonth} />
     </div>
+  );
+}
+
+function OnTheWay({ payouts, scope, onOpenStripe, opening }: { payouts?: Payouts; scope: Scope; onOpenStripe: () => void; opening: boolean }) {
+  if (!payouts) return null;
+  if (payouts.stripe !== "ready") {
+    return (
+      <div className={`${panelClass} flex flex-col items-start gap-3 p-5`}>
+        <p className="flex items-center gap-2 text-[15px] font-medium text-ink">
+          <Landmark className="h-4 w-4" aria-hidden="true" />
+          {payouts.stripe === "none" ? "Set up payouts to get paid" : "Finish setting up payouts"}
+        </p>
+        <p className="text-sm leading-6 text-neutral-600">
+          {payouts.stripe === "none"
+            ? "Connect a bank account through Stripe so money from bookings can reach you."
+            : "Stripe needs a few more details before it can send money to your bank."}
+          {payouts.heldUntilDoneCents ? ` ${money(payouts.heldUntilDoneCents)} is waiting for you.` : ""}
+        </p>
+        {scope === "me" ? (
+          <Link href="/account" className="inline-flex items-center gap-1 text-sm font-medium text-ink underline underline-offset-2">
+            {payouts.stripe === "none" ? "Set up payouts" : "Finish setup"}
+            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        ) : (
+          <Link href="/studio/settings" className="inline-flex items-center gap-1 text-sm font-medium text-ink underline underline-offset-2">
+            Open shop settings
+            <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className={`${panelClass} p-5`}>
+      <p className="flex items-center gap-2 text-sm font-medium text-ink">
+        <Wallet className="h-4 w-4" aria-hidden="true" />
+        On the way
+      </p>
+      <dl className="mt-3 divide-y divide-hairline text-sm">
+        <div className="flex justify-between gap-4 py-2.5">
+          <dt className="text-neutral-600">
+            Held until appointments are done
+            <span className="block text-xs text-neutral-500">{scope === "shop" ? "The shop's cut" : "The rest after the 20% sent at booking"}</span>
+          </dt>
+          <dd className="font-medium tabular-nums text-ink">{money(payouts.heldUntilDoneCents)}</dd>
+        </div>
+        {payouts.heldAfterDoneCents ? (
+          <div className="flex justify-between gap-4 py-2.5">
+            <dt className="text-neutral-600">
+              Of that, already done but not sent yet
+              <span className="block text-xs text-neutral-500">If this stays, contact LineUp support</span>
+            </dt>
+            <dd className="font-medium tabular-nums text-ink">{money(payouts.heldAfterDoneCents)}</dd>
+          </div>
+        ) : null}
+        <div className="flex justify-between gap-4 py-2.5">
+          <dt className="text-neutral-600">Next payout to your bank</dt>
+          <dd className="text-right font-medium tabular-nums text-ink">
+            {payouts.nextPayout ? `${money(payouts.nextPayout.cents)}, ${shortDate(payouts.nextPayout.date)}` : "None scheduled"}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-4 py-2.5">
+          <dt className="text-neutral-600">Last payout</dt>
+          <dd className="text-right font-medium tabular-nums text-ink">
+            {payouts.lastPayout ? `${money(payouts.lastPayout.cents)}, ${shortDate(payouts.lastPayout.date)}` : "None yet"}
+          </dd>
+        </div>
+      </dl>
+      {scope === "me" ? (
+        <button type="button" onClick={onOpenStripe} disabled={opening} className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-ink underline underline-offset-2 disabled:opacity-50">
+          {opening ? "Opening Stripe…" : "Bank details and payout history"}
+          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function TransactionRow({ row: r, scope, onRemove, removing }: { row: EarningsRow; scope: Scope; onRemove?: () => void; removing: boolean }) {
+  const [open, setOpen] = useState(false);
+  const { lines, received } = lineBreakdown(r, scope);
+  return (
+    <li>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ink/30"
+      >
+        <span className="w-12 shrink-0 text-xs tabular-nums text-neutral-500">{shortDate(r.date)}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-ink">{r.item}</span>
+          <span className="block truncate text-xs text-neutral-500">
+            {[TYPE_LABEL[r.type], scope === "shop" ? r.proName : null, r.client].filter(Boolean).join(" · ")}
+          </span>
+        </span>
+        <span className={`shrink-0 text-right text-sm font-medium tabular-nums ${received < 0 ? "text-neutral-500" : "text-ink"}`}>{money(received)}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+      </button>
+      {open ? (
+        <div className="px-4 pb-4 pl-[4.75rem]">
+          <dl className="space-y-1.5 text-sm">
+            {lines.map((l) => (
+              <div key={l.label} className="flex justify-between gap-4">
+                <dt className="text-neutral-600">{l.label}</dt>
+                <dd className="tabular-nums text-ink">{money(l.cents)}</dd>
+              </div>
+            ))}
+            <div className="flex justify-between gap-4 border-t border-hairline pt-1.5 font-medium">
+              <dt className="text-ink">{scope === "shop" ? "The shop received" : "You received"}</dt>
+              <dd className="tabular-nums text-ink">{money(received)}</dd>
+            </div>
+          </dl>
+          <p className="mt-2 text-xs text-neutral-500">
+            {r.source === "lineup" ? "Paid through LineUp" : `Recorded by hand: ${r.paidVia === "at_shop" ? "paid at the shop" : PAID_LABEL[r.paidVia]}`}
+            {r.estimated ? ". The shop's share is worked out from today's rate" : ""}
+          </p>
+          {onRemove ? (
+            <button type="button" onClick={onRemove} disabled={removing} className="mt-2 text-xs text-neutral-500 underline underline-offset-2 hover:text-ink disabled:opacity-50">
+              Remove
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -488,7 +623,7 @@ type EntryKind = "sale" | "product" | "expense";
 type PaidWith = "cash" | "card" | "etransfer" | "other";
 
 const ENTRY_TITLE: Record<EntryKind, [string, string]> = {
-  sale: ["Log a sale", "A client who paid you directly and didn't book on LineUp. Nothing is charged."],
+  sale: ["Add a walk-in payment", "A client who paid you directly and didn't book on LineUp. Nothing is charged."],
   product: ["Log a product sale", "Something sold over the counter, like pomade or beard oil."],
   expense: ["Add an expense", "A cost of doing business. It comes off your net income on the statement."],
 };

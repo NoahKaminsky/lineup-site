@@ -46,8 +46,8 @@ export default function EarningsPage() {
       <div className="mx-auto max-w-4xl py-10">
         <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Earnings</h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-500">
-          What you made, month by month: bookings, tips, walk-ins, gift cards and fees. Download the PDF statement for your
-          accountant at tax time.
+          What you made, what&apos;s on its way to your bank, and what every booking paid you. Download the PDF statement for
+          your accountant at tax time.
           {onShop ? (
             <>
               {" "}
