@@ -161,3 +161,58 @@ export function goalsRule(g: InsightInput["goals"]): Suggestion | null {
   }
   return null;
 }
+
+// ── Shop Analytics: one suggestion per section ──────────────────────────
+
+export type ShopSection = "shop_overview" | "team" | "chairs" | "channels" | "shop_clients" | "memberships" | "rent" | "shop_forecast" | "local";
+export type ShopSuggestion = { section: ShopSection; text: string; action?: { label: string; do: Action } };
+
+export type ShopInsightInput = {
+  overview?: { revenueChange: number | null; ownIncome: number; ownIncomePrev: number };
+  team?: { flags: string[]; pros: number };
+  chairs?: { worst: { name: string; dow: number; emptyPercent: number } | null; emptyHours: number };
+  channels?: { walkInShare: number | null; onlineShare: number | null };
+  clients?: { leaving: number; leavingValue: number; sharedPercent: number | null };
+  memberships?: { active: number; idle: number; cancelRate: number | null };
+  rent?: { late: { name: string; cents: number }[] };
+  forecast?: { confirmed: number; expected: number };
+  local?: { enough: boolean; ticketVs: number | null; rebookVs: number | null };
+};
+
+export function shopSuggestions(i: ShopInsightInput): ShopSuggestion[] {
+  const out: ShopSuggestion[] = [];
+  const o = i.overview;
+  if (o && o.revenueChange !== null && o.revenueChange <= -10) out.push({ section: "shop_overview", text: `The shop's revenue is down ${Math.abs(o.revenueChange)}% on the comparison period. The clients about to leave the shop are the quickest win.`, action: { label: "See who's leaving", do: { kind: "link", href: "#shop_clients" } } });
+  else if (o && o.revenueChange !== null && o.revenueChange >= 10) out.push({ section: "shop_overview", text: `The shop's revenue is up ${o.revenueChange}%. Make sure every pro's hours are open far enough ahead to keep it going.` });
+
+  if (i.team?.flags.length) out.push({ section: "team", text: `${i.team.flags[0]} Worth a chat this week.` });
+  else if (i.team && i.team.pros === 1) out.push({ section: "team", text: "With one pro, the team view fills in once you add more. Post a chair opening when you're ready to grow.", action: { label: "Post a chair opening", do: { kind: "link", href: "/studio/chairs" } } });
+
+  const c = i.chairs;
+  if (c?.worst && c.worst.emptyPercent >= 50) out.push({ section: "chairs", text: `${c.worst.name}'s chair is empty ${c.worst.emptyPercent}% of ${DAYS[c.worst.dow]}. Post a chair opening or send walk-ins their way.`, action: { label: "Post a chair opening", do: { kind: "link", href: "/studio/chairs" } } });
+  else if (c && c.emptyHours >= 40) out.push({ section: "chairs", text: `Chairs sat empty for ${c.emptyHours} open hours this period. A boost on your quiet days fills them.`, action: { label: "Boost the shop", do: { kind: "link", href: "/boosts" } } });
+
+  const ch = i.channels;
+  if (ch?.walkInShare !== null && ch?.walkInShare !== undefined && ch.walkInShare >= 40) out.push({ section: "channels", text: `${ch.walkInShare}% of visits are walk-ins. Take a phone number at checkout so they count as clients and can be brought back.` });
+  else if (ch?.onlineShare !== null && ch?.onlineShare !== undefined && ch.onlineShare < 25) out.push({ section: "channels", text: `Only ${ch.onlineShare}% of visits are booked online. Share the shop's booking page so clients can book any time.`, action: { label: "Open the shop page", do: { kind: "link", href: "/studio/settings" } } });
+
+  const cl = i.clients;
+  if (cl && cl.leaving > 0) out.push({ section: "shop_clients", text: `${cl.leaving} regular${cl.leaving === 1 ? " is" : "s are"} overdue with every pro at the shop, worth about ${cad(cl.leavingValue)} a visit. Reach out before they settle somewhere else.` });
+
+  const m = i.memberships;
+  if (m && m.idle > 0) out.push({ section: "memberships", text: `${m.idle} member${m.idle === 1 ? " hasn't" : "s haven't"} visited in 30 days. Members who don't use it tend to cancel, so invite them in.` });
+  else if (m && m.cancelRate !== null && m.cancelRate >= 15) out.push({ section: "memberships", text: `${m.cancelRate}% of memberships were cancelled this period. Check whether the plans match how often people really come in.`, action: { label: "Review plans", do: { kind: "link", href: "/studio/memberships" } } });
+
+  if (i.rent?.late.length) {
+    const l = i.rent.late;
+    out.push({ section: "rent", text: `${l.length === 1 ? `${l[0].name}'s` : `${l.length} pros'`} booth rent is late, ${cad(l.reduce((s, x) => s + x.cents, 0))} in all.`, action: { label: "Open the team", do: { kind: "link", href: "/studio/team" } } });
+  }
+
+  const f = i.forecast;
+  if (f && f.expected > f.confirmed && f.expected > 0) out.push({ section: "shop_forecast", text: `${cad(f.expected)} more is likely from regulars who haven't booked yet. A reminder turns that into confirmed bookings.` });
+
+  const lo = i.local;
+  if (lo?.enough && lo.ticketVs !== null && lo.ticketVs <= -15) out.push({ section: "local", text: `The shop's average ticket is ${Math.abs(lo.ticketVs)}% under the local median. There may be room on price.`, action: { label: "Review services", do: { kind: "link", href: "/services" } } });
+  else if (lo?.enough && lo.rebookVs !== null && lo.rebookVs <= -10) out.push({ section: "local", text: `Clients rebook ${Math.abs(lo.rebookVs)} points less often than at other local shops. Offer a regular appointment at checkout.` });
+  return out;
+}
