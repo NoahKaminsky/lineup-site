@@ -5,7 +5,7 @@ import { todayLocal } from "@/app/lib/earnings";
 import { bearer, readQuery } from "@/app/lib/analyticsQuery";
 import { sectionCsv } from "@/app/lib/analyticsCsv";
 import { SHOP_SECTIONS, shopSection, type ShopSectionName } from "@/app/lib/shopAnalytics";
-import { loadVisitsBy } from "@/app/lib/proAnalytics";
+import { loadTimes, loadVisitsBy } from "@/app/lib/proAnalytics";
 import { atRisk, overview, revenueSeries } from "@/app/lib/analyticsMetrics";
 
 // GET /api/analytics/shop?section=overview|team|chairs|channels|clients|
@@ -23,6 +23,7 @@ export async function GET(req: Request) {
   try {
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    const timing: Record<string, number> = { auth: Date.now() - started };
     const url = new URL(req.url);
     const name = url.searchParams.get("section") || "";
     if (name !== "pro" && !SHOP_SECTIONS.includes(name as ShopSectionName)) return NextResponse.json({ error: "Unknown section." }, { status: 400 });
@@ -32,6 +33,7 @@ export async function GET(req: Request) {
     if (!ctx) return NextResponse.json({ error: "You're not on a shop's team." }, { status: 404 });
     if (!ctx.canManage) return NextResponse.json({ error: "Only the owner and managers can see the shop's analytics." }, { status: 403 });
     if (!isStudioLive(ctx.studio)) return NextResponse.json({ error: "Shop analytics come with a Studio plan.", needsPlan: true }, { status: 402 });
+    timing.studio = Date.now() - started;
 
     const today = todayLocal();
     const q = readQuery(url, today);
@@ -67,7 +69,7 @@ export async function GET(req: Request) {
       const csv = sectionCsv(name, data, { name: ctx.studio.name, from: q.period.from, to: q.period.to, compareFrom: q.compare.from, compareTo: q.compare.to });
       return new NextResponse(csv, { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="lineup-shop-analytics-${name}-${q.period.from}-${q.period.to}.csv"`, "Cache-Control": "no-store" } });
     }
-    return NextResponse.json({ section: name, today, period: q.period, compare: q.compare, ...data, ms: Date.now() - started });
+    return NextResponse.json({ section: name, today, period: q.period, compare: q.compare, ...data, ms: Date.now() - started, timing: { ...timing, ...Object.fromEntries(loadTimes) } });
   } catch (error) {
     console.error("GET /api/analytics/shop failed:", error);
     return NextResponse.json({ error: errorMessage(error, "Could not load this section.") }, { status: 500 });
