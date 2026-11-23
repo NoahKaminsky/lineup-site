@@ -6,9 +6,9 @@
 // No money is worked out here: the numbers come from the server, which uses
 // the same earnings rules as the Earnings page.
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight, Lock, RotateCw, Send } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Bell, Download, FileText, Lock, RotateCw, Send } from "lucide-react";
 import { studioFetch } from "@/app/studio/studioApi";
 import { Button, Segmented, buttonClass, fieldClass, panelClass } from "@/app/studio/ui";
 import type { Suggestion } from "@/app/lib/analyticsInsights";
@@ -16,12 +16,12 @@ import { SAMPLE } from "./proAnalyticsSample";
 
 type PeriodKind = "week" | "month" | "quarter" | "year" | "custom";
 type Compare = "previous" | "last_year";
-type Query = { period: PeriodKind; from: string; to: string; compare: Compare; service: string };
+export type Query = { period: PeriodKind; from: string; to: string; compare: Compare; service: string };
 type Pair = { now: number | null; prev: number | null };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Data = Record<string, any> & { suggestion?: Suggestion | null; locked?: boolean };
 
-const cad = (cents: number | null | undefined) => `$${Math.round((cents || 0) / 100).toLocaleString("en-CA")}`;
+export const cad = (cents: number | null | undefined) => `$${Math.round((cents || 0) / 100).toLocaleString("en-CA")}`;
 const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
 const hourLabel = (h: number) => `${h % 12 === 0 ? 12 : h % 12}${h >= 12 ? "p" : "a"}`;
@@ -34,7 +34,7 @@ const PERIODS: { value: PeriodKind; label: string }[] = [
   { value: "custom", label: "Custom" },
 ];
 
-function qs(q: Query) {
+export function qs(q: Query) {
   const p = new URLSearchParams({ period: q.period, compare: q.compare });
   if (q.period === "custom") {
     p.set("from", q.from);
@@ -44,15 +44,18 @@ function qs(q: Query) {
   return p.toString();
 }
 
+// Where each section's CSV downloads from (null when there's nothing to download, e.g. the example).
+export const CsvLinks = createContext<(section: string) => string | null>(() => null);
+
 // One section's data: loading, error with retry, or locked for the plan.
-function useSection(name: string, q: Query, tick: number, sample: boolean) {
+export function useSection(name: string, q: Query, tick: number, sample: boolean, base = "/api/analytics/pro", sampleData: Record<string, Data> = SAMPLE as Record<string, Data>) {
   const [state, setState] = useState<{ key: string; data: Data | null; error: string | null; needsPlan?: boolean }>({ key: "", data: null, error: null });
   const key = `${name}?${qs(q)}#${tick}`;
   const [retry, setRetry] = useState(0);
   useEffect(() => {
     if (sample) return;
     let live = true;
-    studioFetch<Data & { error?: string; needsPlan?: boolean }>(`/api/analytics/pro?section=${name}&${qs(q)}`).then((res) => {
+    studioFetch<Data & { error?: string; needsPlan?: boolean }>(`${base}?section=${name}&${qs(q)}`).then((res) => {
       if (!live) return;
       if (!res.ok) setState({ key, data: null, error: res.data.error || "Could not load this section.", needsPlan: res.data.needsPlan });
       else setState({ key, data: res.data, error: null });
@@ -62,7 +65,7 @@ function useSection(name: string, q: Query, tick: number, sample: boolean) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, retry, sample]);
-  if (sample) return { data: (SAMPLE as Record<string, Data>)[name], locked: false, error: null, needsPlan: false, loading: false, retry: () => {} };
+  if (sample) return { data: sampleData[name], locked: false, error: null, needsPlan: false, loading: false, retry: () => {} };
   const current = state.key === key ? state : null;
   // Locked for this plan: no data, just the lock message.
   const locked = !!current?.data?.locked;
@@ -71,7 +74,7 @@ function useSection(name: string, q: Query, tick: number, sample: boolean) {
 
 // ── Small pieces ─────────────────────────────────────────────────────────
 
-function Delta({ pair, kind = "percent" }: { pair: Pair; kind?: "percent" | "points" }) {
+export function Delta({ pair, kind = "percent" }: { pair: Pair; kind?: "percent" | "points" }) {
   if (pair.now === null || pair.prev === null) return <span className="text-neutral-400">No comparison yet</span>;
   if (kind === "percent" && pair.prev === 0) return pair.now > 0 ? <span className="text-neutral-500">New this period</span> : <span className="text-neutral-400">None either period</span>;
   const diff = kind === "percent" ? Math.round(((pair.now - pair.prev) / pair.prev) * 100) : Math.round(pair.now - pair.prev);
@@ -87,7 +90,7 @@ function Delta({ pair, kind = "percent" }: { pair: Pair; kind?: "percent" | "poi
   );
 }
 
-function Card({ id, title, headline, sub, children, suggestion, onAction, state, className = "" }: {
+export function Card({ id, title, headline, sub, children, suggestion, onAction, state, className = "", csv }: {
   id: string;
   title: string;
   headline?: ReactNode;
@@ -97,10 +100,20 @@ function Card({ id, title, headline, sub, children, suggestion, onAction, state,
   onAction?: (s: Suggestion) => void;
   state: { loading: boolean; error: string | null; locked?: boolean; retry: () => void };
   className?: string;
+  csv?: string | null; // download link for this section
 }) {
+  const csvFor = useContext(CsvLinks);
+  csv = csv === undefined ? csvFor(id) : csv;
   return (
     <section id={id} className={`${panelClass} scroll-mt-24 p-5 ${className}`} aria-busy={state.loading}>
-      <h2 className="text-sm font-semibold text-ink">{title}</h2>
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="text-sm font-semibold text-ink">{title}</h2>
+        {csv && !state.loading && !state.error && !state.locked ? (
+          <a href={csv} download className="inline-flex shrink-0 items-center gap-1 text-xs text-neutral-500 hover:text-ink" aria-label={`Download ${title} as CSV`}>
+            <Download className="h-3.5 w-3.5" aria-hidden="true" /> CSV
+          </a>
+        ) : null}
+      </div>
       {state.loading ? (
         <div className="mt-4 space-y-3" aria-label="Loading">
           <div className="h-8 w-32 animate-pulse rounded-lg bg-neutral-100" />
@@ -150,7 +163,7 @@ function Card({ id, title, headline, sub, children, suggestion, onAction, state,
   );
 }
 
-function Bars({ rows, format = cad, max }: { rows: { label: string; value: number; note?: string }[]; format?: (n: number) => string; max?: number }) {
+export function Bars({ rows, format = cad, max }: { rows: { label: string; value: number; note?: string }[]; format?: (n: number) => string; max?: number }) {
   const top = max ?? Math.max(...rows.map((r) => r.value), 1);
   return (
     <ul className="space-y-2.5">
@@ -173,7 +186,7 @@ function Bars({ rows, format = cad, max }: { rows: { label: string; value: numbe
 }
 
 // Revenue per bucket, with the comparison period as a lighter bar.
-function RevenueChart({ data, compareLabel }: { data: { label: string; revenue: number; prevRevenue: number; bookings: number }[]; compareLabel: string }) {
+export function RevenueChart({ data, compareLabel }: { data: { label: string; revenue: number; prevRevenue: number; bookings: number }[]; compareLabel: string }) {
   const [active, setActive] = useState<number | null>(null);
   if (!data.length) return null;
   const max = Math.max(...data.map((d) => Math.max(d.revenue, d.prevRevenue)), 1);
@@ -217,7 +230,7 @@ function RevenueChart({ data, compareLabel }: { data: { label: string; revenue: 
   );
 }
 
-function Kpi({ label, value, pair, kind }: { label: string; value: string; pair: Pair; kind?: "percent" | "points" }) {
+export function Kpi({ label, value, pair, kind }: { label: string; value: string; pair: Pair; kind?: "percent" | "points" }) {
   return (
     <div className="rounded-xl bg-neutral-50 p-3.5">
       <p className="text-xs text-neutral-500">{label}</p>
@@ -231,8 +244,8 @@ function Kpi({ label, value, pair, kind }: { label: string; value: string; pair:
 
 // ── Sections ─────────────────────────────────────────────────────────────
 
-type S = ReturnType<typeof useSection>;
-const st = (s: S) => ({ loading: s.loading, error: s.error, locked: s.locked, retry: s.retry });
+export type S = ReturnType<typeof useSection>;
+export const st = (s: S) => ({ loading: s.loading, error: s.error, locked: s.locked, retry: s.retry });
 
 function Overview({ s, compareLabel }: { s: S; compareLabel: string }) {
   const d = s.data;
@@ -690,6 +703,45 @@ function Goals({ s, onSaved, open }: { s: S; onSaved: () => void; open: boolean 
   );
 }
 
+// Alerts: things worth knowing now (revenue down sharply, a no-show spike,
+// a goal reached). Each shows once in its window; the server keeps track.
+export function AlertsList({ scope, tick }: { scope: "me" | "shop"; tick: number }) {
+  const [alerts, setAlerts] = useState<{ key: string; title: string; body: string; created_at: string }[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    studioFetch<{ alerts?: { key: string; title: string; body: string; created_at: string }[] }>(`/api/analytics/alerts?scope=${scope}`).then((res) => {
+      if (live) setAlerts(res.ok ? res.data.alerts || [] : []);
+    });
+    return () => {
+      live = false;
+    };
+  }, [scope, tick]);
+  if (!alerts?.length) return null;
+  return (
+    <section aria-label="Alerts" className={`${panelClass} p-4`}>
+      <ul className="space-y-3">
+        {alerts.map((a) => (
+          <li key={a.key} className="flex gap-3">
+            <Bell className="mt-0.5 h-4 w-4 shrink-0 text-ink" aria-hidden="true" />
+            <div>
+              <p className="text-sm font-medium text-ink">{a.title}</p>
+              <p className="text-sm text-neutral-600">{a.body}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export function PdfButton({ scope, q }: { scope: "me" | "shop"; q: Query }) {
+  return (
+    <a href={`/api/analytics/summary?scope=${scope}&${qs(q)}`} download className={`${buttonClass("secondary")} h-10`}>
+      <FileText className="h-4 w-4" aria-hidden="true" /> Summary PDF
+    </a>
+  );
+}
+
 // ── The page ─────────────────────────────────────────────────────────────
 
 export default function ProAnalytics() {
@@ -764,7 +816,9 @@ export default function ProAnalytics() {
             ))}
           </select>
         </div>
+        {!sample ? <PdfButton scope="me" q={q} /> : null}
       </div>
+      {!sample ? <AlertsList scope="me" tick={tick} /> : null}
       {q.period === "custom" ? (
         <form
           className="flex flex-wrap items-end gap-2"
@@ -806,6 +860,7 @@ export default function ProAnalytics() {
       ) : null}
 
       {q.period === "custom" && (!q.from || !q.to) ? null : (
+        <CsvLinks.Provider value={(name) => (sample ? null : `/api/analytics/pro?section=${name}&${qs(q)}&format=csv`)}>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
           <div className="lg:col-span-2">
             <Overview s={overview} compareLabel={compareLabel} />
@@ -826,6 +881,7 @@ export default function ProAnalytics() {
             <Prices s={prices} />
           </div>
         </div>
+        </CsvLinks.Provider>
       )}
     </div>
   );

@@ -11,7 +11,7 @@ import ChairsView from "../Chairs";
 import ClientsView from "../Clients";
 import ImportView from "../Import";
 import SettingsView from "../Settings";
-import AnalyticsView from "@/app/components/analytics/AnalyticsView";
+import ShopAnalyticsView from "@/app/components/analytics/ShopAnalytics";
 import EarningsReport from "@/app/components/earnings/EarningsReport";
 
 export default function StudioSectionPage({ params }: { params: Promise<{ section: string }> }) {
@@ -74,10 +74,10 @@ function ShopAnalytics() {
     <div>
       <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Analytics</h2>
       <p className="mt-1 max-w-xl text-sm leading-6 text-neutral-500">
-        How the shop is doing and what to do about it: every pro side by side, clients due back, and the hours that sit empty.
+        Which pros, chairs and hours make the shop money, where it&apos;s leaking, and one thing to do about each. Payouts and statements stay on Earnings.
       </p>
       <div className="mt-6">
-        <AnalyticsView scope="shop" />
+        <ShopAnalyticsView />
       </div>
     </div>
   );

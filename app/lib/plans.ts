@@ -55,6 +55,7 @@ export const STUDIO_PLANS: Record<
       "Chair openings, seen only by pros in that trade",
       "Monthly memberships for your regulars",
       "Every pro gets their own login and Pro features (2 pros or more)",
+      "Shop analytics for the owner and managers",
     ],
   },
   studio_plus: {
