@@ -1,0 +1,40 @@
+/ | 1629ms | 6117|LineUp.| | "Image with src "/images/landing/close-turn-end.webp" has "fill" prop and "sizes" prop of "100vw", but image is not rendered at full viewport width. Please adjuÂ"Image with src "/images/landing/studio-tall.webp" has "fill" prop and "sizes" prop of "100vw", but image is not rendered at full viewport width. Please adjust Â
+/about | 755ms | 1124|Built in Winnipeg.Because nobody deserves a clappe| | no console errors
+/contact | 973ms | 753|Say hi. We're real people.| | no console errors
+/faq | 777ms | 1872|Questions, answered.| | "@supabase/gotrue-js: Lock "lock:sb-rbsgsymjmptwczecgohb-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmountÂ
+/privacy | 923ms | 4396|Privacy Policy| | no console errors
+/terms | 1021ms | 12706|Terms of Service| | no console errors
+/news | 1411ms | 1376|The LineUp| | no console errors
+/news/lineup-is-live | 2213ms | 577|LineUp is live| | no console errors
+/beauty | 1320ms | 880|Beauty and grooming, near you.Pick your city.| | no console errors
+/beauty/winnipeg | 4918ms | 1998|Beauty and grooming pros in Winnipeg.Verified, and| | no console errors
+/beauty/winnipeg/barbers | 1857ms | 1457|Barbers in Winnipeg.Verified, and bookable on Line| | no console errors
+/discover | 2984ms | 1404|Whoâ€™s free this week?| | "Geolocation failed: PERMISSION_DENIED â€” User denied Geolocation", source: http://localhost:3000/_next/static/chunks/node_modules_next_dist_f3530cac._.js (312Â
+/shops | 997ms | 844|Salons, barbershops and studios.Book the shop, pic| | no console errors
+/shop/trial-1-studio | 2136ms | 255|Trial 1 Studio| | "@supabase/gotrue-js: Lock "lock:sb-rbsgsymjmptwczecgohb-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmountÂ"You may test your Stripe.js integration over HTTP. However, live Stripe.js integrations must use HTTPS.", source: http://localhost:3000/_next/static/chunks/nodÂ
+/profile/hrmny | 3538ms | 941|Prince dabhi| | "You may test your Stripe.js integration over HTTP. However, live Stripe.js integrations must use HTTPS.", source: http://localhost:3000/_next/static/chunks/nodÂ
+/gift/balance | 959ms | 343|Check your balance.| | no console errors
+/login | 798ms | 114|Welcome back.| | no console errors
+/reset-password | 993ms | 499|This link can't be used.| | "@supabase/gotrue-js: Lock "lock:sb-rbsgsymjmptwczecgohb-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmountÂ
+/unsubscribe | 951ms | 177|Unsubscribe| | no console errors
+/requests | 1028ms | 114|Welcome back.| | "@supabase/gotrue-js: Lock "lock:sb-rbsgsymjmptwczecgohb-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmountÂ
+/requests/new | 1473ms | 20|| | no console errors
+/work | 1565ms | 114|Welcome back.| | no console errors
+/account | 1303ms | 114|Welcome back.| | no console errors
+/calendar | 1484ms | 114|Welcome back.| | no console errors
+/services | 1434ms | 20|| | no console errors
+/earnings | 1029ms | 169|Earnings| | no console errors
+/analytics | 1058ms | 207|Analytics| | "@supabase/gotrue-js: Lock "lock:sb-rbsgsymjmptwczecgohb-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmountÂ
+/archive | 1349ms | 140|Archived services| | "@supabase/gotrue-js: Lock "lock:sb-rbsgsymjmptwczecgohb-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmountÂ
+/import | 2201ms | 114|Welcome back.| | no console errors
+/chairs | 1583ms | 30|| | no console errors
+/subscription | 1432ms | 13|| | "@supabase/gotrue-js: Lock "lock:sb-rbsgsymjmptwczecgohb-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmountÂ
+/verification | 1565ms | 114|Welcome back.| | no console errors
+/refer | 1374ms | 114|Welcome back.| | no console errors
+/gift-cards | 1257ms | 114|Welcome back.| | no console errors
+/onboarding | 1210ms | 16|| | no console errors
+/studio | 1492ms | 114|Welcome back.| | no console errors
+/studio/team | 1488ms | 114|Welcome back.| | no console errors
+/studio/join | 1456ms | 92|| | no console errors
+/admin | 1412ms | 114|Welcome back.| | no console errors
+/no-such-page | 1085ms | 96|404|404 | no console errors
