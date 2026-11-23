@@ -17,7 +17,7 @@ const hourName = (h: number) => (h === 0 ? "midnight" : h === 12 ? "noon" : h < 
 export type InsightInput = {
   overview?: { revenueChange: number | null; bookingsChange: number | null; avgTicketChange: number | null; rebook: number | null };
   forecast?: { confirmed: number; expected: number; emptyDays: number };
-  clients?: { atRiskNudgeable: number; atRiskValue: number; atRisk: number };
+  clients?: { atRiskNudgeable: number; atRiskValue: number; atRisk: number; alreadyNudged?: number };
   calendar?: { emptiest: { dow: number; hour: number; open: number; booked: number } | null; freeHours: number; openValue: number; noShows: number; lateCancels: number };
   sources?: { top: { key: string; label: string; share: number } | null; linkShare: number | null; tracked: boolean };
   requests?: { offers: number; winRate: number | null; medianMinutes: number | null; fastWinRate: number | null; slowWinRate: number | null; missed: number };
@@ -75,9 +75,13 @@ export function clientsRule(c: InsightInput["clients"]): Suggestion | null {
   if (n > 0) {
     return {
       section: "clients",
-      text: `${c.atRisk} regular${c.atRisk === 1 ? " is" : "s are"} overdue, worth about ${cad(c.atRiskValue)} in visits. Send ${n === 1 ? "them" : `the ${n} on LineUp`} a nudge.`,
+      text: `${c.atRisk} regular${c.atRisk === 1 ? " is" : "s are"} overdue, worth about ${cad(c.atRiskValue)} in visits. ${n === c.atRisk ? "Send them a nudge." : `${n} of them booked on LineUp and can get a nudge; call or text the others.`}`,
       action: { label: n === 1 ? "Send a nudge" : `Nudge all ${n}`, do: { kind: "nudge_all" } },
     };
+  }
+  if (c.alreadyNudged) {
+    const rest = c.atRisk - c.alreadyNudged;
+    return { section: "clients", text: `${c.alreadyNudged} overdue regular${c.alreadyNudged === 1 ? " has" : "s have"} had a nudge in the last 30 days.${rest > 0 ? ` The other ${rest} booked outside LineUp, so give them a call or a text.` : ""}` };
   }
   return { section: "clients", text: `${c.atRisk} regular${c.atRisk === 1 ? " is" : "s are"} overdue. They booked outside LineUp, so give them a call or a text.` };
 }

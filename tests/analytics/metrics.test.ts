@@ -244,6 +244,8 @@ describe("suggestion rules", () => {
     expect(clientsRule({ atRisk: 6, atRiskNudgeable: 6, atRiskValue: 36000 })).toMatchObject({ text: expect.stringContaining("6 regulars are overdue"), action: { do: { kind: "nudge_all" } } });
     expect(clientsRule({ atRisk: 2, atRiskNudgeable: 0, atRiskValue: 1 })?.action).toBeUndefined();
     expect(clientsRule({ atRisk: 0, atRiskNudgeable: 0, atRiskValue: 0 })).toBeNull();
+    expect(clientsRule({ atRisk: 7, atRiskNudgeable: 0, atRiskValue: 1, alreadyNudged: 1 })?.text).toBe("1 overdue regular has had a nudge in the last 30 days. The other 6 booked outside LineUp, so give them a call or a text.");
+    expect(clientsRule({ atRisk: 7, atRiskNudgeable: 1, atRiskValue: 33000 })?.text).toMatch(/1 of them booked on LineUp and can get a nudge/);
   });
   it("empty hours suggest a boost", () => {
     const s = calendarRule({ emptiest: { dow: 2, hour: 15, open: 240, booked: 0 }, freeHours: 10, openValue: 1, noShows: 0, lateCancels: 0 });

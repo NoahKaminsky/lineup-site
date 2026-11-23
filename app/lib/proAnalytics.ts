@@ -13,7 +13,6 @@ import { withinServiceArea } from "./serviceArea";
 import {
   addDays,
   atRisk,
-  diffDays,
   firstVisits,
   forecast,
   goalProgress,
@@ -289,7 +288,7 @@ async function clientsSection(c: Ctx) {
     atRisk: list,
     atRiskCount: risk.length,
     atRiskValue,
-    suggestion: pick(suggestions({ clients: { atRisk: risk.length, atRiskNudgeable: nudgeable, atRiskValue } })),
+    suggestion: pick(suggestions({ clients: { atRisk: risk.length, atRiskNudgeable: nudgeable, atRiskValue, alreadyNudged: list.filter((r) => r.nudgedDaysAgo !== null).length } })),
   };
 }
 
@@ -547,37 +546,3 @@ async function goalsSection(c: Ctx) {
   const g = goalProgress(kind, target, visits, c.today);
   return { set: true, ...g, suggestion: pick(suggestions({ goals: { set: true, onTrack: g.onTrack, neededPerDay: g.neededPerDay, kind, daysLeft: g.daysLeft } })) };
 }
-
-// ── Daily rollups ────────────────────────────────────────────────────────
-// One row per pro per day, from the same visits (and so the same earnings
-// rules). The overview reads these for long ranges; see the cron.
-
-export function dailyRollup(visits: AVisit[], proId: string) {
-  const first = firstVisits(visits);
-  const days = new Map<string, { revenue_cents: number; bookings: number; booked_minutes: number; imported_minutes: number; no_shows: number; late_cancels: number; new_clients: number }>();
-  const get = (d: string) => {
-    let r = days.get(d);
-    if (!r) days.set(d, (r = { revenue_cents: 0, bookings: 0, booked_minutes: 0, imported_minutes: 0, no_shows: 0, late_cancels: 0, new_clients: 0 }));
-    return r;
-  };
-  for (const v of visits) {
-    if (v.state === "upcoming") continue;
-    const r = get(v.date);
-    if (v.imported) r.imported_minutes += v.minutes;
-    else if (v.state === "done") {
-      r.revenue_cents += v.sales;
-      r.bookings += 1;
-      r.booked_minutes += v.minutes;
-    } else if (v.state === "no_show") r.no_shows += 1;
-    else if (v.lateCancel) r.late_cancels += 1;
-  }
-  for (const d of first.values()) get(d).new_clients += 1;
-  return [...days.entries()].map(([day, r]) => ({ professional_id: proId, day, ...r }));
-}
-
-export function sumRollups(rows: { day: string; revenue_cents: number; bookings: number }[], p: Period) {
-  const list = rows.filter((r) => r.day >= p.from && r.day <= p.to);
-  return { revenue: sum(list, (r) => r.revenue_cents), bookings: sum(list, (r) => r.bookings) };
-}
-
-export const daysBetween = (p: Period) => diffDays(p.to, p.from) + 1;
