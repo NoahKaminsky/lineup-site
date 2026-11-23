@@ -54,7 +54,7 @@ export async function GET(req: Request) {
       return NextResponse.json({
         section: "pro",
         name: pro?.full_name || "Team member",
-        ...overview(visits, q.period, q.compare),
+        ...overview(visits, q.period, q.compare, today),
         series: revenueSeries(visits, q.period, q.compare),
         services: [...svc.entries()].map(([label, s]) => ({ label, ...s })).sort((a, b) => b.revenue - a.revenue).slice(0, 6),
         overdue: atRisk(visits, today).length,
