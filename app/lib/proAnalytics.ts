@@ -136,9 +136,15 @@ export function frontDeskToVisit(a: FrontDeskRow, today: string): AVisit {
 }
 
 export async function loadVisits(db: DB, proId: string, today: string): Promise<AVisit[]> {
+  return loadVisitsBy(db, "professional_id", proId, today);
+}
+
+// Every visit for one pro, or for a whole shop (studio_id). Each carries
+// its pro and how it was booked, for the shop's team and channel views.
+export async function loadVisitsBy(db: DB, column: "professional_id" | "studio_id", id: string, today: string): Promise<(AVisit & { proId: string; channel: "walk_in" | "phone" | "online" | "request" })[]> {
   const [bookings, desk] = await Promise.all([
-    fetchAll<BookingRow>((a, b) => db.from("bookings").select(BOOKING_COLUMNS).eq("professional_id", proId).order("id").range(a, b)),
-    fetchAll<FrontDeskRow>((a, b) => db.from("shop_appointments").select("*").eq("professional_id", proId).order("id").range(a, b)),
+    fetchAll<BookingRow>((a, b) => db.from("bookings").select(BOOKING_COLUMNS).eq(column, id).order("id").range(a, b)),
+    fetchAll<FrontDeskRow>((a, b) => db.from("shop_appointments").select("*").eq(column, id).order("id").range(a, b)),
   ]);
   const ids = [...new Set(bookings.map((b) => b.customer_id).filter(Boolean) as string[])];
   const names = new Map<string, string>();
@@ -146,10 +152,13 @@ export async function loadVisits(db: DB, proId: string, today: string): Promise<
     const { data } = await db.from("profiles").select("id, full_name").in("id", ids.slice(i, i + 200));
     for (const p of data || []) names.set(p.id as string, (p.full_name as string) || "Client");
   }
-  return [...bookings.map((b) => bookingToVisit(b, today, names)), ...desk.map((a) => frontDeskToVisit(a, today))];
+  return [
+    ...bookings.map((b) => ({ ...bookingToVisit(b, today, names), proId: b.professional_id, channel: (b.source === "request" ? "request" : "online") as "request" | "online" })),
+    ...desk.map((a) => ({ ...frontDeskToVisit(a, today), proId: a.professional_id, channel: (a.kind === "phone" ? "phone" : "walk_in") as "phone" | "walk_in" })),
+  ];
 }
 
-async function openHours(db: DB, proId: string): Promise<{ open: OpenHours; off: { start_date: string; end_date: string }[] }> {
+export async function openHours(db: DB, proId: string): Promise<{ open: OpenHours; off: { start_date: string; end_date: string }[] }> {
   const [{ data: avail }, { data: off }] = await Promise.all([
     db.from("professional_availability").select("day_of_week, start_time, end_time, is_active").eq("professional_id", proId),
     db.from("professional_time_off").select("start_date, end_date").eq("professional_id", proId),
@@ -160,7 +169,7 @@ async function openHours(db: DB, proId: string): Promise<{ open: OpenHours; off:
   };
 }
 
-const offDaysIn = (off: { start_date: string; end_date: string }[], p: Period) => {
+export const offDaysIn = (off: { start_date: string; end_date: string }[], p: Period) => {
   const set = new Set<string>();
   for (const o of off) for (let d = o.start_date < p.from ? p.from : o.start_date; d <= o.end_date && d <= p.to; d = addDays(d, 1)) set.add(d);
   return set;
@@ -228,7 +237,7 @@ async function overviewSection(c: Ctx) {
   };
 }
 
-async function standingFor(db: DB, proId: string) {
+export async function standingFor(db: DB, proId: string) {
   const { data } = await db.from("standing_appointments").select("customer_id, next_date, service_id, status").eq("professional_id", proId).eq("status", "active");
   const serviceIds = [...new Set((data || []).map((s) => s.service_id).filter(Boolean) as string[])];
   const prices = new Map<string, number>();
