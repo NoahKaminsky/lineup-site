@@ -71,6 +71,9 @@ export type EarningsRow = {
   entry?: "sale" | "product" | "expense";
   category?: ExpenseCategory;
   gstCents?: number;
+  // Expenses: the note as typed, and whether a receipt photo is attached.
+  note?: string | null;
+  hasReceipt?: boolean;
 };
 
 export type AttentionItem = { date: string; proId: string | null; proName: string | null; item: string; issue: string };
@@ -380,7 +383,7 @@ export function productRow(
 }
 
 export function expenseRow(
-  e: { id: string; expense_date: string; amount_cents: number; gst_cents: number | null },
+  e: { id: string; expense_date: string; amount_cents: number; gst_cents: number | null; note?: string | null; receipt_path?: string | null },
   category: ExpenseCategory,
   label: string,
   side: "shop" | "pro"
@@ -392,6 +395,8 @@ export function expenseRow(
     entry: "expense",
     category,
     gstCents: e.gst_cents || 0,
+    note: e.note ?? null,
+    hasReceipt: !!e.receipt_path,
     item: label,
     paidVia: "other",
     priceCents: e.amount_cents,

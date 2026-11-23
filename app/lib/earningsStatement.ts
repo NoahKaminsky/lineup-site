@@ -12,7 +12,7 @@
 
 import type { EarningsRow, EarningsType } from "./earnings";
 import { summarize, type Summary } from "./earningsCore";
-import { EXPENSE_CATEGORIES, type ExpenseCategory } from "./expenseCategories";
+import { EXPENSE_CATEGORIES, T2125_LINE, type ExpenseCategory } from "./taxCategories";
 
 export type Scope = "me" | "shop";
 
@@ -36,19 +36,7 @@ export const TYPE_LABEL: Record<EarningsType, string> = {
   expense: "Expense",
 };
 
-// Where each kind of expense generally goes on the T2125.
-const EXPENSE_LINE: Record<ExpenseCategory, string> = {
-  supplies: "line 8811",
-  rent: "line 8910",
-  tools: "capital cost allowance, or line 8811 if small",
-  advertising: "line 8521",
-  insurance: "line 8690",
-  licences: "line 8760",
-  phone: "line 9220",
-  vehicle: "line 9281",
-  education: "line 9270",
-  other: "line 9270",
-};
+// Line numbers come from ./taxCategories (accountant to confirm).
 
 export const PAID_LABEL: Record<EarningsRow["paidVia"], string> = {
   lineup: "LineUp",
@@ -92,7 +80,7 @@ export function buildStatement(rows: EarningsRow[], scope: Scope): Statement {
   const products = of(rows, "product");
   const expenses = of(rows, "expense");
   const expenseLines: Line[] = (Object.keys(EXPENSE_CATEGORIES) as ExpenseCategory[])
-    .map((c) => ({ label: EXPENSE_CATEGORIES[c], cents: sum(expenses.filter((r) => r.category === c), (r) => r.priceCents), note: `You added these. Generally T2125 ${EXPENSE_LINE[c]}` }))
+    .map((c) => ({ label: EXPENSE_CATEGORIES[c], cents: sum(expenses.filter((r) => r.category === c), (r) => r.priceCents), note: `You added these. Generally T2125 line ${T2125_LINE[c]}` }))
     .filter((l) => l.cents);
   const atShopSales = summarize(atShop, scope).grossServiceSales;
 
