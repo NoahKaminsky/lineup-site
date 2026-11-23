@@ -190,8 +190,11 @@ async function releaseRemainingPayout(
       // still pending (new Stripe accounts hold funds ~7 days); the pro sees
       // it as pending until the charge settles. Without this, transfers came
       // out of the platform's available balance and failed.
-      ...(booking.stripe_charge_id ? { source_transaction: booking.stripe_charge_id } : {}),
-      transfer_group: `booking_${booking.id}`,
+      // The deposit transfer already gave this charge its transfer group, and
+      // Stripe refuses a second group on the same source_transaction (every
+      // final payout was failing). Tied to the charge, the transfer joins the
+      // charge's group by itself; only set our own when there's no charge.
+      ...(booking.stripe_charge_id ? { source_transaction: booking.stripe_charge_id } : { transfer_group: `booking_${booking.id}` }),
       metadata: {
         flow_type: "final_payout",
         booking_id: booking.id,
@@ -335,8 +338,8 @@ export async function releaseStudioCut(
         amount,
         currency: "cad",
         destination: studio.stripe_account_id,
-        ...(booking.stripe_charge_id ? { source_transaction: booking.stripe_charge_id } : {}),
-        transfer_group: `booking_${booking.id}`,
+        // Same as the final payout: a charge's transfer group is set once.
+        ...(booking.stripe_charge_id ? { source_transaction: booking.stripe_charge_id } : { transfer_group: `booking_${booking.id}` }),
         metadata: {
           flow_type: "studio_cut",
           booking_id: booking.id,
