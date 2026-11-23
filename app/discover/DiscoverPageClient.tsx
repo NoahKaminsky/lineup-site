@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { getProfileHref } from "@/app/lib/profileLink";
+import { markDiscoverTap } from "@/app/lib/bookingSource";
 import { shopNow } from "@/app/lib/bookingTime";
 import SpotlightStage from "@/app/components/discover/SpotlightStage";
 import LineupPicks, { type PickCard } from "@/app/components/discover/LineupPicks";
@@ -1065,9 +1066,20 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   const isSearching = search.trim() !== "";
   const categoryLabel = categoryOptions.find((c) => c.value === selectedCategory)?.label;
 
+  // Remember where a pro was found (Spotlight, a boost, or Discover) for
+  // their Analytics; the profile visit carries it to their next booking.
+  const rememberTap = (event: React.MouseEvent) => {
+    const link = (event.target as HTMLElement).closest?.("a[href^='/profile/']");
+    if (!link) return;
+    const path = new URL((link as HTMLAnchorElement).href).pathname;
+    const card = cards.find((c) => getProfileHref(c.profile) === path);
+    const id = card?.profile.id;
+    markDiscoverTap(path, id && spotlightIds.includes(id) ? "spotlight" : id && promotedIds.has(id) ? "boost" : "discover");
+  };
+
   return (
     <>
-    <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+    <main onClickCapture={rememberTap} className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl py-6 sm:py-8">
         {/* Explore: ask first (search), then the one paid stage, then who's
             free. The Spotlight is the only dark, lit thing on the page. */}

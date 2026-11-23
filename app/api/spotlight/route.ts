@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
+import { VISIT_SOURCES, type VisitSource } from "@/app/lib/bookingSource";
 
 // POST /api/spotlight { professionalId, kind: "view" | "tap", surface? }
 //   Logs one Spotlight impression or tap (surface "explore"), or one visit to
@@ -17,6 +18,8 @@ export async function POST(req: Request) {
   const professionalId = typeof body?.professionalId === "string" ? body.professionalId : "";
   const kind = body?.kind === "view" || body?.kind === "tap" ? body.kind : null;
   const surface = body?.surface === "profile" ? "profile" : "explore";
+  // How a profile visitor found the pro (see app/lib/bookingSource.ts).
+  const via = surface === "profile" && VISIT_SOURCES.includes(body?.via) ? (body.via as VisitSource) : null;
   if (!UUID.test(professionalId) || !kind) return NextResponse.json({ ok: false }, { status: 400 });
 
   const viewer = await getAuthenticatedUser(req).catch(() => null);
@@ -24,7 +27,7 @@ export async function POST(req: Request) {
 
   const { error } = await getServiceSupabase()
     .from("spotlight_events")
-    .insert({ professional_id: professionalId, kind, surface, viewer_id: viewer?.id ?? null });
+    .insert({ professional_id: professionalId, kind, surface, viewer_id: viewer?.id ?? null, ...(via ? { via } : {}) });
   // Missing table (migration not run yet) shouldn't break Explore.
   if (error) console.warn("spotlight event not logged:", error.message);
   return NextResponse.json({ ok: !error });
