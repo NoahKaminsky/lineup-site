@@ -99,6 +99,14 @@ export async function GET(req: Request) {
           b.postedAt.localeCompare(a.postedAt)
       );
 
+    // One view per pro per opening per day, for the shop's Analytics funnel.
+    if (openingIds.length) {
+      const { error: viewError } = await supabase
+        .from("chair_opening_views")
+        .upsert(openingIds.map((id) => ({ opening_id: id, viewer_id: user.id })), { onConflict: "opening_id,viewer_id,day", ignoreDuplicates: true });
+      if (viewError) console.warn("chair views not logged:", viewError.message);
+    }
+
     return NextResponse.json({ openings: result, professions: types.map((t) => PROFESSION_LABELS[t] || t) });
   } catch (error) {
     console.error("GET /api/chairs failed:", error);

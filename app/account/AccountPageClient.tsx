@@ -13,6 +13,7 @@ import { getProfileHref } from "@/app/lib/profileLink";
 import { containsProfanity } from "@/app/lib/profanityFilter";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 import PushNotificationToggle from "@/app/components/PushNotificationToggle";
+import WeeklyPushToggle from "@/app/components/WeeklyPushToggle";
 import SavedProsCard from "@/app/components/SavedProsCard";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
@@ -1890,8 +1891,9 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
             </div>
 
             <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
-              <div id="push-notifications" className="scroll-mt-28">
+              <div id="push-notifications" className="scroll-mt-28 space-y-3">
                 <PushNotificationToggle />
+                {isProfessional ? <WeeklyPushToggle /> : null}
               </div>
 
               {!isProfessional ? <SavedProsCard clientId={profile.id} /> : null}
