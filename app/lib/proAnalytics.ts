@@ -141,7 +141,28 @@ export async function loadVisits(db: DB, proId: string, today: string): Promise<
 
 // Every visit for one pro, or for a whole shop (studio_id). Each carries
 // its pro and how it was booked, for the shop's team and channel views.
-export async function loadVisitsBy(db: DB, column: "professional_id" | "studio_id", id: string, today: string): Promise<(AVisit & { proId: string; channel: "walk_in" | "phone" | "online" | "request" })[]> {
+// The page asks for every section at once and each needs the same visits,
+// so one load is shared for a few seconds (same server, same pro or shop).
+const SHARE_MS = 20_000;
+const shared = new Map<string, { at: number; value: Promise<unknown> }>();
+export function sharedLoad<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const now = Date.now();
+  for (const [k, v] of shared) if (now - v.at > SHARE_MS) shared.delete(k);
+  const hit = shared.get(key);
+  if (hit) return hit.value as Promise<T>;
+  const value = load().catch((e) => {
+    shared.delete(key);
+    throw e;
+  });
+  shared.set(key, { at: now, value });
+  return value;
+}
+
+export function loadVisitsBy(db: DB, column: "professional_id" | "studio_id", id: string, today: string) {
+  return sharedLoad(`visits:${column}:${id}:${today}`, () => loadVisitsFresh(db, column, id, today));
+}
+
+async function loadVisitsFresh(db: DB, column: "professional_id" | "studio_id", id: string, today: string): Promise<(AVisit & { proId: string; channel: "walk_in" | "phone" | "online" | "request" })[]> {
   const [bookings, desk] = await Promise.all([
     fetchAll<BookingRow>((a, b) => db.from("bookings").select(BOOKING_COLUMNS).eq(column, id).order("id").range(a, b)),
     fetchAll<FrontDeskRow>((a, b) => db.from("shop_appointments").select("*").eq(column, id).order("id").range(a, b)),

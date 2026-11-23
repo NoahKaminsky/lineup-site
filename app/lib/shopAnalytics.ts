@@ -5,17 +5,19 @@
 // (its cut, booth rent, memberships) comes straight from shopEarnings.
 
 import { createClient } from "@supabase/supabase-js";
-import { shopEarnings } from "./earnings";
+import { shopEarnings as shopEarningsFresh } from "./earnings";
 import { boothRentStatus, summarize } from "./earningsCore";
 import { getServiceSupabase } from "./serverSupabase";
 import type { StudioRow } from "./studios";
 import { addDays, change, forecast, overview, rebookRate, retentionCohorts, revenueSeries, type Period } from "./analyticsMetrics";
 import { chairFunnel, chairs, channels, leavingShop, localShopCompare, membershipStats, proStats, sharedClients, teamFlags, type ProInput, type ShopVisit } from "./shopAnalyticsMetrics";
 import { shopSuggestions, type ShopSuggestion } from "./analyticsInsights";
-import { loadVisitsBy, offDaysIn, openHours, standingFor } from "./proAnalytics";
+import { loadVisitsBy, offDaysIn, openHours, sharedLoad, standingFor } from "./proAnalytics";
 import { alertsFor, newAlerts, type Alert } from "./analyticsAlerts";
 
 type DB = ReturnType<typeof getServiceSupabase>;
+// Shared between the sections loading at the same time (it reads Stripe).
+const shopEarnings = (db: DB, studio: StudioRow, from: string, to: string) => sharedLoad(`earnings:${studio.id}:${from}:${to}`, () => shopEarningsFresh(db, studio, from, to));
 
 export const SHOP_SECTIONS = ["overview", "team", "chairs", "channels", "clients", "memberships", "rent", "forecast", "local"] as const;
 export type ShopSectionName = (typeof SHOP_SECTIONS)[number];
@@ -27,7 +29,10 @@ const pick = (list: ShopSuggestion[]) => list[0] || null;
 const localDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Winnipeg" });
 const filterService = <T extends { service: string }>(v: T[], s: string | null) => (s ? v.filter((x) => x.service.toLowerCase() === s.toLowerCase()) : v);
 
-async function team(db: DB, studio: StudioRow) {
+function team(db: DB, studio: StudioRow) {
+  return sharedLoad(`team:${studio.id}`, () => teamFresh(db, studio));
+}
+async function teamFresh(db: DB, studio: StudioRow) {
   const { data: members } = await db.from("studio_members").select("*").eq("studio_id", studio.id).eq("status", "active");
   const ids = (members || []).map((m) => m.profile_id as string).filter(Boolean);
   const { data: people } = ids.length ? await db.from("profiles").select("id, full_name").in("id", ids) : { data: [] };
