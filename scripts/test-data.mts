@@ -198,6 +198,11 @@ async function seed() {
         tagline: "TEST shop for automated checks",
         pay_at_shop_enabled: true,
         commission_percent: 40,
+        // Optional: a long-lived Stripe TEST-mode payout account for the shop
+        // (acct_…, set in .env.test.local), so gift cards and memberships can be
+        // tested without redoing Stripe's onboarding form each run. Cleanup
+        // never touches Stripe, so the account survives for the next seed.
+        ...(process.env.TEST_SHOP_STRIPE_ACCOUNT?.startsWith("acct_") ? { stripe_account_id: process.env.TEST_SHOP_STRIPE_ACCOUNT } : {}),
       })
       .select("id, slug")
       .single(),
