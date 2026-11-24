@@ -4,7 +4,7 @@ Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. **Mapping and s
 
 ## Resume here
 
-> **Pro pass done** (24 Nov, branch `site-audit`). Preview checks (logged out): `pro.spec` + `customer.spec` 40/40; public smoke 40/48 (the other 8 need seeded ids). Logged in with TEST data (local): Pro smoke 76/77 at 1280 + 390 (`/profile` at 390 is slow, see Slow), `e2e/pro-flow.spec.ts` 6/6, then cleanup + check = 0 TEST rows. `npm test` tests/pro 21/21, tsc clean, lint 50 (baseline), build passes. Every Pro item is ticked or written up as a decision. Connect payout setup was not run (Stripe onboarding). **Next: Studio pass.**
+> **Pro and Studio passes done** (24 Nov, branch `site-audit`). Studio: logged-out 22/22, Studio smoke 30/30 at 1280 + 390, `e2e/studio-flow.spec.ts` 5/5, TEST data cleaned (0 left). Pro: smoke 76/77 (`/profile` at 390 is slow), `e2e/pro-flow.spec.ts` 6/6. `tests/pro` 40/40, tsc clean, lint 50 (baseline), build passes. Items not run are listed with the reason (they email, charge, or need Stripe test setup). **Next: Admin pass**, then money/notifications/crons.
 >
 > To test: `LINEUP_ALLOW_LIVE_TEST_DATA=yes-noah-approved node --env-file=.env.local --env-file=.env.test.local scripts/test-data.mts seed`, start `npm run dev`, then run `npx playwright test e2e/customer.spec.ts`, `e2e/customer-flow.spec.ts --project desktop` and `e2e/smoke.spec.ts` (all with the same two `--env-file` flags in front of `node node_modules/.bin/playwright`). Then run `cleanup` and `check`. For paying, forward webhooks first: run `stripe listen --print-secret`, put that value in `.env.development.local` as `STRIPE_WEBHOOK_SECRET`, run `stripe listen --forward-to localhost:3000/api/stripe/webhook`, and delete the file afterwards.
 > **Disk:** this Mac has only ~2 GB free; the dev server plus test browsers can fill it within the hour. Stop the dev server between runs and `rm -rf .next/dev test-results`.
@@ -85,8 +85,9 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 - Slow: auth-lock warnings show on `/analytics` too ("Lock … was released because another request stole it", from `useVerificationState` → `getUser()`). Same cause as the Slow list below.
 
 ### Studio
-- Code: `/studio/calendar` has no manager-only guard even though its tab is hidden from members (maybe intended).
-- Everything else: to check once seeded.
+- Checked 24 Nov: `/studio/calendar` has no page guard for members, but it's intended. The schedule API gives members only their own column, so they see just their own bookings. Left as is.
+- Checked 24 Nov: owner `/studio/settings` (blank in the first smoke) loads at 1280 and 390.
+- Fixed 24 Nov: logged-out visitors return to the Studio section they opened. 44px tap targets on phones (tabs, icon buttons, menus, chips, team picker, links; switches get a 44px invisible hit area); desktop unchanged. "Something went wrong" replaced with what happened.
 
 ### Admin
 - Confusing: `/admin` is a blank page for anyone who isn't an admin (no message).
@@ -113,6 +114,11 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 2. **Offer price is free text** in the database (`request_offers.proposed_price`). The form now refuses what checkout can't charge, but the DB and API still accept it (e.g. an offer edited elsewhere). A numeric `proposed_price_cents` column would close it for good. Needs a migration, so not done.
 3. **Heatmap cells on Analytics are 24px** on phones. Bigger cells would change the chart's design. Left as is.
 4. **Connect payout setup untested**: fill in the Stripe Connect platform profile (dashboard.stripe.com/settings/connect/platform-profile) so a TEST pro can create a test-mode payout account. Then onboarding, the account-status badge and the customer's confirm step that releases a payout can be tested.
+
+## Decisions needed from Noah (studio pass)
+
+1. **Invites can't be tested without sending email**: team invites and client invites email straight away (there's no email kill-switch). A "don't send" switch for TEST data or a test email domain would let invite → join be tested end to end.
+2. **Setup and Studio billing** need Stripe Checkout in test mode for a shop with no plan. Needs the same Connect platform-profile step as pro payouts (pro pass #4).
 
 ## Slow (for Step 6)
 - `/profile/[id]` loads Stripe.js on every visit, which keeps sending telemetry for ~8 s; with a cold dev compile the page isn't quiet after 15 s at 390. Load Stripe only when the booking sheet opens.
@@ -166,20 +172,21 @@ Logged-out: `e2e/pro.spec.ts` (12 pages, 1280 + 390). Phone layout: every page b
 - [x] Complete, no-show ⚠: pro marks a finished booking complete; pay-at-shop no-show closes it. Both buttons 44px; the no-show text no longer promises a charge when there's no fee or card. *pro-flow (bookings with no Stripe ids, so nothing charged).* The customer's confirm step (releases the payout) and a real fee charge were not run.
 - [ ] Connect payout account: not run. It's Stripe Connect onboarding (payment code), and test mode needs the platform profile filled in first (see Decisions, pro pass #4).
 
-### Studio
-- [ ] Setup (no studio yet), plan banner ⚠
-- [ ] Today / front desk, walk-in
-- [ ] Calendar (owner, manager, member)
-- [ ] Requests (manager passes; member sees own)
-- [ ] Team: invite ⚠, roles, commission and rent (Plus)
-- [ ] Clients: import, invite ⚠, unsubscribe link
-- [ ] Import
-- [ ] Memberships: plans, check-in
-- [ ] Chairs: post, applicants, boost ⚠
-- [ ] Analytics: alerts, weekly push toggle
-- [ ] Earnings (shop)
-- [ ] Settings: profile, billing ⚠, payouts, commission
-- [ ] Join from invite
+### Studio  (studio pass, 24 Nov)
+Logged out: `e2e/studio.spec.ts` 22/22 (11 sections × 1280 + 390). Logged in with TEST data (Noah OK'd the seed): Studio smoke (owner every section, manager, member) **30/30** at 1280 + 390, and `e2e/studio-flow.spec.ts` **5/5**: every section at 390 with no control under 44px and no sideways scroll; walk-in; membership check-in; settings save; no console errors. Seed → cleanup → check left 0 TEST rows.
+- [~] Setup (no studio yet), plan banner ⚠: 44px back and skip buttons (tap-target test). Not clicked through: the TEST owner already has a shop, and the plan step opens Stripe Checkout.
+- [x] Today / front desk, walk-in: a negative price is held back by the field; a $40 walk-in is booked. *studio-flow + smoke.*
+- [x] Calendar (owner, manager, member): loads for each; 44px day buttons and team picker. *smoke 1280/390 + studio-flow 390.* Done / no-show from the shop calendar not clicked.
+- [x] Requests (manager, member): load clean. *smoke.* Passing a request to a pro not clicked.
+- [~] Team: loads, 44px controls. *smoke + 390.* Invite ⚠ not run (emails); role and commission changes not clicked.
+- [~] Clients: loads, 44px. *smoke + 390.* Import and invite ⚠ not run (invite emails real addresses from an import).
+- [x] Import: loads; clearer "stopped partway" message. *smoke + 390.* No file imported.
+- [x] Memberships: check-in recorded. *studio-flow.* Creating a plan not run (Stripe price).
+- [~] Chairs: loads, 44px filter chips. *smoke + 390.* Posting, applicants and boost ⚠ not run.
+- [x] Analytics (shop): loads for owner and manager at 1280 and 390. *smoke + studio-flow 390.* Weekly push toggle not clicked.
+- [x] Earnings (shop): loads; 44px "Open shop settings". *smoke + studio-flow 390.*
+- [x] Settings: owner saves the tagline. *studio-flow.* Billing and payouts ⚠ not run.
+- [ ] Join from invite: not run. Making an invite emails the invitee (decision below).
 
 ### Admin
 - [ ] Dashboard access (admin vs not)
