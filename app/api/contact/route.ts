@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import { getMailer } from "@/app/lib/mailer";
 import { escapeHtml } from "@/app/lib/email";
 import { isSameOriginRequest } from "@/app/lib/serverSupabase";
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   if (message.length < 5) return NextResponse.json({ error: "Write a short message." }, { status: 400 });
   if (!process.env.RESEND_API_KEY) return NextResponse.json({ error: "Messages aren't set up yet. Email us instead." }, { status: 500 });
 
-  const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({
+  const { error } = await getMailer().emails.send({
     from: FROM,
     to: [TO],
     replyTo: email,

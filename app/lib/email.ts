@@ -1,7 +1,6 @@
-import { Resend } from "resend";
+import { getMailer } from "./mailer";
 import { getSiteUrl } from "@/app/lib/siteUrl";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export function escapeHtml(value: string | null | undefined) {
   return String(value || "")
@@ -164,7 +163,9 @@ export async function sendEmail({
     throw new Error("Missing EMAIL_FROM env var");
   }
 
-  await resend.emails.send({
+  // Skips when EMAIL_DISABLED is set or every recipient is a test address;
+  // logs Resend errors (it returns them rather than throwing).
+  await getMailer().emails.send({
     from: process.env.EMAIL_FROM,
     to,
     subject,

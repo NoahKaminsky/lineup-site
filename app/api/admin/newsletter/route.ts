@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import { getMailer } from "@/app/lib/mailer";
 import { getServiceSupabase, requireAdmin } from "@/app/lib/serverSupabase";
 import { getNewsletterAudience } from "@/app/lib/newsletterAudience";
 import { NEWSLETTER_STUDIO_SUBJECT, getNewsletterStudioHtml } from "@/lib/email/newsletterStudio";
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json({ error: "RESEND_API_KEY isn't set." }, { status: 500 });
   }
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const resend = getMailer();
 
   const body = await req.json().catch(() => ({}));
 

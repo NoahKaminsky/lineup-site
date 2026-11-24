@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import { getMailer } from "@/app/lib/mailer";
 import { getNewsletterMarch27Html } from "@/lib/email/newsletterMarch27";
 import { requireAdmin } from "@/app/lib/serverSupabase";
 
@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   const admin = await requireAdmin(req);
   if (!admin) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 
-  const resend = new Resend(process.env.RESEND_API_KEY!);
+  const resend = getMailer();
 
   try {
     const testEmail = "lineupmb@gmail.com";

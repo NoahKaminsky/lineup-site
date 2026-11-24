@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Resend } from "resend";
+import { getMailer } from "@/app/lib/mailer";
 import { getNewsletterMarch27Html } from "@/lib/email/newsletterMarch27";
 import { getServiceSupabase, safeEqual } from "@/app/lib/serverSupabase";
 
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = getServiceSupabase();
-    const resend = new Resend(process.env.RESEND_API_KEY!);
+    const resend = getMailer();
 
     const { data: profileRows, error: profileError } = await supabase
       .from("profiles")
