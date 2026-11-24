@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { loginHref } from "@/app/lib/returnTo";
+import { OFFER_PRICE_HELP, offerPriceCents } from "@/app/lib/offerPrice";
 import { accountKind } from "@/app/lib/proAccess";
 import TimeSelect from "@/app/components/TimeSelect";
 import MarkRequestNotificationRead from "@/app/components/MarkRequestNotificationRead";
@@ -110,7 +111,7 @@ export default function RespondToRequestPage() {
         .single();
 
       if (requestError || !requestData) {
-        setMessage("Request not found or you do not have access.");
+        setMessage("We couldn't find this request. It may have been closed or booked by someone else.");
         setLoading(false);
         return;
       }
@@ -299,6 +300,11 @@ export default function RespondToRequestPage() {
       return;
     }
 
+    if (offerPriceCents(proposedPrice) === null) {
+      setMessage(OFFER_PRICE_HELP);
+      return;
+    }
+
     if (!offerMessage.trim()) {
       setMessage("Please enter a message.");
       return;
@@ -315,12 +321,12 @@ export default function RespondToRequestPage() {
     }
 
     if (!userId) {
-      setMessage("User not found.");
+      setMessage("Your sign-in has expired. Please sign in again.");
       return;
     }
 
     if (!request) {
-      setMessage("Request not found.");
+      setMessage("We couldn't find this request.");
       return;
     }
 
@@ -484,7 +490,7 @@ export default function RespondToRequestPage() {
 
         <div className="mx-auto max-w-4xl py-10">
           <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
-            {message || "Request not found."}
+            {message || "We couldn't find this request."}
           </div>
         </div>
       </main>
@@ -663,6 +669,7 @@ export default function RespondToRequestPage() {
                 </label>
                 <input
                   type="text"
+                  inputMode="decimal"
                   value={proposedPrice}
                   onChange={(e) => setProposedPrice(e.target.value)}
                   placeholder="$55"

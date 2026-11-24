@@ -1,5 +1,6 @@
 "use client";
 
+import { OFFER_PRICE_HELP, offerPriceCents } from "@/app/lib/offerPrice";
 import TipStep, { formatTipMoney } from "@/app/components/payments/TipStep";
 import { loginHref } from "@/app/lib/returnTo";
 import { deferRefresh } from "@/app/lib/deferRefresh";
@@ -1171,6 +1172,11 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
     if (!reofferPrice.trim()) {
       setMessage("Please enter an updated price.");
+      return;
+    }
+
+    if (offerPriceCents(reofferPrice) === null) {
+      setMessage(OFFER_PRICE_HELP);
       return;
     }
 
