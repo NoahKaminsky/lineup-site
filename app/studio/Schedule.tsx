@@ -757,12 +757,15 @@ export function AppointmentSheet({
                   { label: "Cancel appointment", danger: true, onSelect: () => setStatus("cancelled", "Cancelled. The time is open again.") },
                 ]}
               />
+              {/* Separate keys: if React reused one <button> for both, the tap on
+                  "Mark done" would turn it into the submit button mid-click and
+                  save straight away (as cash, default price) before the form shows. */}
               {checkout ? (
-                <Button variant="primary" type="submit" form="fd-checkout" loading={busy === `fd-${item.id}`}>
+                <Button key="fd-save" variant="primary" type="submit" form="fd-checkout" loading={busy === `fd-${item.id}`}>
                   Save, mark done
                 </Button>
               ) : (
-                <Button variant="primary" onClick={() => setCheckoutFor(item.id)}>
+                <Button key="fd-open" variant="primary" onClick={() => setCheckoutFor(item.id)}>
                   Mark done
                 </Button>
               )}
