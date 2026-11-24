@@ -57,7 +57,7 @@ export function useSection(name: string, q: Query, tick: number, sample: boolean
     let live = true;
     studioFetch<Data & { error?: string; needsPlan?: boolean }>(`${base}?section=${name}&${qs(q)}`).then((res) => {
       if (!live) return;
-      if (!res.ok) setState({ key, data: null, error: res.data.error || "Could not load this section.", needsPlan: res.data.needsPlan });
+      if (!res.ok || res.data.needsPlan) setState({ key, data: null, error: res.data.error || "Could not load this section.", needsPlan: res.data.needsPlan });
       else setState({ key, data: res.data, error: null });
     });
     return () => {

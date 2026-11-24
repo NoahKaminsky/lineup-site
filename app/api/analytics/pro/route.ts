@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { accountKind } from "@/app/lib/proAccess";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { errorMessage, getStudioForUser, isStudioLive } from "@/app/lib/studios";
 import { todayLocal } from "@/app/lib/earnings";
@@ -10,7 +11,7 @@ import { BASIC_SECTIONS, SECTIONS, section, type SectionName } from "@/app/lib/p
 // GET /api/analytics/pro?section=overview&period=month|week|quarter|year|custom
 //     [&from=&to=] [&compare=previous|last_year] [&service=Name] [&format=csv]
 // One section of the signed-in pro's Analytics. Only ever their own data.
-// Plans exactly as app/lib/plans.ts: no plan -> 402 (the page shows a
+// Plans exactly as app/lib/plans.ts: no plan -> 200 with needsPlan (the page shows a
 // labelled example); Apprentice -> the overview only; Pro, Master and shop
 // members -> everything.
 
@@ -28,11 +29,10 @@ export async function GET(req: Request) {
 
     const db = getServiceSupabase();
     const { data: profile } = await db.from("profiles").select("role, full_name, subscription_plan, subscription_status").eq("id", user.id).maybeSingle();
-    const role = String(profile?.role || "").toLowerCase();
-    if (!role || role.includes("customer")) return NextResponse.json({ error: "Analytics are for professionals." }, { status: 403 });
+    if (accountKind(profile?.role) !== "pro") return NextResponse.json({ error: "Analytics are for professionals." }, { status: 403 });
     const studio = await getStudioForUser(db, user.id).catch(() => null);
     const access = analyticsAccess({ ...profile, studioMember: !!studio && isStudioLive(studio.studio) });
-    if (access === "none") return NextResponse.json({ error: "Analytics come with Apprentice, Pro and Master.", needsPlan: true }, { status: 402 });
+    if (access === "none") return NextResponse.json({ error: "Analytics come with Apprentice, Pro and Master.", needsPlan: true }, { status: 200 });
     if (access === "basic" && !BASIC_SECTIONS.includes(name)) return NextResponse.json({ locked: true, access }, { status: 200 });
 
     const today = todayLocal();
