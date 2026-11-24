@@ -10,7 +10,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import LocationAutocomplete, { type SelectedLocation } from "@/app/components/LocationAutocomplete";
-import { rememberReturnTo, takeReturnTo } from "@/app/lib/returnTo";
+import { rememberReturnTo, takeReturnTo, loginHref } from "@/app/lib/returnTo";
 import { takeReferralCode } from "@/app/components/ReferralCapture";
 
 // See the matching flag in app/account/AccountPageClient.tsx — same reasoning.
@@ -60,7 +60,7 @@ export default function OnboardingPage() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref(window.location.pathname + window.location.search));
         return;
       }
 

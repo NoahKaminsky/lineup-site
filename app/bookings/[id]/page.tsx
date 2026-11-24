@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { loginHref } from "@/app/lib/returnTo";
 import { DateTile, countdown, dayWord } from "@/app/components/bookings/BookingVisuals";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -337,7 +338,7 @@ export default function BookingDetailPage() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref(window.location.pathname + window.location.search));
         return;
       }
 

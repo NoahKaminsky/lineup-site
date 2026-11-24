@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { loginHref } from "@/app/lib/returnTo";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Scissors, Hand, Eye, Pencil, Palette, Leaf, Droplet } from "lucide-react";
 import { supabase } from "../../../lib/supabaseClient";
@@ -509,7 +510,7 @@ function NewRequestPageContent() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref(window.location.pathname + window.location.search));
         return;
       }
 

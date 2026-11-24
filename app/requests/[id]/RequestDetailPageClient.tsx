@@ -1,6 +1,7 @@
 "use client";
 
 import TipStep, { formatTipMoney } from "@/app/components/payments/TipStep";
+import { loginHref } from "@/app/lib/returnTo";
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -656,7 +657,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
     const user = await getSignedInUser();
 
     if (!user) {
-      router.push("/login");
+      router.replace(loginHref(window.location.pathname + window.location.search));
       return;
     }
 

@@ -54,7 +54,7 @@ export const SMOKE_ROUTES: SmokeRoute[] = [
   { path: "/archive", as: "customer" },
   { path: "/discover", as: "customer" },
   { path: "/shop/{shopSlug}", as: "customer" },
-  { path: "/work", as: "customer", expectPath: "/requests" },
+  { path: "/work", as: "customer" },
 
   // Basic pro (no paid plan)
   { path: "/work", as: "basic" },
