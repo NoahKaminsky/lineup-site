@@ -29,7 +29,7 @@ export type ShopCard = {
   teamSize: number;
 };
 
-async function loadShops(): Promise<ShopCard[]> {
+async function loadShops(): Promise<ShopCard[] | null> {
   try {
     const supabase = getServiceSupabase();
     const { data: studios } = await supabase
@@ -67,12 +67,14 @@ async function loadShops(): Promise<ShopCard[]> {
       .sort((a, b) => a.area.localeCompare(b.area) || b.teamSize - a.teamSize || a.name.localeCompare(b.name));
   } catch (error) {
     console.error("Find a shop: could not load shops", error);
-    return [];
+    return null; // shown as "couldn't load", not as "no shops yet"
   }
 }
 
 export default async function ShopsPage() {
-  const shops = await loadShops();
+  const loaded = await loadShops();
+  const loadFailed = loaded === null;
+  const shops = loaded ?? [];
 
   return (
     <PublicLayout>
@@ -93,9 +95,13 @@ export default async function ShopsPage() {
         ) : (
           <div className="rounded-3xl bg-white p-8 ring-1 ring-ink/[0.07] sm:p-10">
             <Store className="h-6 w-6 text-neutral-400" aria-hidden="true" />
-            <p className="mt-4 text-xl font-semibold tracking-[-0.02em]">The first shops are setting up now.</p>
+            <p className="mt-4 text-xl font-semibold tracking-[-0.02em]">
+              {loadFailed ? "We couldn't load shops just now." : "The first shops are setting up now."}
+            </p>
             <p className="mt-2 max-w-lg text-sm leading-6 text-neutral-600">
-              In the meantime, browse verified pros near you, many of whom work out of a shop.
+              {loadFailed
+                ? "Refresh the page in a moment. You can also browse verified pros near you, many of whom work out of a shop."
+                : "In the meantime, browse verified pros near you, many of whom work out of a shop."}
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <Link href="/beauty" className="inline-flex rounded-full bg-ink px-6 py-3 text-sm font-medium text-white hover:bg-neutral-800">
