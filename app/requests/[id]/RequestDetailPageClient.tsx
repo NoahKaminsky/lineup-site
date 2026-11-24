@@ -6,6 +6,7 @@ import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -3100,7 +3101,8 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
         </div>
       ) : null}
       
-      {showPaymentModal && paymentClientSecret && selectedOfferForPayment ? (
+      {showPaymentModal && paymentClientSecret && selectedOfferForPayment ? createPortal(
+        // Rendered on <body> so no parent stacking context can put it under the sticky navbar.
         <div ref={paymentSheetRef} role="dialog" aria-modal="true" className="lu-fade-in lu-sheet-overlay z-50 bg-ink/60">
           {/* The overlay scrolls, the page behind doesn't (see useModalSheet). */}
           <div className="flex min-h-full items-end justify-center p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:items-center sm:p-4">
@@ -3191,7 +3193,8 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             </Elements>
           </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
 
       {showCancelMoment && request ? (
