@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
+import { isSubscribedToSchedule, proPageRedirect } from "@/app/lib/proAccess";
 import { getCached, setCached } from "@/app/lib/pageCache";
 
 import { MapPin } from "lucide-react";
@@ -28,11 +30,6 @@ type Profile = {
   subscription_plan?: string | null;
 };
 
-function isSubscribedToSchedule(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {
-  const subscribed =
-    profile.subscription_status === "active" || profile.subscription_status === "trialing";
-  return subscribed && !!profile.subscription_plan && profile.subscription_plan !== "basic";
-}
 
 type AvailabilityWindow = {
   id?: string;
@@ -659,7 +656,7 @@ export default function ServicesPage() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref("/services"));
         return;
       }
 
@@ -679,11 +676,9 @@ export default function ServicesPage() {
         return;
       }
 
-      const normalizedRole = String(profileData.role || "").toLowerCase().trim();
-      const isProfessional = !!normalizedRole && !normalizedRole.includes("customer");
-
-      if (!isProfessional) {
-        router.push("/account");
+      const away = proPageRedirect(profileData.role);
+      if (away) {
+        router.replace(away);
         return;
       }
 

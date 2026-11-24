@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
+import { accountKind } from "@/app/lib/proAccess";
 import TimeSelect from "@/app/components/TimeSelect";
 import MarkRequestNotificationRead from "@/app/components/MarkRequestNotificationRead";
 import { containsProfanity } from "@/app/lib/profanityFilter";
@@ -68,7 +70,7 @@ export default function RespondToRequestPage() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref(`/requests/${requestId}/respond`));
         return;
       }
 
@@ -95,12 +97,9 @@ export default function RespondToRequestPage() {
         setNeedsVerification(!isVerifiedNow(verificationRow));
       }
 
-      const normalizedRole = profile.role?.toLowerCase().trim() || "";
-      const isProfessional =
-        !!normalizedRole && !normalizedRole.includes("customer");
-
-      if (!isProfessional) {
-        router.push(`/requests/${requestId}`);
+      const kind = accountKind(profile.role);
+      if (kind !== "pro") {
+        router.replace(kind === "shop" ? "/studio/requests" : `/requests/${requestId}`);
         return;
       }
 

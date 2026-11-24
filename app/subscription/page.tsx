@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
+import { proPageRedirect } from "@/app/lib/proAccess";
 import { getCached, setCached } from "@/app/lib/pageCache";
 
 type SubscriptionStatus =
@@ -176,7 +178,7 @@ export default function SubscriptionPage() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref("/subscription"));
         return;
       }
 
@@ -194,11 +196,9 @@ export default function SubscriptionPage() {
         return;
       }
 
-      const normalizedRole = String(data.role || "").toLowerCase().trim();
-      const isProfessional = !!normalizedRole && !normalizedRole.includes("customer");
-
-      if (!isProfessional) {
-        router.push("/account");
+      const away = proPageRedirect(data.role, "/studio/settings");
+      if (away) {
+        router.replace(away);
         return;
       }
 

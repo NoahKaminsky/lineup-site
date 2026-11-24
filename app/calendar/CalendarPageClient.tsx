@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
+import { isSubscribedToSchedule, proPageRedirect } from "@/app/lib/proAccess";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import {
   FRONT_DESK_COLUMNS,
@@ -76,24 +78,7 @@ function isShopBooking(b: CalendarBooking) {
   return !!b.studio_id && (!b.service_mode || b.service_mode === "in_shop");
 }
 
-function isSubscribedToSchedule(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {
-  const subscribed =
-    profile.subscription_status === "active" || profile.subscription_status === "trialing";
-  return subscribed && !!profile.subscription_plan && profile.subscription_plan !== "basic";
-}
 
-function normalizeRole(role: string | null | undefined) {
-  return role?.toLowerCase().trim() || "";
-}
-
-function isCustomerRole(role: string | null | undefined) {
-  return normalizeRole(role).includes("customer");
-}
-
-function isProfessionalRole(role: string | null | undefined) {
-  const normalized = normalizeRole(role);
-  return !normalized.includes("customer") && !!normalized;
-}
 
 function formatMonthYear(date: Date) {
   return date.toLocaleDateString("en-CA", {
@@ -436,7 +421,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref("/calendar"));
         return;
       }
 
@@ -491,14 +476,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
           .catch(() => {});
       }
 
-      if (isCustomerRole(userRole)) {
-        router.push("/requests");
-        return;
-      }
-
-      if (!isProfessionalRole(userRole)) {
-        setMessage("Invalid account role.");
-        setLoading(false);
+      const away = proPageRedirect(userRole, "/studio/calendar");
+      if (away) {
+        router.replace(away);
         return;
       }
 

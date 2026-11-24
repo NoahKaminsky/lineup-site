@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { loginHref } from "@/app/lib/returnTo";
+import { getSignedInUser } from "@/lib/getSignedInUser";
+import { proPageRedirect } from "@/app/lib/proAccess";
 import EarningsReport from "@/app/components/earnings/EarningsReport";
 
 // A pro's own earnings, for their records and their accountant. Free on every
@@ -16,20 +19,18 @@ export default function EarningsPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getSignedInUser();
       if (!user) {
-        router.replace("/login?next=/earnings");
+        router.replace(loginHref("/earnings"));
         return;
       }
       const [{ data: profile }, { data: member }] = await Promise.all([
         supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
         supabase.from("studio_members").select("role").eq("profile_id", user.id).eq("status", "active").maybeSingle(),
       ]);
-      const role = String(profile?.role || "").toLowerCase();
-      if (!role || role.includes("customer")) {
-        router.replace("/requests");
+      const away = proPageRedirect(profile?.role, "/studio/earnings");
+      if (away) {
+        router.replace(away);
         return;
       }
       if (cancelled) return;

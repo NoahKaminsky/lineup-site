@@ -5,6 +5,8 @@
 // professionals, not worth duplicating server-side for this pass.
 
 import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
+import { loginHref } from "@/app/lib/returnTo";
+import { isSubscribedToSchedule, proPageRedirect } from "@/app/lib/proAccess";
 import {
   FRONT_DESK_COLUMNS,
   calendarStatusFilter,
@@ -37,21 +39,6 @@ type BookingRow = {
 const BOOKING_COLUMNS =
   "id, professional_id, customer_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, payment_status, service_mode, studio_id";
 
-function normalizeRole(role: string | null | undefined) {
-  return role?.toLowerCase().trim() || "";
-}
-function isCustomerRole(role: string | null | undefined) {
-  return normalizeRole(role).includes("customer");
-}
-function isProfessionalRole(role: string | null | undefined) {
-  const normalized = normalizeRole(role);
-  return !normalized.includes("customer") && !!normalized;
-}
-function isSubscribedToSchedule(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {
-  const subscribed = profile.subscription_status === "active" || profile.subscription_status === "trialing";
-  return subscribed && !!profile.subscription_plan && profile.subscription_plan !== "basic";
-}
-
 export type CalendarInitialData = {
   role: string;
   bookings: Record<string, unknown>[];
@@ -68,7 +55,7 @@ export async function getInitialCalendarData(): Promise<CalendarInitialResult> {
 
   const user = await getVerifiedUser(supabase);
 
-  if (!user) return { kind: "redirect", to: "/login" };
+  if (!user) return { kind: "redirect", to: loginHref("/calendar") };
 
   try {
     // Profile and bookings don't depend on each other, so fetch them at the
@@ -94,8 +81,8 @@ export async function getInitialCalendarData(): Promise<CalendarInitialResult> {
 
     const role = profile.role as string | null;
 
-    if (isCustomerRole(role)) return { kind: "redirect", to: "/requests" };
-    if (!isProfessionalRole(role)) return { kind: "fallback" };
+    const away = proPageRedirect(role, "/studio/calendar");
+    if (away) return { kind: "redirect", to: away };
 
     const { data: bookingsData, error: bookingsError } = bookingsResult;
     if (bookingsError) throw new Error(bookingsError.message);

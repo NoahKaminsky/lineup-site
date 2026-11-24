@@ -17,6 +17,7 @@ import { useBidCounts } from "@/app/lib/useBidCounts";
 import { BookingRow, NextUpCard, type AppointmentLike } from "@/app/components/bookings/BookingVisuals";
 
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
 import { useDismissedRequests } from "@/app/lib/requestDismissals";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { DrawnCheck } from "@/app/components/moments/Moments";
@@ -523,7 +524,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref("/work"));
         return;
       }
 

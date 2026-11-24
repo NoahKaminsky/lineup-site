@@ -3,6 +3,8 @@
 // falls back to a normal client cold load on any failure).
 
 import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
+import { loginHref } from "@/app/lib/returnTo";
+import { proPageRedirect } from "@/app/lib/proAccess";
 import type { VerificationStatus, VerificationTrack } from "@/app/lib/verificationRules";
 
 export type VerificationSubmission = {
@@ -45,7 +47,7 @@ export async function getInitialVerificationData(): Promise<VerificationInitialR
 
   const user = await getVerifiedUser(supabase);
 
-  if (!user) return { kind: "redirect", to: "/login" };
+  if (!user) return { kind: "redirect", to: loginHref("/verification") };
 
   try {
     const { data: profileRow } = await supabase
@@ -54,10 +56,8 @@ export async function getInitialVerificationData(): Promise<VerificationInitialR
       .eq("id", user.id)
       .maybeSingle();
 
-    const role = String(profileRow?.role || "").toLowerCase();
-    if (!profileRow || !role || role.includes("customer")) {
-      return { kind: "redirect", to: "/requests" };
-    }
+    const away = profileRow ? proPageRedirect(profileRow.role) : "/requests";
+    if (away) return { kind: "redirect", to: away };
 
     const { data: rows, error: submissionsError } = await supabase
       .from("professional_verifications")
