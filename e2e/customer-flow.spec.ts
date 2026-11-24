@@ -110,9 +110,23 @@ test("compare offers, accept one and pay with a Stripe test card", async () => {
   const payBtn = page.getByRole("dialog").getByRole("button", { name: /^Pay \$/ });
   await payBtn.scrollIntoViewIfNeeded();
   await payBtn.click();
-  await expect
-    .poll(async () => (await db.from("bookings").select("id").eq("request_id", ids.request)).data?.length ?? 0, { timeout: 90_000 })
-    .toBeGreaterThan(0);
+  if (process.env.STRIPE_FORWARDING === "1") {
+    // With `stripe listen` forwarding, the webhook turns the payment into a booking.
+    await expect
+      .poll(async () => (await db.from("bookings").select("id").eq("request_id", ids.request)).data?.length ?? 0, { timeout: 90_000 })
+      .toBeGreaterThan(0);
+  } else {
+    // No forwarding: check the payment itself went through in Stripe test mode (read-only).
+    const key = process.env.STRIPE_SECRET_KEY || "";
+    expect(key.startsWith("sk_test_"), "only ever against Stripe test mode").toBe(true);
+    const q = encodeURIComponent(`metadata['request_id']:'${ids.request}' AND status:'succeeded'`);
+    await expect
+      .poll(async () => {
+        const r = await fetch(`https://api.stripe.com/v1/payment_intents/search?query=${q}`, { headers: { Authorization: `Bearer ${key}` } });
+        return ((await r.json()) as { data?: unknown[] }).data?.length ?? 0;
+      }, { timeout: 120_000, intervals: [5_000] })
+      .toBeGreaterThan(0);
+  }
 });
 
 test("chat on a booking", async () => {
@@ -172,4 +186,17 @@ test("buy a shop gift card in Stripe test mode", async () => {
   await page.locator('button[type="submit"]').click();
   await page.waitForURL(/\/gift\/thanks/, { timeout: 90_000 });
   await expect(page.getByText(/LU-/).first()).toBeVisible({ timeout: 30_000 });
+});
+
+test("regular: 'Confirm and pay' opens the payment sheet and Stripe's card form loads (not paid)", async () => {
+  const { data } = await db.from("standing_appointments").select("id").eq("customer_id", ids.customer).limit(1).single();
+  let stripeLoads = 0;
+  page.on("request", (r) => /js\.stripe\.com\/v3/.test(r.url()) && stripeLoads++);
+  await page.goto(`/regular/${data!.id}`);
+  await page.getByRole("button", { name: /^Confirm and pay/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "No tip" }).click();
+  const frame = page.frameLocator('iframe[title*="Secure payment input"]').first();
+  await expect(frame.getByRole("button", { name: "Card" })).toBeVisible({ timeout: 60_000 });
+  expect(stripeLoads).toBeGreaterThan(0);
+  await page.keyboard.press("Escape");
 });

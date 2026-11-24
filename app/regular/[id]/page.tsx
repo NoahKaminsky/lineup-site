@@ -204,7 +204,7 @@ export default function RegularPage({ params }: { params: Promise<{ id: string }
             type="button"
             onClick={stop}
             disabled={stopping}
-            className="mt-8 text-sm text-neutral-500 underline decoration-neutral-300 underline-offset-4 hover:text-red-700 disabled:opacity-60"
+            className="mt-8 inline-flex min-h-11 items-center text-sm text-neutral-500 underline decoration-neutral-300 underline-offset-4 hover:text-red-700 disabled:opacity-60"
           >
             {stopping ? "Stopping…" : "Stop this regular appointment"}
           </button>
