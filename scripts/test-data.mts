@@ -149,13 +149,20 @@ async function seed() {
   });
   const pro = (who: Who, extra: Record<string, unknown>) => ({
     ...base(who),
-    professional_type: "Barber",
-    professional_types: ["Barber"],
+    professional_type: "barber",
+    professional_types: ["barber"],
     bio: "TEST account for automated checks. Not a real pro.",
     username: `test-${who}-${id[who].slice(0, 6)}`,
     direct_booking_enabled: true,
     public_availability_enabled: true,
     service_modes: ["in_shop"],
+    // Booking needs a pro location. Churchill, MB keeps TEST pros far from
+    // real customers' searches.
+    location: "TEST, Churchill, MB",
+    city: "Churchill",
+    formatted_address: "TEST address, Churchill, MB R0B 0E0, Canada",
+    location_lat: 58.7684,
+    location_lng: -94.165,
     verification_status: "verified",
     verification_track: "licensed",
     verified_at: now,
@@ -231,13 +238,13 @@ async function seed() {
   // 4. Requests in every status, with offers in every status
   const request = (title: string, status: string, extra: Record<string, unknown> = {}) => ({
     client_id: id.customer,
-    category: "Hair",
-    categories: ["Hair"],
+    category: "haircut",
+    categories: ["haircut"],
     title: `TEST ${title}`,
     description: "TEST request for automated checks.",
     service_mode: "in_shop",
     service_modes: ["in_shop"],
-    target_professions: ["Barber"],
+    target_professions: ["barber"],
     budget: "$40",
     status,
     preferred_date: day(14),
@@ -318,6 +325,7 @@ async function seed() {
       .select("id, professional_id, status, booking_date"),
   );
   const completedMaster = bookings.find((b: { professional_id: string; status: string }) => b.professional_id === id.master && b.status === "completed")!.id;
+  // Left without a review so the review flow can be tested.
   const completedShop = bookings.find((b: { professional_id: string; status: string }) => b.professional_id === id.member1 && b.status === "completed")!.id;
 
   // 6. Reviews both ways
@@ -325,7 +333,6 @@ async function seed() {
     "insert professional_reviews",
     db.from("professional_reviews").insert([
       { professional_id: id.master, reviewer_id: id.customer, rating: 5, comment: "TEST review: great cut.", booking_id: completedMaster, request_id: req("Completed request"), pro_reply: "TEST reply: thanks!", pro_replied_at: now },
-      { professional_id: id.member1, reviewer_id: id.customer, rating: 4, comment: "TEST review: solid.", booking_id: completedShop },
     ], { defaultToNull: false }),
   );
   await must(
@@ -379,7 +386,7 @@ async function seed() {
   );
   await must(
     "insert chair opening",
-    db.from("chair_openings").insert({ studio_id: studio.id, posted_by: id.owner, title: "TEST Chair opening", professions: ["Barber"], arrangement: "booth_rent", rent_cents: 25000, rent_interval: "week", description: "TEST opening", status: "open", expires_at: day(30) }),
+    db.from("chair_openings").insert({ studio_id: studio.id, posted_by: id.owner, title: "TEST Chair opening", professions: ["barber"], arrangement: "booth_rent", rent_cents: 25000, rent_interval: "week", description: "TEST opening", status: "open", expires_at: day(30) }),
   );
 
   console.log("\n✔ Seeded TEST data. Accounts (password = TEST_SEED_PASSWORD):");
