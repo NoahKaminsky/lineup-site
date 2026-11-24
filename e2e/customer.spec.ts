@@ -31,3 +31,24 @@ test.describe("logged out", () => {
     expect(box?.width).toBeGreaterThanOrEqual(44);
   });
 });
+
+test("landing hero downloads only the crop that fits the screen", async ({ page }, info) => {
+  const studio: string[] = [];
+  page.on("request", (r) => { const m = r.url().match(/studio-(wide|tall)\.webp/); if (m) studio.push(m[1]); });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle").catch(() => {});
+  const want = info.project.name === "phone-390" ? "tall" : "wide";
+  expect([...new Set(studio)]).toEqual([want]);
+});
+
+test("gift thanks page without a purchase doesn't claim a payment", async ({ page }) => {
+  await page.goto("/gift/thanks");
+  await expect(page.getByText("We couldn't find a gift card purchase from this link.")).toBeVisible();
+  await expect(page.getByText("Your payment went through.")).toHaveCount(0);
+});
+
+test("shops directory loads", async ({ page }) => {
+  await page.goto("/shops");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByText("We couldn't load shops just now.")).toHaveCount(0);
+});

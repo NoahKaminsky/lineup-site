@@ -99,6 +99,12 @@ test("compare offers, accept one and pay with a Stripe test card", async () => {
   await page.goto(`/requests/${ids.request}`);
   await expect(page.getByText("TEST offer from the flow test")).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Accept offer" }).first().click();
+  // The sheet's heading must be on top (not hidden under the sticky navbar).
+  const heading = page.getByRole("dialog").getByRole("heading", { name: "Confirm your booking" });
+  await heading.scrollIntoViewIfNeeded();
+  const hb = (await heading.boundingBox())!;
+  const onTop = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[role="dialog"]'), [hb.x + 10, hb.y + hb.height / 2]);
+  expect(onTop, "payment sheet heading is covered").toBe(true);
   await page.getByRole("button", { name: "No tip" }).click();
   await fillStripeCard(page);
   const payBtn = page.getByRole("dialog").getByRole("button", { name: /^Pay \$/ });
@@ -136,6 +142,11 @@ test("save a pro with the heart", async () => {
   await expect(heart).toHaveAttribute("aria-pressed", "true");
   const { count } = await db.from("saved_pros").select("client_id", { count: "exact", head: true }).eq("client_id", ids.customer).eq("professional_id", ids.master);
   expect(count).toBe(1);
+});
+
+test("refer page sends a customer to their requests", async () => {
+  await page.goto("/refer");
+  await page.waitForURL(/\/requests$/, { timeout: 30_000 });
 });
 
 test("buy a shop gift card in Stripe test mode", async () => {
