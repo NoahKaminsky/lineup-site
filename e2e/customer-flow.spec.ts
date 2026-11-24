@@ -174,19 +174,17 @@ test("buy a shop gift card in Stripe test mode", async () => {
   if (await page.getByText("isn't selling gift cards yet").isVisible()) {
     test.skip(true, "TEST shop has no enabled Stripe test payout account (needs the Connect platform profile set up)");
   }
-  await page.getByLabel("Gift card amount in dollars").fill("50");
-  for (const input of await page.locator('input[type="email"]').all()) if (!(await input.inputValue())) await input.fill("lineup.test+recipient@example.com");
-  await page.locator('button[type="submit"]').click();
+  await page.getByRole("button", { name: "$50", exact: true }).click();
+  await page.getByRole("textbox", { name: "Their name" }).fill("TEST Recipient");
+  await page.getByRole("textbox", { name: "Their email" }).fill("lineup.test+recipient@example.com");
+  const buyer = page.getByRole("textbox", { name: "Your name" });
+  if (!(await buyer.inputValue())) await buyer.fill("TEST Customer");
+  await page.getByRole("button", { name: "Pay $50" }).click();
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 60_000 });
-  await page.locator("#cardNumber").fill("4242424242424242");
-  await page.locator("#cardExpiry").fill("12 / 34");
-  await page.locator("#cardCvc").fill("123");
-  await page.locator("#billingName").fill("TEST Customer");
-  const postal = page.locator("#billingPostalCode");
-  if (await postal.isVisible().catch(() => false)) await postal.fill("R3T 2N2");
-  await page.locator('button[type="submit"]').click();
+  await fillCheckoutCard(page, "TEST Customer");
+  await (await checkoutFrame(page)).getByRole("button", { name: /^Pay/ }).last().click();
   await page.waitForURL(/\/gift\/thanks/, { timeout: 90_000 });
-  await expect(page.getByText(/LU-/).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: "Thank you. It's on its way." })).toBeVisible({ timeout: 40_000 });
 });
 
 test("buy a pro's gift card in Stripe test mode (needs the TEST Basic pro's test payout account)", async () => {
