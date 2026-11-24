@@ -161,7 +161,7 @@ export default function AdminNewsletter() {
                   type="button"
                   onClick={sendAll}
                   disabled={!!busy}
-                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 min-h-11"
                 >
                   {busy === "send" ? "Sending…" : "Yes, send it"}
                 </button>
@@ -169,7 +169,7 @@ export default function AdminNewsletter() {
                   type="button"
                   onClick={() => setConfirming(false)}
                   disabled={!!busy}
-                  className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium"
+                  className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium min-h-11"
                 >
                   Cancel
                 </button>

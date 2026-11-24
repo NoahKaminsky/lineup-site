@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
 import AdminVerifications from "@/app/components/AdminVerifications";
 import AdminNewsletter from "@/app/components/AdminNewsletter";
 
@@ -89,7 +90,7 @@ export default function AdminPage() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref("/admin"));
         return;
       }
 
@@ -100,7 +101,7 @@ export default function AdminPage() {
         .single();
 
       if (!profile?.is_admin) {
-        router.push("/account");
+        router.replace("/account");
         return;
       }
 
@@ -272,7 +273,7 @@ export default function AdminPage() {
   }
 
   if (checking) {
-    return <main className="px-4 py-8 sm:px-6 lg:px-8 text-sm text-neutral-500">Checking access...</main>;
+    return <main className="px-4 py-8 sm:px-6 lg:px-8 text-sm text-neutral-500">Checking access…</main>;
   }
 
   if (!isAdmin) return null;
@@ -283,13 +284,13 @@ export default function AdminPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold">Admin</h1>
-            <p className="mt-1 text-sm text-neutral-500">Internal tool — manage subscriptions and moderate content.</p>
+            <p className="mt-1 text-sm text-neutral-500">Internal tool: users, verifications, the newsletter and content.</p>
           </div>
 
           <button
             type="button"
             onClick={() => router.push("/requests")}
-            className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+            className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 min-h-11"
           >
             Switch back to regular view
           </button>
@@ -307,7 +308,7 @@ export default function AdminPage() {
             onClick={() => setTab("users")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
               tab === "users" ? "bg-ink text-white" : "bg-white text-neutral-700 border border-neutral-200"
-            }`}
+            } min-h-11`}
           >
             Users
           </button>
@@ -316,7 +317,7 @@ export default function AdminPage() {
             onClick={() => setTab("verification")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
               tab === "verification" ? "bg-ink text-white" : "bg-white text-neutral-700 border border-neutral-200"
-            }`}
+            } min-h-11`}
           >
             Verification
           </button>
@@ -325,7 +326,7 @@ export default function AdminPage() {
             onClick={() => setTab("newsletter")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
               tab === "newsletter" ? "bg-ink text-white" : "bg-white text-neutral-700 border border-neutral-200"
-            }`}
+            } min-h-11`}
           >
             Newsletter
           </button>
@@ -336,7 +337,7 @@ export default function AdminPage() {
               onClick={() => setTab(t.key)}
               className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                 tab === t.key ? "bg-ink text-white" : "bg-white text-neutral-700 border border-neutral-200"
-              }`}
+              } min-h-11`}
             >
               {t.label}
             </button>
@@ -360,7 +361,7 @@ export default function AdminPage() {
               <button
                 type="button"
                 onClick={loadUsers}
-                className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white"
+                className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white min-h-11"
               >
                 Search
               </button>
@@ -435,9 +436,9 @@ export default function AdminPage() {
                               u.is_featured
                                 ? "border-amber-300 bg-amber-100 text-amber-800"
                                 : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300"
-                            }`}
+                            } min-h-11`}
                           >
-                            {togglingFeaturedId === u.id ? "..." : u.is_featured ? "★ Featured" : "Feature"}
+                            {togglingFeaturedId === u.id ? "Saving…" : u.is_featured ? "Featured" : "Feature"}
                           </button>
                         </td>
                         <td className="px-3 py-2">
@@ -450,9 +451,9 @@ export default function AdminPage() {
                               u.is_founding_artist
                                 ? "border-orange-300 bg-orange-100 text-orange-800"
                                 : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300"
-                            }`}
+                            } min-h-11`}
                           >
-                            {togglingFoundingArtistId === u.id ? "..." : u.is_founding_artist ? "Founding" : "Mark founding"}
+                            {togglingFoundingArtistId === u.id ? "Saving…" : u.is_founding_artist ? "Founding" : "Mark founding"}
                           </button>
                         </td>
                         <td className="px-3 py-2">
@@ -460,7 +461,7 @@ export default function AdminPage() {
                             type="button"
                             onClick={() => handleSaveUserTier(u.id)}
                             disabled={savingUserId === u.id}
-                            className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+                            className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60 min-h-11"
                           >
                             {savingUserId === u.id ? "Saving…" : "Save"}
                           </button>
@@ -485,7 +486,7 @@ export default function AdminPage() {
               <button
                 type="button"
                 onClick={() => loadContent(tab)}
-                className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white"
+                className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white min-h-11"
               >
                 Search
               </button>
@@ -550,7 +551,7 @@ export default function AdminPage() {
                       type="button"
                       onClick={() => handleDeleteContent(tab, item.id)}
                       disabled={deletingId === item.id}
-                      className="shrink-0 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 disabled:opacity-60"
+                      className="shrink-0 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 disabled:opacity-60 min-h-11"
                     >
                       {deletingId === item.id ? "Deleting…" : "Delete"}
                     </button>

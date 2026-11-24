@@ -146,7 +146,7 @@ export default function AdminVerifications() {
     setBusyId(null);
 
     if (!res.ok) {
-      setMessage(json.error || "Something went wrong.");
+      setMessage(json.error || "That didn't save. Please try again.");
       return false;
     }
 
@@ -180,7 +180,7 @@ export default function AdminVerifications() {
           <button
             type="submit"
             disabled={lookupBusy}
-            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+            className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60 min-h-11"
           >
             {lookupBusy ? "…" : "Search"}
           </button>
@@ -248,7 +248,7 @@ export default function AdminVerifications() {
                             );
                             if (ok) runLookup();
                           }}
-                          className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                          className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60 min-h-11"
                         >
                           {busyId === r.id ? "Working…" : "Approve"}
                         </button>
@@ -371,14 +371,14 @@ export default function AdminVerifications() {
                         type="button"
                         disabled={busyId === s.id}
                         onClick={() => post({ action: "reject", id: s.id, reason: reasons[s.id] || "" }, s.id)}
-                        className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                        className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60 min-h-11"
                       >
                         Confirm reject
                       </button>
                       <button
                         type="button"
                         onClick={() => setRejectingId(null)}
-                        className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium"
+                        className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium min-h-11"
                       >
                         Cancel
                       </button>
@@ -390,14 +390,14 @@ export default function AdminVerifications() {
                       type="button"
                       disabled={busyId === s.id}
                       onClick={() => post({ action: "approve", id: s.id }, s.id)}
-                      className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                      className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60 min-h-11"
                     >
                       {busyId === s.id ? "Working…" : "Approve"}
                     </button>
                     <button
                       type="button"
                       onClick={() => setRejectingId(s.id)}
-                      className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium"
+                      className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium min-h-11"
                     >
                       Reject
                     </button>
@@ -439,7 +439,7 @@ export default function AdminVerifications() {
                   onClick={() =>
                     post({ action: "manual_approve", professionalId: p.id, note: notes[p.id] || "" }, p.id)
                   }
-                  className="rounded-md bg-ink px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60"
+                  className="rounded-md bg-ink px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60 min-h-11"
                 >
                   {busyId === p.id ? "Working…" : "Approve"}
                 </button>

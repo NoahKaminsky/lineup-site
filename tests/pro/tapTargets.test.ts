@@ -12,6 +12,8 @@ const FILES = [
   // Studio
   ...["Chairs", "Clients", "Import", "Memberships", "Plans", "Requests", "Schedule", "Settings", "Setup", "Team", "Today", "layout", "ui", "join/page", "calendarImport/CalendarImport", "calendarImport/Review", "calendarImport/Summary", "calendarImport/ExportHelp"].map((n) => `app/studio/${n}.tsx`),
   "app/components/analytics/ShopAnalytics.tsx",
+  // Admin
+  "app/admin/page.tsx", "app/components/AdminVerifications.tsx", "app/components/AdminNewsletter.tsx",
 ];
 const TAG = /<(?:button|Link|a)\b(?:[^>]|=>)*?className=(?:"([^"]*)"|\{`([^`]*)`)/g;
 const SMALL = /(?<![\w:-])(h-(?:7|8|9|10)|py-(?:0|0\.5|1|1\.5|2))(?![\w.])/;
