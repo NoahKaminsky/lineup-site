@@ -4,7 +4,7 @@ Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. **Mapping and s
 
 ## Resume here
 
-> **Pro pass done as far as possible without TEST data** (24 Nov, branch `site-audit`, preview https://lineup-site-rc8boh0wl-noahkaminskys-projects.vercel.app). On the preview: `e2e/pro.spec.ts` + `e2e/customer.spec.ts` **40/40 passed** at 1280 and 390; public smoke **40/48**. The 8 that didn't run are the shop and pro-profile pages, which need seeded ids. Locally: `npm test` (tests/pro 21/21), `tsc` clean, lint 50 errors (baseline), `npm run build` passes. Logged-in Pro clicking (withdraw, offer, complete/no-show, review reply, logged-in smoke) **waits for the TEST seed** (see "Decisions needed (pro pass)" #1). **Next: finish those with the seed, then the Studio pass.**
+> **Pro pass done** (24 Nov, branch `site-audit`). Preview checks (logged out): `pro.spec` + `customer.spec` 40/40; public smoke 40/48 (the other 8 need seeded ids). Logged in with TEST data (local): Pro smoke 76/77 at 1280 + 390 (`/profile` at 390 is slow, see Slow), `e2e/pro-flow.spec.ts` 6/6, then cleanup + check = 0 TEST rows. `npm test` tests/pro 21/21, tsc clean, lint 50 (baseline), build passes. Every Pro item is ticked or written up as a decision. Connect payout setup was not run (Stripe onboarding). **Next: Studio pass.**
 >
 > To test: `LINEUP_ALLOW_LIVE_TEST_DATA=yes-noah-approved node --env-file=.env.local --env-file=.env.test.local scripts/test-data.mts seed`, start `npm run dev`, then run `npx playwright test e2e/customer.spec.ts`, `e2e/customer-flow.spec.ts --project desktop` and `e2e/smoke.spec.ts` (all with the same two `--env-file` flags in front of `node node_modules/.bin/playwright`). Then run `cleanup` and `check`. For paying, forward webhooks first: run `stripe listen --print-secret`, put that value in `.env.development.local` as `STRIPE_WEBHOOK_SECRET`, run `stripe listen --forward-to localhost:3000/api/stripe/webhook`, and delete the file afterwards.
 > **Disk:** this Mac has only ~2 GB free; the dev server plus test browsers can fill it within the hour. Stop the dev server between runs and `rm -rf .next/dev test-results`.
@@ -109,11 +109,12 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 
 ## Decisions needed from Noah (pro pass)
 
-1. **TEST seed for the logged-in Pro checks**: Claude's permission check refused to write the TEST seed to the live database this session. To finish the Pro items marked [~] or [ ] (withdraw, send offer, complete and no-show, review reply, logged-in smoke), either allow `scripts/test-data.mts seed` for the next session or set up a separate test Supabase project.
+1. ~~TEST seed~~: Noah OK'd it on 24 Nov; logged-in checks done. A separate test Supabase project would still make this safer.
 2. **Offer price is free text** in the database (`request_offers.proposed_price`). The form now refuses what checkout can't charge, but the DB and API still accept it (e.g. an offer edited elsewhere). A numeric `proposed_price_cents` column would close it for good. Needs a migration, so not done.
 3. **Heatmap cells on Analytics are 24px** on phones. Bigger cells would change the chart's design. Left as is.
 
 ## Slow (for Step 6)
+- `/profile/[id]` loads Stripe.js on every visit, which keeps sending telemetry for ~8 s; with a cold dev compile the page isn't quiet after 15 s at 390. Load Stripe only when the booking sheet opens.
 - `/shop/[slug]` and `/profile/[id]` still loading after 15 s on a cold dev compile; re-measure on a production build.
 - Supabase auth lock warnings ("Lock … was not released within 5000ms"): several components call `getSession`/`getUser` at mount (AppNavbar, useBidCounts, useVerificationState → `getUser()`, useWebPush, RequestDetailPageClient). One shared auth promise would fix it.
 - RequestDetailPageClient calls `getSession()` in every action handler.
@@ -148,9 +149,9 @@ Tick an item when it has been clicked through on desktop and at 390px as the rig
 - [ ] Edit / cancel a request, cancel a booking, pay-at-shop and memberships: not run this pass.
 
 ### Pro  (pro pass, 24 Nov)
-Logged-out: `e2e/pro.spec.ts` (12 pages, 1280 + 390). Phone layout: every page below was measured at 390px read-only in a real signed-in Studio pro account (no saves): no control under 44px, no sideways scroll. **Logged-in clicking with TEST data was not run**: writing the TEST seed to the live database was refused by Claude's permission check this session, so it waits for Noah's OK (see Decisions).
-- [~] Work dashboard: login redirect, 44px buttons, clearer errors. *pro.spec + 390 measure.* Withdraw offer not clicked (needs the seed).
-- [~] Respond to request ⚠: login redirect; shop accounts go to studio requests; uncheckable prices refused. *pro.spec + tests/pro/offerPrice.test.ts.* Sending an offer not run (would notify; needs the seed and the service-role insert).
+Logged-out: `e2e/pro.spec.ts` (12 pages, 1280 + 390). Phone layout: every page below was measured at 390px read-only in a real signed-in Studio pro account (no saves): no control under 44px, no sideways scroll. Logged in (Noah OK'd the seed, 24 Nov): Basic, Master, owner and member Pro smoke routes 76/77 at 1280 + 390 (the one left is `/profile` at 390, slow, see Slow), and `e2e/pro-flow.spec.ts` 6/6. Seed → cleanup → check left 0 TEST rows.
+- [x] Work dashboard, withdraw offer (two taps), 44px buttons, clearer errors. *pro.spec + pro-flow + smoke 1280/390.*
+- [x] Respond to request ⚠: login redirect; shop accounts go to studio requests; "55-60" refused with no offer saved. *pro.spec + offerPrice test + pro-flow + smoke.* Actually sending an offer not run: it emails the customer.
 - [x] Calendar: login redirect with `?next=`, shop → `/studio/calendar`, 44px month buttons. *pro.spec + 390 measure + desktop look.* ICS feed and regulars not clicked.
 - [x] Services and hours: login redirect (was blank), 44px pills, jump links, day rows and switches. *pro.spec + tapTargets test + 390 measure.* No saves made.
 - [x] Earnings: login redirect, shop → `/studio/earnings`, 44px tabs and links. *pro.spec + 390 measure.* Statement PDF and entries not created.
@@ -160,8 +161,8 @@ Logged-out: `e2e/pro.spec.ts` (12 pages, 1280 + 390). Phone layout: every page b
 - [x] Subscription: login redirect with `?next=`, shop → `/studio/settings`, 44px buttons. *pro.spec + 390.* Checkout and boosts ⚠ not run.
 - [x] Verification: login redirect with `?next=`, clearer upload error. *pro.spec + 390.* Upload ⚠ not run (emails admins).
 - [x] Refer, Gift cards (seller): login redirect, 390 clean. *pro.spec + 390 measure.*
-- [~] Review reply: 44px buttons. *tapTargets test.* Posting a reply needs the seed.
-- [ ] Complete, no-show ⚠: not run (needs the seed; no-show charges a fee in test mode).
+- [x] Review reply: edit and save, 44px buttons. *pro-flow (checked in the database) + tapTargets test.*
+- [x] Complete, no-show ⚠: pro marks a finished booking complete; pay-at-shop no-show closes it. Both buttons 44px; the no-show text no longer promises a charge when there's no fee or card. *pro-flow (bookings with no Stripe ids, so nothing charged).* The customer's confirm step (releases the payout) and a real fee charge were not run.
 - [ ] Connect payout account: not run (Stripe onboarding; payment code).
 
 ### Studio
