@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import Link from "next/link";
 import { useWebPush } from "@/app/lib/useWebPush";
 
@@ -85,11 +86,9 @@ export default function NotificationNudge() {
           type="button"
           onClick={dismiss}
           aria-label="Dismiss"
-          className="rounded-full p-2 text-neutral-400 transition hover:bg-white hover:text-neutral-600"
+          className="-m-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-neutral-400 transition hover:bg-white hover:text-neutral-600"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
+          <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
         </button>
       </div>
     </div>

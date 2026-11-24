@@ -94,7 +94,7 @@ export default function SavedProsCard({ clientId }: { clientId: string }) {
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Saved pros</h2>
         {pros && pros.length > 0 ? (
-          <Link href="/discover" className="text-xs font-semibold text-neutral-500 transition hover:text-ink">
+          <Link href="/discover" className="-my-2 inline-flex min-h-11 items-center px-2 text-xs font-semibold text-neutral-500 transition hover:text-ink">
             Find more
           </Link>
         ) : null}
@@ -117,7 +117,7 @@ export default function SavedProsCard({ clientId }: { clientId: string }) {
           <p className="text-sm leading-6 text-neutral-600">Tap the heart on a pro to save them here.</p>
           <Link
             href="/discover"
-            className="mt-4 inline-flex rounded-full bg-neutral-100 px-4 py-2 text-xs font-semibold text-ink transition hover:bg-neutral-200"
+            className="mt-4 inline-flex min-h-11 items-center rounded-full bg-neutral-100 px-5 text-sm font-semibold text-ink transition hover:bg-neutral-200"
           >
             Explore pros
           </Link>
