@@ -112,6 +112,7 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 1. ~~TEST seed~~: Noah OK'd it on 24 Nov; logged-in checks done. A separate test Supabase project would still make this safer.
 2. **Offer price is free text** in the database (`request_offers.proposed_price`). The form now refuses what checkout can't charge, but the DB and API still accept it (e.g. an offer edited elsewhere). A numeric `proposed_price_cents` column would close it for good. Needs a migration, so not done.
 3. **Heatmap cells on Analytics are 24px** on phones. Bigger cells would change the chart's design. Left as is.
+4. **Connect payout setup untested**: fill in the Stripe Connect platform profile (dashboard.stripe.com/settings/connect/platform-profile) so a TEST pro can create a test-mode payout account. Then onboarding, the account-status badge and the customer's confirm step that releases a payout can be tested.
 
 ## Slow (for Step 6)
 - `/profile/[id]` loads Stripe.js on every visit, which keeps sending telemetry for ~8 s; with a cold dev compile the page isn't quiet after 15 s at 390. Load Stripe only when the booking sheet opens.
@@ -163,7 +164,7 @@ Logged-out: `e2e/pro.spec.ts` (12 pages, 1280 + 390). Phone layout: every page b
 - [x] Refer, Gift cards (seller): login redirect, 390 clean. *pro.spec + 390 measure.*
 - [x] Review reply: edit and save, 44px buttons. *pro-flow (checked in the database) + tapTargets test.*
 - [x] Complete, no-show ⚠: pro marks a finished booking complete; pay-at-shop no-show closes it. Both buttons 44px; the no-show text no longer promises a charge when there's no fee or card. *pro-flow (bookings with no Stripe ids, so nothing charged).* The customer's confirm step (releases the payout) and a real fee charge were not run.
-- [ ] Connect payout account: not run (Stripe onboarding; payment code).
+- [ ] Connect payout account: not run. It's Stripe Connect onboarding (payment code), and test mode needs the platform profile filled in first (see Decisions, pro pass #4).
 
 ### Studio
 - [ ] Setup (no studio yet), plan banner ⚠
