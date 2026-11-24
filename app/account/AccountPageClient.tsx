@@ -1,5 +1,6 @@
 "use client";
 
+import { plainStripeRequirements } from "@/app/lib/stripeRequirements";
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { burstOrigin, fireBurst } from "@/app/components/moments/Burst";
@@ -735,11 +736,6 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
     }
   }
 
-  function formatStripeRequirement(requirement: string) {
-    return requirement
-      .replace(/[._]/g, " ")
-      .replace(/\b\w/g, (char) => char.toUpperCase());
-  }
 
   async function handleConnectStripePayouts() {
     if (!profile || profile.role !== "professional") return;
@@ -1971,7 +1967,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         note: stripeStatusError
                           ? `Couldn't confirm your Stripe status: ${stripeStatusError}`
                           : !(stripeLivePayouts ?? !!profile.stripe_payouts_enabled) && stripeRequirementsDue.length > 0
-                          ? `Stripe needs: ${stripeRequirementsDue.map(formatStripeRequirement).join(", ")}`
+                          ? `Stripe still needs ${plainStripeRequirements(stripeRequirementsDue).join(", ")}. Tap Finish.`
                           : (stripeLivePayouts ?? !!profile.stripe_payouts_enabled)
                           ? "Paid to your bank through Stripe"
                           : "Connect Stripe to get paid for bookings",
