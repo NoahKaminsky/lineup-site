@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
+import { getStripe } from "@/app/lib/stripeClient";
 import { useModalSheet } from "@/app/lib/useModalSheet";
 
 // "Book now, pay at the shop": the client saves a card instead of paying.
 // It's only charged if they don't show up (the shop's no-show fee).
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 function formatCad(cents: number) {
   return (cents / 100).toLocaleString("en-CA", { style: "currency", currency: "CAD" });
@@ -120,7 +119,7 @@ export default function CardSetupModal({
         </div>
 
         <Elements
-          stripe={stripePromise}
+          stripe={getStripe()}
           options={{ clientSecret, appearance: { theme: "stripe", variables: { borderRadius: "14px" } } }}
         >
           <SaveCardForm onSaved={onSaved} noShowFeeCents={noShowFeeCents} />

@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { loadStripe } from "@stripe/stripe-js";
+import { getStripe } from "@/app/lib/stripeClient";
 import {
   Elements,
   PaymentElement,
@@ -126,9 +126,6 @@ type ChatParticipantProfile = {
   avatar_url: string | null;
 };
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
-);
 
 function RequestOfferCheckoutForm({
   offer,
@@ -3148,7 +3145,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             </div>
 
             <Elements
-              stripe={stripePromise}
+              stripe={getStripe()}
               options={{
                 clientSecret: paymentClientSecret,
                 appearance: {

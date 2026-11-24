@@ -1,14 +1,11 @@
 "use client";
 
 import { Elements } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
+import { getStripe } from "@/app/lib/stripeClient";
 import CheckoutForm from "./CheckoutForm";
 import TipStep, { formatTipMoney } from "./TipStep";
 import { useModalSheet } from "@/app/lib/useModalSheet";
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
-);
 
 export default function PaymentModal({
   clientSecret,
@@ -60,7 +57,7 @@ export default function PaymentModal({
         </div>
 
         <Elements
-          stripe={stripePromise}
+          stripe={getStripe()}
           options={{
             clientSecret,
             appearance: {

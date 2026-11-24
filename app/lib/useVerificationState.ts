@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { getSignedInUser } from "@/lib/getSignedInUser";
 import type { VerificationTrack } from "@/app/lib/verificationRules";
 
 export type VerificationState = {
@@ -24,9 +25,10 @@ export function useVerificationState(): VerificationState | null {
     let cancelled = false;
 
     (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      // The stored session, not getUser(): getUser() holds Supabase's auth lock
+      // for a network round trip and stalls every other auth check on the page.
+      // Row-level security still guards the queries below.
+      const user = await getSignedInUser();
 
       if (!user || cancelled) return;
 
@@ -62,7 +64,9 @@ export function useVerificationState(): VerificationState | null {
         track: (profile.verification_track as VerificationTrack | null) ?? null,
         submittedTrack,
       });
-    })();
+    })().catch(() => {
+      // A failed lookup shows nothing, as the comment above promises.
+    });
 
     return () => {
       cancelled = true;
