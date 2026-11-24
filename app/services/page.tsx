@@ -1274,7 +1274,7 @@ export default function ServicesPage() {
                 <li key={item.id} className="shrink-0">
                   <a
                     href={`#${item.id}`}
-                    className="block rounded-lg text-sm text-neutral-500 transition-colors hover:text-ink lg:px-3 lg:py-2 lg:hover:bg-surface"
+                    className="flex min-h-11 items-center rounded-lg text-sm text-neutral-500 transition-colors hover:text-ink lg:min-h-0 lg:px-3 lg:py-2 lg:hover:bg-surface"
                   >
                     {item.label}
                   </a>
@@ -1325,7 +1325,7 @@ export default function ServicesPage() {
                           type="button"
                           aria-expanded={editingServiceId === service.id}
                           onClick={() => setEditingServiceId(editingServiceId === service.id ? null : service.id)}
-                          className="rounded-full px-4 py-2 text-xs font-medium text-ink ring-1 ring-inset ring-ink/15 transition hover:ring-ink/30"
+                          className="rounded-full px-4 py-2 text-xs font-medium text-ink ring-1 ring-inset ring-ink/15 transition hover:ring-ink/30 min-h-11"
                         >
                           {editingServiceId === service.id ? "Done" : "Edit"}
                         </button>
@@ -1336,7 +1336,7 @@ export default function ServicesPage() {
                             service.is_bookable
                               ? "bg-ink text-white hover:bg-neutral-800"
                               : "border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
-                          }`}
+                          } min-h-11`}
                         >
                           {service.is_bookable ? "Bookable" : "Hidden"}
                         </button>
@@ -1344,7 +1344,7 @@ export default function ServicesPage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteService(service.id)}
-                          className="rounded-full px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                          className="rounded-full px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50 min-h-11"
                         >
                           Delete
                         </button>
@@ -1459,7 +1459,7 @@ export default function ServicesPage() {
                       template.exists
                         ? "cursor-not-allowed border border-neutral-200 bg-white text-neutral-400"
                         : "border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-100"
-                    }`}
+                    } min-h-11`}
                   >
                     {template.exists
                       ? `${template.name} added`
@@ -1692,7 +1692,7 @@ export default function ServicesPage() {
                     selected
                       ? "border-neutral-900 bg-neutral-900 text-white"
                       : "border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50"
-                  }`}
+                  } min-h-11`}
                 >
                   {formatModeLabel(mode)}
                 </button>
@@ -1785,7 +1785,7 @@ export default function ServicesPage() {
                       setHomeBaseSaved(cleared ? "" : homeBase.address.trim());
                       setMessage(cleared ? "Home base removed." : "Home base saved. It stays private.");
                     }}
-                    className="mt-3 inline-flex rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-50"
+                    className="mt-3 inline-flex rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-50 min-h-11 items-center"
                   >
                     {savingHomeBase ? "Saving…" : homeBase.address.trim() ? "Save home base" : "Remove home base"}
                   </button>
@@ -1870,7 +1870,7 @@ export default function ServicesPage() {
                     href={businessMapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-3 inline-flex rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-100"
+                    className="mt-3 inline-flex rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-100 min-h-11 items-center"
                   >
                     Open in Maps
                   </a>
@@ -1939,7 +1939,7 @@ export default function ServicesPage() {
                     selected
                       ? "border-neutral-900 bg-neutral-900 text-white"
                       : "border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50"
-                  }`}
+                  } min-h-11`}
                 >
                   {km === null ? "Anywhere" : `${km} km`}
                 </button>

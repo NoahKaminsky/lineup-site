@@ -408,7 +408,7 @@ export default function SubscriptionPage() {
             </p>
             <Link
               href="/studio"
-              className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+              className="mt-5 inline-flex min-h-11 items-center rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
             >
               Go to your studio
             </Link>
@@ -703,7 +703,7 @@ export default function SubscriptionPage() {
             type="button"
             onClick={handleBoost}
             disabled={boosting}
-            className="shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
+            className="min-h-11 shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
           >
             {boosting ? "Opening checkout…" : boostedUntil ? "Add a week" : "Boost my profile"}
           </button>

@@ -24,8 +24,9 @@ const variants: Record<ButtonVariant, string> = {
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: "h-8 px-3.5 text-[13px]",
-  md: "h-10 px-5 text-sm",
+  // 44px tall on phones (easy to tap); the original sizes from 640px up.
+  sm: "h-11 px-3.5 text-[13px] sm:h-8",
+  md: "h-11 px-5 text-sm sm:h-10",
 };
 
 export function buttonClass(variant: ButtonVariant = "secondary", size: ButtonSize = "md", extra = "") {
@@ -108,7 +109,7 @@ export function Segmented<T extends string>({
             aria-checked={on}
             onClick={() => onChange(o.value)}
             className={`rounded-full font-medium transition-[background-color,color,box-shadow] duration-150 ${
-              size === "sm" ? "h-7 px-3 text-[13px]" : "h-8 px-4 text-sm"
+              size === "sm" ? "h-11 px-3 text-[13px] sm:h-7" : "h-11 px-4 text-sm sm:h-8"
             } ${on ? "bg-surface text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)]" : "text-neutral-500 hover:text-ink"}`}
           >
             {o.label}

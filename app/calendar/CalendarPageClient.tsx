@@ -801,7 +801,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       <button
         type="button"
         onClick={step === "week" ? () => goToWeek(-1) : goToPreviousMonth}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50 hover:text-ink"
+        className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-600 ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50 hover:text-ink"
         aria-label={step === "week" ? "Previous week" : "Previous month"}
       >
         <ChevronLeft aria-hidden="true" className="h-4 w-4" />
@@ -809,14 +809,14 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       <button
         type="button"
         onClick={goToToday}
-        className="h-9 rounded-full px-3.5 text-sm font-medium text-ink ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50"
+        className="h-11 rounded-full px-3.5 text-sm font-medium text-ink ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50"
       >
         Today
       </button>
       <button
         type="button"
         onClick={step === "week" ? () => goToWeek(1) : goToNextMonth}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50 hover:text-ink"
+        className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-600 ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50 hover:text-ink"
         aria-label={step === "week" ? "Next week" : "Next month"}
       >
         <ChevronRight aria-hidden="true" className="h-4 w-4" />
@@ -987,7 +987,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               {bookingUsage.count >= bookingUsage.cap ? (
                 <Link
                   href="/subscription"
-                  className="rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-neutral-800"
+                  className="rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-neutral-800 min-h-11"
                 >
                   Upgrade for unlimited
                 </Link>
@@ -1033,7 +1033,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                 onClick={() => chooseMobileView(view)}
                 className={`rounded-full py-1.5 text-sm font-medium transition-colors duration-200 ${
                   mobileView === view ? "bg-surface text-ink shadow-sm" : "text-neutral-500"
-                }`}
+                } min-h-11`}
               >
                 {view === "days" ? "Days" : "Month"}
               </button>

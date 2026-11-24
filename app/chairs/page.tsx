@@ -283,7 +283,7 @@ export default function ChairsPage() {
                                 onClick={() => setPreferred(preferred === value ? "" : value)}
                                 className={`rounded-full border px-4 py-2 text-sm transition-colors ${
                                   preferred === value ? "border-ink bg-ink text-white" : "border-neutral-200 text-neutral-700 hover:border-ink"
-                                }`}
+                                } min-h-11`}
                               >
                                 {label}
                               </button>

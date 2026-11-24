@@ -52,8 +52,8 @@ function prettyTime(t: string) {
 }
 
 const panel = "rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8";
-const primary = "inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50";
-const secondary = "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-ink ring-1 ring-inset ring-ink/15 hover:bg-neutral-50 disabled:opacity-50";
+const primary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50";
+const secondary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-ink ring-1 ring-inset ring-ink/15 hover:bg-neutral-50 disabled:opacity-50";
 
 function FilePicker({ onText, label }: { onText: (text: string, name: string) => void; label: string }) {
   const ref = useRef<HTMLInputElement | null>(null);

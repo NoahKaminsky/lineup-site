@@ -610,7 +610,7 @@ export default function RespondToRequestPage() {
               <div className="mt-4">
                 <Link
                   href={`/requests/${requestId}`}
-                  className="inline-flex rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
+                  className="inline-flex rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 min-h-11 items-center"
                 >
                   Back to request
                 </Link>
@@ -628,7 +628,7 @@ export default function RespondToRequestPage() {
               <div className="mt-4">
                 <Link
                   href={`/requests/${requestId}`}
-                  className="inline-flex rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
+                  className="inline-flex rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 min-h-11 items-center"
                 >
                   Back to request
                 </Link>

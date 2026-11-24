@@ -395,7 +395,7 @@ function ExpenseSheet({ scope, expense, onClose, onSaved }: { scope: Scope; expe
                 role="radio"
                 aria-checked={category === c}
                 onClick={() => setCategory(c)}
-                className={`h-9 rounded-full px-3.5 text-sm font-medium transition-colors ${category === c ? "bg-ink text-white" : "bg-ink/[0.05] text-neutral-700 hover:text-ink"}`}
+                className={`h-11 rounded-full px-3.5 text-sm font-medium transition-colors ${category === c ? "bg-ink text-white" : "bg-ink/[0.05] text-neutral-700 hover:text-ink"}`}
               >
                 {EXPENSE_CATEGORIES[c]}
               </button>

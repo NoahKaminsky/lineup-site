@@ -213,7 +213,7 @@ export default function GiftCardsPage() {
                   <button
                     type="button"
                     onClick={() => copy(l.path)}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium ring-1 ring-inset ring-ink/[0.14] hover:bg-neutral-50"
+                    className="inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium ring-1 ring-inset ring-ink/[0.14] hover:bg-neutral-50"
                   >
                     {copied === l.path ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
                     {copied === l.path ? "Copied" : "Copy"}

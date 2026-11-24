@@ -61,10 +61,10 @@ export default function ReviewReply({
         />
         {error ? <p className="mt-1 text-sm text-red-600">{error}</p> : null}
         <div className="mt-2 flex gap-2">
-          <button type="button" onClick={save} disabled={busy} className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60">
+          <button type="button" onClick={save} disabled={busy} className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60 min-h-11">
             {busy ? "Saving…" : "Post reply"}
           </button>
-          <button type="button" onClick={() => { setEditing(false); setText(reply || ""); }} className="rounded-full px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100">
+          <button type="button" onClick={() => { setEditing(false); setText(reply || ""); }} className="rounded-full px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 min-h-11">
             Cancel
           </button>
         </div>

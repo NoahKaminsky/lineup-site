@@ -103,7 +103,7 @@ export function BookingWindowControl({ professionalId }: { professionalId: strin
             onClick={() => choose(option.days)}
             className={`rounded-full px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
               days === option.days ? "bg-ink text-white" : "text-ink ring-1 ring-inset ring-ink/15 hover:ring-ink/30"
-            }`}
+            } min-h-11`}
           >
             {option.label}
           </button>
@@ -250,7 +250,7 @@ export function TimeOffControl({ professionalId }: { professionalId: string }) {
               <button
                 type="button"
                 onClick={() => removeTimeOff(row.id)}
-                className="shrink-0 rounded-full border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                className="shrink-0 rounded-full border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 min-h-11"
               >
                 Remove
               </button>
@@ -300,7 +300,7 @@ export function TimeOffControl({ professionalId }: { professionalId: string }) {
           type="button"
           onClick={addTimeOff}
           disabled={saving || !start}
-          className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-40"
+          className="min-h-11 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-40"
         >
           {saving ? "Saving…" : "Add time off"}
         </button>

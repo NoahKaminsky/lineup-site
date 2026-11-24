@@ -1346,7 +1346,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
           {!isProfessional ? (
             <Link
               href="/requests/new"
-              className="shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
+              className="shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 min-h-11"
             >
               New request
             </Link>
@@ -1817,7 +1817,7 @@ function ActivityCard({
           <button
             type="button"
             onClick={withdraw.onCancel}
-            className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-900"
+            className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-900 min-h-11"
           >
             Keep it
           </button>
@@ -1830,7 +1830,7 @@ function ActivityCard({
             withdraw.phase === "confirm"
               ? "border-red-300 bg-red-50 text-red-700"
               : "border-neutral-300 text-neutral-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
-          }`}
+          } min-h-11`}
         >
           {withdraw.phase === "loading"
             ? "Withdrawing…"
@@ -2009,7 +2009,7 @@ function BookedList({
               ["accepted", "confirmed", "completion_requested"].includes(item.status) ? (
                 <Link
                   href={`${item.href}#booking-chat`}
-                  className="rounded-full bg-neutral-100 px-4 py-2 text-xs font-medium text-neutral-900 transition hover:bg-neutral-200"
+                  className="rounded-full bg-neutral-100 px-4 py-2 text-xs font-medium text-neutral-900 transition hover:bg-neutral-200 min-h-11"
                 >
                   Message
                 </Link>
@@ -2034,14 +2034,14 @@ function BookedList({
                         updateBookedItemStatus(item, "cancelled");
                       }}
                       disabled={isLoadingAction}
-                      className="rounded-full border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                      className="rounded-full border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60 min-h-11"
                     >
                       Yes, cancel
                     </button>
                     <button
                       type="button"
                       onClick={() => setCancelConfirmId(null)}
-                      className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50"
+                      className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50 min-h-11"
                     >
                       Keep
                     </button>
@@ -2051,7 +2051,7 @@ function BookedList({
                     type="button"
                     onClick={() => setCancelConfirmId(actionKey)}
                     disabled={isLoadingAction}
-                    className="ml-auto rounded-full px-3 py-2 text-xs font-medium text-neutral-500 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                    className="ml-auto rounded-full px-3 py-2 text-xs font-medium text-neutral-500 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60 min-h-11"
                   >
                     Cancel booking
                   </button>
