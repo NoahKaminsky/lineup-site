@@ -89,6 +89,32 @@ async function fillStripeCard(p: Page) {
   if (await postal.count()) await postal.fill("R3T 2N2");
 }
 
+// Stripe Checkout (hosted) now renders its form inside a frame, with Card
+// collapsed behind a button. Find that frame, open Card and use Stripe's test card.
+async function checkoutFrame(p: Page) {
+  for (let i = 0; i < 60; i++) {
+    for (const f of [p.mainFrame(), ...p.frames()]) {
+      if (await f.getByRole("button", { name: "Card", exact: true }).count().catch(() => 0)) return f;
+      if (await f.locator("#cardNumber").count().catch(() => 0)) return f;
+    }
+    await p.waitForTimeout(1000);
+  }
+  throw new Error("Stripe Checkout form not found");
+}
+async function fillCheckoutCard(p: Page, name: string) {
+  const f = await checkoutFrame(p);
+  const card = f.getByRole("button", { name: "Card", exact: true });
+  if (await card.count()) await card.click();
+  const field = (re: RegExp) => f.getByRole("textbox", { name: re }).first();
+  await field(/^Card number/).fill("4242424242424242", { timeout: 30_000 });
+  await field(/^Expiration/).fill("12 / 34");
+  await field(/^(CVC|Security code)/).fill("123");
+  for (const [re, value] of [[/^(Cardholder name|Name on card|Full name)/, name], [/^(Postal|ZIP)/, "R3T 2N2"]] as const) {
+    const box = field(re);
+    if (await box.isVisible().catch(() => false)) await box.fill(value);
+  }
+}
+
 test("compare offers, accept one and pay with a Stripe test card", async () => {
   // The pro's offer goes in directly (no offer email).
   const { error } = await db.from("request_offers").insert({
@@ -186,6 +212,27 @@ test("buy a shop gift card in Stripe test mode", async () => {
   await page.locator('button[type="submit"]').click();
   await page.waitForURL(/\/gift\/thanks/, { timeout: 90_000 });
   await expect(page.getByText(/LU-/).first()).toBeVisible({ timeout: 30_000 });
+});
+
+test("buy a pro's gift card in Stripe test mode (needs the TEST Basic pro's test payout account)", async () => {
+  const basic = await profileId("basic");
+  const { data: pro } = await db.from("profiles").select("stripe_charges_enabled").eq("id", basic).single();
+  test.skip(!pro?.stripe_charges_enabled, "TEST Basic pro has no test payout account that can take charges (run payout onboarding first)");
+  await page.goto(`/gift/pro/${basic}`);
+  await page.getByRole("button", { name: "$50", exact: true }).click();
+  await page.getByRole("textbox", { name: "Their name" }).fill("TEST Recipient");
+  await page.getByRole("textbox", { name: "Their email" }).fill("lineup.test+recipient@example.com");
+  const buyer = page.getByRole("textbox", { name: "Your name" });
+  if (!(await buyer.inputValue())) await buyer.fill("TEST Customer");
+  await page.getByRole("button", { name: "Pay $50" }).click();
+  await page.waitForURL(/checkout\.stripe\.com/, { timeout: 60_000 });
+  await fillCheckoutCard(page, "TEST Customer");
+  await checkoutFrame(page).then((f) => f.getByRole("button", { name: /^(Pay|Subscribe)/ }).last().click());
+  await page.waitForURL(/\/gift\/thanks/, { timeout: 90_000 });
+  // Emailed to the recipient, so the page confirms rather than showing the code;
+  // it updates itself once the card is switched on.
+  await expect(page.getByRole("heading", { name: "Thank you. It's on its way." })).toBeVisible({ timeout: 40_000 });
+  await expect(page.getByText(/We've emailed the \$50(\.00)? gift card to TEST Recipient/)).toBeVisible();
 });
 
 test("regular: 'Confirm and pay' opens the payment sheet and Stripe's card form loads (not paid)", async () => {

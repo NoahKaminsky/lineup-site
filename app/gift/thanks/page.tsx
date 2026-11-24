@@ -5,6 +5,7 @@ import { getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
 import { activateGiftCard } from "@/app/lib/giftCardsServer";
 import { formatCad } from "@/app/lib/giftCards";
+import RefreshWhilePending from "./RefreshWhilePending";
 
 // After Stripe Checkout. Also switches the card on if the webhook hasn't yet,
 // so the buyer never lands on a "pending" card.
@@ -50,6 +51,7 @@ export default async function GiftThanksPage({ searchParams }: { searchParams: P
               : "We couldn't find a gift card purchase from this link. If you just paid, check your email for the receipt."
         }
       />
+      {card && card.status !== "active" ? <RefreshWhilePending /> : null}
       <div className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
         <Link href="/gift/balance" className="text-sm underline decoration-ink/25 underline-offset-4 hover:decoration-ink">
           Check a gift card balance
