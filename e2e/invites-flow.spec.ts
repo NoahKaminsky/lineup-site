@@ -18,6 +18,12 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPAB
 const ids: Record<string, string> = {};
 const consoleErrors: string[] = [];
 
+// The one row for the TEST pro: the closest element around "TEST Basic Pro"
+// that holds exactly one button with this name. Never matches a real pro's row
+// (if it can't find exactly one, the click fails instead of guessing).
+const testProRow = (p: Page, button: string) =>
+  p.locator(`xpath=//*[contains(normalize-space(text()), 'TEST Basic Pro')]/ancestor::*[count(.//button[normalize-space(.)='${button}'])=1][1]`).first();
+
 async function as(browser: Browser, who: string): Promise<Page> {
   const p = await browser.newPage();
   p.on("console", (m) => m.type() === "error" && consoleErrors.push(`${who}: ${m.text().slice(0, 300)}`));
@@ -74,21 +80,36 @@ test("admin rejects a TEST submission with a reason, then approves the pro", asy
   const admin = await as(browser, "admin");
   await admin.goto("/admin");
   await admin.getByRole("button", { name: "Verification", exact: true }).click();
-  const card = admin.locator("div, li").filter({ hasText: "TEST Basic Pro" }).filter({ has: admin.getByRole("button", { name: "Reject", exact: true }) }).last();
-  await card.getByRole("button", { name: "Reject", exact: true }).click();
+  await testProRow(admin, "Reject").getByRole("button", { name: "Reject", exact: true }).click();
   // Only one reject form is open at a time (the card swaps its buttons for it).
   await admin.getByPlaceholder(/Reason/).fill("TEST: document is unreadable");
   await admin.getByRole("button", { name: "Confirm reject" }).click();
   await expect.poll(async () => (await db.from("professional_verifications").select("status, rejection_reason").eq("id", sub!.id).single()).data, { timeout: 20_000 })
     .toEqual({ status: "rejected", rejection_reason: "TEST: document is unreadable" });
 
-  await admin.reload();
-  await admin.getByRole("button", { name: "Verification", exact: true }).click();
-  const row = admin.locator("div, li").filter({ hasText: "TEST Basic Pro" }).filter({ has: admin.getByRole("button", { name: "Approve", exact: true }) }).last();
-  await row.getByRole("button", { name: "Approve", exact: true }).click();
+  // A rejected pro is approved from "Look up a pro", with a reason.
+  await admin.getByPlaceholder("e.g. Prince").fill("TEST Basic Pro");
+  await admin.getByPlaceholder("e.g. Prince").press("Enter");
+  const found = testProRow(admin, "Approve");
+  await found.getByPlaceholder("Why approve? (required)").fill("TEST: checked the licence by phone");
+  await found.getByRole("button", { name: "Approve", exact: true }).click();
   await expect.poll(async () => (await db.from("profiles").select("verification_status").eq("id", ids.basic).single()).data?.verification_status, { timeout: 20_000 })
     .toBe("verified");
   await admin.close();
+});
+
+test("owner adds a TEST client and invites them (email skipped, invite recorded)", async ({ browser }) => {
+  const owner = await as(browser, "owner");
+  await owner.goto("/studio/clients");
+  await owner.getByRole("button", { name: "Add clients" }).first().click();
+  await owner.locator("#client-paste").fill("TEST Client One, lineup.test+client1@example.com");
+  await owner.getByRole("dialog").getByRole("checkbox").check();
+  await owner.getByRole("button", { name: "Add 1 client" }).click();
+  await owner.getByRole("button", { name: "Invite 1", exact: true }).click();
+  await owner.getByRole("button", { name: "Send 1 invite" }).click();
+  await expect.poll(async () => (await db.from("studio_clients").select("invited_at").eq("studio_id", ids.studio).eq("email", "lineup.test+client1@example.com").maybeSingle()).data?.invited_at ?? null, { timeout: 20_000 })
+    .not.toBeNull();
+  await owner.close();
 });
 
 test("no console errors along the way", async () => {
