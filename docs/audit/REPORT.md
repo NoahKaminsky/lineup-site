@@ -78,10 +78,11 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 - Confusing wording: to check once seeded.
 
 ### Pro
-- Broken: `/services` blank and `/chairs` stuck on "Loading …" when logged out (no redirect). `/earnings` shows an empty shell when logged out.
-- Code: role checks differ page to page (`includes("customer")` vs exactly `professional`), so a `shop` role passes the earnings and analytics checks. The paid-plan check is copied in 3 places.
-- Slow: to check once seeded.
-- Looks unpolished / Confusing: to check once seeded.
+- Fixed 24 Nov: every Pro page sends logged-out visitors to login with `?next=` (`/services`, `/chairs` and `/earnings` included). One role check for every Pro page (`app/lib/proAccess.ts`): `shop` accounts go to their studio page instead of passing the earnings, analytics and calendar checks. The schedule-plan check is shared (the payment-intent copy is left alone; it's payment code).
+- Fixed 24 Nov: a Basic pro's `/analytics` no longer logs a 402 (no plan is now a normal 200 with `needsPlan`).
+- Fixed 24 Nov: 44px tap targets on phones on every Pro page; desktop sizes unchanged. Plain-English error messages. Offer prices checkout can't read ("55-60") are refused before they're sent.
+- Looks unpolished (left): the Analytics "busy hours" heatmap cells are 24px. It's a dense chart, so they stay; tapping one only shows a label.
+- Slow: auth-lock warnings show on `/analytics` too ("Lock … was released because another request stole it", from `useVerificationState` → `getUser()`). Same cause as the Slow list below.
 
 ### Studio
 - Code: `/studio/calendar` has no manager-only guard even though its tab is hidden from members (maybe intended).
@@ -105,6 +106,12 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 5. **/news uses a serif display face** (Instrument Serif, a deliberate "newspaper" look); the brand rules say no serif display. Swapping it changes that page's design, so it's your call.
 6. **Customer emails**: the rule is "customers get push, not email", but customers are emailed for booking confirmed, new offer, reminders, review requests, regular-appointment confirmations and rebook nudges (list in FEATURES.md › Notifications). Removing them is a product change.
 7. **Logged-out heart**: Discover/profile hide the heart when logged out (no "log in to save" prompt). Showing it would be a small new behaviour.
+
+## Decisions needed from Noah (pro pass)
+
+1. **TEST seed for the logged-in Pro checks**: Claude's permission check refused to write the TEST seed to the live database this session. To finish the Pro items marked [~] or [ ] (withdraw, send offer, complete and no-show, review reply, logged-in smoke), either allow `scripts/test-data.mts seed` for the next session or set up a separate test Supabase project.
+2. **Offer price is free text** in the database (`request_offers.proposed_price`). The form now refuses what checkout can't charge, but the DB and API still accept it (e.g. an offer edited elsewhere). A numeric `proposed_price_cents` column would close it for good. Needs a migration, so not done.
+3. **Heatmap cells on Analytics are 24px** on phones. Bigger cells would change the chart's design. Left as is.
 
 ## Slow (for Step 6)
 - `/shop/[slug]` and `/profile/[id]` still loading after 15 s on a cold dev compile; re-measure on a production build.
@@ -140,22 +147,22 @@ Tick an item when it has been clicked through on desktop and at 390px as the rig
 - [x] Push nudge: 44px dismiss, lucide icon; push toggle error readable. *smoke* (no push sent)
 - [ ] Edit / cancel a request, cancel a booking, pay-at-shop and memberships: not run this pass.
 
-### Pro
-- [ ] Work dashboard, withdraw offer
-- [ ] Respond to request ⚠ (verified only)
-- [ ] Calendar, ICS feed, regulars
-- [ ] Services and hours (Apprentice+ schedule)
-- [ ] Earnings: report, statement PDF, entries, tax year, receipts
-- [ ] Analytics: Basic vs full, goal, alerts, win-back ⚠, PDF
-- [ ] Import (Apprentice+)
-- [ ] Chairs: browse, apply ⚠
-- [ ] Subscription ⚠, boosts ⚠
-- [ ] Verification upload ⚠
-- [ ] Refer
-- [ ] Gift cards (seller)
-- [ ] Review reply
-- [ ] Complete, no-show ⚠
-- [ ] Connect payout account
+### Pro  (pro pass, 24 Nov)
+Logged-out: `e2e/pro.spec.ts` (12 pages, 1280 + 390). Phone layout: every page below was measured at 390px read-only in a real signed-in Studio pro account (no saves): no control under 44px, no sideways scroll. **Logged-in clicking with TEST data was not run**: writing the TEST seed to the live database was refused by Claude's permission check this session, so it waits for Noah's OK (see Decisions).
+- [~] Work dashboard: login redirect, 44px buttons, clearer errors. *pro.spec + 390 measure.* Withdraw offer not clicked (needs the seed).
+- [~] Respond to request ⚠: login redirect; shop accounts go to studio requests; uncheckable prices refused. *pro.spec + tests/pro/offerPrice.test.ts.* Sending an offer not run (would notify; needs the seed and the service-role insert).
+- [x] Calendar: login redirect with `?next=`, shop → `/studio/calendar`, 44px month buttons. *pro.spec + 390 measure + desktop look.* ICS feed and regulars not clicked.
+- [x] Services and hours: login redirect (was blank), 44px pills, jump links, day rows and switches. *pro.spec + tapTargets test + 390 measure.* No saves made.
+- [x] Earnings: login redirect, shop → `/studio/earnings`, 44px tabs and links. *pro.spec + 390 measure.* Statement PDF and entries not created.
+- [x] Analytics: no console 402 for Basic; shop → `/studio/analytics`; 44px period and CSV buttons. *pro.spec + 390 + desktop.* Win-back ⚠ not sent.
+- [x] Import: login redirect, 44px file buttons. *pro.spec + 390 measure.* No import run.
+- [x] Chairs: login redirect (was stuck on Loading). *pro.spec + 390 measure.* Apply ⚠ not run (emails a shop).
+- [x] Subscription: login redirect with `?next=`, shop → `/studio/settings`, 44px buttons. *pro.spec + 390.* Checkout and boosts ⚠ not run.
+- [x] Verification: login redirect with `?next=`, clearer upload error. *pro.spec + 390.* Upload ⚠ not run (emails admins).
+- [x] Refer, Gift cards (seller): login redirect, 390 clean. *pro.spec + 390 measure.*
+- [~] Review reply: 44px buttons. *tapTargets test.* Posting a reply needs the seed.
+- [ ] Complete, no-show ⚠: not run (needs the seed; no-show charges a fee in test mode).
+- [ ] Connect payout account: not run (Stripe onboarding; payment code).
 
 ### Studio
 - [ ] Setup (no studio yet), plan banner ⚠
