@@ -11,6 +11,7 @@ import { Check, Copy, ExternalLink, Link2, Settings as SettingsIcon } from "luci
 import LuLoader from "@/app/components/LuLoader";
 import { STUDIO_PLANS } from "@/app/lib/plans";
 import { peekStudio, studioFetch } from "./studioApi";
+import { loginHref } from "@/app/lib/returnTo";
 import { shopNow } from "@/app/lib/bookingTime";
 import { Button, Notice, Sheet, Tag } from "./ui";
 import { PlanPicker } from "./Plans";
@@ -58,7 +59,7 @@ function StudioShell({ children }: { children: ReactNode }) {
   const load = useCallback(async () => {
     const res = await studioFetch<StudioData>("/api/studio");
     if (res.status === 401) {
-      router.push("/login?next=/studio");
+      router.replace(loginHref(window.location.pathname));
       return;
     }
     if (!res.ok) setNotice({ tone: "error", text: res.data.error || "Could not load your studio." });
@@ -102,7 +103,7 @@ function StudioShell({ children }: { children: ReactNode }) {
       await run(key, async () => {
         const res = await studioFetch<{ url?: string }>(path, { method: "POST", body });
         if (!res.ok || !res.data.url) {
-          setNotice({ tone: "error", text: res.data.error || "Something went wrong." });
+          setNotice({ tone: "error", text: res.data.error || "That didn't save. Please try again." });
           return;
         }
         window.location.assign(res.data.url);
@@ -161,7 +162,7 @@ function StudioShell({ children }: { children: ReactNode }) {
                   href="/studio/settings"
                   aria-label="Shop settings"
                   aria-current={section === "settings" ? "page" : undefined}
-                  className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                  className={`flex h-11 w-11 sm:h-10 sm:w-10 items-center justify-center rounded-full transition-colors ${
                     section === "settings"
                       ? "bg-ink text-white"
                       : "bg-surface text-neutral-600 shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] hover:text-ink"
@@ -281,7 +282,7 @@ function ShareLink({ slug }: { slug: string }) {
             <button
               type="button"
               onClick={copy}
-              className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-surface px-2.5 text-[13px] font-medium text-ink shadow-[0_0_0_1px_rgba(10,10,10,0.1)] hover:bg-neutral-50"
+              className="flex h-11 sm:h-8 shrink-0 items-center gap-1.5 rounded-lg bg-surface px-2.5 text-[13px] font-medium text-ink shadow-[0_0_0_1px_rgba(10,10,10,0.1)] hover:bg-neutral-50"
             >
               {copied ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
               {copied ? "Copied" : "Copy"}
