@@ -548,11 +548,11 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       } else if (isProfessionalRole(currentProfile.role)) {
         await loadProfessionalWork(user.id, currentProfile);
       } else {
-        setMessage("Invalid account role.");
+        setMessage("Your account isn't set up yet. Finish setting up your profile to see your work here.");
       }
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong loading your work.");
+      setMessage("We couldn't load your work. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -1104,7 +1104,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       }
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong updating this service.");
+      setMessage("We couldn't update this booking. Please try again.");
     } finally {
       setActionLoadingId(null);
     }

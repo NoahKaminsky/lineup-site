@@ -253,7 +253,7 @@ export default function SubscriptionPage() {
       }
       window.location.href = json.url;
     } catch {
-      setMessage("Something went wrong. Please try again.");
+      setMessage("That didn't work. Please try again.");
     } finally {
       setBoosting(false);
     }
@@ -289,13 +289,13 @@ export default function SubscriptionPage() {
       const json = await res.json();
 
       if (!res.ok) {
-        setMessage(json.error || "Something went wrong.");
+        setMessage(json.error || "That didn't work. Please try again.");
         return;
       }
 
       window.location.href = json.url;
     } catch {
-      setMessage("Something went wrong. Please try again.");
+      setMessage("That didn't work. Please try again.");
     } finally {
       setSubscribing(null);
     }
@@ -343,7 +343,7 @@ export default function SubscriptionPage() {
 
       window.location.href = json.url;
     } catch {
-      setMessage("Something went wrong. Please try again.");
+      setMessage("That didn't work. Please try again.");
     } finally {
       setPortalLoadingKey(null);
     }

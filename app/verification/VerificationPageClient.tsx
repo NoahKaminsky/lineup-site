@@ -408,7 +408,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
       await load();
     } catch (err) {
       console.error(err);
-      setError("Something went wrong. Please try again.");
+      setError("We couldn't send your documents. Please try again.");
     } finally {
       setSubmitting(false);
     }

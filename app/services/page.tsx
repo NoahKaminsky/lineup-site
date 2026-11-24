@@ -869,7 +869,7 @@ export default function ServicesPage() {
       setMessage("Service added.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong adding the service.");
+      setMessage("We couldn't add this service. Please try again.");
     } finally {
       setServiceSaving(false);
     }
@@ -916,7 +916,7 @@ export default function ServicesPage() {
       setMessage(`${template.name} added.`);
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong adding that preset service.");
+      setMessage("We couldn't add that service. Please try again.");
     } finally {
       setServiceSaving(false);
     }
@@ -994,7 +994,7 @@ export default function ServicesPage() {
       setMessage("Service updated.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong updating this service.");
+      setMessage("We couldn't update this service. Please try again.");
     }
   }
 
@@ -1017,7 +1017,7 @@ export default function ServicesPage() {
       setMessage("Service deleted.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong deleting this service.");
+      setMessage("We couldn't delete this service. Please try again.");
     }
   }
 
@@ -1041,7 +1041,7 @@ export default function ServicesPage() {
       );
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong updating this service.");
+      setMessage("We couldn't update this service. Please try again.");
     }
   }
 
