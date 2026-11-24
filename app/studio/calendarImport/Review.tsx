@@ -170,7 +170,7 @@ export default function Review({
       summary.skipped = summary.skipped.map((s) => ({ ...s, client: byKey.get(s.key) || null }));
       onSaved(summary);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Something went wrong, so nothing was added. Please try again.");
+      setSaveError(error instanceof Error ? error.message : "The import didn't finish, so nothing was added. Please try again.");
     } finally {
       setSaving(null);
     }
@@ -269,7 +269,7 @@ export default function Review({
                 setFilter(value);
                 setShown(PAGE);
               }}
-              className={`h-9 shrink-0 rounded-full px-3.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30 ${
+              className={`h-11 sm:h-9 shrink-0 rounded-full px-3.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30 ${
                 filter === value ? "bg-ink text-white" : "bg-ink/[0.05] text-neutral-600 hover:text-ink"
               }`}
             >

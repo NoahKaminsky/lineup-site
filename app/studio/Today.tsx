@@ -131,7 +131,7 @@ export default function TodayView() {
             <h3 id="up-next" className="text-[15px] font-semibold text-ink">
               Up next
             </h3>
-            <Link href={me.canManage ? "/studio/calendar" : "/calendar"} className="text-[13px] font-medium text-neutral-500 hover:text-ink">
+            <Link href={me.canManage ? "/studio/calendar" : "/calendar"} className="inline-flex min-h-11 items-center text-[13px] font-medium text-neutral-500 hover:text-ink sm:min-h-0">
               Calendar
             </Link>
           </div>

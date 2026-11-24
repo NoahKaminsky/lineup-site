@@ -9,11 +9,15 @@ const FILES = [
   "app/components/earnings/EarningsReport.tsx", "app/components/earnings/TaxYear.tsx",
   "app/components/analytics/ProAnalytics.tsx", "app/import/page.tsx", "app/chairs/page.tsx", "app/subscription/page.tsx",
   "app/verification/VerificationPageClient.tsx", "app/refer/page.tsx", "app/gift-cards/page.tsx", "app/profile/[id]/ReviewReply.tsx",
+  // Studio
+  ...["Chairs", "Clients", "Import", "Memberships", "Plans", "Requests", "Schedule", "Settings", "Setup", "Team", "Today", "layout", "ui", "join/page", "calendarImport/CalendarImport", "calendarImport/Review", "calendarImport/Summary", "calendarImport/ExportHelp"].map((n) => `app/studio/${n}.tsx`),
+  "app/components/analytics/ShopAnalytics.tsx",
 ];
 const TAG = /<(?:button|Link|a)\b(?:[^>]|=>)*?className=(?:"([^"]*)"|\{`([^`]*)`)/g;
 const SMALL = /(?<![\w:-])(h-(?:7|8|9|10)|py-(?:0|0\.5|1|1\.5|2))(?![\w.])/;
-// Already tall enough, or not a pill: heatmap cells, the calendar day strip, the on/off switch.
-const OK = /(min-h-(11|\[44px\]|12)|h-1[1-9]|py-(2\.5|3|4)|w-12 shrink-0 snap-center|h-6 rounded|relative h-7 w-12)/;
+// Already tall enough, or not a pill: heatmap cells, the calendar day strip and
+// appointment blocks, switches and small icons with a larger invisible hit area.
+const OK = /(min-h-(11|\[44px\]|12)|(?<![\w:-])h-1[1-9]|py-(2\.5|3|4)|w-12 shrink-0 snap-center|h-6 rounded|relative h-7 w-12|absolute inset-x-1|before:-inset)/;
 
 describe("pro tap targets", () => {
   for (const f of FILES) {

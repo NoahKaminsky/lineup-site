@@ -149,7 +149,7 @@ export default function ImportView({ data, setNotice }: SectionProps) {
       await call({ action: "save-rollback", batchId }).catch(() => undefined);
       void load();
       throw new Error(
-        "Something went wrong partway through, so we took the whole import back out. Nothing was added to anyone's calendar. Please try again."
+        "The import stopped partway through, so we took the whole import back out. Nothing was added to anyone's calendar. Please try again."
       );
     }
     void load();

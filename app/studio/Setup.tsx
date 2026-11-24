@@ -147,7 +147,7 @@ export default function ShopSetup({ data, busy, run, setNotice, reload, redirect
             type="button"
             onClick={() => setStep(step - 1)}
             aria-label="Back"
-            className="-ml-2 flex h-9 w-9 items-center justify-center rounded-full text-neutral-500 hover:bg-ink/[0.06] hover:text-ink"
+            className="-ml-2 flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-full text-neutral-500 hover:bg-ink/[0.06] hover:text-ink"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -266,7 +266,7 @@ export default function ShopSetup({ data, busy, run, setNotice, reload, redirect
               <button
                 type="button"
                 onClick={() => setEmails([...emails, ""])}
-                className="inline-flex h-9 items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-ink"
+                className="inline-flex h-11 sm:h-9 items-center gap-1.5 text-sm font-medium text-neutral-600 hover:text-ink"
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 Add another

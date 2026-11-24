@@ -404,7 +404,7 @@ function PostOpeningSheet({
                   type="button"
                   aria-pressed={on}
                   onClick={() => setTrades((prev) => (on ? prev.filter((v) => v !== t.value) : [...prev, t.value]))}
-                  className={`h-8 rounded-full px-3.5 text-[13px] font-medium transition-colors ${
+                  className={`h-11 sm:h-8 rounded-full px-3.5 text-[13px] font-medium transition-colors ${
                     on ? "bg-ink text-white" : "bg-surface text-neutral-700 shadow-[inset_0_0_0_1px_rgba(10,10,10,0.14)] hover:bg-neutral-50"
                   }`}
                 >

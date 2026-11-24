@@ -146,7 +146,7 @@ export function Toggle({
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative mt-0.5 h-6 w-10 shrink-0 rounded-full transition-colors duration-200 ${checked ? "bg-ink" : "bg-ink/15"}`}
+        className={`relative mt-0.5 h-6 w-10 before:absolute before:-inset-2.5 before:content-[''] shrink-0 rounded-full transition-colors duration-200 ${checked ? "bg-ink" : "bg-ink/15"}`}
       >
         <span
           aria-hidden="true"
@@ -277,7 +277,7 @@ export function Menu({
         className={
           trigger
             ? buttonClass("secondary", "sm")
-            : "flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-ink/[0.06] hover:text-ink"
+            : "flex h-11 w-11 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-ink/[0.06] hover:text-ink sm:h-8 sm:w-8"
         }
       >
         {trigger || <MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
@@ -299,7 +299,7 @@ export function Menu({
               }}
               className={`flex w-full rounded-lg px-3 py-2 text-left text-sm transition-colors disabled:opacity-40 ${
                 item.danger ? "text-red-700 hover:bg-red-50" : "text-ink hover:bg-ink/[0.05]"
-              }`}
+              } min-h-11 sm:min-h-0`}
             >
               {item.label}
             </button>
@@ -380,7 +380,7 @@ export function Sheet({
             data-sheet-close
             onClick={onClose}
             aria-label="Close"
-            className="-mr-2 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-ink/[0.06] hover:text-ink"
+            className="-mr-2 -mt-1 flex h-11 w-11 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-ink/[0.06] hover:text-ink"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -423,7 +423,7 @@ export function Notice({
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="-mr-1 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+          className="-mr-1 mt-0.5 flex h-6 w-6 relative before:absolute before:-inset-2.5 before:content-[''] shrink-0 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
         >
           <X className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
@@ -557,7 +557,7 @@ export function ChipPicker({
             type="button"
             aria-pressed={on}
             onClick={() => onChange(on ? value.filter((v) => v !== o.value) : [...value, o.value])}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors ${
+            className={`inline-flex h-11 sm:h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors ${
               on ? "bg-ink text-white" : "bg-surface text-neutral-700 shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] hover:text-ink"
             }`}
           >

@@ -163,7 +163,7 @@ export default function ScheduleView({ data, busy, run, setNotice }: SectionProp
             type="button"
             onClick={() => step(-1)}
             aria-label={view === "day" ? "Previous day" : "Previous month"}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-ink/[0.06] hover:text-ink"
+            className="flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-ink/[0.06] hover:text-ink"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -171,7 +171,7 @@ export default function ScheduleView({ data, busy, run, setNotice }: SectionProp
             type="button"
             onClick={() => step(1)}
             aria-label={view === "day" ? "Next day" : "Next month"}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-ink/[0.06] hover:text-ink"
+            className="flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-ink/[0.06] hover:text-ink"
           >
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </button>
