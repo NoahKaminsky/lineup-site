@@ -507,7 +507,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
             : error.code === error.TIMEOUT
             ? "TIMEOUT"
             : "UNKNOWN";
-        console.error(`Geolocation failed: ${reason} — ${error.message}`);
+        console.info(`Location not available: ${reason} — ${error.message}`);
         setLocationPermissionStatus("denied");
       },
       {
@@ -1120,7 +1120,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                   type="button"
                   onClick={() => setSearch("")}
                   aria-label="Clear search"
-                  className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
+                  className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
                 >
                   <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
                 </button>
@@ -1169,7 +1169,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                     >
                       <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-100">
                         {photo ? (
-                          <img src={photo} alt="" className="h-full w-full object-cover" />
+                          <img loading="lazy" decoding="async" src={photo} alt="" className="h-full w-full object-cover" />
                         ) : (
                           <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">{name.charAt(0)}</span>
                         )}
@@ -1468,7 +1468,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                   >
                     {card.profile.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                      <img loading="lazy" decoding="async" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <span className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-neutral-600">
                         {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
