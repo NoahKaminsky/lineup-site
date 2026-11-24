@@ -140,9 +140,9 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 5. **The booking cap is written out three times** (two in payment code). A test now catches drift; moving it into one shared function is a small payment-code change for you to OK.
 
 ## Slow (for Step 6)
-- `/profile/[id]` loads Stripe.js on every visit, which keeps sending telemetry for ~8 s; with a cold dev compile the page isn't quiet after 15 s at 390. Load Stripe only when the booking sheet opens.
+- ✅ Fixed 24 Nov: Stripe.js loaded on every `/profile` and `/shop` visit. It now loads the first time a payment or card form opens (`app/lib/stripeClient.ts`, `@stripe/stripe-js/pure`). Measured on Vercel preview builds at 390px, logged out, median of 3 (`e2e/tools/speed.mjs`): `/profile` 15 → **0** Stripe requests, quiet 3.1 s → **2.8 s**; `/shop` 8 → **0**, quiet 1.9 s → **1.6 s**. *tests/speed/stripeClient.test.ts.* **Paying end to end with the lazy loader still needs a run of `e2e/customer-flow.spec.ts` with the seed** (refused this time; waiting for Noah's OK).
 - `/shop/[slug]` and `/profile/[id]` still loading after 15 s on a cold dev compile; re-measure on a production build.
-- Supabase auth lock warnings ("Lock … was not released within 5000ms"): several components call `getSession`/`getUser` at mount (AppNavbar, useBidCounts, useVerificationState → `getUser()`, useWebPush, RequestDetailPageClient). One shared auth promise would fix it.
+- Partly fixed 24 Nov: auth lock warnings ("Lock … was not released / stole it"). The worst one, `useVerificationState` calling `getUser()` on every Pro page (it holds the lock for a network round trip), now reads the stored session and can't throw an uncaught lock error. `getUser()` is left in two button handlers (shop booking lookup, leaving a review), where it isn't on page load. Re-check the logged-in pages for lock warnings with the seed.
 - RequestDetailPageClient calls `getSession()` in every action handler.
 
 ## Checklist (from FEATURES.md)
