@@ -82,7 +82,7 @@ export default function ReviewReply({
         </div>
       ) : null}
       {canReply ? (
-        <button type="button" onClick={() => setEditing(true)} className="mt-3 text-sm font-medium text-ink underline decoration-ink/20 underline-offset-4 hover:decoration-ink">
+        <button type="button" onClick={() => setEditing(true)} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-ink underline decoration-ink/20 underline-offset-4 hover:decoration-ink">
           {reply ? "Edit your reply" : "Reply"}
         </button>
       ) : null}

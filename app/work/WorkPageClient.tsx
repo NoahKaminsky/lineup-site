@@ -1962,7 +1962,7 @@ function BookedList({
                   type="button"
                   onClick={() => updateBookedItemStatus(item, "completion_requested")}
                   disabled={isLoadingAction}
-                  className="shrink-0 rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-ink transition hover:bg-neutral-200 disabled:opacity-60"
+                  className="min-h-11 shrink-0 rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-ink transition hover:bg-neutral-200 disabled:opacity-60"
                 >
                   {isLoadingAction ? "Working…" : "Mark complete"}
                 </button>

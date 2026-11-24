@@ -619,7 +619,7 @@ export default function BookingDetailPage() {
   // Pay-at-the-shop client who didn't come: charges the shop's no-show fee
   // to the card they saved when booking.
   async function handleMarkNoShow() {
-    if (!booking || !window.confirm("Mark this client as a no-show? Their card is charged the no-show fee and the booking closes.")) {
+    if (!booking || !window.confirm("Mark this client as a no-show? The booking closes, and if there's a no-show fee and a card on file, it's charged.")) {
       return;
     }
     try {
@@ -645,7 +645,7 @@ export default function BookingDetailPage() {
       setMessage(data.message || "Marked as a no-show.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong marking the no-show.");
+      setMessage("We couldn't mark the no-show. Please try again.");
     } finally {
       setActionLoading(null);
     }
@@ -1008,9 +1008,9 @@ export default function BookingDetailPage() {
                   type="button"
                   onClick={handleMarkNoShow}
                   disabled={actionLoading === "no-show"}
-                  className="mt-3 rounded text-sm font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-4 hover:text-red-700 disabled:opacity-60"
+                  className="mt-3 inline-flex min-h-11 items-center rounded text-sm font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-4 hover:text-red-700 disabled:opacity-60"
                 >
-                  {actionLoading === "no-show" ? "Charging no-show fee…" : "They didn't show up"}
+                  {actionLoading === "no-show" ? "Marking no-show…" : "They didn't show up"}
                 </button>
               ) : null}
             </div>
