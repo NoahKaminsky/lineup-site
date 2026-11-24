@@ -1107,7 +1107,7 @@ export default function BookingDetailPage() {
                   <button
                     type="button"
                     onClick={() => setConfirmingCancel(false)}
-                    className="inline-flex rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                    className="inline-flex min-h-11 items-center rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
                   >
                     Keep it
                   </button>
@@ -1121,7 +1121,7 @@ export default function BookingDetailPage() {
                     type="button"
                     onClick={handleCancelBooking}
                     disabled={actionLoading === "cancel"}
-                    className="inline-flex rounded-full border border-red-300 px-5 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                    className="inline-flex min-h-11 items-center rounded-full border border-red-300 px-5 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
                   >
                     Cancel booking
                   </button>

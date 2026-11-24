@@ -714,7 +714,7 @@ export function AppointmentSheet({
   }
 
   async function onlineNoShow() {
-    if (!window.confirm(`Mark ${item!.clientName || "this client"} as a no-show? Their card is charged the no-show fee.`)) return;
+    if (!window.confirm(`Mark ${item!.clientName || "this client"} as a no-show? The booking closes, and if there's a no-show fee and a card on file, it's charged.`)) return;
     await run(`ns-${item!.id}`, async () => {
       const res = await studioFetch<{ message?: string }>("/api/bookings/no-show", { method: "POST", body: { bookingId: item!.id } });
       if (!res.ok) {
@@ -745,7 +745,7 @@ export function AppointmentSheet({
           ) : null}
           {canAct && canNoShowOnline ? (
             <Button variant="danger" loading={busy === `ns-${item.id}`} onClick={onlineNoShow}>
-              No-show, charge fee
+              Mark as no-show
             </Button>
           ) : null}
           {canAct && openFrontDesk ? (

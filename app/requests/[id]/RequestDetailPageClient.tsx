@@ -1817,14 +1817,14 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       <button
                         type="button"
                         onClick={startEditingRequest}
-                        className="rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-neutral-800"
+                        className="min-h-11 rounded-full bg-ink px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-neutral-800"
                       >
                         Edit request
                       </button>
                       <button
                         type="button"
                         onClick={handleCancelRequest}
-                        className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-ink transition hover:bg-neutral-50"
+                        className="min-h-11 rounded-full border border-neutral-300 px-4 py-1.5 text-xs font-medium text-ink transition hover:bg-neutral-50"
                       >
                         Cancel request
                       </button>
