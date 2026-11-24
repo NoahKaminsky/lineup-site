@@ -132,8 +132,9 @@ export async function POST(req: Request) {
     const joinUrl = `${siteUrl}/studio/join?token=${encodeURIComponent(token)}`;
     const studioName = ctx.studio.name;
 
+    let sent = false;
     try {
-      await sendEmail({
+      ({ sent } = await sendEmail({
         to: email,
         subject: `Join ${studioName} on LineUp`,
         html: createEmailLayout({
@@ -147,9 +148,13 @@ export async function POST(req: Request) {
             <p style="margin:0;color:#666666;font-size:13px;">Use this email address to sign in or create your account. The link expires in ${INVITE_TTL_DAYS} days.</p>
           `,
         }),
-      });
+      }));
     } catch (emailError) {
       console.error("Studio invite email failed:", emailError);
+    }
+    // Not sent (Resend error, EMAIL_DISABLED, or a test address): the invite
+    // is saved, so hand the owner the link to share instead.
+    if (!sent) {
       return NextResponse.json(
         { ok: true, emailed: false, joinUrl, warning: "The invite was saved but the email didn't send. Share this link with them instead." },
         { status: 200 }

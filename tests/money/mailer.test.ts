@@ -64,3 +64,17 @@ describe("getMailer", () => {
     expect(batchSend).not.toHaveBeenCalled();
   });
 });
+
+describe("sendEmail", () => {
+  it("says whether it really sent, so callers can offer a link instead", async () => {
+    process.env.EMAIL_FROM = "LineUp <hi@lineup.test>";
+    delete process.env.EMAIL_DISABLED;
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const { sendEmail } = await import("@/app/lib/email");
+    expect(await sendEmail({ to: "lineup.test+basic@example.com", subject: "Join", html: "x" })).toEqual({ sent: false });
+    expect(await sendEmail({ to: "real@gmail.com", subject: "Join", html: "x" })).toEqual({ sent: true });
+    send.mockResolvedValueOnce({ data: null, error: { name: "x", message: "down" } } as never);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(await sendEmail({ to: "real@gmail.com", subject: "Join", html: "x" })).toEqual({ sent: false });
+  });
+});

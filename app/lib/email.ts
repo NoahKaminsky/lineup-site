@@ -164,11 +164,13 @@ export async function sendEmail({
   }
 
   // Skips when EMAIL_DISABLED is set or every recipient is a test address;
-  // logs Resend errors (it returns them rather than throwing).
-  await getMailer().emails.send({
+  // logs Resend errors (it returns them rather than throwing). `sent` says
+  // whether it really went, for callers that can offer a fallback (a link).
+  const result = await getMailer().emails.send({
     from: process.env.EMAIL_FROM,
     to,
     subject,
     html,
   });
+  return { sent: !!result.data && !result.error };
 }
