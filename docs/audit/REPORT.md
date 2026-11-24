@@ -4,10 +4,10 @@ Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. **Mapping and s
 
 ## Resume here
 
-> **Audit setup is finished** (Playwright added, TEST seed → smoke → cleanup done on 23 Nov; 0 TEST rows left). **Next: the Customer & Public pass** (separate task). Start from the "Logged-in smoke results" and the Customer/Public problems below.
+> **Customer & Public pass done** (24 Nov, branch `site-audit`). Every Customer and Public item below is ticked with how it was tested, or left open with the reason; decisions for Noah are listed under "Decisions needed". **Next: Pro pass** (start from the Pro problems and checklist).
 >
-> To test again: `LINEUP_ALLOW_LIVE_TEST_DATA=yes-noah-approved node --env-file=.env.local --env-file=.env.test.local scripts/test-data.mts seed`, run `npm run test:smoke` (or `-g "customer "` for one viewer), then the same command with `cleanup`, then `check`. Run seed, tests and cleanup in one sitting. The password is in `.env.test.local` (git-ignored).
-> The full smoke run takes 30+ minutes and needs a machine with free memory. On 23 Nov the Mac was under heavy memory pressure and disk was nearly full; Turbopack crashed once (a dev-only `PoisonError` panic) and gave false 500s. If you see that, stop the dev server, `rm -rf .next/dev`, and restart it.
+> To test: `LINEUP_ALLOW_LIVE_TEST_DATA=yes-noah-approved node --env-file=.env.local --env-file=.env.test.local scripts/test-data.mts seed`, start `npm run dev`, then run `npx playwright test e2e/customer.spec.ts`, `e2e/customer-flow.spec.ts --project desktop` and `e2e/smoke.spec.ts` (all with the same two `--env-file` flags in front of `node node_modules/.bin/playwright`). Then run `cleanup` and `check`. For paying, forward webhooks first: run `stripe listen --print-secret`, put that value in `.env.development.local` as `STRIPE_WEBHOOK_SECRET`, run `stripe listen --forward-to localhost:3000/api/stripe/webhook`, and delete the file afterwards.
+> **Disk:** this Mac has only ~2 GB free; the dev server plus test browsers can fill it within the hour. Stop the dev server between runs and `rm -rf .next/dev test-results`.
 
 ## What was set up and tested this session
 
@@ -68,11 +68,11 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 ### Public
 - Broken: none seen.
 - Slow: supabase auth-lock 5 s stalls (see above). `/beauty/winnipeg` took 4.9 s on a cold compile (dev only; recheck on a production build).
-- Looks unpolished: landing next/image `sizes`/LCP warnings.
+- Fixed 24 Nov: landing hero downloads one crop; screenshot `sizes` corrected.
 - Confusing wording: none seen yet.
 
 ### Customer
-- Broken: `/requests/new` and `/onboarding` were blank when logged out on a cold load (recheck). Code: `/refer` is linked for everyone, but its API returns 403 for anyone who isn't a pro.
+- Fixed 24 Nov: logged-out customer pages now go to login with `?next=`; `/refer` sends customers to their requests.
 - Slow: auth-lock stalls on `/requests`.
 - Looks unpolished: to check once seeded.
 - Confusing wording: to check once seeded.
@@ -96,31 +96,49 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 - Code: the auto-complete cron makes real Connect transfers in whatever mode the keys are in. Locally the keys are `sk_test_`. Check production with `GET /api/health/payments`.
 - Code: the `completion-nudges` cron also runs every ~15 min from GitHub Actions, as well as daily on Vercel.
 
+## Decisions needed from Noah (customer & public pass)
+
+1. **Charge without a booking** (Broken, payments): if a pro has no location saved, the customer's card is charged and the webhook then fails with "Professional location is missing", so no booking is made. `create-payment-intent` should refuse before charging. Payment code, so not changed.
+2. **Apple Pay is off**: Stripe says the domain isn't registered for Apple Pay (Stripe dashboard → Payment method domains). Google Pay needs HTTPS too; check on the live site.
+3. **Gift card purchase can't be tested**: the TEST shop needs a Stripe test-mode payout account, and creating one needs the Connect platform profile filled in (dashboard.stripe.com/settings/connect/platform-profile).
+4. **After a 3D Secure / redirect payment, customers return to `/work`** (their Bookings tab) instead of their request (`RequestDetailPageClient.tsx` `return_url`). Payment code, so not changed.
+5. **/news uses a serif display face** (Instrument Serif, a deliberate "newspaper" look); the brand rules say no serif display. Swapping it changes that page's design, so it's your call.
+6. **Customer emails**: the rule is "customers get push, not email", but customers are emailed for booking confirmed, new offer, reminders, review requests, regular-appointment confirmations and rebook nudges (list in FEATURES.md › Notifications). Removing them is a product change.
+7. **Logged-out heart**: Discover/profile hide the heart when logged out (no "log in to save" prompt). Showing it would be a small new behaviour.
+
+## Slow (for Step 6)
+- `/shop/[slug]` and `/profile/[id]` still loading after 15 s on a cold dev compile; re-measure on a production build.
+- Supabase auth lock warnings ("Lock … was not released within 5000ms"): several components call `getSession`/`getUser` at mount (AppNavbar, useBidCounts, useVerificationState → `getUser()`, useWebPush, RequestDetailPageClient). One shared auth promise would fix it.
+- RequestDetailPageClient calls `getSession()` in every action handler.
+
 ## Checklist (from FEATURES.md)
 
 Tick an item when it has been clicked through on desktop and at 390px as the right user, with no errors. ⚠ = sends or moves money, so test only with TEST accounts and Stripe test mode.
 
-### Public
-- [ ] Landing `/` (and signed-in redirect to `/requests`)
-- [ ] About, Contact form ⚠, FAQ, Privacy, Terms
-- [ ] News list, signup ⚠, news issue
-- [ ] Beauty hub, city, city+trade
-- [ ] Discover (Spotlight, picks, save heart)
-- [ ] Shops directory, Shop page (book, membership ⚠)
-- [ ] Pro profile (services, reviews, availability, book ⚠), `/book/[slug]` redirect
-- [ ] Gift card buy ⚠, balance, thanks
-- [ ] Login, signup, auth callback, reset password
-- [ ] Unsubscribe, sitemap, robots, OG images
+### Public  (customer & public pass, 23–24 Nov)
+- [x] Landing `/`: only the hero crop that fits the screen downloads; phone screenshot sizes fixed. *e2e/customer.spec.ts (1280 + 390) + smoke*
+- [x] About, FAQ, Privacy, Terms, Contact page: load clean at 1280 and 390. *smoke* (Contact **send** not tested: it emails the team)
+- [x] News list and issue: load clean. *smoke* (decision: serif display font, see below)
+- [x] Beauty hub, city, city+trade. *smoke*
+- [x] Discover: refused location isn't a console error; 44px clear-search; lazy avatars. *customer.spec + smoke*
+- [x] Shops directory: load error now says so. Shop page loads. *customer.spec + smoke* (booking at a shop not tested end to end)
+- [x] Pro profile: loads; heart saves. *customer-flow + smoke*
+- [~] Gift cards: balance and thanks pages tested (thanks no longer claims a payment without one); offline checkout button fixed. **Purchase not tested**: TEST shop needs a Stripe test payout account (decision 3).
+- [x] Login redirects: logged-out customer pages return to the same page after login. *customer.spec*
+- [ ] Sign-up of a brand-new account through the UI: not run (would create a real auth account and send a confirmation email). Location requirement confirmed in code (onboarding/page.tsx:158).
+- [x] Unsubscribe page loads. *smoke* (not submitted)
 
 ### Customer
-- [ ] Onboarding
-- [ ] Requests home
-- [ ] New request ⚠ (notifies pros)
-- [ ] Request detail: offers, accept and pay ⚠, tip, gift card, chat, edit, cancel
-- [ ] Booking detail: chat, cancel, complete, review
-- [ ] Regular `/regular/[id]`: pay next ⚠, end
-- [ ] Account: profile, saved pros, push toggle, delete account
-- [ ] Archive
+- [x] Requests home and Bookings (`/work`, the customer's Bookings tab). *smoke 1280 + 390*
+- [x] New request with photos: HEIC without a type accepted, converted before preview, a bad photo reported without dropping good ones, 44px Remove. *customer-flow (direct request so no real pro is notified) + unit tests*
+- [x] Request detail: compare offers, accept, tip step, pay with Stripe test card → booking created via webhook. Payment sheet no longer slides under the navbar. *customer-flow, with `stripe listen` forwarding*
+- [x] Booking chat: own message shows straight away, no send mid-IME, 1000-char cap, friendly errors. *customer-flow*
+- [x] Review: errors stay in the modal, duplicate handled, clear thanks. *customer-flow*
+- [x] Saved pros heart; Saved pros card tap targets. *customer-flow + smoke*
+- [x] Regular `/regular/[id]`, Account, Archive: load clean. *smoke* (paying the next visit / deleting the account not run)
+- [x] Refer: customers are sent to their requests (it's a pro feature). *customer-flow*
+- [x] Push nudge: 44px dismiss, lucide icon; push toggle error readable. *smoke* (no push sent)
+- [ ] Edit / cancel a request, cancel a booking, pay-at-shop and memberships: not run this pass.
 
 ### Pro
 - [ ] Work dashboard, withdraw offer
