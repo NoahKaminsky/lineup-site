@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { loginHref } from "@/app/lib/returnTo";
+import { isLikelyImageFile, photoReadFailureMessage } from "@/app/lib/imageFiles";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Scissors, Hand, Eye, Pencil, Palette, Leaf, Droplet } from "lucide-react";
 import { supabase } from "../../../lib/supabaseClient";
@@ -696,10 +697,10 @@ function NewRequestPageContent() {
   async function addFiles(rawFiles: File[]) {
     if (!rawFiles.length) return;
 
-    const imageFiles = rawFiles.filter((file) => file.type.startsWith("image/"));
+    const imageFiles = rawFiles.filter(isLikelyImageFile);
 
     if (!imageFiles.length) {
-      setMessage("Only image files can be uploaded.");
+      setMessage("Only photos can be added here.");
       return;
     }
 
@@ -714,9 +715,11 @@ function NewRequestPageContent() {
     try {
       setMessage("Compressing images...");
 
-      const processedPhotos = await Promise.all(
+      // HEIC is converted first so every browser can preview it. One bad
+      // file no longer throws away the good ones.
+      const results = await Promise.allSettled(
         filesToProcess.map(async (file) => {
-          const compressedFile = await compressImage(file);
+          const compressedFile = await compressImage(await normalizeImageFile(file));
           return {
             id: generatePhotoId(),
             file: compressedFile,
@@ -725,20 +728,24 @@ function NewRequestPageContent() {
           };
         })
       );
+      const processedPhotos = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+      const failed = results.length - processedPhotos.length;
 
       setReferencePhotos((prev) => [...prev, ...processedPhotos]);
 
-      if (imageFiles.length > availableSlots) {
+      if (failed > 0) {
+        setMessage(photoReadFailureMessage(failed));
+      } else if (imageFiles.length > availableSlots) {
         setMessage(
-          `Only the first ${availableSlots} image${
-            availableSlots === 1 ? "" : "s"
-          } were added. Max is ${MAX_REFERENCE_PHOTOS}.`
+          `Only the first ${availableSlots} photo${
+            availableSlots === 1 ? " was" : "s were"
+          } added. You can add up to ${MAX_REFERENCE_PHOTOS}.`
         );
       } else {
         setMessage("");
       }
-    } catch (error: any) {
-      setMessage(error?.message || "Could not process one or more images.");
+    } catch {
+      setMessage(photoReadFailureMessage(filesToProcess.length));
     }
   }
 
@@ -1450,7 +1457,7 @@ function NewRequestPageContent() {
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); handleRemovePhoto(photo.id); }}
-                                className="shrink-0 rounded-lg border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50"
+                                className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-neutral-200 px-3 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50"
                               >
                                 Remove
                               </button>
@@ -1466,7 +1473,7 @@ function NewRequestPageContent() {
               </div>
 
               {/* Error message */}
-              {message && !message.startsWith("Submitting") && !message.startsWith("Compressing") ? (
+              {message && !message.startsWith("Submitting") && !message.startsWith("Compressing") && !message.startsWith("Loading") ? (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {message}
                 </div>
