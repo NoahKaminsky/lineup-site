@@ -327,6 +327,7 @@ export default function BookingDetailPage() {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   async function loadBooking(options?: { silent?: boolean }) {
     const silent = options?.silent ?? false;
@@ -576,10 +577,11 @@ export default function BookingDetailPage() {
     if (!booking || !viewerId || reviewRating === 0) return;
 
     if (containsProfanity(reviewComment)) {
-      setMessage("Please remove inappropriate language from your review before submitting.");
+      setReviewError("Please remove inappropriate language from your review before submitting.");
       return;
     }
 
+    setReviewError("");
     setReviewSubmitting(true);
 
     try {
@@ -593,17 +595,24 @@ export default function BookingDetailPage() {
       });
 
       if (error) {
-        setMessage(`Couldn't submit your review: ${error.message}`);
+        // 23505 = unique violation: this booking already has a review.
+        if (error.code === "23505") {
+          setShowReviewModal(false);
+          setMessage("You've already reviewed this booking. Thank you.");
+        } else {
+          setReviewError("Your review didn't send. Please try again.");
+        }
         return;
       }
 
-      setMessage("Booking completed. Thanks for your review!");
+      setShowReviewModal(false);
+      setMessage("Thanks for your review.");
     } catch (error) {
       console.error(error);
-      setMessage("Couldn't submit your review — please try again.");
+      setReviewError("Your review didn't send. Please try again.");
     } finally {
+      // The modal stays open on failure so the rating and comment aren't lost.
       setReviewSubmitting(false);
-      setShowReviewModal(false);
     }
   }
 
@@ -1191,10 +1200,15 @@ export default function BookingDetailPage() {
           <textarea
             value={reviewComment}
             onChange={(e) => setReviewComment(e.target.value)}
+            maxLength={1000}
             placeholder="Share details about your experience (optional)"
             rows={3}
             className="mt-5 w-full resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-ink"
           />
+
+          {reviewError ? (
+            <p role="alert" className="mt-3 text-sm text-red-700">{reviewError}</p>
+          ) : null}
 
           <div className="mt-5 flex gap-3">
             <button
