@@ -356,7 +356,7 @@ export default function AdminPage() {
                 onChange={(e) => setUserQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && loadUsers()}
                 placeholder="Search by name or email"
-                className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                className="min-h-11 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
               />
               <button
                 type="button"
@@ -403,7 +403,7 @@ export default function AdminPage() {
                                 [u.id]: { ...prev[u.id], plan: e.target.value },
                               }))
                             }
-                            className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+                            className="min-h-11 rounded-md border border-neutral-300 px-2 py-1 text-sm"
                           >
                             {PLAN_OPTIONS.map((opt) => (
                               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -419,7 +419,7 @@ export default function AdminPage() {
                                 [u.id]: { ...prev[u.id], status: e.target.value },
                               }))
                             }
-                            className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+                            className="min-h-11 rounded-md border border-neutral-300 px-2 py-1 text-sm"
                           >
                             {STATUS_OPTIONS.map((opt) => (
                               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -481,7 +481,7 @@ export default function AdminPage() {
                 onChange={(e) => setContentQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && loadContent(tab)}
                 placeholder="Search"
-                className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                className="min-h-11 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
               />
               <button
                 type="button"
