@@ -39,13 +39,15 @@ export default async function GiftThanksPage({ searchParams }: { searchParams: P
     <PublicLayout>
       <PageIntro
         eyebrow="Gift card"
-        title={card?.status === "active" ? "Thank you. It's on its way." : "Thanks! We're finishing up."}
+        title={card?.status === "active" ? "Thank you. It's on its way." : card ? "Thanks! We're finishing up." : "Gift cards"}
         subtitle={
           card?.status === "active"
             ? sentTo
               ? `We've emailed the ${formatCad(card.amount_cents)} gift card to ${sentTo}, and a copy to you.`
               : `We've emailed the ${formatCad(card.amount_cents)} gift card to ${card.buyer_email || "you"}, ready to pass on.`
-            : "Your payment went through. The gift card email will arrive in the next few minutes."
+            : card
+              ? "Your payment went through. The gift card email will arrive in the next few minutes."
+              : "We couldn't find a gift card purchase from this link. If you just paid, check your email for the receipt."
         }
       />
       <div className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">

@@ -42,11 +42,18 @@ export default function GiftForm({
     setError("");
     if (!amountOk) return setError(`Pick an amount between ${cad(minCents)} and ${cad(maxCents)}.`);
     setBusy(true);
-    const res = await fetch("/api/gift-cards/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind, slug, amountCents, sendToRecipient, recipientName, recipientEmail, buyerName, message }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/gift-cards/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind, slug, amountCents, sendToRecipient, recipientName, recipientEmail, buyerName, message }),
+      });
+    } catch {
+      // Offline or the request never landed: don't leave the button stuck.
+      setBusy(false);
+      return setError("We couldn't reach checkout. Check your connection and try again.");
+    }
     const json = await res.json().catch(() => ({}));
     if (res.ok && json.url) {
       window.location.assign(json.url);
