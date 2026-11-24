@@ -4,7 +4,7 @@ Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. **Mapping and s
 
 ## Resume here
 
-> **Pro and Studio passes done** (24 Nov, branch `site-audit`). Preview https://lineup-site-eep2fripi-noahkaminskys-projects.vercel.app: studio + pro + customer logged-out checks **62/62**. Studio: logged-out 22/22, Studio smoke 30/30 at 1280 + 390, `e2e/studio-flow.spec.ts` 5/5, TEST data cleaned (0 left). Pro: smoke 76/77 (`/profile` at 390 is slow), `e2e/pro-flow.spec.ts` 6/6. `tests/pro` 40/40, tsc clean, lint 50 (baseline), build passes. Items not run are listed with the reason (they email, charge, or need Stripe test setup). **Next: Admin pass**, then money/notifications/crons.
+> **Pro, Studio and Admin passes done** (24 Nov, branch `site-audit`). Admin: logged-out 2/2, admin smoke 2/2, `e2e/admin-flow.spec.ts` 6/6, TEST data cleaned (0 left). Preview https://lineup-site-eep2fripi-noahkaminskys-projects.vercel.app: studio + pro + customer logged-out checks **62/62**. Studio: logged-out 22/22, Studio smoke 30/30 at 1280 + 390, `e2e/studio-flow.spec.ts` 5/5, TEST data cleaned (0 left). Pro: smoke 76/77 (`/profile` at 390 is slow), `e2e/pro-flow.spec.ts` 6/6. `tests/pro` 40/40, tsc clean, lint 50 (baseline), build passes. Items not run are listed with the reason (they email, charge, or need Stripe test setup). **Next: money, notifications and crons** (read-only checks first; anything that charges or sends needs Noah's setup, see Decisions).
 >
 > To test: `LINEUP_ALLOW_LIVE_TEST_DATA=yes-noah-approved node --env-file=.env.local --env-file=.env.test.local scripts/test-data.mts seed`, start `npm run dev`, then run `npx playwright test e2e/customer.spec.ts`, `e2e/customer-flow.spec.ts --project desktop` and `e2e/smoke.spec.ts` (all with the same two `--env-file` flags in front of `node node_modules/.bin/playwright`). Then run `cleanup` and `check`. For paying, forward webhooks first: run `stripe listen --print-secret`, put that value in `.env.development.local` as `STRIPE_WEBHOOK_SECRET`, run `stripe listen --forward-to localhost:3000/api/stripe/webhook`, and delete the file afterwards.
 > **Disk:** this Mac has only ~2 GB free; the dev server plus test browsers can fill it within the hour. Stop the dev server between runs and `rm -rf .next/dev test-results`.
@@ -90,7 +90,8 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 - Fixed 24 Nov: logged-out visitors return to the Studio section they opened. 44px tap targets on phones (tabs, icon buttons, menus, chips, team picker, links; switches get a 44px invisible hit area); desktop unchanged. "Something went wrong" replaced with what happened.
 
 ### Admin
-- Confusing: `/admin` is a blank page for anyone who isn't an admin (no message).
+- Fixed 24 Nov: logged-out visitors go to login and back to `/admin`; non-admins are sent to their account (no blank page, no back-button loop). 44px controls on phones; "..." toggles read "Saving…"; no star glyph.
+- Checked 24 Nov: all three unused newsletter routes require admin (session or `x-admin-key`), so nothing is exposed. They're still extra ways to email the real list (decision below).
 - Code (risk): the admin Newsletter POST and the legacy `/api/send-newsletter` email the **whole real list**. Three admin newsletter routes have no UI caller (`send-newsletter`, `send-newsletter-test`, `newsletter-audience`), and `newsletter-audience` returns every subscriber's email.
 
 ### Money, notifications and crons
@@ -119,6 +120,12 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 
 1. **Invites can't be tested without sending email**: team invites and client invites email straight away (there's no email kill-switch). A "don't send" switch for TEST data or a test email domain would let invite → join be tested end to end.
 2. **Setup and Studio billing** need Stripe Checkout in test mode for a shop with no plan. Needs the same Connect platform-profile step as pro payouts (pro pass #4).
+
+## Decisions needed from Noah (admin pass)
+
+1. **Remove the three unused newsletter routes** (`/api/send-newsletter`, `/api/send-newsletter-test`, `/api/newsletter-audience`). They're admin-only, but each is another way to email or list the real subscribers, and nothing in the app calls them.
+2. **Verification approve/reject** can't be tested without a pending TEST submission and an email to the pro. Seeding a TEST submission is easy; the email needs the same "don't send to TEST accounts" switch as invites (studio pass #1).
+3. **Admin moderation lists show real people's content** (requests, reviews, messages). Fine for an admin, but it means automated tests can only look, not delete. A TEST-only filter would let delete be tested.
 
 ## Slow (for Step 6)
 - `/profile/[id]` loads Stripe.js on every visit, which keeps sending telemetry for ~8 s; with a cold dev compile the page isn't quiet after 15 s at 390. Load Stripe only when the booking sheet opens.
@@ -188,12 +195,14 @@ Logged out: `e2e/studio.spec.ts` 22/22 (11 sections × 1280 + 390). Logged in wi
 - [x] Settings: owner saves the tagline. *studio-flow.* Billing and payouts ⚠ not run.
 - [ ] Join from invite: not run. Making an invite emails the invitee (decision below).
 
-### Admin
-- [ ] Dashboard access (admin vs not)
-- [ ] Users: search, featured, founding
-- [ ] Content moderation
-- [ ] Verifications approve and reject ⚠
-- [ ] Newsletter counts (**never press send while testing**)
+### Admin  (admin pass, 24 Nov)
+Logged out: `e2e/admin.spec.ts` 2/2 (1280 + 390). With TEST data (Noah OK'd): admin smoke 2/2 at 1280 + 390, `e2e/admin-flow.spec.ts` **6/6**. Seed → cleanup → check left 0 TEST rows.
+- [x] Dashboard access: logged out → login and back; customer → `/account`; a real non-admin account → `/account`. *admin.spec + admin-flow + in-app check.*
+- [x] Users: search finds the TEST pro; Featured and Founding turned on and back off (checked in the database). *admin-flow.*
+- [~] Content moderation: the TEST review shows under Reviews. *admin-flow.* Delete not pressed (it's permanent; the list also shows real users' content).
+- [ ] Verifications approve and reject ⚠: not run. The seed has no pending submission, and approving emails the pro.
+- [x] Newsletter counts load. *admin-flow.* Send never pressed.
+- [x] Phone layout: 44px controls, no sideways scroll at 390. *admin-flow.*
 
 ### Money, notifications and crons
 - [ ] Webhook events (Stripe CLI `stripe trigger` in test mode only)
