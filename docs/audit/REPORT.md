@@ -141,7 +141,7 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 
 ## Slow (for Step 6)
 - ✅ Fixed 24 Nov: Stripe.js loaded on every `/profile` and `/shop` visit. It now loads the first time a payment or card form opens (`app/lib/stripeClient.ts`, `@stripe/stripe-js/pure`). Measured on Vercel preview builds at 390px, logged out, median of 3 (`e2e/tools/speed.mjs`): `/profile` 15 → **0** Stripe requests, quiet 3.1 s → **2.8 s**; `/shop` 8 → **0**, quiet 1.9 s → **1.6 s**. *tests/speed/stripeClient.test.ts.* **Paying end to end with the lazy loader still needs a run of `e2e/customer-flow.spec.ts` with the seed** (refused this time; waiting for Noah's OK).
-- `/shop/[slug]` and `/profile/[id]` still loading after 15 s on a cold dev compile; re-measure on a production build.
+- ✅ Re-measured 24 Nov on a production build (Vercel preview, 390px): `/profile` shows its heading in ~0.8 s and `/shop` in ~0.7 s. The 15 s was a cold dev compile plus Stripe telemetry (fixed above).
 - Partly fixed 24 Nov: auth lock warnings ("Lock … was not released / stole it"). The worst one, `useVerificationState` calling `getUser()` on every Pro page (it holds the lock for a network round trip), now reads the stored session and can't throw an uncaught lock error. `getUser()` is left in two button handlers (shop booking lookup, leaving a review), where it isn't on page load. Re-check the logged-in pages for lock warnings with the seed.
 - RequestDetailPageClient calls `getSession()` in every action handler.
 
