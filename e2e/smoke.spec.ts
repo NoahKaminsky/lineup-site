@@ -56,7 +56,9 @@ async function visit(page: Page, path: string) {
   const text = (await page.locator("body").innerText().catch(() => "")).trim();
   if (status >= 400) problems.push(`HTTP ${status}`);
   if (text.length < 40) problems.push(`blank: ${text.length} chars of text`);
-  if (await page.locator("nextjs-portal").count()) problems.push("Next.js error overlay");
+  // In dev, <nextjs-portal> is always present (dev-tools badge); it flags a caught error with data-error="true".
+  const nextError = await page.evaluate(() => !!document.querySelector("nextjs-portal")?.shadowRoot?.querySelector('[data-next-badge][data-error="true"], [data-nextjs-dialog]'));
+  if (nextError) problems.push("Next.js error (dev overlay)");
   if (/Application error|Unhandled Runtime Error|Something went wrong/i.test(text)) problems.push("error text on page");
   return problems;
 }

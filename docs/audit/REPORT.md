@@ -4,16 +4,10 @@ Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. **Mapping and s
 
 ## Resume here
 
-> **Waiting on Noah for two OKs**, then pick up at step A:
-> 1. **Add Playwright** (dev dependency plus a Chromium download, about 150 MB). The spec is drafted and ready: `e2e/routes.ts` is committed, and `e2e/smoke.spec.ts` + `playwright.config.ts` are drafted in `docs/audit/drafts/`.
-> 2. **Write TEST data to the live Supabase project**: 8 TEST accounts (including one admin), 1 TEST shop and their rows. They're removed straight after with `cleanup`.
+> **Audit setup is finished** (Playwright added, TEST seed → smoke → cleanup done on 23 Nov; 0 TEST rows left). **Next: the Customer & Public pass** (separate task). Start from the "Logged-in smoke results" and the Customer/Public problems below.
 >
-> - **A.** `npm i -D @playwright/test && npx playwright install chromium`, then add `playwright.config.ts` and `e2e/smoke.spec.ts` (copy them from `docs/audit/drafts/*.txt`, dropping the `.txt`). Add `"test:smoke": "playwright test"` to package.json. Exclude `e2e/**` from Vitest (it already only includes `tests/**`).
-> - **B.** Put `TEST_SEED_PASSWORD=<12+ chars>` in `.env.test.local` (git-ignored). Then run:
->   `LINEUP_ALLOW_LIVE_TEST_DATA=yes-noah-approved node --env-file=.env.local --env-file=.env.test.local scripts/test-data.mts seed`
-> - **C.** `node --env-file=.env.local --env-file=.env.test.local node_modules/.bin/playwright test`, then paste the failures into the Results table.
-> - **D.** Run `cleanup` the same way as `seed`, then `check` to confirm 0 TEST accounts. **Do C and D in the same sitting.** TEST pros are visible on the live site while seeded, and the live Vercel crons run on the same database.
-> - **E.** Start fixing in the order of the "Problems" list below. One area per session.
+> To test again: `LINEUP_ALLOW_LIVE_TEST_DATA=yes-noah-approved node --env-file=.env.local --env-file=.env.test.local scripts/test-data.mts seed`, run `npm run test:smoke` (or `-g "customer "` for one viewer), then the same command with `cleanup`, then `check`. Run seed, tests and cleanup in one sitting. The password is in `.env.test.local` (git-ignored).
+> The full smoke run takes 30+ minutes and needs a machine with free memory. On 23 Nov the Mac was under heavy memory pressure and disk was nearly full; Turbopack crashed once (a dev-only `PoisonError` panic) and gave false 500s. If you see that, stop the dev server, `rm -rf .next/dev`, and restart it.
 
 ## What was set up and tested this session
 
@@ -21,12 +15,12 @@ Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. **Mapping and s
 |---|---|
 | `site-audit` branch from origin/main; unmerged branches listed (`admin-comp`, `polish-and-speed-pass`, `promo-code-reels`) | ✅ pass |
 | `docs/audit/FEATURES.md`: every page, API, cron and component group, with flags | ✅ written (from the code; 3 parallel readers plus a schema check) |
-| Test tools check: Vitest 3.2.4 yes, Playwright no, Jest no | ✅ done. Playwright proposed, **waiting on OK** |
+| Test tools: Vitest 3.2.4; Playwright 1.56.1 added (Noah OK'd) | ✅ `npm run test:smoke` |
 | `scripts/test-data.mts` seed / cleanup / check (TEST prefix, example.com emails, no Stripe calls, notifications off, refuses live DB without the OK value, refuses live Stripe keys) | ✅ written. tsc and lint clean |
 | `tests/audit/testData.test.ts`: guard and TEST-email unit tests | ✅ 6/6 pass |
-| Seed → check → cleanup on a real database | ⛔ **not run**. The only database is live and needs Noah's OK. The guard refusal was checked offline (exit 1, no network call) |
+| Seed → check → cleanup on the live database (Noah OK'd 23 Nov) | ✅ pass after one fix: bulk inserts now use column defaults. Cleanup left 0 TEST rows |
 | `e2e/routes.ts`: 70 page visits across public, customer, Basic pro, Master pro, owner (every Studio section), manager, member, admin | ✅ written |
-| Playwright smoke spec (desktop 1280 + phone 390; fails on HTTP ≥400, blank page, Next error overlay, console error or page error, wrong redirect) | ⏸ drafted, waiting on install OK |
+| Playwright smoke spec (desktop 1280 + phone 390) | ✅ ran: 122/150 passed; results below |
 | Logged-out smoke pass, 40 routes × desktop + 390px, with a throwaway headless Chrome (`e2e/smoke-public.sh`) | ✅ ran; results below. Raw output in `docs/audit/smoke/` |
 | `npm test` | ✅ 109/109 pass (8 files) |
 | `npm run lint` | 51 errors, the same as the old baseline (excluding untracked `.claude/skills`); none added |
@@ -49,6 +43,23 @@ Every public page loaded at 1280 and 390, with real content and no Next.js error
 | `/` | Console: next/image warnings. A `fill` image has `sizes="100vw"` but isn't full width (2 images), and an LCP image (`04-offers-compare.png`) should be `loading="eager"` |
 | `/discover` | Console: "Geolocation failed: PERMISSION_DENIED", logged with console.error. Expected when location is refused, but it shouldn't log as an error |
 | `/shop/*`, `/profile/*` | Stripe.js "HTTP" warning. Local dev only, ignore |
+
+## Logged-in smoke results (Playwright, 23 Nov, TEST data on live DB, local dev)
+
+First full run: **122 of 150 passed**. Failures were re-run on a fresh dev server. "Env" means caused by the overloaded machine (sign-in or browser timeouts), not by the page.
+
+| Viewer and page | Result | Bucket |
+|---|---|---|
+| public and customer `/discover` | **Fails.** Refused location is logged with `console.error("Geolocation failed…")`, which Next dev counts as an error (red badge) | Broken (minor) |
+| customer `/work` | **Fails.** A customer stays on `/work` instead of being sent to `/requests` | Broken |
+| public and customer `/shop/[slug]`, public and master `/profile/[id]` | **Slow.** Still loading after 15 s (desktop, dev) | Slow |
+| basic `/analytics` | Console 402 from an analytics API for a Basic pro; the page itself renders | Unpolished (expected 402, shouldn't log) |
+| owner `/studio/settings` | Blank (15 chars) and slow in the re-run | Broken? (re-check in the Studio pass) |
+| customer and master `/regular/[id]` | 500 in run 1, **passes** on a fresh server (Turbopack crash) | OK |
+| Owner, manager and member Studio pages, phone-390 | Many timed out or were skipped (env) | Re-check in the Studio pass |
+| Every other customer, Basic, Master, owner and admin page | Pass on desktop and 390px (no HTTP error, not blank, no console error) | OK |
+
+Raw results: `test-results/smoke.json` (git-ignored; regenerated each run).
 
 ## Problems found so far, by area
 
@@ -161,15 +172,3 @@ Tick an item when it has been clicked through on desktop and at 390px as the rig
 - [ ] Referral credit
 - [ ] `/api/health/payments` on local, preview and production
 - [ ] Each cron, run locally with `CRON_SECRET` against TEST data only: reminders, auto-complete, expire-verifications, completion-nudges, standing, rebook, weekly-summary, weekly-push
-
-## Smoke test drafts (to add at step A)
-
-`playwright.config.ts`: Chromium projects `desktop` (1280×900) and `phone-390` (390×844, mobile and touch), `workers: 1`, `webServer: npm run dev` with reuseExistingServer, JSON report to `test-results/smoke.json`, base URL localhost:3000 only.
-
-`e2e/smoke.spec.ts` works like this:
-- `beforeAll` reads the TEST ids with the service role: the master pro's id, the shop slug, the open request, confirmed and completed bookings, and the standing appointment.
-- It signs each TEST viewer in once per project through `/login` and saves the storage state.
-- For every `SMOKE_ROUTES` entry it opens the page and fails on HTTP ≥400, under 40 chars of body text, a `nextjs-portal` overlay, "Application error" text, `console.error` or `pageerror`, or a wrong redirect.
-- It soft-fails as "slow" if the page is still loading after 15 s.
-
-Both full drafts are in `docs/audit/drafts/` as `.txt` files until Playwright is approved, because they import `@playwright/test` and would break `tsc`.

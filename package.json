@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:smoke": "node --env-file=.env.local --env-file=.env.test.local node_modules/.bin/playwright test"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -31,6 +32,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/node": "^20",
     "@types/react": "^19",

@@ -173,7 +173,7 @@ async function seed() {
       pro("manager", {}),
       pro("member1", {}),
       pro("member2", {}),
-    ]),
+    ], { defaultToNull: false }),
   );
 
   // 2. Studio Plus shop with owner + 3 members
@@ -203,7 +203,7 @@ async function seed() {
       { studio_id: studio.id, profile_id: id.manager, role: "manager", status: "active", arrangement: "commission", commission_percent: 40, takes_clients: true, joined_at: now, invited_by: id.owner },
       { studio_id: studio.id, profile_id: id.member1, role: "member", status: "active", arrangement: "commission", commission_percent: 40, takes_clients: true, joined_at: now, invited_by: id.owner },
       { studio_id: studio.id, profile_id: id.member2, role: "member", status: "active", arrangement: "booth_rent", rent_cents: 25000, rent_interval: "week", takes_clients: true, joined_at: now, invited_by: id.owner },
-    ]),
+    ], { defaultToNull: false }),
   );
   for (const who of shopPros) {
     await must(
@@ -218,15 +218,14 @@ async function seed() {
     "insert services",
     db
       .from("professional_services")
-      .insert(pros.map((p) => ({ professional_id: id[p], service_name: "TEST Haircut", duration_minutes: 45, price: 40, is_active: true, is_bookable: true })))
+      .insert(pros.map((p) => ({ professional_id: id[p], service_name: "TEST Haircut", duration_minutes: 45, price: 40, is_active: true, is_bookable: true })), { defaultToNull: false })
       .select("id, professional_id"),
   );
   const svc = (who: Who) => services.find((s: { professional_id: string }) => s.professional_id === id[who])!.id as string;
   await must(
     "insert availability",
     db.from("professional_availability").insert(
-      pros.flatMap((p) => [1, 2, 3, 4, 5].map((d) => ({ professional_id: id[p], day_of_week: d, start_time: "09:00", end_time: "17:00", is_active: true }))),
-    ),
+      pros.flatMap((p) => [1, 2, 3, 4, 5].map((d) => ({ professional_id: id[p], day_of_week: d, start_time: "09:00", end_time: "17:00", is_active: true }))), { defaultToNull: false }),
   );
 
   // 4. Requests in every status, with offers in every status
@@ -255,7 +254,7 @@ async function seed() {
         request("Accepted request", "accepted", { accepted_professional_id: id.basic }),
         request("Completed request", "completed", { accepted_professional_id: id.master, preferred_date: day(-10) }),
         request("Cancelled request", "cancelled", { cancelled_at: now }),
-      ])
+      ], { defaultToNull: false })
       .select("id, title"),
   );
   const req = (t: string) => reqs.find((r: { title: string }) => r.title === `TEST ${t}`)!.id as string;
@@ -280,7 +279,7 @@ async function seed() {
       offer("Accepted request", "master", "not_selected"),
       offer("Completed request", "master", "accepted"),
       offer("Cancelled request", "basic", "declined"),
-    ]),
+    ], { defaultToNull: false }),
   );
 
   // 5. Bookings in every status. Dates and *_sent_at stamps keep the daily crons
@@ -315,7 +314,7 @@ async function seed() {
         booking("basic", { booking_date: day(20), status: "cancelled", cancelled_at: now, cancelled_by: id.customer, source: "direct_booking", came_from: "discover" }),
         booking("member1", { booking_date: day(15), status: "confirmed", studio_id: studio.id, payment_status: "pay_at_shop", payout_status: "not_ready", source: "direct_booking", came_from: "discover" }),
         booking("member1", { booking_date: day(-7), status: "completed", completed_at: ago(160), studio_id: studio.id, payment_status: "pay_at_shop", source: "direct_booking", came_from: "regular" }),
-      ])
+      ], { defaultToNull: false })
       .select("id, professional_id, status, booking_date"),
   );
   const completedMaster = bookings.find((b: { professional_id: string; status: string }) => b.professional_id === id.master && b.status === "completed")!.id;
@@ -327,7 +326,7 @@ async function seed() {
     db.from("professional_reviews").insert([
       { professional_id: id.master, reviewer_id: id.customer, rating: 5, comment: "TEST review: great cut.", booking_id: completedMaster, request_id: req("Completed request"), pro_reply: "TEST reply: thanks!", pro_replied_at: now },
       { professional_id: id.member1, reviewer_id: id.customer, rating: 4, comment: "TEST review: solid.", booking_id: completedShop },
-    ]),
+    ], { defaultToNull: false }),
   );
   await must(
     "insert customer_reviews",
@@ -376,7 +375,7 @@ async function seed() {
     db.from("shop_appointments").insert([
       { studio_id: studio.id, professional_id: id.member2, created_by: id.owner, kind: "walk_in", client_name: "TEST Walk-in", service_name: "TEST Haircut", appointment_date: day(-3), start_time: "12:00", end_time: "12:45", price_cents: 4000, status: "completed", paid_with: "cash" },
       { studio_id: studio.id, professional_id: id.manager, created_by: id.owner, kind: "phone", client_name: "TEST Phone Booking", service_name: "TEST Haircut", appointment_date: day(16), start_time: "14:00", end_time: "14:45", price_cents: 4000, status: "booked" },
-    ]),
+    ], { defaultToNull: false }),
   );
   await must(
     "insert chair opening",
