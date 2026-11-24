@@ -4,7 +4,7 @@ Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. **Mapping and s
 
 ## Resume here
 
-> **Pro, Studio and Admin passes done** (24 Nov, branch `site-audit`). Preview https://lineup-site-fw3y5ljow-noahkaminskys-projects.vercel.app: admin + studio + pro + customer logged-out checks **64/64**. Admin: logged-out 2/2, admin smoke 2/2, `e2e/admin-flow.spec.ts` 6/6, TEST data cleaned (0 left). Preview https://lineup-site-eep2fripi-noahkaminskys-projects.vercel.app: studio + pro + customer logged-out checks **62/62**. Studio: logged-out 22/22, Studio smoke 30/30 at 1280 + 390, `e2e/studio-flow.spec.ts` 5/5, TEST data cleaned (0 left). Pro: smoke 76/77 (`/profile` at 390 is slow), `e2e/pro-flow.spec.ts` 6/6. `tests/pro` 43/43, tsc clean, lint 50 (baseline), build passes. Items not run are listed with the reason (they email, charge, or need Stripe test setup). **Next: money, notifications and crons** (read-only checks first; anything that charges or sends needs Noah's setup, see Decisions).
+> **Pro, Studio, Admin and money passes done** (24 Nov, branch `site-audit`). Money/notifications/crons was read-only: guards 12/12 locally and on the preview, payments health checked on local/preview/production, `tests/money` 8/8; nothing that charges, pays out or sends was run (see its decisions). Preview https://lineup-site-fw3y5ljow-noahkaminskys-projects.vercel.app: admin + studio + pro + customer logged-out checks **64/64**. Admin: logged-out 2/2, admin smoke 2/2, `e2e/admin-flow.spec.ts` 6/6, TEST data cleaned (0 left). Preview https://lineup-site-eep2fripi-noahkaminskys-projects.vercel.app: studio + pro + customer logged-out checks **62/62**. Studio: logged-out 22/22, Studio smoke 30/30 at 1280 + 390, `e2e/studio-flow.spec.ts` 5/5, TEST data cleaned (0 left). Pro: smoke 76/77 (`/profile` at 390 is slow), `e2e/pro-flow.spec.ts` 6/6. `tests/pro` 43/43, tsc clean, lint 50 (baseline), build passes. Items not run are listed with the reason (they email, charge, or need Stripe test setup). **Next: Step 6 (speed)**, from the Slow list. Most remaining unticked items wait on a test database or Stripe test setup (Decisions).
 >
 > To test: `LINEUP_ALLOW_LIVE_TEST_DATA=yes-noah-approved node --env-file=.env.local --env-file=.env.test.local scripts/test-data.mts seed`, start `npm run dev`, then run `npx playwright test e2e/customer.spec.ts`, `e2e/customer-flow.spec.ts --project desktop` and `e2e/smoke.spec.ts` (all with the same two `--env-file` flags in front of `node node_modules/.bin/playwright`). Then run `cleanup` and `check`. For paying, forward webhooks first: run `stripe listen --print-secret`, put that value in `.env.development.local` as `STRIPE_WEBHOOK_SECRET`, run `stripe listen --forward-to localhost:3000/api/stripe/webhook`, and delete the file afterwards.
 > **Disk:** this Mac has only ~2 GB free; the dev server plus test browsers can fill it within the hour. Stop the dev server between runs and `rm -rf .next/dev test-results`.
@@ -98,6 +98,10 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 - Code (risk, not a bug): there's **no email kill-switch**. Any flow that emails will really send via Resend. SMS is off because the Twilio vars are unset. Push is on wherever VAPID is set.
 - Code: the auto-complete cron makes real Connect transfers in whatever mode the keys are in. Locally the keys are `sk_test_`. Check production with `GET /api/health/payments`.
 - Code: the `completion-nudges` cron also runs every ~15 min from GitHub Actions, as well as daily on Vercel.
+- Checked 24 Nov: every cron, the internal booking-confirmed route and the Stripe webhook refuse callers without the secret or signature (locally and on the preview). `isCronAuthorized` fails closed when `CRON_SECRET` is missing.
+- Checked 24 Nov: payments health. Production uses **live** keys that match, webhook secret set, all 5 plan prices set. Previews use **test** keys that match, but the Apprentice, Pro and Master price ids are **missing on previews** (plan checkout can't be tried there). Locally the Studio and Studio Plus price ids are missing.
+- Code: 6 routes call Resend directly instead of `sendEmail` (studio clients, contact, pro import, admin newsletter, both legacy newsletter routes), so a kill-switch in `sendEmail` alone wouldn't stop them. `sendEmail` also ignores Resend's `{ error }` result, so a failed email is silent.
+- Code: the Studio plan says "0% LineUp commission on your own clients", and the code passes the card fee through at cost (2.9% + 30¢) on those bookings. True, but a pro could read 0% as "nothing taken". Pricing text, so not changed.
 
 ## Decisions needed from Noah (customer & public pass)
 
@@ -126,6 +130,14 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 1. **Remove the three unused newsletter routes** (`/api/send-newsletter`, `/api/send-newsletter-test`, `/api/newsletter-audience`). They're admin-only, but each is another way to email or list the real subscribers, and nothing in the app calls them.
 2. **Verification approve/reject** can't be tested without a pending TEST submission and an email to the pro. Seeding a TEST submission is easy; the email needs the same "don't send to TEST accounts" switch as invites (studio pass #1).
 3. **Admin moderation lists show real people's content** (requests, reviews, messages). Fine for an admin, but it means automated tests can only look, not delete. A TEST-only filter would let delete be tested.
+
+## Decisions needed from Noah (money, notifications, crons)
+
+1. **A separate test Supabase project** (and Vercel previews pointed at it). It's the only safe way to run the crons, the webhook's other events, and the invite and verification emails end to end. Today every one of them would touch real users.
+2. **One email off-switch** (e.g. `EMAIL_DISABLED=1`, plus never sending to `@example.com`) that covers `sendEmail` **and** the 6 routes that call Resend directly. Also make `sendEmail` check Resend's `{ error }` so failed emails are logged.
+3. **Preview env vars**: add the Apprentice, Pro and Master test price ids to Vercel previews so plan checkout can be tried there; add the Studio ones to `.env.local`.
+4. **Studio plan wording**: "0% LineUp commission on your own clients". Consider adding "(card fee at cost)" so it matches what the code takes. Pricing text, your call.
+5. **The booking cap is written out three times** (two in payment code). A test now catches drift; moving it into one shared function is a small payment-code change for you to OK.
 
 ## Slow (for Step 6)
 - `/profile/[id]` loads Stripe.js on every visit, which keeps sending telemetry for ~8 s; with a cold dev compile the page isn't quiet after 15 s at 390. Load Stripe only when the booking sheet opens.
@@ -205,13 +217,14 @@ Logged out: `e2e/admin.spec.ts` 2/2 (1280 + 390). With TEST data (Noah OK'd): ad
 - [x] Phone layout: 44px controls, no sideways scroll at 390. *admin-flow.*
 
 ### Money, notifications and crons
-- [ ] Webhook events (Stripe CLI `stripe trigger` in test mode only)
-- [ ] Payment intent and booking cap, commission per plan (read-only check, rules unchanged)
-- [ ] Pay at shop and no-show fee
-- [ ] Gift card activation and redemption
-- [ ] Memberships and booth rent subscriptions
-- [ ] Pro plan and studio plan checkout and portal
-- [ ] Connect onboarding for pro and shop
-- [ ] Referral credit
-- [ ] `/api/health/payments` on local, preview and production
-- [ ] Each cron, run locally with `CRON_SECRET` against TEST data only: reminders, auto-complete, expire-verifications, completion-nudges, standing, rebook, weekly-summary, weekly-push
+(money pass, 24 Nov: read-only. Payments, payouts, the webhook, crons and email code were not changed.)
+- [~] Webhook: unsigned and badly signed events are refused. *e2e/guards (local + preview).* A real `payment_intent.succeeded` → booking ran in the customer pass (with `stripe listen`). Other event types not triggered.
+- [x] Payment intent rules, booking cap and commission per plan: pinned by unit tests, rules unchanged; the three copies of the cap are identical and match the plans page. *tests/money/rules.test.ts 8/8.*
+- [~] Pay at shop and no-show: a no-show with no fee or card closes the booking and charges nothing. *e2e/pro-flow.* Charging a real test-mode fee not run.
+- [ ] Gift card activation and redemption: not run (customer pass decision 3: Connect platform profile).
+- [ ] Memberships and booth rent subscriptions: not run (Stripe Checkout subscriptions; same setup).
+- [ ] Pro plan and studio plan checkout and portal: not run. Previews lack the solo plan price ids and local lacks the studio ones (decision below).
+- [ ] Connect onboarding for pro and shop: not run (pro pass decision 4).
+- [ ] Referral credit: not run (needs a referred pro to pay a plan).
+- [x] `/api/health/payments` on local (test), preview (test) and production (live): keys match everywhere and no key value is returned. *e2e/guards + curl.*
+- [~] Crons: each refuses a caller without `CRON_SECRET` (local + preview). **Not run against data**: every cron works on the whole live database (real bookings, real people), so running one would email, push and, for auto-complete, pay out real users. Needs a test database (decision below).
