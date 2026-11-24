@@ -7,7 +7,7 @@ import { SMOKE_ROUTES, fillRoute, type Viewer } from "./routes";
  * comes up blank, or logs a console error. Needs the TEST seed
  * (scripts/test-data.mts) and TEST_SEED_PASSWORD. Read-only: it only opens pages.
  */
-const BASE = "http://localhost:3000";
+const BASE = process.env.SMOKE_BASE_URL || "http://localhost:3000";
 const IGNORE = [/Download the React DevTools/, /\[HMR\]/, /\[Fast Refresh\]/, /favicon/];
 
 let ids: Record<string, string> = {};
