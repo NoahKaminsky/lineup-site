@@ -35,7 +35,7 @@ export default function BookingChat({ bookingId, viewerId }: { bookingId: string
         .order("created_at", { ascending: true });
       if (!active) return;
       if (error) {
-        setError(error.message);
+        setError("Couldn't load messages. Refresh the page to try again.");
         setMessages([]);
       } else {
         setMessages((data || []) as BookingMessage[]);
@@ -80,9 +80,18 @@ export default function BookingChat({ bookingId, viewerId }: { bookingId: string
 
     setSending(true);
     setError("");
-    const { error } = await supabase.from("booking_messages").insert({ booking_id: bookingId, sender_id: viewerId, message: cleanText });
-    if (error) setError(error.message);
-    else setText("");
+    const { data, error } = await supabase
+      .from("booking_messages")
+      .insert({ booking_id: bookingId, sender_id: viewerId, message: cleanText })
+      .select("id, booking_id, sender_id, message, created_at")
+      .single();
+    if (error) {
+      setError("Couldn't send your message. Check your connection and try again.");
+    } else {
+      setText("");
+      // Show it straight away; the live update is skipped if it arrives too.
+      if (data) setMessages((prev) => (prev.some((msg) => msg.id === data.id) ? prev : [...prev, { ...(data as BookingMessage), live: true }]));
+    }
     setSending(false);
   }
 
@@ -117,7 +126,7 @@ export default function BookingChat({ bookingId, viewerId }: { bookingId: string
       </div>
       {error ? <p className="mt-3 rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       <div className="mt-4 flex gap-2">
-        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }} placeholder="Write a message" className="min-w-0 flex-1 rounded-full bg-neutral-50 px-4 py-3 text-sm outline-none ring-1 ring-inset ring-ink/[0.08] transition focus:bg-white focus:ring-ink" />
+        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) sendMessage(); }} maxLength={1000} placeholder="Write a message" className="min-w-0 flex-1 rounded-full bg-neutral-50 px-4 py-3 text-sm outline-none ring-1 ring-inset ring-ink/[0.08] transition focus:bg-white focus:ring-ink" />
         <button type="button" onClick={sendMessage} disabled={!viewerId || !text.trim() || sending} className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-50">
           {sending ? "Sending…" : "Send"}
         </button>
