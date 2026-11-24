@@ -451,7 +451,7 @@ function OnTheWay({ payouts, scope, onOpenStripe, opening }: { payouts?: Payouts
             <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Link>
         ) : (
-          <Link href="/studio/settings" className="inline-flex items-center gap-1 text-sm font-medium text-ink underline underline-offset-2">
+          <Link href="/studio/settings" className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-ink underline underline-offset-2 sm:min-h-0">
             Open shop settings
             <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Link>

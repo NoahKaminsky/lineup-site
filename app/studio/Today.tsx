@@ -270,7 +270,7 @@ export default function TodayView() {
               Requests near you{" "}
               <span className="font-normal tabular-nums text-neutral-400">{waitingRequests.length}</span>
             </h3>
-            <Link href="/studio/requests" className="shrink-0 text-[13px] font-medium text-neutral-500 hover:text-ink">
+            <Link href="/studio/requests" className="inline-flex min-h-11 shrink-0 items-center text-[13px] font-medium text-neutral-500 hover:text-ink sm:min-h-0">
               See all
             </Link>
           </div>

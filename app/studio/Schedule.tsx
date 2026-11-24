@@ -191,7 +191,7 @@ export default function ScheduleView({ data, busy, run, setNotice }: SectionProp
               aria-label="Show"
               value={proFilter}
               onChange={(e) => setProFilter(e.target.value)}
-              className="h-9 min-w-0 flex-1 rounded-full bg-surface pl-3.5 pr-8 sm:flex-none text-sm text-ink shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] outline-none focus:shadow-[inset_0_0_0_1.5px_#0a0a0a]"
+              className="h-11 min-w-0 flex-1 rounded-full bg-surface pl-3.5 pr-8 sm:h-9 sm:flex-none text-sm text-ink shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] outline-none focus:shadow-[inset_0_0_0_1.5px_#0a0a0a]"
             >
               <option value="all">Whole team</option>
               {team.map((m) => (
