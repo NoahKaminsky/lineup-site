@@ -608,7 +608,7 @@ export default function LandingPage() {
 
           <div className="js-hero-phone absolute bottom-[-24%] left-1/2 z-20 w-[min(220px,48vw)] -translate-x-1/2 lg:bottom-[-20%] lg:w-[min(268px,30vh)]">
             <PhoneFrame>
-              <Screen src="/images/app-screenshots/04-offers-compare.png" alt="Offers from nearby professionals lined up in LineUp" sizes="268px" priority />
+              <Screen src="/images/app-screenshots/04-offers-compare.png" alt="Offers from nearby professionals lined up in LineUp" sizes="(min-width: 1024px) 268px, 220px" priority />
             </PhoneFrame>
           </div>
 
@@ -860,7 +860,7 @@ export default function LandingPage() {
           <div className="mx-auto grid h-full max-w-7xl items-center gap-14 px-6 py-28 lg:grid-cols-12 lg:gap-10 lg:py-0">
             <div className="relative mx-auto w-[230px] lg:col-span-4 lg:col-start-2 lg:w-[min(290px,34vh)]">
               <PhoneFrame>
-                <Screen src="/images/app-screenshots/10-pro-calendar.png" alt="A professional's LineUp calendar" sizes="290px" eager />
+                <Screen src="/images/app-screenshots/10-pro-calendar.png" alt="A professional's LineUp calendar" sizes="(min-width: 1024px) 290px, 230px" />
               </PhoneFrame>
 
               {/* The visitor's own request, as the pro receives it. Lives
