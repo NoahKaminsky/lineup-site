@@ -19,6 +19,7 @@ if (/lineup\.(app|ca|com)/.test(base)) throw new Error("Refusing to sign TEST us
 
 const dir = mkdtempSync(join(tmpdir(), "lu-lh-"));
 const CHROME = chromium.executablePath();
+const signedIn = Boolean(who && who !== "-");
 if (who && who !== "-") {
   const context = await chromium.launchPersistentContext(dir, { headless: true, executablePath: CHROME });
   const page = await context.newPage();
@@ -36,8 +37,12 @@ for (const path of pages) {
   for (let i = 0; i < 3; i++) {
     const json = join(dir, `lh-${i}.json`);
     execFileSync("npx", ["-y", "lighthouse@12.2.1", base + path, `--chrome-flags=--headless=new --user-data-dir=${dir}`, "--only-categories=performance",
-      "--disable-storage-reset", "--quiet", "--output=json", `--output-path=${json}`], { stdio: "ignore", env: { ...process.env, CHROME_PATH: CHROME }, timeout: 180_000 });
+      // Signed in: keep the session (and so a warm cache, like a returning user).
+      // Logged out: a cold cache every run, like a first visit.
+      ...(signedIn ? ["--disable-storage-reset"] : []), "--quiet", "--output=json", `--output-path=${json}`], { stdio: "ignore", env: { ...process.env, CHROME_PATH: CHROME }, timeout: 180_000 });
     const r = JSON.parse(readFileSync(json, "utf8"));
+    // LH_KEEP=<dir>: keep the last raw report per page, to see what the LCP waits on.
+    if (process.env.LH_KEEP) writeFileSync(join(process.env.LH_KEEP, `${(who || "-")}${path.replace(/\W+/g, "_")}.json`), JSON.stringify(r));
     const a = r.audits;
     runs.push({
       score: Math.round(r.categories.performance.score * 100),
