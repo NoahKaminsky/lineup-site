@@ -138,22 +138,13 @@ export function Station({
   // The hero's stations are the largest thing on first paint: fetch them first.
   priority?: boolean;
 }) {
-  // Served through the image optimizer (AVIF/WebP, alpha kept) at the size it
-  // shows: about 410px wide on phones and laptops, up to ~560px on big screens.
-  const { props } = getImageProps({
-    src: `/images/landing/station-${kind}-a.webp`,
-    alt: "",
-    width: 718,
-    height: 720,
-    sizes: "(min-width: 1536px) 560px, 420px",
-    quality: 75,
-  });
+  // The original WebP cutouts, not the image optimizer: encoding these
+  // transparent images to AVIF hangs (over 60s), which would leave the hero
+  // empty. They're already sized for the ~410px they show at.
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      {...props}
-      width={undefined}
-      height={undefined}
+      src={`/images/landing/station-${kind}-a.webp`}
       style={style}
       alt=""
       aria-hidden="true"
