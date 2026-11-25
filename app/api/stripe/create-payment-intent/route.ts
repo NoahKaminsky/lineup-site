@@ -445,6 +445,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: capError }, { status: 409 });
     }
 
+    // The pro's plan (Master pays a reduced commission, below) and address.
+    const { data: offerPro } = await serviceSupabase
+      .from("profiles")
+      .select("subscription_plan, subscription_status, formatted_address, location_lat, location_lng")
+      .eq("id", offer.professional_id)
+      .maybeSingle();
+
+    // Same rule as the webhook (paymentBookings): a booking at the pro's place
+    // needs their address. Refuse before charging, not after.
+    const offerMode = (offer.proposed_service_mode as string | null) || (requestRow.service_mode as string | null);
+    if (usesProLocation(offerMode) && !hasProLocation(offerPro)) {
+      return NextResponse.json({ error: PRO_LOCATION_MISSING }, { status: 409 });
+    }
+
     if (!offer.proposed_date || !offer.proposed_start_time || !offer.proposed_end_time) {
       return NextResponse.json(
         { error: "This offer needs a date, start time, and end time." },
@@ -500,19 +514,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Master pros pay a reduced commission.
-    const { data: offerPro } = await serviceSupabase
-      .from("profiles")
-      .select("subscription_plan, subscription_status, formatted_address, location_lat, location_lng")
-      .eq("id", offer.professional_id)
-      .maybeSingle();
-
-    // Same rule as the webhook (paymentBookings): a booking at the pro's place
-    // needs their address. Refuse before charging, not after.
-    const offerMode = (offer.proposed_service_mode as string | null) || (requestRow.service_mode as string | null);
-    if (usesProLocation(offerMode) && !hasProLocation(offerPro)) {
-      return NextResponse.json({ error: PRO_LOCATION_MISSING }, { status: 409 });
-    }
     // Request bookings are new clients LineUp found, so they pay the normal
     // commission even for studio members; the shop's cut still applies.
     const studioPricing = await getStudioPricingForPro(
