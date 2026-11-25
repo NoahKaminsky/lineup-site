@@ -138,13 +138,24 @@ export function Station({
   // The hero's stations are the largest thing on first paint: fetch them first.
   priority?: boolean;
 }) {
-  // The original WebP cutouts, not the image optimizer: encoding these
-  // transparent images to AVIF hangs (over 60s), which would leave the hero
-  // empty. They're already sized for the ~410px they show at.
+  // Through the image optimizer: AVIF/WebP at the size it shows (about 410px
+  // wide on phones and laptops, up to ~560px on big screens): ~12-28 KB each
+  // instead of 115-145 KB. (One local AVIF encode hung once on 25 Nov and
+  // never again; checked on the Vercel preview before keeping this.)
+  const { props } = getImageProps({
+    src: `/images/landing/station-${kind}-a.webp`,
+    alt: "",
+    width: 718,
+    height: 720,
+    sizes: "(min-width: 1536px) 560px, 420px",
+    quality: 75,
+  });
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`/images/landing/station-${kind}-a.webp`}
+      {...props}
+      width={undefined}
+      height={undefined}
       style={style}
       alt=""
       aria-hidden="true"
