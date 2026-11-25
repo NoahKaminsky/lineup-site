@@ -8,13 +8,19 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Photo } from "@/app/components/Photo";
+import { buttonClass } from "@/app/components/ui";
+import { browsePreview, portfolioPreviewQuery, type BrowsePreview, type PreviewProfile } from "@/app/lib/browsePreview";
 
-type Preview = { name: string; trade: string; image: string | null; photos: number };
+type Preview = BrowsePreview;
 
-export default function BrowseCardNudge({ userId }: { userId: string }) {
-  const [preview, setPreview] = useState<Preview | null>(null);
+// `initial`: the page already loaded it (so the card appears with the page
+// instead of pushing it down a moment later). Without it, it loads its own.
+export default function BrowseCardNudge({ userId, initial }: { userId: string; initial?: BrowsePreview | null }) {
+  const [fetched, setFetched] = useState<Preview | null>(null);
+  const preview = initial !== undefined ? initial : fetched;
 
   useEffect(() => {
+    if (initial !== undefined) return;
     let cancelled = false;
     (async () => {
       const [profileRes, photosRes] = await Promise.all([
@@ -23,40 +29,21 @@ export default function BrowseCardNudge({ userId }: { userId: string }) {
           .select("full_name, avatar_url, banner_url, professional_type, professional_types")
           .eq("id", userId)
           .maybeSingle(),
-        supabase
-          .from("professional_portfolio")
-          .select("image_url, media_type", { count: "exact" })
-          .eq("user_id", userId)
-          .order("created_at", { ascending: true })
-          .limit(1),
+        portfolioPreviewQuery(supabase, userId),
       ]);
       if (cancelled || !profileRes.data) return;
-      const p = profileRes.data as {
-        full_name: string | null;
-        avatar_url: string | null;
-        banner_url: string | null;
-        professional_type: string | null;
-        professional_types: string[] | null;
-      };
-      const firstPhoto = (photosRes.data || []).find((row) => row.media_type !== "video")?.image_url ?? null;
-      const tradeKey = p.professional_types?.[0] || p.professional_type || "";
-      setPreview({
-        name: p.full_name || "You",
-        trade: tradeKey ? tradeKey.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Professional",
-        image: firstPhoto || p.banner_url || p.avatar_url,
-        photos: photosRes.count ?? 0,
-      });
+      setFetched(browsePreview(profileRes.data as PreviewProfile, photosRes.data || [], photosRes.count ?? 0));
     })();
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, initial]);
 
   if (!preview || preview.photos >= 3) return null;
 
   const left = 3 - preview.photos;
   return (
-    <section className="lu-rise mt-8 flex items-center gap-5 overflow-hidden rounded-[28px] bg-white p-4 pr-5 ring-1 ring-ink/[0.06] sm:p-5">
+    <section className="lu-rise mt-8 flex items-center gap-5 overflow-hidden rounded-3xl bg-white p-4 pr-5 ring-1 ring-ink/[0.06] sm:p-5">
       <div className="lu-pinstripe relative aspect-[4/5] w-24 shrink-0 overflow-hidden rounded-[18px] bg-[#efece6] sm:w-28">
         {preview.image ? (
           <Photo src={preview.image} width={112} className="h-full w-full object-cover" />
@@ -75,7 +62,7 @@ export default function BrowseCardNudge({ userId }: { userId: string }) {
         </p>
         <Link
           href="/account#portfolio"
-          className="mt-3 inline-flex rounded-full bg-ink px-4 py-2 text-[13px] font-medium text-white transition hover:bg-neutral-800"
+          className={buttonClass("primary", "sm", "mt-3")}
         >
           Add photos
         </Link>
