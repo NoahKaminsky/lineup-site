@@ -130,13 +130,38 @@ export function Station({
   kind,
   className = "",
   style,
+  priority = false,
 }: {
   kind: StationKind;
   className?: string;
   style?: React.CSSProperties;
+  // The hero's stations are the largest thing on first paint: fetch them first.
+  priority?: boolean;
 }) {
+  // Served through the image optimizer (AVIF/WebP, alpha kept) at the size it
+  // shows: about 410px wide on phones and laptops, up to ~560px on big screens.
+  const { props } = getImageProps({
+    src: `/images/landing/station-${kind}-a.webp`,
+    alt: "",
+    width: 718,
+    height: 720,
+    sizes: "(min-width: 1536px) 560px, 420px",
+    quality: 75,
+  });
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/images/landing/station-${kind}-a.webp`} alt="" aria-hidden="true" draggable={false} className={className} style={style} />
+    <img
+      {...props}
+      width={undefined}
+      height={undefined}
+      style={style}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+      className={className}
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : undefined}
+      decoding="async"
+    />
   );
 }

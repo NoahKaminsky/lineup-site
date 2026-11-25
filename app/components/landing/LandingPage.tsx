@@ -617,7 +617,7 @@ export default function LandingPage() {
                 style={{ "--l": station.left, "--l-m": station.leftMobile } as React.CSSProperties}
               >
                 <div className="js-station-inner flex h-full flex-col items-center justify-end">
-                  <Station kind={station.kind} className="w-auto max-w-none" style={{ height: `${station.height}%` }} />
+                  <Station kind={station.kind} priority className="w-auto max-w-none" style={{ height: `${station.height}%` }} />
                 </div>
               </div>
             ))}
