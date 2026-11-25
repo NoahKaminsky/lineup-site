@@ -13,7 +13,9 @@
     "testdb:seed": "node --env-file=.env.local --env-file=.env.testdb.local --env-file=.env.test.local scripts/test-data.mts seed",
     "testdb:cleanup": "node --env-file=.env.local --env-file=.env.testdb.local --env-file=.env.test.local scripts/test-data.mts cleanup",
     "testdb:check": "node --env-file=.env.local --env-file=.env.testdb.local --env-file=.env.test.local scripts/test-data.mts check",
-    "test:crons": "node --env-file=.env.local --env-file=.env.testdb.local --env-file=.env.test.local e2e/tools/cron-check.mjs"
+    "test:crons": "node --env-file=.env.local --env-file=.env.testdb.local --env-file=.env.test.local e2e/tools/cron-check.mjs",
+    "build:testdb": "sh -c 'set -a; . ./.env.testdb.local; set +a; exec next build'",
+    "start:testdb": "sh -c 'set -a; . ./.env.testdb.local; set +a; exec next start -p 3200'"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
