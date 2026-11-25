@@ -12,3 +12,9 @@ describe("site icons stay small", () => {
     });
   }
 });
+
+describe("landing videos stay light", () => {
+  it("the tour video is under 1.6 MB (it was 3 MB)", () => {
+    expect(statSync(join(process.cwd(), "public", "videos", "post-a-request.mp4")).size).toBeLessThan(1.6 * 1024 * 1024);
+  });
+});
