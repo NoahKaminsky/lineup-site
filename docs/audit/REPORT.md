@@ -344,7 +344,7 @@ Logged out: `e2e/admin.spec.ts` 2/2 (1280 + 390). With TEST data (Noah OK'd): ad
 | pro, customer, studio, admin, guards | ✅ 24, 16, 22, 2, 12 passed |
 | pro-flow, studio-flow, admin-flow, more-flows, invites-flow | ✅ 6, 5, 6, 6, 4 passed |
 | customer-flow, shop-booking-flow, shop-desk-flow, payment-guards | ✅ 7, 3, 4, 2 passed |
-| billing, boosts/referral, memberships, studio billing, gift cards | ⏭ skipped: need `stripe listen` (passed on 24 Nov with it; **re-run with it before merging**, since checkout, the booking cap and the webhook changed) |
+| **Paid flows with `stripe listen` forwarding** (Stripe test mode, same build, fresh seed each): customer flow incl. shop gift card, plan checkout, boosts + referral credit, memberships, Studio billing, shop booking, payment guard | ✅ 8, 1, 3, 3, 2, 2+, 2 passed; every webhook event answered 200; no "unrecognised price" warnings. One run of shop booking logged a single 409 (a taken slot) in the console; two reruns were clean (3/3 each). The pro gift card still skips: the TEST Basic pro has no test payout account. The 7 test subscriptions made were cancelled. |
 | `npm test` | ✅ 201/201 |
 | `npx tsc --noEmit`, `npm run build` | ✅ |
 | lint (app) | ✅ 50 errors, same as the baseline |
