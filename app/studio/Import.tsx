@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Undo2 } from "lucide-react";
 import { studioFetch } from "./studioApi";
-import { Button, EmptyState, Section, Sheet, Tag, panelClass } from "./ui";
+import { Button, EmptyState, Section, Sheet, SkeletonRows, Tag, panelClass } from "./ui";
 import { isBookable, type SectionProps } from "./types";
 import { studioHref } from "./StudioContext";
 import { SOURCE_APP_LABELS, type SourceApp } from "@/app/lib/importSources";
@@ -200,7 +200,7 @@ export default function ImportView({ data, setNotice }: SectionProps) {
 
       <Section title="Import history" description="Undo takes out everything an import added that nobody has used since. Appointments already marked done and paid, and clients you've since emailed, edited or booked, stay.">
         {!imports ? (
-          <p className="text-sm text-neutral-500">Loading…</p>
+          <SkeletonRows />
         ) : !imports.batches.length ? (
           <EmptyState title="No imports yet" body="Appointments and client lists you bring over show up here." />
         ) : (

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { jurisdictionLabel } from "@/app/lib/verificationRules";
+import { SkeletonRows } from "@/app/components/ui";
 
 type Person = {
   id: string;
@@ -265,7 +266,7 @@ export default function AdminVerifications() {
       <section>
         <h2 className="text-lg font-semibold">Waiting for review ({pending.length})</h2>
         {loading ? (
-          <p className="mt-3 text-sm text-neutral-500">Loading…</p>
+          <SkeletonRows className="mt-3" />
         ) : pending.length === 0 ? (
           <p className="mt-3 text-sm text-neutral-500">Nothing to review right now.</p>
         ) : (

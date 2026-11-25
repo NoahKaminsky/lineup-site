@@ -173,3 +173,14 @@ export const TITLE = {
   pro: "text-3xl font-semibold leading-[1.1] tracking-[-0.03em] text-ink md:text-4xl",
   detail: "text-[1.9rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink sm:text-4xl",
 } as const;
+
+// Placeholder rows while a list loads (instead of a bare "Loading…").
+export function SkeletonRows({ rows = 3, className = "" }: { rows?: number; className?: string }) {
+  return (
+    <div role="status" aria-label="Loading" className={`space-y-2 ${className}`}>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="h-14 animate-pulse rounded-2xl bg-ink/[0.05]" style={{ animationDelay: `${i * 80}ms` }} />
+      ))}
+    </div>
+  );
+}

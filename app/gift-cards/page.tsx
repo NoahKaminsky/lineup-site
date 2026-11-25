@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, Gift } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { SkeletonRows } from "@/app/components/ui";
 
 type Card = {
   id: string;
@@ -234,7 +235,7 @@ export default function GiftCardsPage() {
             ) : null}
           </div>
           {cards === null ? (
-            <p className="mt-4 text-sm text-neutral-500">Loading…</p>
+            <SkeletonRows className="mt-4" />
           ) : cards.length ? (
             <ul className="mt-4 divide-y divide-hairline rounded-2xl bg-surface ring-1 ring-ink/[0.06]">
               {cards.map((c) => (

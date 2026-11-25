@@ -8,6 +8,7 @@ import { loginHref } from "@/app/lib/returnTo";
 import AdminVerifications from "@/app/components/AdminVerifications";
 import AdminNewsletter from "@/app/components/AdminNewsletter";
 import { TITLE } from "@/app/components/ui";
+import { SkeletonRows } from "@/app/components/ui";
 
 type AdminUser = {
   id: string;
@@ -495,7 +496,7 @@ export default function AdminPage() {
 
             <div className="mt-4 space-y-2">
               {contentLoading ? (
-                <p className="text-sm text-neutral-400">Loading…</p>
+                <SkeletonRows />
               ) : items.length === 0 ? (
                 <p className="text-sm text-neutral-400">Nothing found.</p>
               ) : (

@@ -20,6 +20,9 @@ export {
   Section,
   panelClass,
   EmptyState,
+  SkeletonRows,
+  TONE,
+  TITLE,
 } from "@/app/components/ui";
 import { buttonClass, fieldClass } from "@/app/components/ui";
 
@@ -229,7 +232,7 @@ export function Sheet({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="studio-sheet absolute inset-x-0 bottom-0 flex max-h-[92vh] flex-col rounded-t-[22px] bg-surface shadow-[0_-12px_48px_-12px_rgba(0,0,0,0.35)] outline-none sm:inset-y-3 sm:left-auto sm:right-3 sm:max-h-none sm:w-[440px] sm:rounded-[22px]"
+        className="studio-sheet absolute inset-x-0 bottom-0 flex max-h-[92vh] flex-col rounded-t-3xl bg-surface shadow-[0_-12px_48px_-12px_rgba(0,0,0,0.35)] outline-none sm:inset-y-3 sm:left-auto sm:right-3 sm:max-h-none sm:w-[440px] sm:rounded-3xl"
       >
         <div className="flex items-start justify-between gap-4 px-6 pb-4 pt-6">
           <div className="min-w-0">
