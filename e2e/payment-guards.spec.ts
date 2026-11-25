@@ -38,3 +38,22 @@ test("paying an in-shop offer from a pro with no address is refused before any c
     await db.from("request_offers").update({ proposed_service_mode: offer!.proposed_service_mode, status: offer!.status }).eq("id", offer!.id);
   }
 });
+
+test("the database only accepts offer prices checkout can charge", async () => {
+  test.skip(test.info().project.name !== "desktop", "runs once, on desktop");
+  expect(process.env.NEXT_PUBLIC_SUPABASE_URL).not.toContain("rbsgsymjmptwczecgohb");
+  const basic = (await db.from("profiles").select("id").eq("email", "lineup.test+basic@example.com").single()).data!.id;
+  const { data: offer } = await db.from("request_offers").select("id, proposed_price").eq("professional_id", basic).limit(1).single();
+  try {
+    for (const bad of ["55-60", "about 50", "0", "-5", "$", "1e3"]) {
+      const { error } = await db.from("request_offers").update({ proposed_price: bad }).eq("id", offer!.id);
+      expect(error?.message, bad).toMatch(/request_offers_price_is_chargeable/);
+    }
+    for (const good of ["$55", "55.50", "1,200 CAD", "40"]) {
+      const { error } = await db.from("request_offers").update({ proposed_price: good }).eq("id", offer!.id);
+      expect(error, good).toBeNull();
+    }
+  } finally {
+    await db.from("request_offers").update({ proposed_price: offer!.proposed_price }).eq("id", offer!.id);
+  }
+});
