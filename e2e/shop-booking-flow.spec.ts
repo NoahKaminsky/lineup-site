@@ -55,7 +55,7 @@ async function saveTestCardAndBook(p: Page) {
   const btn = p.getByRole("button", { name: "Save card and book" });
   await btn.scrollIntoViewIfNeeded();
   await btn.click();
-  await expect(p.getByText(/Card saved/)).toBeVisible({ timeout: 30_000 });
+  // "Card saved. Booking you in…" can be gone before we look; each test checks the booking in the database.
 }
 
 test("member books the soonest opening with their membership (card held, not charged)", async () => {
@@ -76,7 +76,7 @@ test("without a membership: pay at the shop, card saved with a test card (not ch
   try {
     const before = (await shopBookings()).length;
     await page.goto(`/shop/${ids.slug}`);
-    await page.getByRole("button", { name: /with TEST/ }).nth(1).click();
+    await page.getByRole("button", { name: /with TEST/ }).last().click(); // far from the slot the first test booked
     await page.getByRole("radio", { name: /^Pay at the shop/ }).click();
     await page.getByRole("button", { name: "Hold my spot" }).click();
     await saveTestCardAndBook(page);

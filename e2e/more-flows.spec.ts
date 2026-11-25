@@ -40,6 +40,15 @@ test.beforeAll(async () => {
   ids.studio = (await db.from("studios").select("id").eq("owner_id", ids.owner).single()).data!.id;
   const card = (await db.from("gift_cards").select("code").eq("studio_id", ids.studio).eq("status", "active").limit(1).single()).data!;
   ids.giftCode = card.code;
+  ids.requestTitle = (await db.from("service_requests").select("title").eq("id", ids.request).single()).data!.title;
+});
+
+// Put back what these tests change, so other specs find the seed as it was.
+test.afterAll(async () => {
+  if (!ids.request) return;
+  await db.from("service_requests").update({ status: "open", title: ids.requestTitle, cancelled_at: null }).eq("id", ids.request);
+  await db.from("bookings").update({ status: "confirmed", cancelled_by: null, cancelled_at: null }).eq("id", ids.booking);
+  await db.from("gift_cards").update({ balance_cents: 5000 }).eq("code", ids.giftCode);
 });
 
 test("customer edits their open request", async ({ browser }) => {

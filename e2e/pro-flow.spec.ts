@@ -138,8 +138,13 @@ test("Pay-at-shop no-show closes the booking without charging", async () => {
 test("Master pro edits a review reply", async () => {
   await signIn("master");
   await page.goto(`/profile/${ids.master}`);
-  await page.getByRole("button", { name: "Edit your reply" }).click();
-  const box = page.locator("textarea").first();
+  // Wait until the reply editor is really open (a click before the page is
+  // interactive does nothing), then fill that box, not any other on the page.
+  const box = page.getByRole("textbox", { name: "Your reply" });
+  await expect(async () => {
+    await page.getByRole("button", { name: "Edit your reply" }).click();
+    await expect(box).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await box.fill("TEST reply: thank you, see you next time.");
   await page.getByRole("button", { name: "Post reply" }).click();
   // Saved once the editor closes and the reply shows as text.
