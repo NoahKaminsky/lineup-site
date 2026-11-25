@@ -1,12 +1,12 @@
 # LineUp site audit: report
 
-Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. **Mapping and setup only. Nothing in the app has been fixed yet.**
+Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. Audit and fixes, Steps 1–6.
 
 ## Resume here
 
-> **Pro, Studio, Admin and money passes done** (24 Nov, branch `site-audit`). Preview https://lineup-site-pnjc6sk64-noahkaminskys-projects.vercel.app: guards + admin + studio + pro + customer checks **76/76**. `npm test` 163/163. Money/notifications/crons was read-only: guards 12/12 locally and on the preview, payments health checked on local/preview/production, `tests/money` 8/8; nothing that charges, pays out or sends was run (see its decisions). Preview https://lineup-site-fw3y5ljow-noahkaminskys-projects.vercel.app: admin + studio + pro + customer logged-out checks **64/64**. Admin: logged-out 2/2, admin smoke 2/2, `e2e/admin-flow.spec.ts` 6/6, TEST data cleaned (0 left). Preview https://lineup-site-eep2fripi-noahkaminskys-projects.vercel.app: studio + pro + customer logged-out checks **62/62**. Studio: logged-out 22/22, Studio smoke 30/30 at 1280 + 390, `e2e/studio-flow.spec.ts` 5/5, TEST data cleaned (0 left). Pro: smoke 76/77 (`/profile` at 390 is slow), `e2e/pro-flow.spec.ts` 6/6. `tests/pro` 43/43, tsc clean, lint 50 (baseline), build passes. Items not run are listed with the reason (they email, charge, or need Stripe test setup). **Step 6 (speed) started**: Stripe.js now loads only when a payment form opens (`/profile` 15 → 0 Stripe requests) and the verification banner no longer holds the auth lock; payments re-tested with a test card. Payment → webhook → booking re-tested with forwarding after `stripe login` (the CLI key lasts 90 days). The Slow list is done (each item fixed or checked). Email off-switch added (Noah's pick): TEST addresses are never emailed and `EMAIL_DISABLED=1` stops all mail. Invites → join, client invites and verification reject/approve now tested (`e2e/invites-flow.spec.ts` 4/4, all emails skipped, TEST data cleaned). Stripe test mode now covered: pro payout onboarding (Noah did the hCaptcha form), a pro gift card and Apprentice plan checkout all pass (`e2e/customer-flow`, `e2e/billing-flow`, with `stripe listen`). Local dev now gets Stripe returns on localhost. Customer edit/cancel, booking cancel, team cut/role and gift card redeem tested (`e2e/more-flows` 6/6). Pay-at-shop and member bookings, buying a membership and both billing portals now tested (`e2e/shop-booking-flow`, `e2e/memberships-flow`, with `stripe listen`); a reusable TEST shop payout account is in `.env.test.local`. Booth rent and Studio plan checkout also pass (`e2e/studio-billing-flow` 2/2). Boosts and the referral credit also pass (`e2e/boosts-referral-flow` 3/3). Every Stripe flow in FEATURES.md has now run in test mode. **Live database stalled 24 Nov 18:42–~20:10 UTC** (no error logged; Noah restarted it); see Decisions. Test database "LineUp Test" created (copy of the live schema, no data; `.env.testdb.local`) and all 9 scheduled jobs ran there (`e2e/tools/cron-check.mjs`). **Tests now run on the test database by default** (24 Nov): the whole suite passed there: smoke 150/150 at 1280 + 390, every flow spec, logged-out checks, guards and plan checkout 77/77, all 9 jobs. Use `npm run dev:testdb`, `npm run testdb:seed`, `npm run test:smoke`, `npm run test:crons`, `npm run testdb:cleanup`; CLAUDE.md says so too. **Next (Noah):** point Vercel Preview at LineUp Test; check the live database's memory and disk I/O. shop calendar done/no-show and passing a request now tested (`e2e/shop-desk-flow` 4/4; fixed "Mark done" saving as cash). Most unticked items wait on a test database or Stripe test setup (Decisions).
+> **Step 6 (speed, consistency, wording) done** (25 Nov, branch `site-audit`, pushed; preview https://lineup-site-17rvyplyb-noahkaminskys-projects.vercel.app). Every page measured is faster or the same in real load time (Lighthouse numbers in "Step 6" below; Discover on live data 37.1 s → 4.1 s, 11 MB → 0.5 MB). Full suite on LineUp Test: smoke **150/150**; every flow spec passes on fresh seed data, except one Stripe-form flake (see Step 6 tests). `npm test` 192/192, lint 50 (baseline), build passes, preview read-only checks 76/76. **Next (Noah):** the decisions in "Summary and decisions waiting on Noah" at the end.
 >
-> To test (on the TEST database): `npm run testdb:seed`, start `npm run dev:testdb` (or the `lineup-dev-testdb` preview), run `npm run test:smoke` (add `STRIPE_FORWARDING=1` with `stripe listen` running and its secret in `.env.development.local` for payment flows), then `npm run testdb:cleanup`. Nothing touches the live database.
+> To test (on the TEST database): `npm run testdb:seed`, then either `npm run dev:testdb` or a production build (`npm run build:testdb && npm run start:testdb`, port 3200), run `npm run test:smoke` (with `SMOKE_BASE_URL=http://localhost:3200` for the production build; add `STRIPE_FORWARDING=1` with `stripe listen` for payment flows), then `npm run testdb:cleanup`. Speed: `e2e/tools/lighthouse.mjs`, `e2e/tools/cls.mjs`, `e2e/tools/shots.mjs`. Nothing touches the live database.
 
 ## What was set up and tested this session
 
@@ -108,7 +108,7 @@ Sorted as **Broken / Slow / Looks unpolished / Confusing wording**. "Code:" mean
 2. **Apple Pay is off**: Stripe says the domain isn't registered for Apple Pay (Stripe dashboard → Payment method domains). Google Pay needs HTTPS too; check on the live site.
 3. **Gift card purchase can't be tested**: the TEST shop needs a Stripe test-mode payout account, and creating one needs the Connect platform profile filled in (dashboard.stripe.com/settings/connect/platform-profile).
 4. **After a 3D Secure / redirect payment, customers return to `/work`** (their Bookings tab) instead of their request (`RequestDetailPageClient.tsx` `return_url`). Payment code, so not changed.
-5. **/news uses a serif display face** (Instrument Serif, a deliberate "newspaper" look); the brand rules say no serif display. Swapping it changes that page's design, so it's your call.
+5. ✅ *Done in Step 6 (25 Nov): /news and LineUp Picks now use Geist.* ~~**/news uses a serif display face** (Instrument Serif, a deliberate "newspaper" look); the brand rules say no serif display. Swapping it changes that page's design, so it's your call.
 6. **Customer emails**: the rule is "customers get push, not email", but customers are emailed for booking confirmed, new offer, reminders, review requests, regular-appointment confirmations and rebook nudges (list in FEATURES.md › Notifications). Removing them is a product change.
 7. **Logged-out heart**: Discover/profile hide the heart when logged out (no "log in to save" prompt). Showing it would be a small new behaviour.
 
@@ -163,7 +163,73 @@ Supabase's advisors on the live project: **71 policies re-check `auth.uid()` on 
 
 Other advisor findings, not changed: 53 foreign keys without an index (slower deletes and joins), 14 unused indexes, leaked-password protection off (Auth → Settings), the studio helper functions are callable by anyone (they only answer "is this user on that studio"), and 3 extensions sit in the `public` schema.
 
-## Slow (for Step 6)
+## Step 6: speed, consistency and wording (25 Nov)
+
+### How it was measured
+Lighthouse 12 (mobile: slow 4G, 4× slower CPU), performance only, median of 3, on production builds (`npm run build:testdb && npm run start:testdb`) against **LineUp Test**. "Before" is the build of c9a94fe (the start of this step), "after" is this branch. Logged-out pages: cold cache, like a first visit. Signed-in pages: signed in as the TEST user through the real login form, warm cache, like a returning user. Tools: `e2e/tools/lighthouse.mjs` (scores), `e2e/tools/cls.mjs` (what moves, and the real LCP under the same slow 4G + CPU), `e2e/tools/shots.mjs` (screenshots at 390 and 1280). LineUp Test has almost no photos, so the photo savings show most on the Vercel preview, which has live data (table further down).
+
+### Logged out, first visit (phone)
+| Page | Score | LCP (main content) | Layout shift (CLS) | Main thread blocked | Downloaded |
+|---|---|---|---|---|---|
+| Landing `/` | 59 → **74** | 14.5 s → **7.7 s** | 0 → 0 | 531 → **46 ms** | 6.8 MB → **1.1 MB** |
+| Discover | 69 → **89** | 3.8 s → 3.8 s | 0.308 → **0.001** | 205 → **40 ms** | 2.1 MB → **0.4 MB** |
+| Pro profile | 53–55 → **71** | 12.3 s → **4.1 s** | 0 → 0.001 | 839–969 → **620 ms** | 2.1 MB → **0.4 MB** |
+| Shop page | 71 → **91** | 12.2 s → **3.5 s** | 0.004 → 0.001 | 228 → **44 ms** | 2.1 MB → **0.4 MB** |
+
+### Signed in, returning visit (phone)
+Both builds measured back to back (25 Nov). Two numbers for the main content: Lighthouse's simulated LCP, and the real LCP measured in Chrome at the same phone speed (slow 4G, 4× slower CPU) with `e2e/tools/cls.mjs`.
+
+| Page | Score | LCP, Lighthouse simulated | LCP, measured | Layout shift (CLS) |
+|---|---|---|---|---|
+| Customer Home `/requests` | 84 → 82 | 4.1 → 4.8 s | 0.75–0.80 s (then a late panel at 2.4 s) → **0.56–0.70 s** | 0.085 → **0.001** |
+| Customer Bookings `/work` | 80–100* → 80 | 1.9–4.9* → 5.4 s | 0.66–0.71 → 0.59–0.75 s (same) | 0.001 → 0.001 |
+| Pro Home `/requests` | 67 → **78** | 4.5 → 5.0 s | 0.5–1.2 s | 0.337 → **0.112** (0.002 measured at 390) |
+| Pro calendar | 84–86 → 83 | 4.3 → 4.7 s | 0.5 s | 0.001 → 0.001 |
+| Studio Today | 91–92 → 91 | 3.3 → 3.5 s | — | 0.001 → 0.001 |
+
+\* The old build's `/work` scored 100 in one run (59 KB: it was served from cache) and 82 in another.
+
+**Honest read:** the visible jumps are gone and real load times are the same or faster, but Lighthouse's *simulated* LCP on signed-in pages is 0.2–0.7 s higher than before. Their scripts are ~10 KB bigger now that they share the UI kit, and Lighthouse's model counts every Supabase round trip the browser makes after the page arrives. See the decision below about loading their data on the server.
+
+### On the Vercel preview, live data (phone, first visit)
+Old preview (c9a94fe's code) vs this branch's preview (43246bb), both on the live database, logged out, read only.
+
+| Page | Score | LCP | Downloaded |
+|---|---|---|---|
+| Landing `/` | 61 → **68** | 13.6 s → **6.7 s** | 3.8 MB → **1.1 MB** |
+| Discover | 52 → **80** | 37.1 s → **4.1 s** | 11.0 MB → **0.54 MB** |
+
+Discover's photos now arrive as AVIF at 4–30 KB each (they were 0.4–3.7 MB originals); none broken. Preview read-only checks (guards, admin, studio, pro, customer at 1280 + 390): **76 passed, 12 skipped**.
+
+### What was fixed (each its own commit, with a test)
+- ✅ **Favicon**: a 3628px, 1.6 MB PNG loaded on every page; now 96px, 5 KB. *tests/speed/assets.test.ts.*
+- ✅ **Uploaded photos** (Discover, profiles, shops, requests, local pages, Studio avatars) go through a shared `Photo` component: the same `<img>` and classes, but served resized as AVIF/WebP by `next/image` instead of the 2–4 MB originals. Only LineUp's own Storage URLs (live and TEST) are resized; anything else shows as before. *tests/speed/photo.test.ts.*
+- ✅ **Landing**: GSAP (~110 KB) loads after the first paint; the tour and closing videos (3 MB + 1 MB) load when you get near them instead of on page load; the hero photos are fetched first.
+- ✅ **No jumps**: Discover's Spotlight holds its space before its random draw (0.308 → 0.001); the shop page's "Soonest openings" keeps its place while times load (0.109 → 0.001); the pro Home "this is you in Explore" card now arrives with the page from the server (0.336 → 0.002 measured at 390). *tests/speed/browsePreview.test.ts.*
+- ✅ **Fewer round trips**: the pro Home's browser refresh runs its six queries together instead of one after another (same queries, same rules).
+- ✅ **Shared kit** `app/components/ui.tsx` (Studio's controls, now app-wide; `studio/ui.tsx` re-exports it): `Button`/`buttonClass`, `fieldClass`/`textareaClass`/`Field`, `panelClass`, `EmptyState`, `Tag`, `Avatar`, `SkeletonRows`, `TONE` (attention/info/success) and `TITLE` (customer/pro/detail page titles). 82 hand-rolled buttons and 47 fields moved onto it; one-off 22/24/28px corners are now `rounded-3xl`; Customer page titles share one size, Pro/Studio/Admin another. *tests/pro/consistency.test.ts.*
+- ✅ **Loading**: skeletons on the 8 routes that had none (booking, shop, earnings, analytics, services, subscription, admin, studio); placeholder rows instead of bare "Loading…" text.
+- ✅ **Motion**: `ease-arrive` was never a Tailwind token, so its 61 uses did nothing; fixed. Feedback and page entrances are now role-aware: Pro 120/180 ms, Customer 180/280 ms. *tests/pro/motion.test.ts.*
+- ✅ **Monochrome**: no orange, amber, yellow or green left (about 50 uses); warnings use signal red, success is ink. LineUp Picks and News use Geist instead of a serif display face. *tests/pro/palette.test.ts.*
+- ✅ **Wording**: "pro" instead of "professional" on screen (about 40 places; the Terms, the CRA form name and the "licensed / certified professional" credential keep the word), "booking" instead of "job", "shop" instead of "studio" for the business (the product name Studio stays), sentence case, and plain errors ("We couldn't load this booking. Try again.") instead of 28 "Something went wrong". No prices, numbers, plan names or rules changed.
+
+### Step 6 tests (25 Nov, production build on LineUp Test, fresh seed per group)
+- Smoke, every page as each TEST user at 1280 and 390: **150/150**.
+- Whole suite in one run: 250 passed, 75 skipped (Stripe forwarding / phone-only), 9 failed. Six were the smoke pages that need the seeded open request and booking, and two flows that need the same request: one spec earlier in the run (`more-flows`) uses them up. Each on fresh seed data: smoke 150/150, `pro-flow` 6/6, `shop-desk-flow` 4/4.
+- Found by the suite and fixed: buttons that were 44px tall at every width (e.g. "Edit request") had become 32px on desktop after moving to the shared kit; they keep `min-h-11` now.
+- **Flaky, not from Step 6:** `shop-booking-flow` "member books with their membership" passed 2 of 4 runs. When it fails, Stripe's card form has opened its optional "Save my information for faster checkout" (Link) panel and wants an email and phone. Step 6 didn't touch the card form. The two gift card tests now skip without `stripe listen` (their thanks page waits for the webhook).
+- `npm test` **192/192** (new: speed, photo, browse preview, motion, palette, consistency). `npx tsc --noEmit` clean. Lint: 50 errors in the app, the same as before (`npm run lint` also counts 15 in the untracked `.claude/skills/`). `npm run build` passes.
+- Looked at by eye at 390 and 1280 (screenshots as customer, Basic pro, shop owner and logged out): no sideways scrolling on any page; same buttons, fields, cards and titles across Customer, Pro and Studio.
+
+### Decisions for Noah (Step 6)
+- **Image resizing runs on Vercel's image optimizer.** On the Hobby plan that has a monthly limit on source images. Uploaded photos (avatars, banners, portfolios) now count towards it. The alternative is Supabase's own resizing, which needs Supabase Pro.
+- **Landing hero cutouts as AVIF** would save about 440 KB more on a first visit. Once, locally, the AVIF encode of those transparent images hung for over 60 s; it didn't happen again, so they stay as the original WebP for now. Worth trying on a preview.
+- **Signed-in pages and Lighthouse's 2.5 s target.** Measured directly at the same phone speed, the main content shows in 0.5–1.2 s (pro calendar 0.5 s, pro Home 0.5–1.2 s). Lighthouse's simulation puts them at 4–5 s because each page loads its data from the browser after the page arrives (one Supabase round trip after another). Getting the simulated number under 2.5 s means loading each page's data on the server like `/requests` already does: a bigger change per page.
+- **Profile page** still blocks the main thread for ~600 ms while React sets up its 3,400-line component. Splitting it (booking, gallery and reviews loaded when needed) is its own piece of work.
+- **Studio pages log a React hydration error (#418)** on every load, on the old build too (not new). The page works; worth tracking down.
+- **Video files**: `post-a-request.mp4` is 3 MB and isn't encoded for streaming, so a phone that does reach the tour downloads all of it. Re-encoding it smaller (and with "faststart") would help.
+
+## Slow (found in Steps 2–4; all handled in Step 6 above)
 - ✅ Fixed 24 Nov: Stripe.js loaded on every `/profile` and `/shop` visit. It now loads the first time a payment or card form opens (`app/lib/stripeClient.ts`, `@stripe/stripe-js/pure`). Measured on Vercel preview builds at 390px, logged out, median of 3 (`e2e/tools/speed.mjs`): `/profile` 15 → **0** Stripe requests, quiet 3.1 s → **2.8 s**; `/shop` 8 → **0**, quiet 1.9 s → **1.6 s**. *tests/speed/stripeClient.test.ts.* Paying still works (24 Nov, with the seed): request → accept → pay with a test card succeeded in Stripe test mode, and the regular's payment sheet loads Stripe's card form when opened. *e2e/customer-flow (3 steps).* Webhook → booking re-run the same day after Noah's `stripe login`: with `stripe listen` forwarding, `payment_intent.succeeded` returned 200 and the booking was created (`STRIPE_FORWARDING=1`, 2/2). `.env.development.local` deleted afterwards.
 - ✅ Re-measured 24 Nov on a production build (Vercel preview, 390px): `/profile` shows its heading in ~0.8 s and `/shop` in ~0.7 s. The 15 s was a cold dev compile plus Stripe telemetry (fixed above).
 - Partly fixed 24 Nov: auth lock warnings ("Lock … was not released / stole it"). The worst one, `useVerificationState` calling `getUser()` on every Pro page (it holds the lock for a network round trip), now reads the stored session and can't throw an uncaught lock error. `getUser()` is left in two button handlers (shop booking lookup, leaving a review), where it isn't on page load. Re-checked with the seed: Basic and Master Pro smoke 42/42 at 1280 + 390 with no console errors (lock errors included), and `/profile` at 390, which used to time out, now passes.
@@ -254,3 +320,19 @@ Logged out: `e2e/admin.spec.ts` 2/2 (1280 + 390). With TEST data (Noah OK'd): ad
 - [x] Referral credit (24 Nov): Master starts a test trial, Basic (referred by Master) buys Apprentice; Master's reward is applied as a Stripe customer-balance credit. *e2e/boosts-referral-flow.* Profile and chair boosts also pass there.
 - [x] `/api/health/payments` on local (test), preview (test) and production (live): keys match everywhere and no key value is returned. *e2e/guards + curl.*
 - [x] Crons (24 Nov, on the TEST database): each refuses a caller without `CRON_SECRET` (local + preview), and all 9 ran against "LineUp Test" with `e2e/tools/cron-check.mjs`: reminders (2 sent, stamped), auto-complete (completed a booking marked done 3 days ago; no Stripe ids, so no payout), expire-verifications (unverified the expired TEST pro; it says "unverified" not "expired" because TEST pros have no verification submissions), completion nudge (stamped), regulars (reminder 5 days out, stamped), rebook nudge (claimed, skipped: a later booking exists), weekly summary (5 built), weekly push (Monday-only, skipped), enable-direct-booking (1 turned on). Every email skipped (`EMAIL_DISABLED`). Not covered: auto-complete's real Connect payout transfer (needs a paid booking with test Stripe ids).
+
+
+## Summary and decisions waiting on Noah (25 Nov)
+
+**Fixed across Steps 1–6:** guarded routes send you to log in and back; 44px tap targets; plain-English Stripe requirements; invites that fail to email give a share link; the shop calendar's "Mark done" no longer saves as cash; an email off-switch for tests; a separate LineUp Test database with seed/cleanup scripts and all 9 crons checked on it; the RLS speed-up migration (live); and in Step 6, pages that load a fraction of the bytes (Discover on live data 11 MB → 0.5 MB, 37 s → 4 s), no layout jumps on Discover, the shop page or pro Home, one shared UI kit, role-aware motion, monochrome everywhere, and one plain voice (pro, request, offer, booking, shop).
+
+**Waiting on you**, most important first:
+1. **Charge without a booking** if a pro has no saved location (customer pass #1): `create-payment-intent` should refuse before charging. Payment code.
+2. **Vercel image optimizer limit** (Step 6): uploaded photos are now resized by Vercel; on Hobby that has a monthly cap. Check usage after a week, or switch to Supabase image resizing (needs Supabase Pro).
+3. **Point Vercel Preview at LineUp Test** and add the test price ids there (money #3), so previews never touch live data.
+4. **Studio pages log a React hydration error (#418)** (Step 6; already there before). Pages work; worth tracking down.
+5. **Signed-in pages' data on the server** (Step 6): real load is 0.5–1.2 s, but Lighthouse's simulation says 4–5 s; loading each page's data on the server like `/requests` would fix the number. The profile page could also be split up (~600 ms of main-thread work).
+6. **Payments follow-ups**: Apple Pay domain, return to the request after 3D Secure (customer #2, #4); BLIK in the card form (Stripe runs #2); the booking cap in one function (money #5); the empty-plan-once webhook log line (Stripe runs #1).
+7. **Wording and policy**: customer emails vs push (customer #6), Studio "0% commission" wording (money #4), weekly summary subject (scheduled jobs #1).
+8. **Clean-ups**: remove the three unused newsletter routes (admin #1); numeric offer price column (pro #2); rotate the test project's secret key; re-encode `post-a-request.mp4` smaller; try AVIF for the landing cutouts on a preview (Step 6).
+9. **Live database health** (incident, 24 Nov): watch memory and disk I/O on the free plan.
