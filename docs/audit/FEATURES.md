@@ -100,9 +100,9 @@ Every section lives in `app/studio/` (layout.tsx, StudioContext.tsx, StudioTabs.
 | Content moderation: delete requests, reviews, portfolio items | api | api: admin/content |
 | Verifications: approve or reject ⚠ emails the pro | api | api: admin/verifications, components/AdminVerifications.tsx, app/lib/verificationServer.ts |
 | Newsletter: audience counts and send the current issue ⚠ **emails the whole real list** | api | api: admin/newsletter, components/AdminNewsletter.tsx |
-| Legacy newsletter send, using the `x-admin-key` header ⚠ real list **[unused][legacy]** | api | api: send-newsletter |
-| Newsletter test send to a hard-coded address **[unused]** | api | api: send-newsletter-test |
-| Newsletter audience (returns every subscriber's email) **[unused]** | api | api: newsletter-audience |
+| Legacy newsletter send, using the `x-admin-key` header ⚠ real list **[unused][legacy]** | api (removed 25 Nov) | api: send-newsletter |
+| Newsletter test send to a hard-coded address **[unused]** | api (removed 25 Nov) | api: send-newsletter-test |
+| Newsletter audience (returns every subscriber's email) **[unused]** | api (removed 25 Nov) | api: newsletter-audience |
 
 ## Money, notifications and crons
 
