@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, getServiceSupabase } from "@/app/lib/serverSupabase";
 
+// Columns naming the people an item belongs to, for "TEST accounts only".
+const OWNERS: Record<string, string[]> = {
+  reviews: ["reviewer_id", "professional_id"],
+  portfolio: ["user_id"],
+  requests: ["client_id"],
+  bookings: ["customer_id", "professional_id"],
+  messages: ["sender_id"],
+};
+
 const TABLES: Record<string, { table: string; select: string }> = {
   reviews: {
     table: "professional_reviews",
@@ -55,6 +64,15 @@ export async function GET(req: Request) {
     query = query.ilike("service_name", `%${q}%`);
   } else if (q && type === "messages") {
     query = query.ilike("message", `%${q}%`);
+  }
+
+  // "TEST accounts only": items made by the seeded TEST accounts, so they can
+  // be deleted in a test without touching anyone real.
+  if (searchParams.get("test") === "1") {
+    const { data: testPeople } = await service.from("profiles").select("id").like("email", "lineup.test+%@example.com");
+    const ids = (testPeople || []).map((p) => p.id);
+    if (ids.length === 0) return NextResponse.json({ items: [], people: {} });
+    query = query.or(OWNERS[type].map((col) => `${col}.in.(${ids.join(",")})`).join(","));
   }
 
   const { data, error } = await query;

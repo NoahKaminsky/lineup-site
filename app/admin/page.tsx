@@ -82,6 +82,8 @@ export default function AdminPage() {
   const [togglingFoundingArtistId, setTogglingFoundingArtistId] = useState<string | null>(null);
 
   const [contentQuery, setContentQuery] = useState("");
+  // Only items from the seeded TEST accounts (safe to delete when testing).
+  const [testOnly, setTestOnly] = useState(false);
   const [items, setItems] = useState<ContentItem[]>([]);
   const [people, setPeople] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [contentLoading, setContentLoading] = useState(false);
@@ -136,11 +138,11 @@ export default function AdminPage() {
     setUsersLoading(false);
   }
 
-  async function loadContent(type: ContentType) {
+  async function loadContent(type: ContentType, onlyTest = testOnly) {
     setContentLoading(true);
     setMessage("");
 
-    const res = await authedFetch(`/api/admin/content?type=${type}&q=${encodeURIComponent(contentQuery)}`);
+    const res = await authedFetch(`/api/admin/content?type=${type}&q=${encodeURIComponent(contentQuery)}${onlyTest ? "&test=1" : ""}`);
     const json = await res.json();
 
     if (!res.ok) {
@@ -493,6 +495,13 @@ export default function AdminPage() {
                 Search
               </button>
             </div>
+            <label className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm text-neutral-700">
+              <input type="checkbox" checked={testOnly} onChange={(e) => {
+                  setTestOnly(e.target.checked);
+                  loadContent(tab as ContentType, e.target.checked);
+                }} className="h-4 w-4 accent-ink" />
+              TEST accounts only
+            </label>
 
             <div className="mt-4 space-y-2">
               {contentLoading ? (

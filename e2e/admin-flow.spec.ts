@@ -68,6 +68,23 @@ test("Content: the TEST review shows under Reviews", async () => {
   await expect(page.getByText("TEST review: great cut.")).toBeVisible({ timeout: 20_000 });
 });
 
+test("Content: with TEST accounts only, the TEST review can be deleted (then put back)", async () => {
+  const { data: review } = await db.from("professional_reviews").select("*").eq("comment", "TEST review: great cut.").single();
+  expect(review).toBeTruthy();
+  try {
+    await page.getByRole("button", { name: "Reviews", exact: true }).click();
+    await page.getByRole("checkbox", { name: "TEST accounts only" }).check();
+    const row = page.locator("div", { hasText: "TEST review: great cut." }).filter({ has: page.getByRole("button", { name: "Delete", exact: true }) }).last();
+    await expect(row).toBeVisible({ timeout: 20_000 });
+    page.once("dialog", (d) => d.accept());
+    await row.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect.poll(async () => (await db.from("professional_reviews").select("id").eq("id", review!.id)).data?.length ?? -1, { timeout: 20_000 }).toBe(0);
+  } finally {
+    const { data: still } = await db.from("professional_reviews").select("id").eq("id", review!.id);
+    if (!still?.length) await db.from("professional_reviews").insert(review!);
+  }
+});
+
 test("Newsletter: audience counts load (send is never pressed)", async () => {
   await page.getByRole("button", { name: "Newsletter", exact: true }).click();
   await expect(page.locator("main")).toContainText(/\d/, { timeout: 20_000 });
