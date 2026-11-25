@@ -609,8 +609,8 @@ export default function RespondToRequestPage() {
           </div>
 
           {request.status !== "open" ? (
-            <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-              <p className="text-sm font-medium text-amber-700">
+            <div className="mt-8 rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-5">
+              <p className="text-sm font-medium text-[#A30D25]">
                 This request is no longer accepting new offers.
               </p>
               <div className="mt-4">

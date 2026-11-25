@@ -128,7 +128,7 @@ export default function AdminNewsletter() {
         ) : null}
 
         {notice ? (
-          <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{notice}</p>
+          <p className="mt-4 rounded-lg bg-ink/[0.05] px-3 py-2 text-sm text-ink">{notice}</p>
         ) : null}
         {error ? <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 

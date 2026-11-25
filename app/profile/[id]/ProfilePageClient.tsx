@@ -862,7 +862,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
         setLoading(false);
       } catch (error) {
         console.error("PROFILE PAGE CRASH:", error);
-        setMessage("Something went wrong loading this profile.");
+        setMessage("We couldn't load this profile. Try again.");
         setLoading(false);
       }
     }
@@ -1546,7 +1546,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
     if (!professionalAddress?.trim()) {
       setMessage(
-        "This professional needs to add their shop or studio address before direct bookings can be accepted."
+        "This pro needs to add their shop or studio address before direct bookings can be accepted."
       );
       return;
     }
@@ -1669,7 +1669,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
 
       if (!professionalAddress?.trim()) {
         abort(
-          "This professional needs to add their shop or studio address before direct bookings can be accepted."
+          "This pro needs to add their shop or studio address before direct bookings can be accepted."
         );
         return;
       }
@@ -1730,7 +1730,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       setPaymentClientSecret(data.clientSecret);
     } catch (error: any) {
       console.error("DIRECT BOOKING PAYMENT ERROR", error);
-      abort(error?.message || "Something went wrong starting payment.");
+      abort(error?.message || "We couldn't start payment. Try again.");
     }
   }
 
@@ -1997,7 +1997,7 @@ if (loading) {
                       {nameLast}
                       {verified ? (
                         <BadgeCheck
-                          aria-label="Verified professional"
+                          aria-label="Verified pro"
                           className={`ml-2 inline h-7 w-7 -translate-y-1 align-middle md:ml-3 md:h-10 md:w-10 md:-translate-y-2 ${
                             onPhoto ? "fill-white text-ink" : "fill-ink text-white"
                           }`}
@@ -2260,8 +2260,8 @@ if (loading) {
           {/* The pro looking at their own profile: say exactly what's stopping
               clients from booking them, with a link to fix each thing. */}
           {isProfessional && viewerUserId === profile.id && ownBookingBlockers.length > 0 ? (
-            <section className="mt-10 rounded-3xl bg-white p-5 ring-1 ring-amber-200 sm:p-6">
-              <p className="text-xs font-medium text-amber-700">Only you can see this</p>
+            <section className="mt-10 rounded-3xl bg-white p-5 ring-1 ring-ink/10 sm:p-6">
+              <p className="text-xs font-medium text-neutral-500">Only you can see this</p>
               <h2 className="mt-1.5 text-lg font-semibold tracking-[-0.02em] text-ink">
                 Clients can&apos;t book you from your calendar yet
               </h2>
@@ -2419,7 +2419,7 @@ if (loading) {
                               {/* one dot: open or not. Morning/evening is in the times below. */}
                               <span
                                 aria-hidden="true"
-                                className={`h-1.5 w-1.5 rounded-full ${symbols.length > 0 ? "bg-emerald-500" : "bg-neutral-200"}`}
+                                className={`h-1.5 w-1.5 rounded-full ${symbols.length > 0 ? "bg-ink" : "bg-neutral-200"}`}
                               />
                             </button>
                           );
@@ -2634,7 +2634,7 @@ if (loading) {
                         ) : (
                           <div className="mt-5 space-y-5">
                             {directBookingModes.length === 0 ? (
-                              <p className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+                              <p className="rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-4 text-sm text-[#A30D25]">
                                 This pro hasn&apos;t turned on bookings at their shop or studio yet. Send them a request instead.
                               </p>
                             ) : directBookingModes.length > 1 ? (
@@ -2664,7 +2664,7 @@ if (loading) {
                             ) : null}
 
                             {(selectedServiceMode === "in_shop" || selectedServiceMode === "home_studio") && !professionalBookingAddress ? (
-                              <p className="rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">
+                              <p className="rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-3 text-sm text-[#A30D25]">
                                 This pro still needs to add their address.
                               </p>
                             ) : null}

@@ -1861,7 +1861,7 @@ export default function ServicesPage() {
                     Map coordinates saved: {locationLat?.toFixed(5)}, {locationLng?.toFixed(5)}
                   </p>
                 ) : (
-                  <p className="mt-2 text-xs text-amber-700">
+                  <p className="mt-2 text-xs text-[#A30D25]">
                     Coordinates are missing, so map previews cannot show yet.
                   </p>
                 )}
@@ -1878,11 +1878,11 @@ export default function ServicesPage() {
               </div>
             </div>
           ) : needsBusinessLocation ? (
-            <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            <p className="mt-3 rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-4 text-sm text-[#A30D25]">
               Enter a business address. Selecting a Google suggestion gives the best maps and distance accuracy.
             </p>
           ) : location.trim() ? (
-            <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            <p className="mt-3 rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-4 text-sm text-[#A30D25]">
               This address can be saved. Select a Google suggestion if you want map previews and distance accuracy.
             </p>
           ) : (

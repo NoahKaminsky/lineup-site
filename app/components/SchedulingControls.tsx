@@ -310,7 +310,7 @@ export function TimeOffControl({ professionalId }: { professionalId: string }) {
         <p
           role="status"
           className={`mt-3 text-sm ${
-            status.tone === "error" ? "text-red-600" : status.tone === "warn" ? "text-amber-700" : "text-neutral-600"
+            status.tone === "error" ? "text-red-600" : status.tone === "warn" ? "text-[#A30D25]" : "text-neutral-600"
           }`}
         >
           {status.text}

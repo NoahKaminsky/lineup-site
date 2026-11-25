@@ -205,7 +205,7 @@ export default function AdminVerifications() {
                       Status: {r.verification_status || "none"}
                       {r.verified_until ? ` · valid until ${r.verified_until}` : r.verification_status === "verified" ? " · no expiry" : ""}
                     </p>
-                    <p className={`mt-2 font-medium ${hidden ? "text-red-600" : "text-green-700"}`}>
+                    <p className={`mt-2 font-medium ${hidden ? "text-red-600" : "text-ink"}`}>
                       {hidden ? "Hidden from Explore" : "Should be showing in Explore"}
                     </p>
                     {hidden ? (
@@ -410,7 +410,7 @@ export default function AdminVerifications() {
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold">Professionals without verification ({needsAttention.length})</h2>
+        <h2 className="text-lg font-semibold">Pros without verification ({needsAttention.length})</h2>
         <p className="mt-1 text-sm text-neutral-500">
           These are hidden from Explore and can&apos;t send offers. Approve someone you know is legitimate
           (test or founding accounts, say) without documents — a note is required and saved on the record.

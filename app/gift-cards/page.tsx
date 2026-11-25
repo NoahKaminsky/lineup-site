@@ -191,7 +191,7 @@ export default function GiftCardsPage() {
           {notice ? (
             <p
               role={notice.tone === "error" ? "alert" : "status"}
-              className={`mt-4 rounded-xl px-4 py-3 text-sm ${notice.tone === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800"}`}
+              className={`mt-4 rounded-xl px-4 py-3 text-sm ${notice.tone === "error" ? "bg-red-50 text-red-700" : "bg-ink/[0.05] text-ink"}`}
             >
               {notice.text}
             </p>

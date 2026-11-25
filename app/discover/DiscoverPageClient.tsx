@@ -17,6 +17,7 @@ import { BadgeCheck, MapPin, Search, SlidersHorizontal, Star, X } from "lucide-r
 import SaveHeart from "@/app/components/SaveHeart";
 import { useSavedPros } from "@/app/lib/savedPros";
 import { Photo } from "@/app/components/Photo";
+import { TITLE } from "@/app/components/ui";
 
 type ProfileRow = {
   id: string;
@@ -245,7 +246,7 @@ function ProCard({ href, name, role, place, image, badge, rating, reviewCount, o
               openSoon ? "bg-white text-ink" : "bg-white/80 text-neutral-600"
             }`}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${openSoon ? "bg-emerald-500" : "bg-neutral-300"}`} />
+            <span className={`h-1.5 w-1.5 rounded-full ${openSoon ? "bg-ink" : "bg-neutral-300"}`} />
             {open}
           </span>
         ) : null}
@@ -685,7 +686,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         setLoading(false);
       } catch (error) {
         console.error(error);
-        setMessage("Something went wrong loading professionals.");
+        setMessage("We couldn't load pros right now. Refresh to try again.");
         setLoading(false);
       }
     }
@@ -1085,7 +1086,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         {/* Explore: ask first (search), then the one paid stage, then who's
             free. The Spotlight is the only dark, lit thing on the page. */}
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <h1 className="text-[2.4rem] font-semibold leading-[1] tracking-[-0.05em] text-ink sm:text-[3.75rem]">
+          <h1 className={TITLE.customer}>
             {freeSoon.today.length > 0 ? "Who\u2019s free today?" : "Who\u2019s free this week?"}
           </h1>
           <Link

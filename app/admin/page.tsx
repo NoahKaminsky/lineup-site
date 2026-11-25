@@ -7,6 +7,7 @@ import { getSignedInUser } from "@/lib/getSignedInUser";
 import { loginHref } from "@/app/lib/returnTo";
 import AdminVerifications from "@/app/components/AdminVerifications";
 import AdminNewsletter from "@/app/components/AdminNewsletter";
+import { TITLE } from "@/app/components/ui";
 
 type AdminUser = {
   id: string;
@@ -283,7 +284,7 @@ export default function AdminPage() {
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold">Admin</h1>
+            <h1 className={TITLE.pro}>Admin</h1>
             <p className="mt-1 text-sm text-neutral-500">Internal tool: users, verifications, the newsletter and content.</p>
           </div>
 
@@ -434,7 +435,7 @@ export default function AdminPage() {
                             title="Manually promote this profile to the top of Discover, overriding normal ranking"
                             className={`rounded-full border px-3 py-1 text-xs font-medium transition disabled:opacity-60 ${
                               u.is_featured
-                                ? "border-amber-300 bg-amber-100 text-amber-800"
+                                ? "border-ink/15 bg-ink/[0.05] text-ink"
                                 : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300"
                             } min-h-11`}
                           >
@@ -449,7 +450,7 @@ export default function AdminPage() {
                             title="Mark this profile as a Founding Artist (early sign-up recognition)"
                             className={`rounded-full border px-3 py-1 text-xs font-medium transition disabled:opacity-60 ${
                               u.is_founding_artist
-                                ? "border-orange-300 bg-orange-100 text-orange-800"
+                                ? "border-[#C8102E]/20 bg-[#C8102E]/[0.06] text-[#A30D25]"
                                 : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300"
                             } min-h-11`}
                           >

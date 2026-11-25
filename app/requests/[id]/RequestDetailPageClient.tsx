@@ -444,7 +444,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
       );
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong cancelling this booking.");
+      setMessage("We couldn't cancel this booking. Try again.");
     } finally {
       setCancelingBooking(false);
     }
@@ -462,7 +462,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
   }
 
   function formatProfessionalType(value: string | null) {
-    if (!value) return "Beauty professional";
+    if (!value) return "Beauty pro";
     return value
       .replaceAll("_", " ")
       .replace(/\b\w/g, (char) => char.toUpperCase());
@@ -1107,7 +1107,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
       setShowPaymentModal(true);
       setMessage("");
     } catch (error: any) {
-      setMessage(error?.message || "Something went wrong starting payment.");
+      setMessage(error?.message || "We couldn't start payment. Try again.");
     } finally {
       setAcceptingOfferId(null);
     }
@@ -1548,7 +1548,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
     const acceptedOffer = offers.find((offer) => offer.status === "accepted");
 
     if (!acceptedOffer) {
-      setMessage("No accepted professional found for this request.");
+      setMessage("No accepted pro found for this request.");
       return;
     }
 
@@ -2037,7 +2037,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-[13px] font-medium text-neutral-500">
-                      {usesProLocation ? "Professional's location" : "Location"}
+                      {usesProLocation ? "Pro's location" : "Location"}
                     </p>
                     {usesProLocation && !proLocationAddress ? (
                       <p className="mt-2 text-sm text-neutral-500">
@@ -2261,7 +2261,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       Offers
                     </p>
                     <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
-                      {isCustomer ? "Choose the right professional" : "Offer activity"}
+                      {isCustomer ? "Choose the right pro" : "Offer activity"}
                     </h2>
                   </div>
 
@@ -2394,11 +2394,11 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                             ) : null}
 
                             {offer.status === "declined" && offer.customer_response_message ? (
-                              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                                <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                              <div className="mt-4 rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-4">
+                                <p className="text-xs font-medium uppercase tracking-wide text-[#A30D25]">
                                   Customer feedback
                                 </p>
-                                <p className="mt-2 text-sm leading-6 text-amber-900">
+                                <p className="mt-2 text-sm leading-6 text-ink">
                                   {offer.customer_response_message}
                                 </p>
                               </div>
@@ -2456,7 +2456,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                               }}
                               className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
                             >
-                              Re-offer
+                              Edit offer
                             </button>
 
                             {editingReofferId === offer.id ? (
@@ -3218,7 +3218,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
       {showBookingSuccessModal ? (
         <BookedSheet
           subtitle={acceptedOffer?.professional_name ? `With ${acceptedOffer.professional_name}.` : undefined}
-          body="Message your professional to sort out arrival, prep, timing or anything else."
+          body="Message your pro to sort out arrival, prep, timing or anything else."
           note="Free cancellation until 24 hours before your appointment. Within 24 hours it can't be cancelled."
           rows={
             acceptedOffer

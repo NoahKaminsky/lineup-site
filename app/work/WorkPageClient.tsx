@@ -663,7 +663,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
         id: `offer-received-${offer.id}`,
         kind: "offer_received",
         title: request?.title || cleanServiceLabel(request?.service_detail) || "Offer received",
-        subtitle: offer.message || "A professional sent you an offer.",
+        subtitle: offer.message || "A pro sent you an offer.",
         status: statusLabel(offer.status),
         createdAt: offer.created_at,
         price: offer.proposed_price,
@@ -1195,7 +1195,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       name: item.professionalName,
       avatarUrl: item.professionalAvatarUrl,
       profileId: item.professionalId,
-      buttonText: "View professional",
+      buttonText: "View pro",
     };
   }
 
@@ -1421,7 +1421,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                 <p className="mt-1.5 text-sm text-neutral-500">
                   {isProfessional
                     ? "Matching client requests will appear here. Make sure your services and availability are set up."
-                    : "Post a request and professionals will send you offers to compare."}
+                    : "Post a request and pros will send you offers to compare."}
                 </p>
                 {!isProfessional ? (
                   <Link href="/requests/new" className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800">
@@ -1497,7 +1497,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                 </p>
                 <p className="mt-1.5 text-sm text-neutral-500">
                   {isProfessional
-                    ? "Confirmed jobs and upcoming bookings will appear here."
+                    ? "Confirmed and upcoming bookings will appear here."
                     : "Once you accept an offer or make a direct booking, it'll show up here."}
                 </p>
               </div>
@@ -1682,7 +1682,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
             Service complete
           </p>
           <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em]">
-            How was {reviewItem.professionalName?.split(" ")[0] ?? "your professional"}?
+            How was {reviewItem.professionalName?.split(" ")[0] ?? "your pro"}?
           </h2>
           <p className="mt-2 text-sm text-neutral-500">
             Your review helps other customers and supports the professional.
@@ -1986,7 +1986,7 @@ function BookedList({
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">Was your {item.title} done?</p>
                   <p className="mt-0.5 text-xs leading-5 text-white/70">
-                    Confirm it&apos;s complete so {otherPerson.name?.split(" ")[0] || "your professional"} gets paid.
+                    Confirm it&apos;s complete so {otherPerson.name?.split(" ")[0] || "your pro"} gets paid.
                   </p>
                 </div>
                 <button
@@ -2080,7 +2080,7 @@ function BookedList({
                         aria-label={`Rate ${star} star${star === 1 ? "" : "s"}`}
                         className={`text-lg leading-none transition ${
                           rated ? "cursor-default" : "cursor-pointer hover:scale-110"
-                        } ${filled ? "lu-star-pop text-amber-400" : "text-neutral-200"}`}
+                        } ${filled ? "lu-star-pop text-ink" : "text-neutral-200"}`}
                       >
                         ★
                       </button>

@@ -57,7 +57,7 @@ const PLANS: Plan[] = [
     price: 0,
     priceLabel: "$0.00",
     trialDays: null,
-    tagline: "Where every professional starts",
+    tagline: "Where every pro starts",
     recommended: false,
     isBasic: true,
     features: PLAN_FEATURES.basic,
@@ -138,7 +138,7 @@ function statusColor(status: SubscriptionStatus) {
   if (status === "active" || status === "trialing")
     return "bg-neutral-100 text-ink border-neutral-200";
   if (status === "past_due")
-    return "bg-amber-50 text-amber-700 border-amber-200";
+    return "bg-[#C8102E]/[0.04] text-[#A30D25] border-[#C8102E]/15";
   if (status === "canceled" || status === "incomplete")
     return "bg-red-50 text-red-700 border-red-200";
   return "bg-neutral-100 text-neutral-600 border-neutral-200";
@@ -711,9 +711,9 @@ export default function SubscriptionPage() {
 
         {/* Past due warning */}
         {profile?.subscription_status === "past_due" && !coveredByStudio ? (
-          <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-            <p className="text-sm font-semibold text-amber-800">Payment required</p>
-            <p className="mt-1 text-sm text-amber-700">
+          <div className="mt-8 rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-5">
+            <p className="text-sm font-semibold text-[#A30D25]">Payment required</p>
+            <p className="mt-1 text-sm text-neutral-700">
               Your last payment didn&apos;t go through. Update your payment method to keep
               your plan active.
             </p>
@@ -721,7 +721,7 @@ export default function SubscriptionPage() {
               type="button"
               onClick={() => handleManageBilling()}
               disabled={portalLoadingKey === "billing"}
-              className="mt-4 rounded-full bg-amber-700 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-amber-800 disabled:opacity-60"
+              className="mt-4 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
             >
               {portalLoadingKey === "billing" ? "Opening…" : "Update payment method"}
             </button>

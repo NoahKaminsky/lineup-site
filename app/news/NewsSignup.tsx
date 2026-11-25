@@ -20,10 +20,10 @@ export default function NewsSignup({ compact = false }: { compact?: boolean }) {
         body: JSON.stringify({ email }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || "Something went wrong.");
+      if (!res.ok) throw new Error(json.error || "That didn't go through. Try again.");
       setState("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : "That didn't go through. Try again.");
       setState("error");
     }
   }
@@ -62,7 +62,7 @@ export default function NewsSignup({ compact = false }: { compact?: boolean }) {
           disabled={state === "sending" || done || !email.trim()}
           aria-live="polite"
           className={`relative flex h-11 shrink-0 items-center justify-center self-center overflow-hidden rounded-full text-sm font-semibold text-white transition-all duration-500 ease-[var(--ease-arrive)] disabled:cursor-default ${
-            done ? "w-11 bg-emerald-600" : compact ? "w-full bg-ink hover:bg-neutral-800 disabled:opacity-60" : "w-[7.5rem] bg-ink hover:bg-neutral-800 disabled:opacity-60"
+            done ? "w-11 bg-ink" : compact ? "w-full bg-ink hover:bg-neutral-800 disabled:opacity-60" : "w-[7.5rem] bg-ink hover:bg-neutral-800 disabled:opacity-60"
           }`}
         >
           <span className={`transition-all duration-300 ${done ? "translate-y-4 opacity-0" : "translate-y-0 opacity-100"}`}>
