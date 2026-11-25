@@ -23,6 +23,7 @@ import {
 import { DrawnCheck, MaskLine, formatMomentPrice } from "@/app/components/moments/Moments";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { useHashTarget } from "@/app/lib/useHashTarget";
+import { TITLE } from "@/app/components/ui";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -142,7 +143,7 @@ function formatStatus(value: BookingStatus) {
 }
 
 function formatProfessionalType(value: string | null | undefined) {
-  if (!value) return "Beauty professional";
+  if (!value) return "Beauty pro";
   return value
     .replaceAll("_", " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
@@ -155,7 +156,7 @@ function formatProfessionalTypes(profile: ProfileRow | null | undefined) {
     ? [profile.professional_type]
     : [];
 
-  if (types.length === 0) return "Beauty professional";
+  if (types.length === 0) return "Beauty pro";
 
   const MAX_SHOWN = 2;
   const shown = types.slice(0, MAX_SHOWN).map(formatProfessionalType).join(" · ");
@@ -431,7 +432,7 @@ export default function BookingDetailPage() {
       setLoading(false);
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong loading this booking.");
+      setMessage("We couldn't load this booking. Try again.");
       setLoading(false);
     }
   }
@@ -567,7 +568,7 @@ export default function BookingDetailPage() {
       }
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong confirming completion.");
+      setMessage("We couldn't confirm completion. Try again.");
     } finally {
       setActionLoading(null);
     }
@@ -695,7 +696,7 @@ export default function BookingDetailPage() {
       setMessage("Completion request sent.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong requesting completion.");
+      setMessage("We couldn't request completion. Try again.");
     } finally {
       setActionLoading(null);
     }
@@ -761,7 +762,7 @@ export default function BookingDetailPage() {
       );
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong cancelling this booking.");
+      setMessage("We couldn't cancel this booking. Try again.");
     } finally {
       setActionLoading(null);
     }
@@ -800,7 +801,7 @@ export default function BookingDetailPage() {
 
   const isLive = booking.status === "confirmed" || booking.status === "completion_requested";
   const otherPerson = isViewerCustomer ? professional : customer;
-  const otherRole = isViewerCustomer ? "Your professional" : "Your client";
+  const otherRole = isViewerCustomer ? "Your pro" : "Your client";
   // Where it happens, worded for whoever is looking.
   const whereLabel = (() => {
     const mode = booking.service_mode;
@@ -854,7 +855,7 @@ export default function BookingDetailPage() {
           <div className={`flex items-center gap-4 ${isLive && countdown(booking.booking_date, booking.start_time) !== "Now" ? "mt-3" : ""}`}>
             <DateTile date={booking.booking_date} muted={!isLive} />
             <div className="min-w-0">
-              <h1 className="text-[1.9rem] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-4xl">
+              <h1 className={TITLE.detail}>
                 {cleanServiceLabel(booking.service_name) || "Booked service"}
               </h1>
               <p className="mt-1.5 text-[15px] text-neutral-600">
@@ -973,7 +974,7 @@ export default function BookingDetailPage() {
             <p className="text-xs font-medium text-white/60">Action needed</p>
             <p className="mt-2 text-xl font-semibold tracking-[-0.02em]">
               {booking.status === "completion_requested"
-                ? `${professional?.full_name?.split(" ")[0] ?? "Your professional"} marked this done.`
+                ? `${professional?.full_name?.split(" ")[0] ?? "Your pro"} marked this done.`
                 : "Your appointment is over."}
             </p>
             <p className="mt-2 max-w-md text-sm leading-6 text-white/70">
@@ -1037,7 +1038,7 @@ export default function BookingDetailPage() {
               ? coveredByMembership
                 ? "Covered by your membership. Your saved card is only charged if you miss the appointment."
                 : "You'll pay at the shop. Your saved card is only charged if you miss the appointment."
-              : <>Once the appointment is over, you&apos;ll confirm it here so your professional gets paid.</>}
+              : <>Once the appointment is over, you&apos;ll confirm it here so your pro gets paid.</>}
           </p>
         ) : null}
 
@@ -1074,7 +1075,7 @@ export default function BookingDetailPage() {
           <div className="flex items-baseline justify-between gap-4">
             <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Messages</h2>
             <p className="text-xs text-neutral-400">
-              {isLive ? `With ${otherPerson?.full_name?.split(" ")[0] || (isViewerCustomer ? "your professional" : "your client")}` : formatStatus(booking.status)}
+              {isLive ? `With ${otherPerson?.full_name?.split(" ")[0] || (isViewerCustomer ? "your pro" : "your client")}` : formatStatus(booking.status)}
             </p>
           </div>
           <BookingChat bookingId={booking.id} viewerId={viewerId} />
@@ -1158,7 +1159,7 @@ export default function BookingDetailPage() {
           <h2 className="mt-6 text-[1.6rem] font-semibold leading-[1.08] tracking-[-0.035em]">
             <MaskLine delay={120}>Service complete.</MaskLine>
             <MaskLine delay={200} className="text-neutral-500">
-              How was {professional?.full_name?.split(" ")[0] ?? "your professional"}?
+              How was {professional?.full_name?.split(" ")[0] ?? "your pro"}?
             </MaskLine>
           </h2>
           <p className="mt-3 text-sm text-neutral-500">

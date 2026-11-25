@@ -244,7 +244,7 @@ export default function Review({
             Invite them and their appointments can go on their own calendar, or pick someone below for now.
           </p>
           <Link href={teamHref} className="text-sm font-medium text-ink underline underline-offset-2">
-            Go to Team
+            Go to team
           </Link>
         </div>
       ) : null}

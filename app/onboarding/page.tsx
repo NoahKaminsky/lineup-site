@@ -414,7 +414,7 @@ export default function OnboardingPage() {
                 >
                   <Briefcase className="h-5 w-5" />
                   <div>
-                    <p className="text-sm font-semibold">Professional</p>
+                    <p className="text-sm font-semibold">Pro</p>
                     <p className={`mt-0.5 text-xs leading-5 ${role === "professional" ? "text-white/70" : "text-neutral-500"}`}>
                       Offer your services & get booked
                     </p>
@@ -687,7 +687,7 @@ export default function OnboardingPage() {
               {saving
                 ? "Setting up your account…"
                 : role === "professional"
-                ? "Set up my professional account"
+                ? "Set up my pro account"
                 : role === "customer"
                 ? "Set up my account"
                 : "Continue"}

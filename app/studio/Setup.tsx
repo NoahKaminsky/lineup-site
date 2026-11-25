@@ -45,7 +45,7 @@ export default function ShopSetup({ data, busy, run, setNotice, reload, redirect
     await run(`accept-${inviteId}`, async () => {
       const res = await studioFetch<{ studioName?: string }>("/api/studio/join", { method: "POST", body: { inviteId } });
       if (!res.ok) {
-        setNotice({ tone: "error", text: res.data.error || "Could not join the studio." });
+        setNotice({ tone: "error", text: res.data.error || "We couldn't add you to this shop. Ask them for a new invite link." });
         return;
       }
       setNotice({ tone: "success", text: `You're on ${res.data.studioName}'s team.` });

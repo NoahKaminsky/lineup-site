@@ -57,7 +57,7 @@ export default function ShopMemberships({ slug, shopName }: { slug: string; shop
     setNotice(null);
     const res = await studioFetch<{ url?: string }>("/api/memberships", { method: "POST", body });
     if (!res.ok || !res.data.url) {
-      setNotice({ tone: "error", text: res.data.error || "Something went wrong." });
+      setNotice({ tone: "error", text: res.data.error || "That didn't go through. Try again." });
       setBusy(null);
       return;
     }

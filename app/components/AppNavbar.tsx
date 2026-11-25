@@ -831,7 +831,7 @@ function NavbarComponent() {
                           <p className="mx-auto mt-1.5 max-w-[16rem] text-xs leading-5 text-neutral-500">
                             {isProfessional
                               ? "You'll be notified here when a new request matches your services."
-                              : "When professionals send you offers, they'll show up here."}
+                              : "When pros send you offers, they'll show up here."}
                           </p>
                           <button
                             type="button"
@@ -967,7 +967,7 @@ function NavbarComponent() {
                         {profile?.full_name || "Your account"}
                       </p>
                       <p className="mt-1 text-xs text-neutral-500">
-                        {isProfessional ? "Professional account" : "Client account"}
+                        {isProfessional ? "Pro account" : "Client account"}
                       </p>
                     </div>
 

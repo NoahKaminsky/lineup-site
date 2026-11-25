@@ -404,7 +404,7 @@ function EarningsView({ scope }: { scope: Scope }) {
                 action={
                   scope === "shop" ? (
                     <Link href="/studio/calendar" className="text-sm font-medium text-ink underline underline-offset-2">
-                      Open the Calendar
+                      Open the calendar
                     </Link>
                   ) : (
                     <Link href="/account" className="inline-flex min-h-11 items-center text-sm font-medium text-ink underline underline-offset-2 sm:min-h-0">

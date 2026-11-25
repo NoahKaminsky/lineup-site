@@ -85,7 +85,7 @@ export default function MembershipsView({ data, busy, run, setNotice }: SectionP
   const query = search.trim().toLowerCase();
   const members = info.members.filter((m) => !query || m.name.toLowerCase().includes(query));
   const blocker = !info.live
-    ? "Memberships are included with a studio plan."
+    ? "Memberships are included with a Studio plan."
     : !info.payoutsSetUp && info.canManage
     ? "Set up shop payouts in Settings first. Membership payments go there."
     : null;

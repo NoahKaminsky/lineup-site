@@ -515,7 +515,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       setAvatarFile(null);
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong uploading your photo.");
+      setMessage("We couldn't upload your photo. Try again.");
     } finally {
       setAvatarUploading(false);
     }
@@ -576,7 +576,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       setBannerFile(null);
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong uploading your banner.");
+      setMessage("We couldn't upload your banner. Try again.");
     } finally {
       setBannerUploading(false);
     }
@@ -656,7 +656,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       setMessage("Portfolio item added.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong uploading your portfolio item.");
+      setMessage("We couldn't upload your portfolio item. Try again.");
     } finally {
       setPortfolioUploading(false);
     }
@@ -682,7 +682,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       setMessage("Portfolio item deleted.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong deleting this portfolio item.");
+      setMessage("We couldn't delete this portfolio item. Try again.");
     }
   }
 
@@ -818,7 +818,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
       window.location.href = onboardingData.url;
     } catch (error: any) {
-      setMessage(error?.message || "Something went wrong connecting Stripe payouts.");
+      setMessage(error?.message || "We couldn't connect Stripe payouts. Try again.");
     } finally {
       setStripeLoading(false);
     }
@@ -956,7 +956,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       const json = await res.json();
 
       if (!res.ok) {
-        setMessage(json.error || "Something went wrong. Please try again.");
+        setMessage(json.error || "That didn't go through. Try again.");
         setDeleting(false);
         return;
       }
@@ -964,7 +964,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       await supabase.auth.signOut();
       router.push("/");
     } catch {
-      setMessage("Something went wrong. Please try again.");
+      setMessage("That didn't go through. Try again.");
       setDeleting(false);
     }
   }

@@ -78,7 +78,7 @@ export default function ImportView({ data, setNotice }: SectionProps) {
       method: "POST",
       body: { action: "check-clashes", items },
     });
-    if (!res.ok) throw new Error(res.data.error || "Clash check failed");
+    if (!res.ok) throw new Error(res.data.error || "We couldn't check for double-bookings. Try again.");
     const result: Record<string, string> = { ...(res.data.clashes || {}) };
     for (const key of res.data.already || []) result[key] = ALREADY;
     return result;
@@ -89,7 +89,7 @@ export default function ImportView({ data, setNotice }: SectionProps) {
   const saveImport: SaveImport = useCallback(async (input, onProgress) => {
     const call = async <T,>(body: Record<string, unknown>) => {
       const res = await studioFetch<T>("/api/studio/import", { method: "POST", body });
-      if (!res.ok) throw Object.assign(new Error(res.data.error || "Request failed"), { status: res.status });
+      if (!res.ok) throw Object.assign(new Error(res.data.error || "The import didn't go through. Nothing was added."), { status: res.status });
       return res.data;
     };
     const { batchId } = await call<{ batchId: string }>({

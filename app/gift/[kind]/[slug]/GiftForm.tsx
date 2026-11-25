@@ -60,7 +60,7 @@ export default function GiftForm({
       return;
     }
     setBusy(false);
-    setError(json.error || "Something went wrong. Please try again.");
+    setError(json.error || "That didn't go through. Try again.");
   }
 
   const chip = (active: boolean) =>

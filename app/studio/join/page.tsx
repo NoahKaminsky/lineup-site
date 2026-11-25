@@ -28,7 +28,7 @@ function JoinStudio() {
   useEffect(() => {
     (async () => {
       if (!token) {
-        setError("This invite link is incomplete. Ask the studio to send it again.");
+        setError("This invite link is incomplete. Ask the shop to send it again.");
         setLoading(false);
         return;
       }
@@ -76,7 +76,7 @@ function JoinStudio() {
       return;
     }
     setWrongAccount(res.data.code === "wrong_account");
-    setError(res.data.error || "Could not join the studio.");
+    setError(res.data.error || "We couldn't add you to this shop. Ask them for a new invite link.");
   }
 
   async function switchAccount() {

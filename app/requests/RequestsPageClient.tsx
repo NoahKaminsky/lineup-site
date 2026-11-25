@@ -27,6 +27,7 @@ import { useBidCounts } from "@/app/lib/useBidCounts";
 import BidCountBlip from "@/app/components/BidCountBlip";
 import { approxDistanceLabel, withinServiceArea } from "@/app/lib/serviceArea";
 import { Photo } from "@/app/components/Photo";
+import { TITLE } from "@/app/components/ui";
 
 // "Recently completed" lists show the last 24 hours only (older work lives in
 // Archived services).
@@ -44,7 +45,7 @@ const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
   },
   {
     Icon: Inbox,
-    eyebrow: "Your Dashboard",
+    eyebrow: "Your dashboard",
     title: "Here's where you'll see new requests.",
     description:
       "Clients post exactly what they need, and matching requests from people near you show up right here. Send an offer on the ones you want to take.",
@@ -54,7 +55,7 @@ const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
     eyebrow: "Work",
     title: "This is where you manage your bookings.",
     description:
-      "Once a client accepts your offer, it becomes a confirmed booking here. After you finish a job, open that booking and tap \"Request completion\" — that's what triggers your payout once the client confirms.",
+      "Once a client accepts your offer, it becomes a confirmed booking here. After the appointment, open that booking and tap \"Request completion\" — that's what triggers your payout once the client confirms.",
   },
   {
     Icon: Wand2,
@@ -75,7 +76,7 @@ const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
     eyebrow: "Your profile",
     title: "Add a photo and connect your payouts.",
     description:
-      "A profile photo helps clients recognize and trust you, and connecting Stripe means you actually get paid once a job is done.",
+      "A profile photo helps clients recognize and trust you, and connecting Stripe means you actually get paid once a booking is done.",
   },
   {
     Icon: Star,
@@ -90,7 +91,7 @@ const CUSTOMER_TOUR_STEPS: TourStep[] = [
   {
     Icon: Sparkles,
     eyebrow: "Welcome to LineUp",
-    title: "Let's find you the right professional.",
+    title: "Let's find you the right pro.",
     description: "A quick look at how booking works before you post your first request.",
   },
   {
@@ -98,7 +99,7 @@ const CUSTOMER_TOUR_STEPS: TourStep[] = [
     eyebrow: "How it works",
     title: "Post what you need, get real offers.",
     description:
-      "Share the service, your budget, and when and where you want it done — nearby professionals send you offers, and you pick the one that fits best. After the appointment, you'll confirm it's done right on the booking page so your pro gets paid.",
+      "Share the service, your budget, and when and where you want it done — nearby pros send you offers, and you pick the one that fits best. After the appointment, you'll confirm it's done right on the booking page so your pro gets paid.",
   },
   {
     Icon: Handshake,
@@ -968,11 +969,11 @@ if (profileError || !profile) {
         } else if (isProfessionalRole(userRole)) {
           await hydrateProfessionalData(user.id, typedProfile);
         } else {
-          setMessage("Invalid account role.");
+          setMessage("We couldn't tell if this is a customer or pro account. Sign out and back in.");
         }
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : "Something went wrong.";
+          error instanceof Error ? error.message : "That didn't go through. Try again.";
         setMessage(errorMessage);
       } finally {
         setLoading(false);
@@ -1097,7 +1098,7 @@ if (profileError || !profile) {
       await loadRequestsLive({ silent: true });
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong marking this complete.");
+      setMessage("We couldn't mark this complete. Try again.");
     } finally {
       setBookingActionLoadingId(null);
     }
@@ -1168,7 +1169,7 @@ if (profileError || !profile) {
       setMessage("Booking marked as completed.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong confirming completion.");
+      setMessage("We couldn't confirm completion. Try again.");
     } finally {
       setBookingActionLoadingId(null);
     }
@@ -1225,7 +1226,7 @@ if (profileError || !profile) {
       await loadRequestsLive({ silent: true });
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong cancelling this booking.");
+      setMessage("We couldn't cancel this booking. Try again.");
     } finally {
       setBookingActionLoadingId(null);
     }
@@ -1825,7 +1826,7 @@ return (
               <p className="text-sm text-neutral-500">
                 {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: BOOKING_TIME_ZONE })}
               </p>
-              <h1 className="mt-1 text-[2rem] font-semibold leading-[1.05] tracking-[-0.04em] md:text-5xl">
+              <h1 className={`mt-1 ${isProfessional ? TITLE.pro : TITLE.customer}`}>
                 {(() => {
                   const minutes = shopNow().minutes;
                   const greeting = minutes < 12 * 60 ? "Good morning" : minutes < 17 * 60 ? "Good afternoon" : "Good evening";
@@ -1891,7 +1892,7 @@ return (
                   eyebrow="Action needed"
                   title={`Was your ${service} done?`}
                   subtitle="Confirm it to wrap it up."
-                  body="Your appointment is over. Confirming is what pays your professional, then you can leave a quick review."
+                  body="Your appointment is over. Confirming is what pays your pro, then you can leave a quick review."
                   actionLabel="Confirm service completed"
                   busy={bookingActionLoadingId === customerTarget.id}
                   onAction={() => {
@@ -2047,7 +2048,7 @@ return (
                   <path d="M10 2l2 5h5l-4 3 1.5 5L10 12l-4.5 3L7 10 3 7h5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
                 </svg>
               </div>
-              <h2 className="mt-4 text-xl font-semibold tracking-tight text-neutral-900">Ready for your first job</h2>
+              <h2 className="mt-4 text-xl font-semibold tracking-tight text-neutral-900">Ready for your first booking</h2>
               <p className="mt-2 text-sm text-neutral-500">
                 Make sure your services, availability, and service area are set up so clients can find you.
               </p>

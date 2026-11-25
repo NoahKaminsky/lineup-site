@@ -929,7 +929,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   const bookingLists = [
     { key: "upcoming", title: "Upcoming", items: upcomingBookings, empty: "No upcoming bookings." },
     { key: "awaiting", title: "Awaiting confirmation", items: completionRequestedBookings, empty: "Nothing waiting on a client." },
-    { key: "completed", title: "Recently completed", items: recentCompletedBookings, empty: "Completed jobs show here for 24 hours, then move to your archive." },
+    { key: "completed", title: "Recently completed", items: recentCompletedBookings, empty: "Completed bookings show here for 24 hours, then move to your archive." },
   ];
 
   const listsSection = (

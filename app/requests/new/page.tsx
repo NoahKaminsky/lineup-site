@@ -506,7 +506,7 @@ function NewRequestPageContent() {
 
   useEffect(() => {
     async function loadUser() {
-      setMessage("Loading user...");
+      setMessage("Loading…");
 
       const user = await getSignedInUser();
 
@@ -832,7 +832,7 @@ function NewRequestPageContent() {
     if (submitting) return;
 
     if (!userId) {
-      setMessage("No user found.");
+      setMessage("Please sign in to post a request.");
       return;
     }
 
@@ -1020,12 +1020,12 @@ function NewRequestPageContent() {
               past job); any other request aimed at one pro is a direct request. */}
           <div className="mb-8">
             <h1 className="text-neutral-900 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-              {isRebook ? (originalRequestId ? "Book again" : `Request ${rebookProName || "this professional"}`) : "Post a request"}
+              {isRebook ? (originalRequestId ? "Book again" : `Request ${rebookProName || "this pro"}`) : "Post a request"}
             </h1>
             <p className="mt-1.5 text-sm leading-6 text-neutral-500">
               {isRebook
-                ? `Send a new request directly to ${rebookProName || "this professional"}.`
-                : "Describe what you need and professionals will send you offers."}
+                ? `Send a new request directly to ${rebookProName || "this pro"}.`
+                : "Describe what you need and pros will send you offers."}
             </p>
           </div>
 
@@ -1033,7 +1033,7 @@ function NewRequestPageContent() {
           {isRebook && preferredProfessionalId ? (
             <div className="mb-6 rounded-2xl bg-neutral-100 p-4">
               <p className="text-sm font-semibold text-ink">
-                {originalRequestId ? "Rebooking" : "Direct request to"} {rebookProName || "this professional"}
+                {originalRequestId ? "Rebooking" : "Direct request to"} {rebookProName || "this pro"}
               </p>
               <p className="mt-0.5 text-sm text-ink">
                 This request will be sent directly to them first.
@@ -1075,7 +1075,7 @@ function NewRequestPageContent() {
                 <label className={labelClass}>Service</label>
                 {isRebook && rebookProTypes && rebookProTypes.length > 0 ? (
                   <p className="mb-2 -mt-1 text-xs text-neutral-500">
-                    Only showing services {rebookProName || "this professional"} offers.
+                    Only showing services {rebookProName || "this pro"} offers.
                   </p>
                 ) : (
                   <p className="mb-2 -mt-1 text-xs text-neutral-500">
@@ -1338,7 +1338,7 @@ function NewRequestPageContent() {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-neutral-500">Professionals will include their available times in their offers.</p>
+                    <p className="text-sm text-neutral-500">Pros will include their available times in their offers.</p>
                   )}
                 </div>
               </div>

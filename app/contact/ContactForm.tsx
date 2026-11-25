@@ -24,10 +24,10 @@ export default function ContactForm() {
         body: JSON.stringify({ name, email, topic, message, website }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || "Something went wrong.");
+      if (!res.ok) throw new Error(json.error || "Your message didn't send. Try again, or email us.");
       setState("sent");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : "Your message didn't send. Try again, or email us.");
       setState("error");
     }
   }

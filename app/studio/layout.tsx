@@ -62,7 +62,7 @@ function StudioShell({ children }: { children: ReactNode }) {
       router.replace(loginHref(window.location.pathname));
       return;
     }
-    if (!res.ok) setNotice({ tone: "error", text: res.data.error || "Could not load your studio." });
+    if (!res.ok) setNotice({ tone: "error", text: res.data.error || "We couldn't load your shop. Refresh to try again." });
     else setData(res.data);
     setLoading(false);
   }, [router]);
@@ -78,7 +78,7 @@ function StudioShell({ children }: { children: ReactNode }) {
     // Links from before sections had their own pages, and Stripe returns.
     const params = new URLSearchParams(window.location.search);
     if (params.get("boosted") === "1") setNotice({ tone: "success", text: "Payment received. Your opening is featured for the next week." });
-    else if (params.get("subscribed") === "1") setNotice({ tone: "success", text: "Your studio plan is active." });
+    else if (params.get("subscribed") === "1") setNotice({ tone: "success", text: "Your Studio plan is active." });
     else if (params.get("rent") === "1") setNotice({ tone: "success", text: "Rent payments are set up. They'll come out automatically." });
     else if (params.get("payouts") === "done") setNotice({ tone: "success", text: "Payout details saved." });
     const tab = params.get("tab");

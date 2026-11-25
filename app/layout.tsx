@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://lineup-aesthetics.ca";
 const SITE_DESCRIPTION =
-  "Trusted on-demand beauty and personal services — post what you need, compare real offers from verified professionals, and book with confidence.";
+  "Trusted on-demand beauty and personal services — post what you need, compare real offers from verified pros, and book with confidence.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

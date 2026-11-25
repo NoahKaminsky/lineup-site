@@ -42,7 +42,7 @@ const ESSENTIALS: Step[] = [
   { key: "service", label: "Add your services", why: "What you offer, with prices and how long each takes.", href: "/services#add-service", cta: "Add service" },
   { key: "portfolio", label: "Post 3 photos of your work", why: "Your first photo is your card in Explore. Pros with real photos get picked first.", href: "/account#portfolio", cta: "Add photos" },
   { key: "cover", label: "Add a cover photo", why: "The big photo across the top of your profile. Your shop, your chair, your work.", href: "/account#cover", cta: "Add cover" },
-  { key: "payouts", label: "Connect payouts", why: "Set up Stripe so you get paid for completed jobs.", href: "/account#payouts", cta: "Connect" },
+  { key: "payouts", label: "Connect payouts", why: "Set up Stripe so you get paid for completed bookings.", href: "/account#payouts", cta: "Connect" },
 ];
 
 const STAND_OUT: Step[] = [

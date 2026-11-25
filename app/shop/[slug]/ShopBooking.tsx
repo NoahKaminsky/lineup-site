@@ -648,7 +648,7 @@ function BookingBar({
       }
       setPaymentSecret(data.clientSecret);
     } catch {
-      setMessage("Something went wrong. Try again.");
+      setMessage("That didn't go through. Try again.");
       setWorking(false);
     }
   }
