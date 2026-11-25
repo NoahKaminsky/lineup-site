@@ -163,7 +163,7 @@ export default function WeeklyHoursEditor({
             key={preset.label}
             type="button"
             onClick={preset.run}
-            className={buttonClass("secondary", "md", "shrink-0")}
+            className={buttonClass("secondary", "md", "shrink-0 min-h-11")}
           >
             {preset.label}
           </button>

@@ -1802,7 +1802,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                         type="button"
                         onClick={handleCancelRequest}
                         disabled={cancelingRequest}
-                        className={buttonClass("primary", "sm")}
+                        className={buttonClass("primary", "sm", "min-h-11")}
                       >
                         {cancelingRequest ? "Cancelling…" : "Yes, cancel"}
                       </button>
@@ -1819,14 +1819,14 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       <button
                         type="button"
                         onClick={startEditingRequest}
-                        className={buttonClass("primary", "sm")}
+                        className={buttonClass("primary", "sm", "min-h-11")}
                       >
                         Edit request
                       </button>
                       <button
                         type="button"
                         onClick={handleCancelRequest}
-                        className={buttonClass("secondary", "sm")}
+                        className={buttonClass("secondary", "sm", "min-h-11")}
                       >
                         Cancel request
                       </button>

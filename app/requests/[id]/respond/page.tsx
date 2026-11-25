@@ -618,7 +618,7 @@ export default function RespondToRequestPage() {
               <div className="mt-4">
                 <Link
                   href={`/requests/${requestId}`}
-                  className={buttonClass("primary", "md")}
+                  className={buttonClass("primary", "md", "min-h-11")}
                 >
                   Back to request
                 </Link>
@@ -636,7 +636,7 @@ export default function RespondToRequestPage() {
               <div className="mt-4">
                 <Link
                   href={`/requests/${requestId}`}
-                  className={buttonClass("primary", "md")}
+                  className={buttonClass("primary", "md", "min-h-11")}
                 >
                   Back to request
                 </Link>

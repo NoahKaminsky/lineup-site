@@ -1348,7 +1348,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
           {!isProfessional ? (
             <Link
               href="/requests/new"
-              className={buttonClass("primary", "md", "shrink-0")}
+              className={buttonClass("primary", "md", "shrink-0 min-h-11")}
             >
               New request
             </Link>

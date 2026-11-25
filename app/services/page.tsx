@@ -1872,7 +1872,7 @@ export default function ServicesPage() {
                     href={businessMapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={buttonClass("secondary", "sm", "mt-3")}
+                    className={buttonClass("secondary", "sm", "mt-3 min-h-11")}
                   >
                     Open in Maps
                   </a>

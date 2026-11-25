@@ -810,7 +810,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       <button
         type="button"
         onClick={goToToday}
-        className={buttonClass("secondary", "md")}
+        className={buttonClass("secondary", "md", "min-h-11")}
       >
         Today
       </button>
@@ -988,7 +988,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               {bookingUsage.count >= bookingUsage.cap ? (
                 <Link
                   href="/subscription"
-                  className={buttonClass("primary", "sm")}
+                  className={buttonClass("primary", "sm", "min-h-11")}
                 >
                   Upgrade for unlimited
                 </Link>

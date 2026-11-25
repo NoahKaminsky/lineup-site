@@ -409,7 +409,7 @@ export default function SubscriptionPage() {
             </p>
             <Link
               href="/studio"
-              className={buttonClass("primary", "md", "mt-5")}
+              className={buttonClass("primary", "md", "mt-5 min-h-11")}
             >
               Go to your studio
             </Link>
@@ -704,7 +704,7 @@ export default function SubscriptionPage() {
             type="button"
             onClick={handleBoost}
             disabled={boosting}
-            className={buttonClass("primary", "md", "shrink-0")}
+            className={buttonClass("primary", "md", "shrink-0 min-h-11")}
           >
             {boosting ? "Opening checkout…" : boostedUntil ? "Add a week" : "Boost my profile"}
           </button>

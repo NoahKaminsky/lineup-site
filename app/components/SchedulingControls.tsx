@@ -301,7 +301,7 @@ export function TimeOffControl({ professionalId }: { professionalId: string }) {
           type="button"
           onClick={addTimeOff}
           disabled={saving || !start}
-          className={buttonClass("primary", "md")}
+          className={buttonClass("primary", "md", "min-h-11")}
         >
           {saving ? "Saving…" : "Add time off"}
         </button>

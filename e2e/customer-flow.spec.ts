@@ -165,6 +165,7 @@ test("refer page sends a customer to their requests", async () => {
 });
 
 test("buy a shop gift card in Stripe test mode", async () => {
+  test.skip(process.env.STRIPE_FORWARDING !== "1", "the thanks page waits for the webhook: needs `stripe listen` forwarding (STRIPE_FORWARDING=1)");
   const owner = await profileId("owner");
   const { data: shop } = await db.from("studios").select("slug").eq("owner_id", owner).single();
   await page.goto(`/gift/shop/${shop!.slug}`);
@@ -188,6 +189,7 @@ test("buy a shop gift card in Stripe test mode", async () => {
 });
 
 test("buy a pro's gift card in Stripe test mode (needs the TEST Basic pro's test payout account)", async () => {
+  test.skip(process.env.STRIPE_FORWARDING !== "1", "the thanks page waits for the webhook: needs `stripe listen` forwarding (STRIPE_FORWARDING=1)");
   const basic = await profileId("basic");
   const { data: pro } = await db.from("profiles").select("stripe_charges_enabled").eq("id", basic).single();
   test.skip(!pro?.stripe_charges_enabled, "TEST Basic pro has no test payout account that can take charges (run payout onboarding first)");
