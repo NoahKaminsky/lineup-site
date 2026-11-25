@@ -31,6 +31,17 @@ function change(now: number, prev: number) {
   return diff === 0 ? "same as the week before" : `${diff > 0 ? "up" : "down"} ${Math.abs(diff)}% on the week before`;
 }
 
+// Lead with last week's takings; after a quiet week, lead with what's booked
+// ahead instead of "$0 from 0 appointments".
+export function weeklySubject(summary: AnalyticsSummary) {
+  const who = summary.scope === "shop" ? summary.name || "Your shop" : "Your week";
+  const k = summary.kpis;
+  const ahead = summary.onTheBooks.next7Visits;
+  if (k.visits.now === 0 && ahead > 0) return `${who}: ${ahead} appointment${ahead === 1 ? "" : "s"} booked for the next 7 days`;
+  if (k.visits.now === 0) return `${who}: a quiet week, and your openings are ready to fill`;
+  return `${who}: ${cad(k.sales.now)} from ${k.visits.now} appointment${k.visits.now === 1 ? "" : "s"}`;
+}
+
 export function weeklySummaryEmail(summary: AnalyticsSummary, opts: { firstName: string | null; site: string; optOutUrl: string }) {
   const shop = summary.scope === "shop";
   const k = summary.kpis;
@@ -51,7 +62,7 @@ export function weeklySummaryEmail(summary: AnalyticsSummary, opts: { firstName:
     summary.goal.cents ? row(`${summary.goal.month} goal`, `${cad(summary.goal.soFar)} of ${cad(summary.goal.cents)}`, `on pace for ${cad(summary.goal.pace)}`) : "",
   ].join("");
   const tip = summary.insights.find((i) => i.tone !== "good") || summary.insights[0];
-  const subject = `${shop ? summary.name || "Your shop" : "Your week"}: ${cad(k.sales.now)} from ${k.visits.now} appointment${k.visits.now === 1 ? "" : "s"}`;
+  const subject = weeklySubject(summary);
   const html = createEmailLayout({
     title: shop ? `${summary.name || "Your shop"}'s week` : "Your week on LineUp",
     preview: `${cad(k.sales.now)} in sales, ${change(k.sales.now, k.sales.prev)}.`,
