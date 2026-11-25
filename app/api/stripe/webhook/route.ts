@@ -151,6 +151,14 @@ function getPlanFromPriceId(priceId: string): string | null {
   return null;
 }
 
+// A paying subscription whose price we don't recognise is stored with no plan,
+// so the pro is treated as Basic. Seen once in testing (24 Nov); log it so the
+// next one can be traced to its price id. Ids only, no personal details.
+function warnIfPlanUnknown(event: string, userId: string, priceId: string | undefined, status: string, plan: string | null) {
+  if (plan || (status !== "active" && status !== "trialing")) return;
+  console.warn(`[stripe webhook] ${event}: ${status} subscription with an unrecognised price`, { userId, priceId: priceId ?? null });
+}
+
 async function handleSubscriptionCheckoutCompleted(session: any) {
   const supabase = getServiceSupabase();
   const userId = session.metadata.supabase_user_id;
@@ -158,6 +166,7 @@ async function handleSubscriptionCheckoutCompleted(session: any) {
   const subscription = await stripe.subscriptions.retrieve(session.subscription as string) as any;
   const priceId = subscription.items.data[0]?.price.id;
   const plan = getPlanFromPriceId(priceId);
+  warnIfPlanUnknown("checkout.session.completed", userId, priceId, subscription.status, plan);
 
   await supabase
     .from("profiles")
@@ -193,6 +202,7 @@ async function handleSubscriptionUpdated(subscription: any) {
 
   const priceId = subscription.items.data[0]?.price.id;
   const plan = getPlanFromPriceId(priceId);
+  warnIfPlanUnknown("customer.subscription.updated", userId, priceId, subscription.status, plan);
   const isSubscribed =
     (subscription.status === "active" || subscription.status === "trialing") &&
     plan &&
