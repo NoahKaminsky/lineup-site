@@ -1,15 +1,14 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId } from "react";
+import { useMediaQuery } from "@/app/lib/useMediaQuery";
 import { LuMarkPaths } from "./LuMark";
 
 // Full-screen page loader: the LU brush mark painting itself in on a loop.
 // With Reduce Motion on, the mark is simply shown, without the sweep.
 export default function LuLoader({ label = "Loading" }: { label?: string }) {
   const clipId = `lu-loader-${useId().replace(/:/g, "")}`;
-  const [reduceMotion] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+  const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-paper" aria-busy="true">
