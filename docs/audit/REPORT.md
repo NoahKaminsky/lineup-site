@@ -4,7 +4,7 @@ Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. Audit and fixes
 
 ## Resume here
 
-> **Step 6 (speed, consistency, wording) done** (25 Nov, branch `site-audit`, pushed; preview https://lineup-site-17rvyplyb-noahkaminskys-projects.vercel.app). Every page measured is faster or the same in real load time (Lighthouse numbers in "Step 6" below; Discover on live data 37.1 s → 4.1 s, 11 MB → 0.5 MB). Full suite on LineUp Test: smoke **150/150**; every flow spec passes on fresh seed data, except one Stripe-form flake (see Step 6 tests). `npm test` 192/192, lint 50 (baseline), build passes, preview read-only checks 76/76. **Next (Noah):** the decisions in "Summary and decisions waiting on Noah" at the end.
+> **Step 6 and the decisions after it done** (25 Nov, branch `site-audit`, pushed). Every page measured is faster or the same in real load time; Discover on live data 37 s → 4 s, landing 13.6 s → 4.5 s. Offer price check and the RLS speed-up are live. No charge without a booking; Studio hydration error fixed. **Next (Noah):** the six settings at the end ("Only you can do these").
 >
 > To test (on the TEST database): `npm run testdb:seed`, then either `npm run dev:testdb` or a production build (`npm run build:testdb && npm run start:testdb`, port 3200), run `npm run test:smoke` (with `SMOKE_BASE_URL=http://localhost:3200` for the production build; add `STRIPE_FORWARDING=1` with `stripe listen` for payment flows), then `npm run testdb:cleanup`. Speed: `e2e/tools/lighthouse.mjs`, `e2e/tools/cls.mjs`, `e2e/tools/shots.mjs`. Nothing touches the live database.
 
@@ -321,18 +321,44 @@ Logged out: `e2e/admin.spec.ts` 2/2 (1280 + 390). With TEST data (Noah OK'd): ad
 - [x] `/api/health/payments` on local (test), preview (test) and production (live): keys match everywhere and no key value is returned. *e2e/guards + curl.*
 - [x] Crons (24 Nov, on the TEST database): each refuses a caller without `CRON_SECRET` (local + preview), and all 9 ran against "LineUp Test" with `e2e/tools/cron-check.mjs`: reminders (2 sent, stamped), auto-complete (completed a booking marked done 3 days ago; no Stripe ids, so no payout), expire-verifications (unverified the expired TEST pro; it says "unverified" not "expired" because TEST pros have no verification submissions), completion nudge (stamped), regulars (reminder 5 days out, stamped), rebook nudge (claimed, skipped: a later booking exists), weekly summary (5 built), weekly push (Monday-only, skipped), enable-direct-booking (1 turned on). Every email skipped (`EMAIL_DISABLED`). Not covered: auto-complete's real Connect payout transfer (needs a paid booking with test Stripe ids).
 
+## Decisions done (25 Nov, after Step 6, Noah: "do it all")
+
+- ✅ **No charge without a booking.** Paying an offer at the pro's place (shop or home studio) is refused *before* the card is charged when the pro has no saved address; before, the card was charged and the webhook then refused to make the booking. Same rule as the webhook, in `app/lib/proLocation.ts`; checked before the time-clash check. *tests/money/proLocation.test.ts; e2e/payment-guards.spec.ts (on LineUp Test: 409, no payment created).*
+- ✅ **After 3D Secure, back to the request** the customer paid from (was the Bookings tab).
+- ✅ **Booking cap in one place**: `app/lib/bookingCap.ts` (cap, month window, count), used by checkout, the webhook's "nearing your limit" notice and the usage meter. Same numbers. *tests/money/rules.test.ts.*
+- ✅ **Empty plan, traceable**: the webhook logs a paying subscription whose price isn't recognised (stored as no plan), with ids only.
+- ✅ **Studio hydration error #418 fixed.** Cause: the page loader read Reduce Motion while rendering, so for anyone with Reduce Motion on its first render differed from the server's HTML. Now read through `useMediaQuery` (`useSyncExternalStore`). Checked on a production build: no errors on Studio pages with Reduce Motion on. *tests/pro/hydration.test.ts.*
+- ✅ **Offer price in the database**: `supabase/migrations/20261125_offer_price_check.sql` adds a check that `request_offers.proposed_price` is one chargeable amount (same rule as the form and checkout). Applied to LineUp Test (tested: "55-60", "about 50", "0", "-5", "$", "1e3" refused; "$55", "55.50", "1,200 CAD" accepted) and then live (all 3 live offers passed; constraint validated). Row-level security unchanged.
+- ✅ **Wording**: Studio plan reads "0% LineUp commission on your own clients (card fee at cost)"; the weekly summary leads with what's booked after a quiet week instead of "$0 from 0 appointments". *tests/analytics/weeklySubject.test.ts.*
+- ✅ **Removed** the three unused newsletter routes (`/api/send-newsletter`, `/api/send-newsletter-test`, `/api/newsletter-audience`); the signup route stays.
+- ✅ **Landing**: tour video re-encoded (3.0 MB → 1.3 MB, same look); hero cutouts through the image optimizer as AVIF (12–23 KB each on Vercel, 0.7 s cold). Preview, live data, phone, first visit: landing score 68 → **76**, LCP 6.7 s → **4.5 s**, 1.1 MB → **0.64 MB**.
+- ✅ **Apple Pay**: already active in live mode for `lineup-aesthetics.ca` and `www.lineup-aesthetics.ca` (the earlier warning came from localhost). Nothing to do.
+- ⏸ **BLIK** is still on in the live Stripe account (Bancontact and EPS are on too). Changing a live Stripe setting from here was blocked; see below.
+- ⏸ **Signed-in pages and Lighthouse's 2.5 s**: they already load their data on the server (`/requests`, `/work`, `/calendar`). The simulated number comes from the ~330 KB of scripts every signed-in page needs (React/Next ~69 KB, the Supabase client ~62 KB, which can't be split). Real load: 0.5–1.2 s.
+- ⏸ **Profile page main-thread time (~700 ms)**: loading the payment and "booked" sheets on demand was tried and measured; no change (437 vs 445 KB, same blocking time), so it was undone. The cost is setting up the one 3,400-line profile component; splitting it into smaller pieces is its own job.
+
+### Tests after the decisions (25 Nov, final production build on LineUp Test, fresh seed before each spec)
+| Spec | Result |
+|---|---|
+| smoke (every page as each TEST user, 1280 + 390) | ✅ 150/150 |
+| pro, customer, studio, admin, guards | ✅ 24, 16, 22, 2, 12 passed |
+| pro-flow, studio-flow, admin-flow, more-flows, invites-flow | ✅ 6, 5, 6, 6, 4 passed |
+| customer-flow, shop-booking-flow, shop-desk-flow, payment-guards | ✅ 7, 3, 4, 2 passed |
+| billing, boosts/referral, memberships, studio billing, gift cards | ⏭ skipped: need `stripe listen` (passed on 24 Nov with it; **re-run with it before merging**, since checkout, the booking cap and the webhook changed) |
+| `npm test` | ✅ 201/201 |
+| `npx tsc --noEmit`, `npm run build` | ✅ |
+| lint (app) | ✅ 50 errors, same as the baseline |
 
 ## Summary and decisions waiting on Noah (25 Nov)
 
-**Fixed across Steps 1–6:** guarded routes send you to log in and back; 44px tap targets; plain-English Stripe requirements; invites that fail to email give a share link; the shop calendar's "Mark done" no longer saves as cash; an email off-switch for tests; a separate LineUp Test database with seed/cleanup scripts and all 9 crons checked on it; the RLS speed-up migration (live); and in Step 6, pages that load a fraction of the bytes (Discover on live data 11 MB → 0.5 MB, 37 s → 4 s), no layout jumps on Discover, the shop page or pro Home, one shared UI kit, role-aware motion, monochrome everywhere, and one plain voice (pro, request, offer, booking, shop).
+**Fixed across Steps 1–6 and the decisions above:** guarded routes, 44px tap targets, plain-English Stripe requirements, invite share links, the shop calendar "Mark done" bug, the email off-switch, a separate LineUp Test database (seed, cleanup, crons), the RLS speed-up and offer price check (both live), no charge without a booking, one booking cap, the Studio hydration error, and Step 6: pages that load a fraction of the bytes (Discover on live data 11 MB → 0.5 MB, 37 s → 4 s; landing 3.8 MB → 0.64 MB), no layout jumps, one shared UI kit, role-aware motion, monochrome everywhere, one plain voice (pro, request, offer, booking, shop).
 
-**Waiting on you**, most important first:
-1. **Charge without a booking** if a pro has no saved location (customer pass #1): `create-payment-intent` should refuse before charging. Payment code.
-2. **Vercel image optimizer limit** (Step 6): uploaded photos are now resized by Vercel; on Hobby that has a monthly cap. Check usage after a week, or switch to Supabase image resizing (needs Supabase Pro).
-3. **Point Vercel Preview at LineUp Test** and add the test price ids there (money #3), so previews never touch live data.
-4. **Studio pages log a React hydration error (#418)** (Step 6; already there before). Pages work; worth tracking down.
-5. **Signed-in pages' data on the server** (Step 6): real load is 0.5–1.2 s, but Lighthouse's simulation says 4–5 s; loading each page's data on the server like `/requests` would fix the number. The profile page could also be split up (~600 ms of main-thread work).
-6. **Payments follow-ups**: Apple Pay domain, return to the request after 3D Secure (customer #2, #4); BLIK in the card form (Stripe runs #2); the booking cap in one function (money #5); the empty-plan-once webhook log line (Stripe runs #1).
-7. **Wording and policy**: customer emails vs push (customer #6), Studio "0% commission" wording (money #4), weekly summary subject (scheduled jobs #1).
-8. **Clean-ups**: remove the three unused newsletter routes (admin #1); numeric offer price column (pro #2); rotate the test project's secret key; re-encode `post-a-request.mp4` smaller; try AVIF for the landing cutouts on a preview (Step 6).
-9. **Live database health** (incident, 24 Nov): watch memory and disk I/O on the free plan.
+**Only you can do these** (each is a setting or a secret, not code):
+1. **Vercel → Project → Settings → Environment Variables → Preview**: point previews at LineUp Test (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` from `.env.testdb.local`, `EMAIL_DISABLED=1`) and add the test price ids (`NEXT_PUBLIC_STRIPE_{APPRENTICE,PRO,MASTER}_PRICE_ID` from `.env.local`). Then previews never touch live data.
+2. **Stripe → Settings → Payment methods**: turn **BLIK** off (also Bancontact and EPS, unless you want European methods).
+3. **Supabase → LineUp Test → Settings → API keys**: rotate the secret key (it was pasted in chat), then update `.env.testdb.local`.
+4. **In a week**: check Vercel's image optimizer usage (uploaded photos are now resized there; Hobby has a monthly cap). If it's close, switch to Supabase image resizing (needs Supabase Pro).
+5. **Customer emails vs push**: the rule says customers get push, not email, but they're emailed for confirmations, offers and reminders. Turning those off would leave customers without push with no confirmations at all, so it wasn't changed. Your call.
+6. **Live database health**: watch memory and disk I/O on the free plan (24 Nov stall).
+
+**Worth doing next (code):** split the profile page into smaller pieces; the logged-out "save" heart; a TEST-only filter for admin moderation so delete can be tested.
