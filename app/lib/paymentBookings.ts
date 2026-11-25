@@ -7,6 +7,7 @@ import { stripe } from "@/app/lib/stripe";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { hasFrontDeskClash } from "@/app/lib/busyTimes";
 import { getSiteUrl } from "@/app/lib/siteUrl";
+import { countRequestBookingsThisMonth, getMonthlyBookingCap } from "@/app/lib/bookingCap";
 
 function timeToMinutes(timeString: string) {
   const [hours, minutes] = String(timeString).slice(0, 5).split(":").map(Number);
@@ -492,16 +493,6 @@ export async function bookFromPaymentIntent(paymentIntent: any) {
   await notifyIfNearingMonthlyBookingCap(supabase, offer.professional_id);
 }
 
-function getMonthlyBookingCap(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {
-  const subscribed =
-    profile.subscription_status === "active" || profile.subscription_status === "trialing";
-
-  if (!subscribed) return 15; // Basic
-  if (profile.subscription_plan === "apprentice") return 25;
-  if (profile.subscription_plan === "pro" || profile.subscription_plan === "master") return null; // unlimited
-  return 15; // anything unrecognised gets the Basic limit, never unlimited
-}
-
 // Request-sourced bookings count toward a subscribed professional's monthly
 // cap (direct calendar bookings never do). Warn once at 80% used and once
 // at the cap itself, rather than on every booking near the limit.
@@ -518,18 +509,7 @@ async function notifyIfNearingMonthlyBookingCap(
   const cap = getMonthlyBookingCap(professionalProfile || {});
   if (cap === null) return;
 
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
-
-  const { count } = await supabase
-    .from("bookings")
-    .select("id", { count: "exact", head: true })
-    .eq("professional_id", professionalId)
-    .eq("source", "request")
-    .in("status", ["confirmed", "completion_requested", "completed"])
-    .gte("booking_date", monthStart)
-    .lte("booking_date", monthEnd);
+  const count = await countRequestBookingsThisMonth(supabase, professionalId);
 
   const currentCount = count || 0;
   const nearingThreshold = Math.ceil(cap * 0.8);

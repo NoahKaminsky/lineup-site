@@ -1,3 +1,4 @@
+import { capMonthRange, getMonthlyBookingCap } from "@/app/lib/bookingCap";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
@@ -58,28 +59,28 @@ describe("splitBookingPayment", () => {
 });
 
 describe("monthly request-booking cap", () => {
-  // The cap is written out in three files (two are payment code, left as is).
-  // They must stay identical, and match what the plans page promises.
-  const FILES = ["app/lib/paymentBookings.ts", "app/api/professional/booking-usage/route.ts", "app/api/stripe/create-payment-intent/route.ts"];
-  const body = (f: string) => {
-    const src = readFileSync(f, "utf8");
-    const start = src.indexOf("function getMonthlyBookingCap");
-    expect(start, `${f} has getMonthlyBookingCap`).toBeGreaterThan(-1);
-    return src.slice(src.indexOf("{", src.indexOf(")", start)), src.indexOf("\n}\n", start)).replace(/\/\/.*$/gm, "").replace(/\s+/g, " ").trim();
-  };
+  // One definition (app/lib/bookingCap.ts), used by checkout, the webhook's
+  // "nearing your limit" notice and the pro's usage meter.
+  const USERS = ["app/lib/paymentBookings.ts", "app/api/professional/booking-usage/route.ts", "app/api/stripe/create-payment-intent/route.ts"];
 
-  it("is the same in every copy", () => {
-    const [a, ...rest] = FILES.map(body);
-    for (const b of rest) expect(b).toBe(a);
+  it("is defined once and every user imports it", () => {
+    for (const f of USERS) {
+      const src = readFileSync(f, "utf8");
+      expect(src, f).not.toMatch(/function getMonthlyBookingCap/);
+      expect(src, f).toContain('from "@/app/lib/bookingCap"');
+    }
   });
 
   it("matches the plans page: Basic 15, Apprentice 25, Pro and Master unlimited", () => {
-    const src = body(FILES[0]);
-    expect(src).toMatch(/if \(!subscribed\) return 15;/);
-    expect(src).toMatch(/"apprentice"\) return 25;/);
-    expect(src).toMatch(/"pro" \|\| profile\.subscription_plan === "master"\) return null;/);
-    expect(PLAN_FEATURES.basic).toContain("Up to 15 request bookings per month");
-    expect(PLAN_FEATURES.apprentice).toContain("Up to 25 request bookings per month");
-    expect(PLAN_FEATURES.pro).toContain("Unlimited request bookings");
+    expect(getMonthlyBookingCap({})).toBe(15);
+    expect(getMonthlyBookingCap({ subscription_status: "canceled", subscription_plan: "master" })).toBe(15);
+    expect(getMonthlyBookingCap({ subscription_status: "active", subscription_plan: "apprentice" })).toBe(25);
+    expect(getMonthlyBookingCap({ subscription_status: "trialing", subscription_plan: "pro" })).toBeNull();
+    expect(getMonthlyBookingCap({ subscription_status: "active", subscription_plan: "master" })).toBeNull();
+    expect(getMonthlyBookingCap({ subscription_status: "active", subscription_plan: "something-new" })).toBe(15);
+  });
+
+  it("counts the calendar month", () => {
+    expect(capMonthRange(new Date(2026, 10, 25))).toEqual({ monthStart: new Date(2026, 10, 1).toISOString().slice(0, 10), monthEnd: new Date(2026, 11, 0).toISOString().slice(0, 10) });
   });
 });
