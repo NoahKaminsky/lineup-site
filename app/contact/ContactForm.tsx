@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { buttonClass } from "@/app/components/ui";
 
 const TOPICS = ["Client", "Pro", "Business", "Press", "Other"];
 
@@ -37,7 +38,7 @@ export default function ContactForm() {
 
   if (state === "sent") {
     return (
-      <div className="lu-rise-in flex min-h-[420px] flex-col items-center justify-center rounded-[28px] bg-white p-8 text-center ring-1 ring-ink/[0.07]">
+      <div className="lu-rise-in flex min-h-[420px] flex-col items-center justify-center rounded-3xl bg-white p-8 text-center ring-1 ring-ink/[0.07]">
         <svg viewBox="0 0 56 56" className="h-14 w-14" aria-hidden="true">
           <circle cx="28" cy="28" r="28" className="fill-ink" style={{ animation: "lu-dot-in 420ms var(--ease-arrive) backwards" }} />
           <path
@@ -71,7 +72,7 @@ export default function ContactForm() {
   }
 
   return (
-    <form onSubmit={submit} className="rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8" noValidate>
+    <form onSubmit={submit} className="rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8" noValidate>
       <fieldset>
         <legend className="text-sm font-medium text-neutral-700">I&apos;m a…</legend>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -134,7 +135,7 @@ export default function ContactForm() {
         <button
           type="submit"
           disabled={state === "sending"}
-          className="group inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800 active:scale-[0.98] disabled:opacity-60"
+          className={buttonClass("primary", "md", "group")}
         >
           {state === "sending" ? "Sending…" : "Send message"}
           <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" fill="none" aria-hidden="true">

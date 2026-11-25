@@ -14,6 +14,8 @@ import MarkRequestNotificationRead from "@/app/components/MarkRequestNotificatio
 import { containsProfanity } from "@/app/lib/profanityFilter";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { MomentCard, MomentOverlay, formatMomentDate, formatMomentPrice } from "@/app/components/moments/Moments";
+import { buttonClass } from "@/app/components/ui";
+import { fieldClass, textareaClass } from "@/app/components/ui";
 
 type ServiceRequest = {
   id: string;
@@ -616,7 +618,7 @@ export default function RespondToRequestPage() {
               <div className="mt-4">
                 <Link
                   href={`/requests/${requestId}`}
-                  className="inline-flex rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 min-h-11 items-center"
+                  className={buttonClass("primary", "md")}
                 >
                   Back to request
                 </Link>
@@ -634,7 +636,7 @@ export default function RespondToRequestPage() {
               <div className="mt-4">
                 <Link
                   href={`/requests/${requestId}`}
-                  className="inline-flex rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 min-h-11 items-center"
+                  className={buttonClass("primary", "md")}
                 >
                   Back to request
                 </Link>
@@ -655,7 +657,7 @@ export default function RespondToRequestPage() {
               <div className="mt-4">
                 <Link
                   href="/verification"
-                  className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+                  className={buttonClass("primary", "md")}
                 >
                   Verify now
                 </Link>
@@ -673,7 +675,7 @@ export default function RespondToRequestPage() {
                   value={proposedPrice}
                   onChange={(e) => setProposedPrice(e.target.value)}
                   placeholder="$55"
-                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
+                  className={fieldClass}
                 />
               </div>
 
@@ -789,7 +791,7 @@ export default function RespondToRequestPage() {
                           type="date"
                           value={proposedDate}
                           onChange={(e) => setProposedDate(e.target.value)}
-                          className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
+                          className={fieldClass}
                         />
                       </div>
 
@@ -828,7 +830,7 @@ export default function RespondToRequestPage() {
                   value={offerMessage}
                   onChange={(e) => setOfferMessage(e.target.value)}
                   placeholder="Hi, I’d be a great fit for this request because..."
-                  className="w-full resize-none rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
+                  className={`${textareaClass} resize-none`}
                 />
               </div>
 

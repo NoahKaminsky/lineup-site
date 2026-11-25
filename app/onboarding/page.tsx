@@ -12,6 +12,7 @@ import { getSignedInUser } from "@/lib/getSignedInUser";
 import LocationAutocomplete, { type SelectedLocation } from "@/app/components/LocationAutocomplete";
 import { rememberReturnTo, takeReturnTo, loginHref } from "@/app/lib/returnTo";
 import { takeReferralCode } from "@/app/components/ReferralCapture";
+import { fieldClass } from "@/app/components/ui";
 
 // See the matching flag in app/account/AccountPageClient.tsx — same reasoning.
 const SMS_SIGNUP_UI_ENABLED = false;
@@ -373,7 +374,7 @@ export default function OnboardingPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your full name"
-                className="w-full rounded-xl bg-neutral-50 px-4 py-3 text-sm outline-none ring-1 ring-inset ring-ink/[0.07] transition focus:bg-white focus:ring-ink"
+                className={fieldClass}
               />
             </div>
 
@@ -551,7 +552,7 @@ export default function OnboardingPage() {
                       setPhoneError("");
                     }}
                     placeholder="+12045551234"
-                    className="w-full rounded-xl bg-white px-4 py-3 text-sm outline-none ring-1 ring-inset ring-ink/[0.08] transition focus:ring-ink"
+                    className={fieldClass}
                   />
                   {phoneError ? (
                     <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>

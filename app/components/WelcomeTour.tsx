@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { MaskLine } from "@/app/components/moments/Moments";
+import { buttonClass } from "@/app/components/ui";
 
 // The landing page's studio, reused as the tour's window. Each step moves the
 // camera further down the row of stations; the wall and the stations travel
@@ -146,7 +147,7 @@ export default function WelcomeTour({
         role="dialog"
         aria-modal="true"
         aria-labelledby="welcome-tour-title"
-        className="lu-sheet-in relative w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-[0_24px_64px_-16px_rgba(0,0,0,0.35)]"
+        className="lu-sheet-in relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-[0_24px_64px_-16px_rgba(0,0,0,0.35)]"
       >
         {/* Window into the studio */}
         <div aria-hidden="true" className="relative h-44 overflow-hidden bg-[#ecebe6] sm:h-52">
@@ -227,7 +228,7 @@ export default function WelcomeTour({
               <button
                 type="button"
                 onClick={goBack}
-                className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                className={buttonClass("secondary", "md")}
               >
                 Back
               </button>
@@ -237,7 +238,7 @@ export default function WelcomeTour({
               <button
                 type="button"
                 onClick={handleFinalCta}
-                className="flex-1 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+                className={buttonClass("primary", "md", "flex-1")}
               >
                 {finalCtaLabel}
               </button>
@@ -245,7 +246,7 @@ export default function WelcomeTour({
               <button
                 type="button"
                 onClick={goNext}
-                className="flex-1 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+                className={buttonClass("primary", "md", "flex-1")}
               >
                 Next
               </button>

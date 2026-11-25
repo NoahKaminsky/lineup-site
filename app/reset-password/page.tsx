@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { fieldClass } from "@/app/components/ui";
 
 type LinkState = "checking" | "ready" | "invalid";
 
@@ -198,7 +199,7 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter new password"
-                  className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
+                  className={fieldClass}
                 />
               </div>
 
@@ -214,7 +215,7 @@ export default function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm new password"
-                  className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
+                  className={fieldClass}
                 />
               </div>
 

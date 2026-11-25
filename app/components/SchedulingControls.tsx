@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { buttonClass } from "@/app/components/ui";
 
 // Scheduling controls for paid pros on the Services page:
 //  - BookingWindowControl: how far ahead clients can book.
@@ -300,7 +301,7 @@ export function TimeOffControl({ professionalId }: { professionalId: string }) {
           type="button"
           onClick={addTimeOff}
           disabled={saving || !start}
-          className="min-h-11 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-40"
+          className={buttonClass("primary", "md")}
         >
           {saving ? "Saving…" : "Add time off"}
         </button>

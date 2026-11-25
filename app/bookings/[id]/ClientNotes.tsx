@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NotebookPen } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { textareaClass } from "@/app/components/ui";
 
 export default function ClientNotes({ professionalId, customerId, clientName }: { professionalId: string; customerId: string; clientName: string }) {
   const [note, setNote] = useState("");
@@ -55,7 +56,7 @@ export default function ClientNotes({ professionalId, customerId, clientName }: 
   const first = clientName.split(" ")[0] || "this client";
 
   return (
-    <section className="mt-4 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+    <section className="mt-4 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <NotebookPen className="mt-0.5 h-5 w-5 shrink-0 text-neutral-500" aria-hidden="true" />
@@ -77,7 +78,7 @@ export default function ClientNotes({ professionalId, customerId, clientName }: 
         rows={4}
         placeholder="e.g. Skin fade, a 2 on the sides, keeps the length on top. Sensitive scalp."
         aria-label={`Your notes on ${first}`}
-        className="mt-4 w-full rounded-2xl bg-neutral-50 px-4 py-3 text-sm leading-6 text-ink outline-none ring-1 ring-inset ring-ink/[0.08] focus:bg-white focus:ring-2 focus:ring-ink"
+        className={`${textareaClass} mt-4`}
       />
     </section>
   );

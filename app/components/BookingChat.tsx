@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { containsProfanity } from "@/app/lib/profanityFilter";
+import { buttonClass } from "@/app/components/ui";
 
 type BookingMessage = {
   id: string;
@@ -99,7 +100,7 @@ export default function BookingChat({ bookingId, viewerId }: { bookingId: string
     <div className="mt-5">
       <div
         ref={scrollContainerRef}
-        className="min-h-[180px] max-h-80 space-y-2.5 overflow-y-auto rounded-[22px] bg-neutral-50 p-4"
+        className="min-h-[180px] max-h-80 space-y-2.5 overflow-y-auto rounded-3xl bg-neutral-50 p-4"
       >
         {loading ? (
           <p className="text-sm text-neutral-500">Loading messages...</p>
@@ -127,7 +128,7 @@ export default function BookingChat({ bookingId, viewerId }: { bookingId: string
       {error ? <p className="mt-3 rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       <div className="mt-4 flex gap-2">
         <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) sendMessage(); }} maxLength={1000} placeholder="Write a message" className="min-w-0 flex-1 rounded-full bg-neutral-50 px-4 py-3 text-sm outline-none ring-1 ring-inset ring-ink/[0.08] transition focus:bg-white focus:ring-ink" />
-        <button type="button" onClick={sendMessage} disabled={!viewerId || !text.trim() || sending} className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-50">
+        <button type="button" onClick={sendMessage} disabled={!viewerId || !text.trim() || sending} className={buttonClass("primary", "md")}>
           {sending ? "Sending…" : "Send"}
         </button>
       </div>

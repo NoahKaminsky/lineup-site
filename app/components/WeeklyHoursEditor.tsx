@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { buttonClass } from "@/app/components/ui";
 
 // Weekly hours, built for thumbs: one tidy row per day (name, hours, switch),
 // tap a day to edit just that day, one dropdown per time, and shortcuts for
@@ -162,7 +163,7 @@ export default function WeeklyHoursEditor({
             key={preset.label}
             type="button"
             onClick={preset.run}
-            className="shrink-0 rounded-full px-3.5 py-2 text-sm font-medium text-ink ring-1 ring-inset ring-ink/15 transition hover:ring-ink/30 active:scale-[0.97] min-h-11"
+            className={buttonClass("secondary", "md", "shrink-0")}
           >
             {preset.label}
           </button>

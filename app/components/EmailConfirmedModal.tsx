@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DrawnCheck, MaskLine } from "@/app/components/moments/Moments";
+import { buttonClass } from "@/app/components/ui";
 
 // Shown once, right after someone clicks the confirmation link in their
 // signup email. /auth/callback leaves a short-lived `lu_email_confirmed`
@@ -57,7 +58,7 @@ export default function EmailConfirmedModal() {
         aria-modal="true"
         aria-labelledby="lu-email-confirmed-title"
         onClick={(event) => event.stopPropagation()}
-        className="lu-sheet-in w-full max-w-md rounded-[28px] bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8"
+        className="lu-sheet-in w-full max-w-md rounded-3xl bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8"
       >
         <DrawnCheck size={52} delay={120} />
 
@@ -82,7 +83,7 @@ export default function EmailConfirmedModal() {
             type="button"
             onClick={close}
             autoFocus
-            className="rounded-full bg-ink px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+            className={buttonClass("primary", "md")}
           >
             {needsSignIn ? "Sign in" : "Continue"}
           </button>

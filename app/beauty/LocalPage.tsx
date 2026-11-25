@@ -6,6 +6,7 @@ import { professionLabel } from "@/app/lib/professions";
 import { TRADES, type City, type Trade } from "@/app/lib/cities";
 import type { LocalPro, LocalShop } from "@/app/lib/localPros";
 import { Photo } from "@/app/components/Photo";
+import { buttonClass } from "@/app/components/ui";
 
 // One city page, optionally narrowed to a trade. Server-rendered so search
 // engines see the pros listed; everything here is public profile info.
@@ -163,7 +164,7 @@ export default function LocalPage({
             </p>
             <Link
               href="/login?mode=signup"
-              className="mt-6 inline-flex rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+              className={buttonClass("primary", "md", "mt-6")}
             >
               Join LineUp
             </Link>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { fieldClass } from "@/app/components/ui";
 
 type Suggestion = {
   placeId: string;
@@ -111,7 +112,7 @@ export default function LocationAutocomplete({
           onInputChange?.(e.target.value);
         }}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
+        className={fieldClass}
       />
 
       {loading && (

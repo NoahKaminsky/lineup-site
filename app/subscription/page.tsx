@@ -11,6 +11,7 @@ import { getSignedInUser } from "@/lib/getSignedInUser";
 import { loginHref } from "@/app/lib/returnTo";
 import { proPageRedirect } from "@/app/lib/proAccess";
 import { getCached, setCached } from "@/app/lib/pageCache";
+import { buttonClass } from "@/app/components/ui";
 
 type SubscriptionStatus =
   | "active"
@@ -408,7 +409,7 @@ export default function SubscriptionPage() {
             </p>
             <Link
               href="/studio"
-              className="mt-5 inline-flex min-h-11 items-center rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+              className={buttonClass("primary", "md", "mt-5")}
             >
               Go to your studio
             </Link>
@@ -422,7 +423,7 @@ export default function SubscriptionPage() {
             </p>
             <Link
               href="/studio"
-              className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+              className={buttonClass("primary", "md", "mt-5")}
             >
               Go to your shop
             </Link>
@@ -511,7 +512,7 @@ export default function SubscriptionPage() {
                 </button>
                 <Link
                   href="/account"
-                  className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                  className={buttonClass("secondary", "md")}
                 >
                   Back to account
                 </Link>
@@ -685,7 +686,7 @@ export default function SubscriptionPage() {
         ) : null}
 
         {/* Paid boost: a week at the top of Explore. */}
-        <div className="mt-4 flex flex-col gap-4 rounded-[28px] bg-surface ring-1 ring-ink/[0.06] p-6 sm:flex-row sm:items-center sm:p-8">
+        <div className="mt-4 flex flex-col gap-4 rounded-3xl bg-surface ring-1 ring-ink/[0.06] p-6 sm:flex-row sm:items-center sm:p-8">
           <div className="min-w-0 flex-1">
             <p className="text-lg font-semibold tracking-[-0.02em] text-ink">
               {BOOSTS.profile.label}: {formatBoostPrice("profile")} for {BOOSTS.profile.days} days
@@ -703,7 +704,7 @@ export default function SubscriptionPage() {
             type="button"
             onClick={handleBoost}
             disabled={boosting}
-            className="min-h-11 shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
+            className={buttonClass("primary", "md", "shrink-0")}
           >
             {boosting ? "Opening checkout…" : boostedUntil ? "Add a week" : "Boost my profile"}
           </button>

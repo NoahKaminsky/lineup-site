@@ -23,6 +23,7 @@ import SplitFlap from "@/app/components/SplitFlap";
 import type { ShopPro } from "./page";
 import { shopNow } from "@/app/lib/bookingTime";
 import { Photo } from "@/app/components/Photo";
+import { buttonClass } from "@/app/components/ui";
 
 type Busy = { professional_id: string; booking_date: string; start_time: string; end_time: string };
 
@@ -707,7 +708,7 @@ function BookingBar({
           >
             <a
               href={booked.id ? `/bookings/${booked.id}` : "/work"}
-              className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+              className={buttonClass("primary", "md")}
             >
               View booking
             </a>
@@ -728,7 +729,7 @@ function BookingBar({
 
   return (
     <div
-      className={`relative mt-6 overflow-hidden rounded-[24px] transition-colors duration-300 ${
+      className={`relative mt-6 overflow-hidden rounded-3xl transition-colors duration-300 ${
         ready ? "bg-white p-5 text-ink shadow-[0_18px_40px_-26px_rgba(0,0,0,0.4)] ring-1 ring-ink/[0.07]" : "bg-ink/[0.04] p-4"
       }`}
     >

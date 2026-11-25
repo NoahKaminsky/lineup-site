@@ -14,6 +14,8 @@ import { useHashTarget } from "@/app/lib/useHashTarget";
 import { BookingWindowControl, TimeOffControl } from "@/app/components/SchedulingControls";
 import WeeklyHoursEditor from "@/app/components/WeeklyHoursEditor";
 import { DEFAULT_SERVICE_RADIUS_KM, SERVICE_RADIUS_OPTIONS } from "@/app/lib/serviceArea";
+import { buttonClass } from "@/app/components/ui";
+import { fieldClass, textareaClass } from "@/app/components/ui";
 type Profile = {
   id: string;
   role: string | null;
@@ -465,7 +467,7 @@ function LocationAutocomplete({
           onInputChange?.(e.target.value);
         }}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
+        className={fieldClass}
       />
 
       {confirming ? (
@@ -1364,7 +1366,7 @@ export default function ServicesPage() {
                             onChange={(e) =>
                               updateServiceDraft(service.id, "service_name", e.target.value)
                             }
-                            className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
+                            className={fieldClass}
                           />
                         </div>
 
@@ -1377,7 +1379,7 @@ export default function ServicesPage() {
                             onChange={(e) =>
                               updateServiceDraft(service.id, "duration_minutes", e.target.value)
                             }
-                            className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
+                            className={fieldClass}
                           >
                             {[15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150, 180].map(
                               (minutes) => (
@@ -1402,7 +1404,7 @@ export default function ServicesPage() {
                               updateServiceDraft(service.id, "price", e.target.value)
                             }
                             placeholder="50"
-                            className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
+                            className={fieldClass}
                           />
                         </div>
 
@@ -1419,7 +1421,7 @@ export default function ServicesPage() {
                           }
                           placeholder="Optional short description shown on your public profile."
                           rows={3}
-                          className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
+                          className={textareaClass}
                         />
                       </div>
 
@@ -1479,7 +1481,7 @@ export default function ServicesPage() {
                 value={newServiceName}
                 onChange={(e) => setNewServiceName(e.target.value)}
                 placeholder="Haircut, Beard Trim, Gel Set, Brow Wax..."
-                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
+                className={fieldClass}
               />
             </div>
 
@@ -1490,7 +1492,7 @@ export default function ServicesPage() {
               <select
                 value={newServiceDuration}
                 onChange={(e) => setNewServiceDuration(Number(e.target.value))}
-                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
+                className={fieldClass}
               >
                 {[15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150, 180].map((minutes) => (
                   <option key={minutes} value={minutes}>
@@ -1511,7 +1513,7 @@ export default function ServicesPage() {
                 value={newServicePrice}
                 onChange={(e) => setNewServicePrice(e.target.value)}
                 placeholder="50"
-                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
+                className={fieldClass}
               />
             </div>
 
@@ -1526,7 +1528,7 @@ export default function ServicesPage() {
               onChange={(e) => setNewServiceDescription(e.target.value)}
               placeholder="Optional short description shown on your public profile."
               rows={3}
-              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
+              className={textareaClass}
             />
           </div>
 
@@ -1534,7 +1536,7 @@ export default function ServicesPage() {
             type="button"
             onClick={handleAddService}
             disabled={serviceSaving}
-            className="mt-5 w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60 sm:w-auto sm:px-8"
+            className={buttonClass("primary", "md", "mt-5 w-full sm:w-auto")}
           >
             {serviceSaving ? "Adding…" : "Add service"}
           </button>
@@ -1561,7 +1563,7 @@ export default function ServicesPage() {
               </p>
               <Link
                 href="/subscription"
-                className="mt-4 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
+                className={buttonClass("primary", "md", "mt-4")}
               >
                 View plans
               </Link>
@@ -1635,7 +1637,7 @@ export default function ServicesPage() {
                 <select
                   value={defaultAppointmentDuration}
                   onChange={(e) => setDefaultAppointmentDuration(Number(e.target.value))}
-                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
+                  className={fieldClass}
                 >
                   {[30, 45, 60, 75, 90, 120].map((minutes) => (
                     <option key={minutes} value={minutes}>
@@ -1662,7 +1664,7 @@ export default function ServicesPage() {
               </p>
               <Link
                 href="/subscription"
-                className="mt-4 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
+                className={buttonClass("primary", "md", "mt-4")}
               >
                 See plans
               </Link>
@@ -1870,7 +1872,7 @@ export default function ServicesPage() {
                     href={businessMapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-3 inline-flex rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-100 min-h-11 items-center"
+                    className={buttonClass("secondary", "sm", "mt-3")}
                   >
                     Open in Maps
                   </a>
@@ -1968,7 +1970,7 @@ export default function ServicesPage() {
                 type="button"
                 onClick={handleSaveSettings}
                 disabled={saving || justSaved}
-                className="shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
+                className={buttonClass("primary", "md", "shrink-0")}
               >
                 {saving ? "Saving…" : justSaved ? "Saved" : "Save changes"}
               </button>

@@ -26,7 +26,7 @@ export default function SpotlightStats({ inRotation, share }: { inRotation: bool
   }, []);
 
   return (
-    <section className="relative mt-10 overflow-hidden rounded-[28px] bg-[#09090a] p-6 text-white sm:p-8">
+    <section className="relative mt-10 overflow-hidden rounded-3xl bg-[#09090a] p-6 text-white sm:p-8">
       {/* The same white beam as the Spotlight on Explore, aimed at the numbers. */}
       <div
         aria-hidden="true"

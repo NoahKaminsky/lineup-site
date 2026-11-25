@@ -13,6 +13,7 @@ import { MomentCard, MomentOverlay, formatMomentDate, formatMomentPrice } from "
 import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
 import { roundForArea } from "@/app/lib/serviceArea";
 import { professionsForCategories } from "@/app/lib/professions";
+import { fieldClass } from "@/app/components/ui";
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
@@ -147,7 +148,7 @@ function NewRequestLoadingSkeleton() {
           <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
         </div>
 
-        <div className="mt-8 rounded-[28px] bg-white p-5 ring-1 ring-ink/[0.06]">
+        <div className="mt-8 rounded-3xl bg-white p-5 ring-1 ring-ink/[0.06]">
           <div className="space-y-5">
             {[1, 2, 3, 4].map((item) => (
               <div key={item}>
@@ -389,7 +390,7 @@ function LocationAutocomplete({
           onInputChange?.(e.target.value);
         }}
         placeholder={placeholder}
-        className="w-full rounded-xl bg-neutral-50 ring-1 ring-inset ring-ink/[0.06] px-4 py-3 text-sm text-neutral-900 outline-none transition focus:bg-white focus:ring-ink"
+        className={fieldClass}
       />
 
       {confirming ? (
@@ -1042,7 +1043,7 @@ function NewRequestPageContent() {
           ) : null}
 
           {/* Form card */}
-          <div className="rounded-[28px] bg-white p-5 ring-1 ring-ink/[0.06] sm:p-8">
+          <div className="rounded-3xl bg-white p-5 ring-1 ring-ink/[0.06] sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
 
               {requestingSpecificService ? (
@@ -1325,7 +1326,7 @@ function NewRequestPageContent() {
                           type="date"
                           value={preferredDate}
                           onChange={(e) => setPreferredDate(e.target.value)}
-                          className="block h-12 w-full min-w-0 appearance-none rounded-xl bg-white px-4 text-left ring-1 ring-inset ring-ink/[0.08] focus:ring-ink text-sm text-neutral-900 outline-none transition [&::-webkit-date-and-time-value]:text-left"
+                          className={`${fieldClass} min-w-0 appearance-none text-left [&::-webkit-date-and-time-value]:text-left`}
                         />
                       </div>
                       <div className="min-w-0">

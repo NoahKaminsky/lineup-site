@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { useWebPush } from "@/app/lib/useWebPush";
+import { buttonClass } from "@/app/components/ui";
 
 const DISMISS_KEY = "lineup-notif-nudge-dismissed";
 
@@ -68,7 +69,7 @@ export default function NotificationNudge() {
         {showIOSInstructions ? (
           <Link
             href="/account#push-notifications"
-            className="inline-flex rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-white"
+            className={buttonClass("secondary", "md")}
           >
             Show me how
           </Link>
@@ -77,7 +78,7 @@ export default function NotificationNudge() {
             type="button"
             onClick={handleEnable}
             disabled={working}
-            className="inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+            className={buttonClass("primary", "md")}
           >
             {working ? "Enabling…" : "Enable notifications"}
           </button>

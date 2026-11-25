@@ -24,6 +24,8 @@ import { DrawnCheck, MaskLine, formatMomentPrice } from "@/app/components/moment
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { useHashTarget } from "@/app/lib/useHashTarget";
 import { TITLE } from "@/app/components/ui";
+import { buttonClass } from "@/app/components/ui";
+import { textareaClass } from "@/app/components/ui";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -846,7 +848,7 @@ export default function BookingDetailPage() {
         ) : null}
 
         {/* The booking at a glance: what, when, with whom, where. */}
-        <section className="lu-dialog-in mt-4 rounded-[28px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-36px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.07] sm:p-8">
+        <section className="lu-dialog-in mt-4 rounded-3xl bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-36px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.07] sm:p-8">
           {isLive && countdown(booking.booking_date, booking.start_time) !== "Now" ? (
             <p className="text-[13px] font-medium tabular-nums text-neutral-500">
               {countdown(booking.booking_date, booking.start_time)}
@@ -970,7 +972,7 @@ export default function BookingDetailPage() {
         (booking.status === "completion_requested" ||
           (booking.status === "confirmed" && isServiceOver(booking.booking_date, booking.end_time))) ? (
           // The one step that releases the professional's payout.
-          <section className="lu-dialog-in mt-4 rounded-[28px] bg-ink p-6 text-white sm:p-7">
+          <section className="lu-dialog-in mt-4 rounded-3xl bg-ink p-6 text-white sm:p-7">
             <p className="text-xs font-medium text-white/60">Action needed</p>
             <p className="mt-2 text-xl font-semibold tracking-[-0.02em]">
               {booking.status === "completion_requested"
@@ -994,7 +996,7 @@ export default function BookingDetailPage() {
         ) : null}
 
         {isViewerProfessional && booking.status === "confirmed" ? (
-          <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+          <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07]">
             <div className="min-w-0">
               <p className="font-semibold text-ink">Finished the service?</p>
               <p className="mt-1 text-sm leading-6 text-neutral-500">
@@ -1020,7 +1022,7 @@ export default function BookingDetailPage() {
                 type="button"
                 onClick={handleRequestCompletion}
                 disabled={actionLoading === "request-completion"}
-                className="inline-flex shrink-0 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                className={buttonClass("primary", "md", "shrink-0")}
               >
                 {actionLoading === "request-completion" ? "Requesting…" : "Mark service complete"}
               </button>
@@ -1047,7 +1049,7 @@ export default function BookingDetailPage() {
         ) : null}
 
         {isViewerCustomer && booking.status === "completed" ? (
-          <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+          <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07]">
             <div className="min-w-0">
               <p className="font-semibold text-ink">Book your next one</p>
               <p className="mt-1 text-sm leading-6 text-neutral-500">
@@ -1056,7 +1058,7 @@ export default function BookingDetailPage() {
             </div>
             <Link
               href={`/profile/${booking.professional_id}#availability`}
-              className="inline-flex shrink-0 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+              className={buttonClass("primary", "md", "shrink-0")}
             >
               Book again
             </Link>
@@ -1070,7 +1072,7 @@ export default function BookingDetailPage() {
         {/* Messages: right under the booking, not at the bottom of the page. */}
         <section
           id="booking-chat"
-          className="mt-4 scroll-mt-24 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8"
+          className="mt-4 scroll-mt-24 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8"
         >
           <div className="flex items-baseline justify-between gap-4">
             <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Messages</h2>
@@ -1082,7 +1084,7 @@ export default function BookingDetailPage() {
         </section>
 
         {/* Manage: cancellation and the record. */}
-        <section className="mt-4 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
+        <section className="mt-4 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Manage</h2>
           {isLive && (isViewerCustomer || isViewerProfessional) ? (
             <div className="mt-4">
@@ -1154,7 +1156,7 @@ export default function BookingDetailPage() {
 
     {showReviewModal ? (
       <div className="lu-fade-in fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-0 sm:items-center sm:p-4">
-        <div className="lu-sheet-in w-full max-w-md rounded-t-[28px] bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-[28px] sm:p-8">
+        <div className="lu-sheet-in w-full max-w-md rounded-t-3xl bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-3xl sm:p-8">
           <DrawnCheck size={44} />
           <h2 className="mt-6 text-[1.6rem] font-semibold leading-[1.08] tracking-[-0.035em]">
             <MaskLine delay={120}>Service complete.</MaskLine>
@@ -1204,7 +1206,7 @@ export default function BookingDetailPage() {
             maxLength={1000}
             placeholder="Share details about your experience (optional)"
             rows={3}
-            className="mt-5 w-full resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-ink"
+            className={`${textareaClass} mt-5 resize-none`}
           />
 
           {reviewError ? (

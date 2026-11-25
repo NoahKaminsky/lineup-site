@@ -19,6 +19,8 @@ import SavedProsCard from "@/app/components/SavedProsCard";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
 import { useHashTarget } from "@/app/lib/useHashTarget";
+import { buttonClass } from "@/app/components/ui";
+import { fieldClass, textareaClass } from "@/app/components/ui";
 
 // SMS alerts are superseded by push notifications (free, no Twilio account
 // needed) -- hidden from the UI for now rather than removed, since the
@@ -1094,7 +1096,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
     <>
       <main className="min-h-screen bg-paper px-4 pb-36 pt-6 text-neutral-900 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
-          <div className="mb-6 overflow-hidden rounded-[28px] bg-white ring-1 ring-ink/[0.07]">
+          <div className="mb-6 overflow-hidden rounded-3xl bg-white ring-1 ring-ink/[0.07]">
             {/* Pros lead with a cover photo. Clients get one compact row instead:
                 photo, name, rating and Edit, so the page starts with what they use. */}
             {isProfessional ? (
@@ -1216,7 +1218,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   {isProfessional ? (
                     <Link
                       href={getProfileHref(profile)}
-                      className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-ink transition hover:bg-neutral-50"
+                      className={buttonClass("secondary", "md")}
                     >
                       View profile
                     </Link>
@@ -1245,7 +1247,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
           {/* Booking link: the pro's key way to bring their own clients in. Its
               own card, right under the profile; it opens their calendar. */}
           {isProfessional && !hasPaidPlan ? (
-            <section id="booking-link" className="relative mb-8 scroll-mt-28 overflow-hidden rounded-[28px] bg-ink p-6 text-white sm:p-8">
+            <section id="booking-link" className="relative mb-8 scroll-mt-28 overflow-hidden rounded-3xl bg-ink p-6 text-white sm:p-8">
               <h2 className="text-xl font-semibold tracking-[-0.02em] sm:text-2xl">
                 Get your own link clients book from.
               </h2>
@@ -1261,7 +1263,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
             </section>
           ) : null}
           {isProfessional && hasPaidPlan ? (
-            <section id="booking-link" className="relative mb-8 scroll-mt-28 overflow-hidden rounded-[28px] bg-ink p-6 text-white sm:p-8">
+            <section id="booking-link" className="relative mb-8 scroll-mt-28 overflow-hidden rounded-3xl bg-ink p-6 text-white sm:p-8">
               {!profile.username || linkEditing ? (
                 <div className="lu-fade-in">
                   <p className="text-xs font-medium text-white/50">
@@ -1466,7 +1468,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
           ) : null}
 
           <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
+            <div className="rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
               {!isEditing ? (
                 <>
                   <div>
@@ -1525,7 +1527,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         )}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="mt-3 inline-flex rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                        className={buttonClass("secondary", "md", "mt-3")}
                       >
                         @{String(profile.instagram_handle).replace("@", "")}
                       </a>
@@ -1573,7 +1575,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
+                      className={fieldClass}
                     />
                   </div>
 
@@ -1648,7 +1650,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                           value={businessName}
                           onChange={(e) => setBusinessName(e.target.value)}
                           placeholder="e.g. Fade District Barbershop"
-                          className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
+                          className={fieldClass}
                         />
                         <p className="mt-2 text-xs text-neutral-500">
                           If you work out of a shop or studio, this shows alongside your location on your public profile.
@@ -1665,7 +1667,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                           value={bio}
                           onChange={(e) => setBio(e.target.value)}
                           placeholder="Tell clients a bit about your work..."
-                          className="w-full resize-none rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
+                          className={`${textareaClass} resize-none`}
                         />
                       </div>
 
@@ -1679,7 +1681,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                           value={instagramHandle}
                           onChange={(e) => setInstagramHandle(e.target.value)}
                           placeholder="@yourhandle"
-                          className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
+                          className={fieldClass}
                         />
                       </div>
 
@@ -1718,7 +1720,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                               }
                             }}
                             placeholder="Add a specialty"
-                            className="w-full rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
+                            className={fieldClass}
                           />
                           <button
                             type="button"
@@ -1827,7 +1829,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                             setPhoneError("");
                           }}
                           placeholder="+12045551234"
-                          className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-ink"
+                          className={fieldClass}
                         />
                         <p className="mt-1.5 text-xs text-neutral-500">
                           International format, e.g. +1 for Canada/US.
@@ -1863,7 +1865,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     <button
                       type="submit"
                       disabled={saving}
-                      className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                      className={buttonClass("primary", "md")}
                     >
                       {saving ? "Saving…" : "Save changes"}
                     </button>
@@ -1871,7 +1873,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     <button
                       type="button"
                       onClick={handleCancelEdit}
-                      className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                      className={buttonClass("secondary", "md")}
                     >
                       Cancel
                     </button>
@@ -1896,7 +1898,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
               {/* Your account: the things that decide whether you get booked and
                   paid, each with the one action it needs. */}
-              <div className={`rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] ${isProfessional ? "" : "hidden"}`}>
+              <div className={`rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] ${isProfessional ? "" : "hidden"}`}>
                 <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Your account</h2>
                 <ul className="mt-2 divide-y divide-ink/[0.06]">
                   {(() => {
@@ -2040,7 +2042,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                               type="button"
                               onClick={row.action.onClick}
                               disabled={row.action.busy}
-                              className="shrink-0 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                              className={buttonClass("primary", "sm", "shrink-0")}
                             >
                               {row.action.label}
                             </button>
@@ -2056,7 +2058,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
           </div>
 
           {isProfessional ? (
-            <div id="portfolio" className="mt-10 scroll-mt-28 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
+            <div id="portfolio" className="mt-10 scroll-mt-28 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <h2 className="text-[1.6rem] font-semibold tracking-[-0.03em]">Portfolio</h2>
@@ -2122,7 +2124,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
           ) : null}
 
           {isProfessional ? (
-            <div className="mt-10 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
+            <div className="mt-10 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h2 className="text-[1.6rem] font-semibold tracking-[-0.03em]">Reviews</h2>
@@ -2220,7 +2222,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 value={uploadCaption}
                 onChange={(e) => setUploadCaption(e.target.value)}
                 placeholder="Caption (optional)"
-                className="w-full resize-none rounded-xl border border-neutral-300 px-4 py-3 outline-none transition focus:border-ink"
+                className={`${textareaClass} resize-none`}
               />
             </div>
 
@@ -2229,7 +2231,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 type="button"
                 onClick={handlePortfolioUpload}
                 disabled={portfolioUploading}
-                className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                className={buttonClass("primary", "md")}
               >
                 {portfolioUploading ? "Uploading…" : "Upload"}
               </button>
@@ -2253,7 +2255,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
 
       <div className="mx-auto mt-10 max-w-3xl">
-        <div className="rounded-[28px] bg-white p-6 ring-1 ring-red-200">
+        <div className="rounded-3xl bg-white p-6 ring-1 ring-red-200">
           <h2 className="text-lg font-semibold text-red-600">Danger zone</h2>
           <p className="mt-2 text-sm leading-6 text-neutral-500">
             Permanently deletes your account, profile, bookings, and all uploaded content. This cannot be undone.
@@ -2269,7 +2271,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
                 placeholder="DELETE"
-                className="w-full rounded-xl border border-neutral-300 px-4 py-3 text-sm outline-none transition focus:border-red-400"
+                className={fieldClass}
               />
               <div className="flex gap-3">
                 <button

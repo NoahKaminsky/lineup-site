@@ -23,6 +23,7 @@ import {
   type VerificationTrack,
 } from "@/app/lib/verificationRules";
 import { useHashTarget } from "@/app/lib/useHashTarget";
+import { buttonClass } from "@/app/components/ui";
 
 type Submission = {
   id: string;
@@ -749,7 +750,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                className={buttonClass("primary", "md")}
               >
                 {submitting ? "Submitting…" : "Submit for review"}
               </button>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { buttonClass } from "@/app/components/ui";
 
 export type FaqItem = { q: string; a: React.ReactNode };
 export type FaqGroup = { id: string; label: string; items: FaqItem[] };
@@ -104,7 +105,7 @@ export default function FaqList({ groups }: { groups: FaqGroup[] }) {
           <p className="text-lg font-semibold tracking-[-0.02em]">Still have a question?</p>
           <p className="mt-1 text-sm text-neutral-500">We read every message.</p>
         </div>
-        <Link href="/contact" className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:bg-neutral-800">
+        <Link href="/contact" className={buttonClass("primary", "md")}>
           Contact us
         </Link>
       </div>

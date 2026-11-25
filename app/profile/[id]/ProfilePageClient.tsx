@@ -40,6 +40,8 @@ import { useModalSheet } from "@/app/lib/useModalSheet";
 import { useSavedPros } from "@/app/lib/savedPros";
 import { shopNow } from "@/app/lib/bookingTime";
 import { Photo } from "@/app/components/Photo";
+import { buttonClass } from "@/app/components/ui";
+import { fieldClass } from "@/app/components/ui";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -283,7 +285,7 @@ function LocationAutocomplete({
           onInputChange?.(e.target.value);
         }}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-neutral-300 px-4 py-2 text-sm outline-none transition focus:border-neutral-900"
+        className={fieldClass}
       />
 
       {loading ? <p className="mt-2 text-xs text-neutral-500">Searching...</p> : null}
@@ -1792,7 +1794,7 @@ if (loading) {
 
       <div className="mx-auto max-w-6xl animate-pulse">
         {/* Hero */}
-        <div className="mt-10 overflow-hidden rounded-[28px] bg-white ring-1 ring-ink/[0.07]">
+        <div className="mt-10 overflow-hidden rounded-3xl bg-white ring-1 ring-ink/[0.07]">
           <div className="h-56 w-full bg-neutral-200 md:h-72" />
 
           <div className="px-8 pb-8 pt-6">
@@ -1820,7 +1822,7 @@ if (loading) {
 
         {/* Main Content */}
         <div className="mt-8 grid gap-6">
-          <div className="rounded-[28px] bg-white ring-1 ring-ink/[0.07] p-6">
+          <div className="rounded-3xl bg-white ring-1 ring-ink/[0.07] p-6">
             <div className="h-7 w-52 rounded bg-neutral-200" />
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -1829,7 +1831,7 @@ if (loading) {
             </div>
           </div>
 
-          <div className="rounded-[28px] bg-white ring-1 ring-ink/[0.07] p-6">
+          <div className="rounded-3xl bg-white ring-1 ring-ink/[0.07] p-6">
             <div className="h-7 w-40 rounded bg-neutral-200" />
 
             <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3">
@@ -1839,7 +1841,7 @@ if (loading) {
             </div>
           </div>
 
-          <div className="rounded-[28px] bg-white ring-1 ring-ink/[0.07] p-6">
+          <div className="rounded-3xl bg-white ring-1 ring-ink/[0.07] p-6">
             <div className="h-7 w-44 rounded bg-neutral-200" />
 
             <div className="mt-6 space-y-4">
@@ -2133,7 +2135,7 @@ if (loading) {
                   {canDirectBook ? (
                     <a
                       href="#availability"
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-ink px-7 py-4 text-[15px] font-semibold text-white transition duration-300 ease-premium hover:bg-neutral-800 active:scale-[0.98]"
+                      className={buttonClass("primary", "md")}
                     >
                       <CalendarDays className="h-4 w-4" />
                       {getNextOpeningShort() ? `Book · ${getNextOpeningShort()}` : "Book a time"}
@@ -2172,7 +2174,7 @@ if (loading) {
               {viewerUserId === profile.id ? (
                 <Link
                   href="/account"
-                  className="inline-flex w-full items-center justify-center rounded-full bg-white px-6 py-3.5 text-sm font-semibold text-ink ring-1 ring-ink/15 transition hover:ring-ink/30"
+                  className={buttonClass("secondary", "md", "w-full")}
                 >
                   Edit profile
                 </Link>
@@ -2271,7 +2273,7 @@ if (loading) {
                     <span>{blocker.text}</span>
                     <Link
                       href={blocker.href}
-                      className="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium text-ink ring-1 ring-inset ring-ink/15 transition hover:ring-ink/30"
+                      className={buttonClass("secondary", "sm", "shrink-0")}
                     >
                       {blocker.action}
                     </Link>
@@ -2560,7 +2562,7 @@ if (loading) {
                     ) : (
                       <>
                         {/* The appointment as a ticket: when, what, where. */}
-                        <div className="relative overflow-hidden rounded-[24px] bg-white text-ink shadow-[0_18px_40px_-26px_rgba(0,0,0,0.4)] ring-1 ring-ink/[0.07]">
+                        <div className="relative overflow-hidden rounded-3xl bg-white text-ink shadow-[0_18px_40px_-26px_rgba(0,0,0,0.4)] ring-1 ring-ink/[0.07]">
                           <div className="relative p-5">
                             <div className="flex items-start justify-between gap-3">
                               <p className="text-sm text-neutral-500">
@@ -3061,7 +3063,7 @@ if (loading) {
               : "calc(env(safe-area-inset-bottom) + 12px)",
           }}
         >
-          <div className="mx-auto flex max-w-md items-center justify-between gap-3 rounded-[22px] bg-ink p-2 pl-5 text-white shadow-[0_16px_40px_-12px_rgba(0,0,0,0.55)]">
+          <div className="mx-auto flex max-w-md items-center justify-between gap-3 rounded-3xl bg-ink p-2 pl-5 text-white shadow-[0_16px_40px_-12px_rgba(0,0,0,0.55)]">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">
                 {servicePriceFrom ? `From ${servicePriceFrom}` : profile.full_name || "Book"}
@@ -3097,7 +3099,7 @@ if (loading) {
       {pendingBookingChoice ? (
         <div ref={confirmSheetRef} role="dialog" aria-modal="true" className="lu-fade-in lu-sheet-overlay z-[70] bg-ink/50 backdrop-blur-sm">
           <div className="flex min-h-full items-end justify-center p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:items-center sm:p-4">
-          <div className="lu-sheet-in w-full max-w-md rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-7">
+          <div className="lu-sheet-in w-full max-w-md rounded-3xl bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-7">
             <h2 className="text-[1.6rem] font-semibold leading-[1.1] tracking-[-0.035em] text-ink">
               {pendingBookingChoice.service.service_name}
               <span className="text-neutral-400"> with {(profile.full_name || "your pro").split(" ")[0]}</span>
@@ -3242,7 +3244,7 @@ if (loading) {
             aria-modal="true"
             aria-labelledby="book-auth-title"
             onClick={(e) => e.stopPropagation()}
-            className="lu-sheet-in w-full max-w-md rounded-[28px] bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8"
+            className="lu-sheet-in w-full max-w-md rounded-3xl bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8"
           >
             <h2 id="book-auth-title" className="text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink">
               <MaskLine>Sign in to book.</MaskLine>
@@ -3332,7 +3334,7 @@ if (loading) {
         >
           <Link
             href={`/bookings/${confirmedBooking.id}`}
-            className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+            className={buttonClass("primary", "md")}
           >
             View booking
           </Link>

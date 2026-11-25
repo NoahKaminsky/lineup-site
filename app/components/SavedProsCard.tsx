@@ -91,7 +91,7 @@ export default function SavedProsCard({ clientId }: { clientId: string }) {
   if (unavailable) return null;
 
   return (
-    <div id="saved-pros" className="scroll-mt-28 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+    <div id="saved-pros" className="scroll-mt-28 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07]">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Saved pros</h2>
         {pros && pros.length > 0 ? (

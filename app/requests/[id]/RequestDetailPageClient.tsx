@@ -39,6 +39,8 @@ import { formatProfessions } from "@/app/lib/professions";
 import { useBidCounts } from "@/app/lib/useBidCounts";
 import BidCountBlip from "@/app/components/BidCountBlip";
 import { useModalSheet } from "@/app/lib/useModalSheet";
+import { buttonClass } from "@/app/components/ui";
+import { fieldClass, textareaClass } from "@/app/components/ui";
 
 type ServiceRequest = {
   id: string;
@@ -184,7 +186,7 @@ function RequestOfferCheckoutForm({
       <button
         type="submit"
         disabled={!stripe || !elements || paymentLoading}
-        className="w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+        className={buttonClass("primary", "md", "w-full")}
       >
         {paymentLoading ? "Processing…" : payLabel}
       </button>
@@ -1800,7 +1802,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                         type="button"
                         onClick={handleCancelRequest}
                         disabled={cancelingRequest}
-                        className="rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                        className={buttonClass("primary", "sm")}
                       >
                         {cancelingRequest ? "Cancelling…" : "Yes, cancel"}
                       </button>
@@ -1817,14 +1819,14 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       <button
                         type="button"
                         onClick={startEditingRequest}
-                        className="min-h-11 rounded-full bg-ink px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-neutral-800"
+                        className={buttonClass("primary", "sm")}
                       >
                         Edit request
                       </button>
                       <button
                         type="button"
                         onClick={handleCancelRequest}
-                        className="min-h-11 rounded-full border border-neutral-300 px-4 py-1.5 text-xs font-medium text-ink transition hover:bg-neutral-50"
+                        className={buttonClass("secondary", "sm")}
                       >
                         Cancel request
                       </button>
@@ -1920,7 +1922,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     <button
                       type="submit"
                       disabled={savingRequestEdit}
-                      className="rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                      className={buttonClass("primary", "md")}
                     >
                       {savingRequestEdit ? "Saving…" : "Save changes"}
                     </button>
@@ -2060,7 +2062,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       href={mapsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex shrink-0 justify-center rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50"
+                      className={buttonClass("secondary", "sm", "shrink-0")}
                     >
                       Open in Maps
                     </a>
@@ -2101,7 +2103,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               this page, so it leads, on every screen size. */}
           {isProfessional && request.status === "open" && !hasSubmittedOffer ? (
             <>
-              <section className="lu-dialog-in mt-8 rounded-[28px] bg-ink p-6 text-white sm:p-8">
+              <section className="lu-dialog-in mt-8 rounded-3xl bg-ink p-6 text-white sm:p-8">
                 <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -2144,7 +2146,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               <div className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40 sm:hidden">
                 <Link
                   href={`/requests/${request.id}/respond`}
-                  className="flex w-full items-center justify-center rounded-full bg-ink px-6 py-4 text-sm font-semibold text-white shadow-[0_12px_32px_-12px_rgba(0,0,0,0.55)]"
+                  className={buttonClass("primary", "md", "flex w-full")}
                 >
                   Respond to request
                 </Link>
@@ -2470,7 +2472,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                                     onChange={(e) => setReofferMessage(e.target.value)}
                                     rows={4}
                                     placeholder="Update your offer based on the customer’s feedback."
-                                    className="mt-2 w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
+                                    className={`${textareaClass} mt-2`}
                                   />
                                 </div>
 
@@ -2483,7 +2485,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                                     value={reofferPrice}
                                     onChange={(e) => setReofferPrice(e.target.value)}
                                     placeholder="Enter updated price"
-                                    className="mt-2 w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
+                                    className={`${fieldClass} mt-2`}
                                   />
                                 </div>
 
@@ -2555,7 +2557,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                                   onChange={(e) => setDeclineMessage(e.target.value)}
                                   rows={4}
                                   placeholder="Example: Timing doesn’t work for me, price is too high, or I’m looking for a different fit."
-                                  className="mt-2 w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
+                                  className={`${textareaClass} mt-2`}
                                 />
 
                                 <div className="mt-3 flex flex-wrap gap-3">
@@ -2759,14 +2761,14 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                             ? "This chat is now read-only because the service is completed."
                             : "Send a message..."
                         }
-                        className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
+                        className={`${textareaClass} flex-1 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500`}
                       />
 
                       <button
                         type="button"
                         onClick={handleSendChatMessage}
                         disabled={isChatReadOnly || sendingChatMessage || !newChatMessage.trim() || !chatBookingId}
-                        className="self-end rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                        className={buttonClass("primary", "md", "self-end")}
                       >
                         {isChatReadOnly ? "Completed" : sendingChatMessage ? "Sending…" : "Send"}
                       </button>
@@ -2793,7 +2795,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     <button
                       type="button"
                       onClick={handleConfirmCompletion}
-                      className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+                      className={buttonClass("primary", "md")}
                     >
                       Confirm service completed
                     </button>
@@ -2823,7 +2825,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     ) : (
                       <Link
                         href={`/requests/${request.id}/respond`}
-                        className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+                        className={buttonClass("primary", "md")}
                       >
                         Respond to request
                       </Link>
@@ -2856,7 +2858,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       <button
                         type="button"
                         onClick={handleRequestCompletion}
-                        className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+                        className={buttonClass("primary", "md")}
                       >
                         Mark service complete
                       </button>
@@ -3036,7 +3038,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                           onChange={(e) => setReviewComment(e.target.value)}
                           rows={5}
                           placeholder="How was the service, professionalism, communication, and result?"
-                          className="mt-2 w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
+                          className={`${textareaClass} mt-2`}
                         />
                       </div>
 
@@ -3064,7 +3066,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       <div className="mt-4">
                         <Link
                           href={`/requests/new?rebook=1&pro=${request.accepted_professional_id}&request=${request.id}`}
-                          className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                          className={buttonClass("secondary", "md")}
                         >
                           Book again
                         </Link>

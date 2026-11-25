@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { buttonClass } from "@/app/components/ui";
 
 type Counts = {
   recipients: number;
@@ -137,7 +138,7 @@ export default function AdminNewsletter() {
             type="button"
             onClick={sendTest}
             disabled={!!busy || loading}
-            className="rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-900 disabled:opacity-50"
+            className={buttonClass("secondary", "md")}
           >
             {busy === "test" ? "Sending test…" : `1. Send a test to ${adminEmail || "me"}`}
           </button>

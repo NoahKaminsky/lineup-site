@@ -34,7 +34,7 @@ export default function NewsSignup({ compact = false }: { compact?: boolean }) {
     <form onSubmit={submit} className={compact ? "" : "max-w-md"} noValidate>
       <div
         className={`flex gap-1.5 bg-white p-1.5 ring-1 transition-shadow duration-300 focus-within:ring-2 ${
-          compact ? "flex-col rounded-[22px]" : "items-center rounded-full"
+          compact ? "flex-col rounded-3xl" : "items-center rounded-full"
         } ${
           state === "error" ? "ring-red-300 focus-within:ring-red-400" : "ring-ink/10 focus-within:ring-ink"
         }`}

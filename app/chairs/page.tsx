@@ -8,6 +8,8 @@ import LuLoader from "@/app/components/LuLoader";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { formatCad, studioFetch } from "@/app/studio/studioApi";
 import { supabase } from "@/lib/supabaseClient";
+import { buttonClass } from "@/app/components/ui";
+import { fieldClass, textareaClass } from "@/app/components/ui";
 
 // Chair openings for professionals: only chairs in their own trade(s).
 // Studios post these from the Chairs tab on /studio.
@@ -252,7 +254,7 @@ export default function ChairsPage() {
                             inputMode="numeric"
                             value={years}
                             onChange={(e) => setYears(e.target.value)}
-                            className="mt-1.5 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm outline-none transition focus:border-ink focus:bg-white"
+                            className={`${fieldClass} mt-1.5`}
                           />
                         </label>
                         <label className="block text-sm">
@@ -261,7 +263,7 @@ export default function ChairsPage() {
                             type="date"
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
-                            className="mt-1.5 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm outline-none transition focus:border-ink focus:bg-white"
+                            className={`${fieldClass} mt-1.5`}
                           />
                         </label>
                       </div>
@@ -326,7 +328,7 @@ export default function ChairsPage() {
                           value={message}
                           onChange={(e) => setMessage(e.target.value)}
                           placeholder="What you specialize in, why this shop, anything they should know."
-                          className="mt-1.5 w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
+                          className={`${textareaClass} mt-1.5`}
                         />
                       </label>
                       {formError ? (
@@ -338,7 +340,7 @@ export default function ChairsPage() {
                         <button
                           type="submit"
                           disabled={sending}
-                          className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
+                          className={buttonClass("primary", "md")}
                         >
                           {sending ? "Sending…" : "Send application"}
                         </button>

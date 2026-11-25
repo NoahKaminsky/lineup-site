@@ -23,6 +23,7 @@ import RegularsPanel from "./RegularsPanel";
 
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { BOOKING_TIME_ZONE } from "@/app/lib/bookingTime";
+import { buttonClass } from "@/app/components/ui";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -259,7 +260,7 @@ function BookingCard({
   return (
     <Link
       href={booking.front_desk ? "/studio" : `/bookings/${booking.id}`}
-      className={`group block rounded-[22px] bg-white ring-1 ring-ink/[0.06] transition duration-200 hover:-translate-y-px hover:shadow-[0_12px_28px_-18px_rgba(0,0,0,0.35)] hover:ring-ink/[0.1] ${
+      className={`group block rounded-3xl bg-white ring-1 ring-ink/[0.06] transition duration-200 hover:-translate-y-px hover:shadow-[0_12px_28px_-18px_rgba(0,0,0,0.35)] hover:ring-ink/[0.1] ${
         compact ? "p-4" : "p-5"
       } ${booking.status === "completed" ? "opacity-70" : ""}`}
     >
@@ -787,7 +788,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
           </p>
           <Link
             href="/subscription"
-            className="mt-6 inline-flex rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+            className={buttonClass("primary", "md", "mt-6")}
           >
             View plans
           </Link>
@@ -809,7 +810,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       <button
         type="button"
         onClick={goToToday}
-        className="h-11 rounded-full px-3.5 text-sm font-medium text-ink ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50"
+        className={buttonClass("secondary", "md")}
       >
         Today
       </button>
@@ -987,7 +988,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               {bookingUsage.count >= bookingUsage.cap ? (
                 <Link
                   href="/subscription"
-                  className="rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-neutral-800 min-h-11"
+                  className={buttonClass("primary", "sm")}
                 >
                   Upgrade for unlimited
                 </Link>

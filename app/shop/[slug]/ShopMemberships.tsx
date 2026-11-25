@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { loginHref } from "@/app/lib/returnTo";
 import { formatCad, studioFetch } from "@/app/studio/studioApi";
+import { buttonClass } from "@/app/components/ui";
 
 // Memberships on a shop's booking page: join with a monthly card payment,
 // or see your own membership and how many visits are left.
@@ -140,7 +141,7 @@ export default function ShopMemberships({ slug, shopName }: { slug: string; shop
                 ) : (
                   <a
                     href={loginHref(`/shop/${slug}`, "signup")}
-                    className="mt-4 rounded-full bg-ink px-5 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+                    className={buttonClass("primary", "md", "mt-4 text-center")}
                   >
                     Sign up to join
                   </a>

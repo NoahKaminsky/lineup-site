@@ -24,6 +24,8 @@ import { DrawnCheck } from "@/app/components/moments/Moments";
 import { canCancelForRefund, hasAppointmentEnded } from "@/app/lib/bookingTime";
 import { useMyServiceArea } from "@/app/lib/useMyServiceArea";
 import { withinServiceArea } from "@/app/lib/serviceArea";
+import { buttonClass } from "@/app/components/ui";
+import { textareaClass } from "@/app/components/ui";
 type Profile = {
   id: string;
   email: string | null;
@@ -1346,7 +1348,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
           {!isProfessional ? (
             <Link
               href="/requests/new"
-              className="shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 min-h-11"
+              className={buttonClass("primary", "md", "shrink-0")}
             >
               New request
             </Link>
@@ -1424,7 +1426,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                     : "Post a request and pros will send you offers to compare."}
                 </p>
                 {!isProfessional ? (
-                  <Link href="/requests/new" className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800">
+                  <Link href="/requests/new" className={buttonClass("primary", "md", "mt-5")}>
                     Post a request
                   </Link>
                 ) : null}
@@ -1709,7 +1711,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
             onChange={(e) => setReviewComment(e.target.value)}
             placeholder="Share details about your experience (optional)"
             rows={3}
-            className="mt-5 w-full resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-ink"
+            className={`${textareaClass} mt-5 resize-none`}
           />
 
           <div className="mt-5 flex gap-3">

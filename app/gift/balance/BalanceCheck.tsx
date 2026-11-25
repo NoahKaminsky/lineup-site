@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { fieldClass } from "@/app/components/ui";
 
 type Result = { code: string; forName: string; href: string | null; amountCents: number; balanceCents: number; void: boolean };
 
@@ -54,7 +55,7 @@ export default function BalanceCheck({ initialCode }: { initialCode: string }) {
           aria-label="Gift card code"
           autoComplete="off"
           spellCheck={false}
-          className="h-12 min-w-0 flex-1 rounded-xl bg-white px-4 font-mono text-[15px] tracking-wider text-ink outline-none ring-1 ring-inset ring-ink/[0.12] focus:ring-2 focus:ring-ink"
+          className={`${fieldClass} min-w-0 flex-1 font-mono text-[15px] tracking-wider`}
         />
         <button
           type="submit"

@@ -7,6 +7,7 @@ import { isStudioLive } from "@/app/lib/studios";
 import { cityForPoint } from "@/app/lib/cities";
 import { professionLabel } from "@/app/lib/professions";
 import ShopFilter from "./ShopFilter";
+import { buttonClass } from "@/app/components/ui";
 
 // Find a shop: every salon, barbershop and studio taking bookings on LineUp,
 // by city. Rebuilt hourly so a new shop shows up without a deploy.
@@ -104,7 +105,7 @@ export default async function ShopsPage() {
                 : "In the meantime, browse verified pros near you, many of whom work out of a shop."}
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
-              <Link href="/beauty" className="inline-flex rounded-full bg-ink px-6 py-3 text-sm font-medium text-white hover:bg-neutral-800">
+              <Link href="/beauty" className={buttonClass("primary", "md")}>
                 Find a pro
               </Link>
             </div>

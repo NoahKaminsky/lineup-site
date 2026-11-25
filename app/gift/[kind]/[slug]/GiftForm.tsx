@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { textareaClass } from "@/app/components/ui";
 
 const input =
   "h-12 w-full rounded-xl bg-white px-4 text-[15px] text-ink outline-none ring-1 ring-inset ring-ink/[0.12] transition focus:ring-2 focus:ring-ink";
@@ -138,7 +139,7 @@ export default function GiftForm({
             maxLength={300}
             rows={3}
             placeholder="Happy birthday! Treat yourself."
-            className="mt-2 w-full rounded-xl bg-white px-4 py-3 text-[15px] leading-6 text-ink outline-none ring-1 ring-inset ring-ink/[0.12] transition focus:ring-2 focus:ring-ink"
+            className={`${textareaClass} mt-2 text-[15px]`}
           />
         </label>
       </div>
