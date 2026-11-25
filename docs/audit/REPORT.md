@@ -4,7 +4,7 @@ Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. Audit and fixes
 
 ## Resume here
 
-> **Step 6 and the decisions after it done** (25 Nov, branch `site-audit`, pushed). Every page measured is faster or the same in real load time; Discover on live data 37 s → 4 s, landing 13.6 s → 4.5 s. Offer price check and the RLS speed-up are live. No charge without a booking; Studio hydration error fixed. **Next (Noah):** the six settings at the end ("Only you can do these").
+> **Step 6 and the decisions after it done** (25 Nov, branch `site-audit`, pushed). Every page measured is faster or the same in real load time; Discover on live data 37 s → 4 s, landing 13.6 s → 4.5 s. Offer price check and the RLS speed-up are live. No charge without a booking; Studio hydration error fixed. **Next (Noah):** three settings at the end (Preview keys, BLIK, test key) and the customer-email call.
 >
 > To test (on the TEST database): `npm run testdb:seed`, then either `npm run dev:testdb` or a production build (`npm run build:testdb && npm run start:testdb`, port 3200), run `npm run test:smoke` (with `SMOKE_BASE_URL=http://localhost:3200` for the production build; add `STRIPE_FORWARDING=1` with `stripe listen` for payment flows), then `npm run testdb:cleanup`. Speed: `e2e/tools/lighthouse.mjs`, `e2e/tools/cls.mjs`, `e2e/tools/shots.mjs`. Nothing touches the live database.
 
@@ -355,12 +355,12 @@ Logged out: `e2e/admin.spec.ts` 2/2 (1280 + 390). With TEST data (Noah OK'd): ad
 
 **Fixed across Steps 1–6 and the decisions above:** guarded routes, 44px tap targets, plain-English Stripe requirements, invite share links, the shop calendar "Mark done" bug, the email off-switch, a separate LineUp Test database (seed, cleanup, crons), the RLS speed-up and offer price check (both live), no charge without a booking, one booking cap, the Studio hydration error, and Step 6: pages that load a fraction of the bytes (Discover on live data 11 MB → 0.5 MB, 37 s → 4 s; landing 3.8 MB → 0.64 MB), no layout jumps, one shared UI kit, role-aware motion, monochrome everywhere, one plain voice (pro, request, offer, booking, shop).
 
-**Only you can do these** (each is a setting or a secret, not code):
-1. **Vercel → Project → Settings → Environment Variables → Preview**: point previews at LineUp Test (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` from `.env.testdb.local`, `EMAIL_DISABLED=1`) and add the test price ids (`NEXT_PUBLIC_STRIPE_{APPRENTICE,PRO,MASTER}_PRICE_ID` from `.env.local`). Then previews never touch live data.
-2. **Stripe → Settings → Payment methods**: turn **BLIK** off (also Bancontact and EPS, unless you want European methods).
-3. **Supabase → LineUp Test → Settings → API keys**: rotate the secret key (it was pasted in chat), then update `.env.testdb.local`.
-4. **In a week**: check Vercel's image optimizer usage (uploaded photos are now resized there; Hobby has a monthly cap). If it's close, switch to Supabase image resizing (needs Supabase Pro).
-5. **Customer emails vs push**: the rule says customers get push, not email, but they're emailed for confirmations, offers and reminders. Turning those off would leave customers without push with no confirmations at all, so it wasn't changed. Your call.
-6. **Live database health**: watch memory and disk I/O on the free plan (24 Nov stall).
+**Settings (25 Nov):**
+1. ✅ *Done:* Vercel Preview now has the test plan prices (Apprentice, Pro, Master) and `EMAIL_DISABLED=1`, so previews never email anyone. **Still yours:** pointing Preview at LineUp Test needs the test project's keys pasted into Vercel (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` from `.env.testdb.local`, Preview only). Until then, previews read and write the live database.
+2. **Still yours: Stripe → Settings → Payment methods → BLIK → Off** (also Bancontact and EPS, unless you want European methods). The Stripe CLI's live key isn't allowed to change payment-method settings.
+3. **Still yours: Supabase → LineUp Test → Project Settings → API keys**: rotate the secret key, then update `.env.testdb.local`.
+4. ✅ *Scheduled:* a one-time check of Vercel image usage runs on 2 Dec (Claude app → Scheduled → "LineUp: check Vercel image usage"); it only reads and reports.
+5. **Your call: customer emails vs push.** Customers are emailed for confirmations, offers and reminders; turning those off would leave customers without push with no confirmations at all.
+6. ✅ *Checked 25 Nov:* live database 19 MB of the free plan's 500 MB, 14 of 60 connections, 100% cache hits, no stuck queries, no Postgres errors in the last 24 hours, no health warnings.
 
 **Worth doing next (code):** trace the profile page's start-up and cut its ~700 ms of main-thread work.
