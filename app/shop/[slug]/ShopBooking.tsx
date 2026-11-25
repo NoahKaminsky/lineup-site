@@ -22,6 +22,7 @@ import { BookedSheet } from "@/app/components/moments/Moments";
 import SplitFlap from "@/app/components/SplitFlap";
 import type { ShopPro } from "./page";
 import { shopNow } from "@/app/lib/bookingTime";
+import { Photo } from "@/app/components/Photo";
 
 type Busy = { professional_id: string; booking_date: string; start_time: string; end_time: string };
 
@@ -253,8 +254,7 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
 
 function Avatar({ pro, size }: { pro: ShopPro; size: number }) {
   return pro.avatarUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={pro.avatarUrl} alt="" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
+    <Photo src={pro.avatarUrl} width={size} className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
   ) : (
     <span
       aria-hidden="true"

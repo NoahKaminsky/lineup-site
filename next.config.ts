@@ -35,6 +35,12 @@ const nextConfig: NextConfig = {
         hostname: "rbsgsymjmptwczecgohb.supabase.co",
         pathname: "/storage/v1/object/public/**",
       },
+      // The TEST project ("LineUp Test"), used by npm run dev:testdb.
+      {
+        protocol: "https",
+        hostname: "zfxeymtuwrjtccxqymrj.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
     formats: ["image/avif", "image/webp"],
   },

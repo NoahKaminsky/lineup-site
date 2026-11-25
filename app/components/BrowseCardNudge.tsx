@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { Photo } from "@/app/components/Photo";
 
 type Preview = { name: string; trade: string; image: string | null; photos: number };
 
@@ -58,8 +59,7 @@ export default function BrowseCardNudge({ userId }: { userId: string }) {
     <section className="lu-rise mt-8 flex items-center gap-5 overflow-hidden rounded-[28px] bg-white p-4 pr-5 ring-1 ring-ink/[0.06] sm:p-5">
       <div className="lu-pinstripe relative aspect-[4/5] w-24 shrink-0 overflow-hidden rounded-[18px] bg-[#efece6] sm:w-28">
         {preview.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview.image} alt="" className="h-full w-full object-cover" />
+          <Photo src={preview.image} width={112} className="h-full w-full object-cover" />
         ) : (
           <>
             <span className="relative flex h-full w-full items-center justify-center text-4xl font-semibold tracking-[-0.06em] text-ink/80">

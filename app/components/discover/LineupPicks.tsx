@@ -10,6 +10,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { BadgeCheck } from "lucide-react";
+import { Photo } from "@/app/components/Photo";
 
 export type PickCard = {
   id: string;
@@ -74,8 +75,7 @@ function PickCardView({ pick, index, solo }: { pick: PickCard; index: number; so
       <div className="relative">
         <div className="lu-pick-photo relative aspect-[4/5] overflow-hidden rounded-[6px] bg-neutral-200">
           {pick.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={pick.image} alt="" className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.03]" />
+            <Photo src={pick.image} sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw" className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.03]" />
           ) : (
             <span className="flex h-full w-full items-center justify-center bg-[#efece6] text-8xl font-semibold tracking-[-0.06em] text-ink/80">
               {pick.name.charAt(0).toUpperCase()}

@@ -39,6 +39,7 @@ import SaveHeart from "@/app/components/SaveHeart";
 import { useModalSheet } from "@/app/lib/useModalSheet";
 import { useSavedPros } from "@/app/lib/savedPros";
 import { shopNow } from "@/app/lib/bookingTime";
+import { Photo } from "@/app/components/Photo";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -1976,7 +1977,7 @@ if (loading) {
                   }`}
                 >
                   {profile.avatar_url ? (
-                    <img src={profile.avatar_url} alt={profile.full_name || "Profile"} className="h-full w-full bg-white object-cover" />
+                    <Photo src={profile.avatar_url} width={160} priority alt={profile.full_name || "Profile"} className="h-full w-full bg-white object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-neutral-100 text-3xl font-semibold text-neutral-400">
                       {profile.full_name?.charAt(0).toUpperCase() || "P"}
@@ -2028,8 +2029,10 @@ if (loading) {
                   className="block h-[400px] w-full cursor-zoom-in overflow-hidden md:h-[500px]"
                   aria-label="View cover photo"
                 >
-                  <img
+                  <Photo
                     src={profile.banner_url}
+                    sizes="(min-width: 1152px) 1152px, 100vw"
+                    priority
                     alt="Cover photo"
                     className="lu-cover-in h-full w-full object-cover will-change-transform"
                     style={{ transform: "translate3d(0, calc(var(--sp) * 90px), 0) scale(calc(1.04 + var(--sp) * 0.1))" }}
@@ -2930,9 +2933,9 @@ if (loading) {
                           controls
                         />
                       ) : (
-                        <img
-                          loading="lazy"
+                        <Photo
                           src={item.image_url}
+                          sizes="(min-width: 1024px) 33vw, 50vw"
                           alt={item.caption || "Portfolio image"}
                           className="h-full w-full object-cover transition duration-700 ease-premium group-hover:scale-[1.03]"
                         />
@@ -2982,9 +2985,9 @@ if (loading) {
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-100">
                             {review.reviewer_avatar_url ? (
-                              <img
-                                loading="lazy"
+                              <Photo
                                 src={review.reviewer_avatar_url}
+                                width={40}
                                 alt={review.reviewer_name || "Reviewer"}
                                 className="h-full w-full object-cover"
                               />

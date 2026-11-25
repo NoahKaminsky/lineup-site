@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getProfileHref } from "@/app/lib/profileLink";
 import SaveHeart from "@/app/components/SaveHeart";
+import { Photo } from "@/app/components/Photo";
 
 /* The client's saved pros, on their account page: the people they hearted in
    Explore or on a profile, newest first, each one tap from booking again. */
@@ -131,7 +132,7 @@ export default function SavedProsCard({ clientId }: { clientId: string }) {
                 <Link href={getProfileHref(pro)} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-neutral-100 text-sm font-semibold text-neutral-500">
                     {pro.avatar_url ? (
-                      <img loading="lazy" src={pro.avatar_url} alt="" className="h-full w-full object-cover" />
+                      <Photo src={pro.avatar_url} width={44} className="h-full w-full object-cover" />
                     ) : (
                       name.charAt(0).toUpperCase()
                     )}

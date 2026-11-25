@@ -26,6 +26,7 @@ import { useMyServiceArea } from "@/app/lib/useMyServiceArea";
 import { useBidCounts } from "@/app/lib/useBidCounts";
 import BidCountBlip from "@/app/components/BidCountBlip";
 import { approxDistanceLabel, withinServiceArea } from "@/app/lib/serviceArea";
+import { Photo } from "@/app/components/Photo";
 
 // "Recently completed" lists show the last 24 hours only (older work lives in
 // Archived services).
@@ -2109,7 +2110,7 @@ return (
                           <Link href={`/bookings/${booking.id}`} className="flex items-center gap-4 p-4 sm:p-5">
                             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-ink/[0.05]">
                               {booking.professional_avatar_url ? (
-                                <img loading="lazy" src={booking.professional_avatar_url} alt="" className="h-full w-full object-cover" />
+                                <Photo src={booking.professional_avatar_url} width={48} className="h-full w-full object-cover" />
                               ) : (
                                 <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">
                                   {booking.professional_name?.charAt(0).toUpperCase() || "P"}
@@ -2177,8 +2178,9 @@ return (
                             {request.reference_photos &&
                             request.reference_photos.length > 0 ? (
                               <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
-                                <img loading="lazy"
+                                <Photo
                                   src={request.reference_photos[0]}
+                                  width={96}
                                   alt="Reference preview"
                                   className="h-full w-full object-cover"
                                 />
@@ -2290,8 +2292,9 @@ return (
                           <div className="flex min-w-0 flex-1 gap-4">
                             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
                               {booking.professional_avatar_url ? (
-                                <img loading="lazy"
+                                <Photo
                                   src={booking.professional_avatar_url}
+                                  width={64}
                                   alt={booking.professional_name || "Professional"}
                                   className="h-full w-full object-cover"
                                 />
@@ -2419,8 +2422,9 @@ return (
                               {request.reference_photos &&
                               request.reference_photos.length > 0 ? (
                                 <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-                                  <img loading="lazy"
+                                  <Photo
                                     src={request.reference_photos[0]}
+                                    width={96}
                                     alt="Reference preview"
                                     className="h-full w-full object-cover"
                                   />

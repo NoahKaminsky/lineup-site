@@ -13,6 +13,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BadgeCheck } from "lucide-react";
+import { Photo } from "@/app/components/Photo";
 
 export type SpotlightPro = {
   id: string;
@@ -279,8 +280,7 @@ function SpotlightMarquee({
           >
             <div className="relative aspect-[4/5] overflow-hidden rounded-[28px] bg-[#111113] shadow-[0_30px_60px_-32px_rgba(0,0,0,0.75)]">
               {pro.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={pro.image} alt="" className="h-full w-full object-cover" />
+                <Photo src={pro.image} sizes="(min-width: 768px) 420px, 90vw" className="h-full w-full object-cover" />
               ) : (
                 <span className="flex h-full w-full items-center justify-center text-[9rem] font-semibold tracking-[-0.07em] text-white/90">
                   {pro.name.charAt(0).toUpperCase()}
@@ -358,8 +358,7 @@ function StageCard({
     >
       <div className="relative aspect-[4/5] overflow-hidden rounded-[22px] bg-[#1a1a1c]">
         {pro.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={pro.image} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
+          <Photo src={pro.image} sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
         ) : (
           <span className="flex h-full w-full items-center justify-center text-8xl font-semibold tracking-[-0.06em] text-white/90">
             {pro.name.charAt(0).toUpperCase()}

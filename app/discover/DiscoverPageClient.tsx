@@ -16,6 +16,7 @@ import type { DiscoverCard as InitialDiscoverCard } from "./getInitialData";
 import { BadgeCheck, MapPin, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import SaveHeart from "@/app/components/SaveHeart";
 import { useSavedPros } from "@/app/lib/savedPros";
+import { Photo } from "@/app/components/Photo";
 
 type ProfileRow = {
   id: string;
@@ -219,9 +220,9 @@ function ProCard({ href, name, role, place, image, badge, rating, reviewCount, o
     >
       <div className="relative aspect-[4/5] overflow-hidden rounded-[24px] bg-neutral-200">
         {image ? (
-          <img
-            loading="lazy"
+          <Photo
             src={image}
+            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
             alt=""
             className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.04]"
           />
@@ -1169,7 +1170,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                     >
                       <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-100">
                         {photo ? (
-                          <img loading="lazy" decoding="async" src={photo} alt="" className="h-full w-full object-cover" />
+                          <Photo src={photo} width={40} className="h-full w-full object-cover" />
                         ) : (
                           <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">{name.charAt(0)}</span>
                         )}
@@ -1467,8 +1468,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                     style={{ left: `${x / 2}%`, top: `${y / 2}%` }}
                   >
                     {card.profile.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img loading="lazy" decoding="async" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                      <Photo src={card.profile.avatar_url} width={64} className="h-full w-full object-cover" />
                     ) : (
                       <span className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-neutral-600">
                         {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
@@ -1531,7 +1531,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                         >
                           <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-neutral-100">
                             {card.profile.avatar_url ? (
-                              <img loading="lazy" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                              <Photo src={card.profile.avatar_url} width={36} className="h-full w-full object-cover" />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
                                 {card.profile.full_name?.charAt(0).toUpperCase() || "P"}

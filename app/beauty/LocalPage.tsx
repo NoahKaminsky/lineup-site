@@ -5,6 +5,7 @@ import { loginHref } from "@/app/lib/returnTo";
 import { professionLabel } from "@/app/lib/professions";
 import { TRADES, type City, type Trade } from "@/app/lib/cities";
 import type { LocalPro, LocalShop } from "@/app/lib/localPros";
+import { Photo } from "@/app/components/Photo";
 
 // One city page, optionally narrowed to a trade. Server-rendered so search
 // engines see the pros listed; everything here is public profile info.
@@ -101,13 +102,9 @@ export default function LocalPage({
                     className="flex h-full items-center gap-4 rounded-3xl bg-white p-4 ring-1 ring-ink/[0.07] transition-shadow hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)]"
                   >
                     {pro.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Photo
                         src={pro.avatarUrl}
-                        alt=""
                         width={64}
-                        height={64}
-                        loading="lazy"
                         className="h-16 w-16 shrink-0 rounded-full object-cover"
                       />
                     ) : (
