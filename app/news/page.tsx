@@ -3,14 +3,13 @@ import Link from "next/link";
 import PublicLayout from "@/app/components/site/PublicLayout";
 import { getPublicIssues, weekStart } from "@/lib/email/issues";
 import NewsSignup from "./NewsSignup";
-import { newsSerif } from "./fonts";
 
 export const metadata: Metadata = {
   title: "The LineUp | Weekly news",
   description: "The LineUp: weekly news from LineUp, plus every past issue.",
 };
 
-const serif = "font-[family-name:var(--font-news-serif)]";
+const display = "font-semibold tracking-[-0.035em]";
 
 function fmt(dateKey: string, options: Intl.DateTimeFormatOptions) {
   return new Date(`${dateKey}T12:00:00Z`).toLocaleDateString("en-CA", { ...options, timeZone: "UTC" });
@@ -47,7 +46,7 @@ export default function NewsPage() {
 
   return (
     <PublicLayout>
-      <div className={`${newsSerif.variable} lu-newsprint`}>
+      <div className={`lu-newsprint`}>
         <div className="mx-auto max-w-6xl px-4 pb-24 pt-8 sm:px-6 sm:pt-12">
           {/* ── Masthead ─────────────────────────────────────────── */}
           <header>
@@ -58,14 +57,14 @@ export default function NewsPage() {
             </div>
             <Rule double delay={80} />
             <h1
-              className={`${serif} lu-masthead py-4 text-center text-[clamp(3.5rem,13vw,9.5rem)] leading-[0.9] tracking-[-0.02em] text-ink sm:py-6`}
+              className={`${display} lu-masthead py-4 text-center text-[clamp(3.5rem,13vw,9.5rem)] leading-[0.9] text-ink sm:py-6`}
             >
               <span className="italic">The</span> LineUp
             </h1>
             <Rule delay={220} />
             <div className="lu-rise-in flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5 text-[11px] uppercase tracking-[0.16em] text-neutral-600 sm:text-xs" style={{ animationDelay: "320ms" }}>
               <span>{todayLine()}</span>
-              <span className={`${serif} text-sm normal-case italic tracking-normal text-ink sm:text-base`}>
+              <span className={`${display} text-sm normal-case tracking-normal text-ink sm:text-base`}>
                 Your weekly beauty &amp; grooming news
               </span>
             </div>
@@ -81,7 +80,7 @@ export default function NewsPage() {
                 </p>
                 <Link href={`/news/${lead.slug}`} className="group block">
                   <h2
-                    className={`${serif} mt-3 text-[clamp(2.75rem,7vw,5.5rem)] leading-[0.95] tracking-[-0.02em] text-ink decoration-1 underline-offset-[10px] group-hover:underline`}
+                    className={`${display} mt-3 text-[clamp(2.75rem,7vw,5.5rem)] leading-[0.95] text-ink decoration-1 underline-offset-[10px] group-hover:underline`}
                   >
                     {lead.title}
                   </h2>
@@ -111,7 +110,7 @@ export default function NewsPage() {
                   <p className="text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-neutral-600">
                     Home delivery
                   </p>
-                  <p className={`${serif} mt-2 text-center text-[2.25rem] leading-none text-ink`}>
+                  <p className={`${display} mt-2 text-center text-[2.25rem] leading-none text-ink`}>
                     Get <span className="italic">The LineUp</span>
                   </p>
                   <p className="mt-3 text-center text-sm leading-6 text-neutral-600">
@@ -132,7 +131,7 @@ export default function NewsPage() {
                     ].map((item) => (
                       <li key={item.href}>
                         <Link href={item.href} className="group block py-3.5">
-                          <span className={`${serif} block text-xl leading-tight text-ink group-hover:underline`}>{item.title}</span>
+                          <span className={`${display} block text-xl leading-tight text-ink group-hover:underline`}>{item.title}</span>
                           <span className="text-xs text-neutral-500">{item.note}</span>
                         </Link>
                       </li>
@@ -142,7 +141,7 @@ export default function NewsPage() {
               </aside>
             </div>
           ) : (
-            <p className={`${serif} mt-16 text-center text-3xl text-neutral-500`}>The first edition is on the press.</p>
+            <p className={`${display} mt-16 text-center text-3xl text-neutral-500`}>The first edition is on the press.</p>
           )}
 
           {/* ── The archive, week by week ──────────────────────── */}
@@ -165,7 +164,7 @@ export default function NewsPage() {
                     </p>
                     {weekIssues.map((issue) => (
                       <Link key={issue.slug} href={`/news/${issue.slug}`} className="group mt-3 block">
-                        <h3 className={`${serif} text-[2rem] leading-[1.02] text-ink group-hover:underline`}>{issue.title}</h3>
+                        <h3 className={`${display} text-[2rem] leading-[1.02] text-ink group-hover:underline`}>{issue.title}</h3>
                         <p className="mt-2 text-sm leading-6 text-neutral-600">{issue.summary}</p>
                         <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
                           {fmt(issue.date, { weekday: "short", month: "short", day: "numeric" })} · By {issue.byline}
