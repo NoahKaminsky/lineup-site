@@ -7,19 +7,11 @@ import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { hasStandingHoldClash } from "@/app/lib/standing";
 import { getAuthenticatedUser, getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
+import { hasProLocation, PRO_LOCATION_MISSING, usesProLocation } from "@/app/lib/proLocation";
+import { countRequestBookingsThisMonth, getMonthlyBookingCap } from "@/app/lib/bookingCap";
 
 const DEPOSIT_PERCENT = BOOKING_DEPOSIT_PERCENT;
 const CURRENCY = "cad";
-
-function getMonthlyBookingCap(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {
-  const subscribed =
-    profile.subscription_status === "active" || profile.subscription_status === "trialing";
-
-  if (!subscribed) return 15; // Basic
-  if (profile.subscription_plan === "apprentice") return 25;
-  if (profile.subscription_plan === "pro" || profile.subscription_plan === "master") return null; // unlimited
-  return 15; // anything unrecognised gets the Basic limit, never unlimited
-}
 
 async function checkMonthlyBookingCap(
   supabase: ReturnType<typeof getServiceSupabase>,
@@ -35,20 +27,7 @@ async function checkMonthlyBookingCap(
 
   if (cap === null) return null;
 
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
-
-  // Only request/offer-sourced jobs count toward the cap — direct calendar bookings
-  // are a separate, ungated mechanism for any subscribed (non-Basic) tier.
-  const { count } = await supabase
-    .from("bookings")
-    .select("id", { count: "exact", head: true })
-    .eq("professional_id", professionalId)
-    .eq("source", "request")
-    .in("status", ["confirmed", "completion_requested", "completed"])
-    .gte("booking_date", monthStart)
-    .lte("booking_date", monthEnd);
+  const count = await countRequestBookingsThisMonth(supabase, professionalId);
 
   if ((count || 0) >= cap) {
     return "This professional has reached their monthly request limit. They'll be available again next month.";
@@ -524,9 +503,16 @@ export async function POST(req: Request) {
     // Master pros pay a reduced commission.
     const { data: offerPro } = await serviceSupabase
       .from("profiles")
-      .select("subscription_plan, subscription_status")
+      .select("subscription_plan, subscription_status, formatted_address, location_lat, location_lng")
       .eq("id", offer.professional_id)
       .maybeSingle();
+
+    // Same rule as the webhook (paymentBookings): a booking at the pro's place
+    // needs their address. Refuse before charging, not after.
+    const offerMode = (offer.proposed_service_mode as string | null) || (requestRow.service_mode as string | null);
+    if (usesProLocation(offerMode) && !hasProLocation(offerPro)) {
+      return NextResponse.json({ error: PRO_LOCATION_MISSING }, { status: 409 });
+    }
     // Request bookings are new clients LineUp found, so they pay the normal
     // commission even for studio members; the shop's cut still applies.
     const studioPricing = await getStudioPricingForPro(

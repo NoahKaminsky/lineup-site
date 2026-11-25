@@ -148,7 +148,7 @@ function RequestOfferCheckoutForm({
     event.preventDefault();
 
     if (!stripe || !elements) {
-      setPaymentError("Stripe is still loading. Please try again.");
+      setPaymentError("Payment is still loading. Give it a moment and try again.");
       return;
     }
 
@@ -158,7 +158,8 @@ function RequestOfferCheckoutForm({
     const result = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        return_url: `${window.location.origin}/work`,
+        // After a bank check (3D Secure), come back to this request, not the Bookings tab.
+        return_url: `${window.location.origin}${window.location.pathname}`,
       },
       redirect: "if_required",
     });
