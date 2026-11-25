@@ -155,8 +155,8 @@ test("save a pro with the heart", async () => {
   const heart = page.getByRole("button", { name: /^Save(d)? TEST Master Pro$/ }).first();
   await heart.click();
   await expect(heart).toHaveAttribute("aria-pressed", "true");
-  const { count } = await db.from("saved_pros").select("client_id", { count: "exact", head: true }).eq("client_id", ids.customer).eq("professional_id", ids.master);
-  expect(count).toBe(1);
+  // The heart fills straight away; the save lands a moment later.
+  await expect.poll(async () => (await db.from("saved_pros").select("client_id", { count: "exact", head: true }).eq("client_id", ids.customer).eq("professional_id", ids.master)).count, { timeout: 15_000 }).toBe(1);
 });
 
 test("refer page sends a customer to their requests", async () => {

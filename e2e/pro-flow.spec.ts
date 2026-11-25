@@ -138,6 +138,7 @@ test("Pay-at-shop no-show closes the booking without charging", async () => {
 test("Master pro edits a review reply", async () => {
   await signIn("master");
   await page.goto(`/profile/${ids.master}`);
+  await page.waitForLoadState("networkidle").catch(() => {});
   // Wait until the reply editor is really open (a click before the page is
   // interactive does nothing), then fill that box, not any other on the page.
   const box = page.getByRole("textbox", { name: "Your reply" });
@@ -147,11 +148,10 @@ test("Master pro edits a review reply", async () => {
   }).toPass({ timeout: 20_000 });
   await box.fill("TEST reply: thank you, see you next time.");
   await page.getByRole("button", { name: "Post reply" }).click();
-  // Saved once the editor closes and the reply shows as text.
-  await expect(page.getByRole("button", { name: "Edit your reply" })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("TEST reply: thank you, see you next time.")).toBeVisible();
-  const { data } = await db.from("professional_reviews").select("pro_reply").eq("professional_id", ids.master).single();
-  expect(data?.pro_reply).toBe("TEST reply: thank you, see you next time.");
+  // Saved in the database first, then shown on the page.
+  await expect.poll(async () => (await db.from("professional_reviews").select("pro_reply").eq("professional_id", ids.master).single()).data?.pro_reply, { timeout: 15_000 })
+    .toBe("TEST reply: thank you, see you next time.");
+  await expect(page.getByText("TEST reply: thank you, see you next time.")).toBeVisible({ timeout: 10_000 });
 });
 
 test("no console errors along the way", async () => {

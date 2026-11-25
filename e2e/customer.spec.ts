@@ -25,8 +25,12 @@ test.describe("logged out", () => {
 
   test("/discover clear-search button is a 44px target", async ({ page }) => {
     await page.goto("/discover");
+    // Type only once the page is interactive (typing earlier gets reset by hydration).
+    await page.waitForLoadState("networkidle").catch(() => {});
     await page.getByPlaceholder("Search a name, a service, an area").fill("test");
-    const box = await page.getByRole("button", { name: "Clear search" }).boundingBox();
+    const clear = page.getByRole("button", { name: "Clear search" });
+  await expect(clear).toBeVisible();
+  const box = await clear.boundingBox();
     expect(box?.height).toBeGreaterThanOrEqual(44);
     expect(box?.width).toBeGreaterThanOrEqual(44);
   });
