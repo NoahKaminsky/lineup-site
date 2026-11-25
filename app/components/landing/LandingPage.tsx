@@ -187,7 +187,16 @@ function videoScrubber(video: HTMLVideoElement, src: string) {
     tick();
   };
   video.addEventListener("loadedmetadata", onReady, { once: true });
-  video.src = src;
+  // Fetch the clip only once its section is within ~1.5 screens, not on load.
+  const near = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      near.disconnect();
+      video.src = src;
+    },
+    { rootMargin: "150% 0px" }
+  );
+  near.observe(video);
   return {
     set(progress: number) {
       target = progress;
@@ -196,6 +205,7 @@ function videoScrubber(video: HTMLVideoElement, src: string) {
     kill() {
       cancelAnimationFrame(raf);
       video.removeEventListener("loadedmetadata", onReady);
+      near.disconnect();
     },
   };
 }
@@ -691,7 +701,7 @@ export default function LandingPage() {
                         muted
                         loop
                         playsInline
-                        preload="metadata"
+                        preload="none"
                         aria-label={step.title}
                       />
                     ) : (
@@ -733,7 +743,7 @@ export default function LandingPage() {
                         muted
                         loop
                         playsInline
-                        preload="metadata"
+                        preload="none"
                         aria-hidden={activeStep !== i}
                         aria-label={step.title}
                       />
@@ -1242,7 +1252,7 @@ export default function LandingPage() {
               poster="/images/landing/close-turn-poster.webp"
               muted
               playsInline
-              preload="auto"
+              preload="none"
               tabIndex={-1}
             />
             <Image
