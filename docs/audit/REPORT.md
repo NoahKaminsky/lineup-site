@@ -335,7 +335,9 @@ Logged out: `e2e/admin.spec.ts` 2/2 (1280 + 390). With TEST data (Noah OK'd): ad
 - ✅ **Apple Pay**: already active in live mode for `lineup-aesthetics.ca` and `www.lineup-aesthetics.ca` (the earlier warning came from localhost). Nothing to do.
 - ⏸ **BLIK** is still on in the live Stripe account (Bancontact and EPS are on too). Changing a live Stripe setting from here was blocked; see below.
 - ⏸ **Signed-in pages and Lighthouse's 2.5 s**: they already load their data on the server (`/requests`, `/work`, `/calendar`). The simulated number comes from the ~330 KB of scripts every signed-in page needs (React/Next ~69 KB, the Supabase client ~62 KB, which can't be split). Real load: 0.5–1.2 s.
-- ⏸ **Profile page main-thread time (~700 ms)**: loading the payment and "booked" sheets on demand was tried and measured; no change (437 vs 445 KB, same blocking time), so it was undone. The cost is setting up the one 3,400-line profile component; splitting it into smaller pieces is its own job.
+- ✅ **Logged-out save heart**: Discover and profiles show the heart when you're logged out; a tap goes to log in and back (`next=` the page you were on). *e2e/customer.spec.ts, 1280 + 390.*
+- ✅ **Admin "TEST accounts only"**: the content lists can be limited to items from the seeded TEST accounts, so a test can delete its own (the TEST review is deleted and put back in *e2e/admin-flow.spec.ts*) without touching anyone real.
+- ⏸ **Profile page main-thread time (~700 ms)**: two tries, both measured and undone: loading the payment and "booked" sheets on demand (437 vs 445 KB, same blocking time), and giving each section its own Suspense boundary (still ~700 ms, plus a small layout shift). The cost isn't those parts; it's likely the work the profile does as it starts (e.g. building the booking calendar's open slots). Next step is a performance trace of that start-up.
 
 ### Tests after the decisions (25 Nov, final production build on LineUp Test, fresh seed before each spec)
 | Spec | Result |
@@ -361,4 +363,4 @@ Logged out: `e2e/admin.spec.ts` 2/2 (1280 + 390). With TEST data (Noah OK'd): ad
 5. **Customer emails vs push**: the rule says customers get push, not email, but they're emailed for confirmations, offers and reminders. Turning those off would leave customers without push with no confirmations at all, so it wasn't changed. Your call.
 6. **Live database health**: watch memory and disk I/O on the free plan (24 Nov stall).
 
-**Worth doing next (code):** split the profile page into smaller pieces; the logged-out "save" heart; a TEST-only filter for admin moderation so delete can be tested.
+**Worth doing next (code):** trace the profile page's start-up and cut its ~700 ms of main-thread work.
