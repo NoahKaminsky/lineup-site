@@ -18,6 +18,7 @@ import SaveHeart from "@/app/components/SaveHeart";
 import { useSavedPros } from "@/app/lib/savedPros";
 import { Photo } from "@/app/components/Photo";
 import { TITLE } from "@/app/components/ui";
+import { buttonClass } from "@/app/components/ui";
 
 type ProfileRow = {
   id: string;
@@ -217,9 +218,9 @@ function ProCard({ href, name, role, place, image, badge, rating, reviewCount, o
     <Link
       href={href}
       aria-label={`${name}, ${role}${place ? `, ${place}` : ""}, ${ratingText}${open ? `, ${open.toLowerCase()}` : ""}`}
-      className="group block rounded-[24px] outline-offset-4"
+      className="group block rounded-3xl outline-offset-4"
     >
-      <div className="relative aspect-[4/5] overflow-hidden rounded-[24px] bg-neutral-200">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-neutral-200">
         {image ? (
           <Photo
             src={image}
@@ -232,7 +233,7 @@ function ProCard({ href, name, role, place, image, badge, rating, reviewCount, o
             <span className="relative text-7xl font-semibold tracking-[-0.06em] text-ink/80">{initial}</span>
           </div>
         )}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[24px] ring-1 ring-inset ring-black/[0.06]" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-inset ring-black/[0.06]" />
 
         {badge && (badge.label === "LineUp Pick" || badge.label === "Promoted") ? (
           <span className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-ink backdrop-blur">
@@ -441,6 +442,8 @@ function buildTags(params: {
 
   return tags.slice(0, 2);
 }
+
+const NO_LOG = () => {};
 
 type DiscoverCache = { cards: DiscoverCard[] };
 
@@ -967,6 +970,11 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   const spotlightCards = spotlightIds
     .map((id) => spotlightPool.find((e) => e.card.profile.id === id)?.card)
     .filter((card): card is DiscoverCard => Boolean(card));
+  // Until the draw above runs (just after load), hold the stage's space with
+  // an invisible stand-in of the same size, so the page doesn't jump when it
+  // appears. No photos and no view logging for the stand-in.
+  const spotlightPending = spotlightCards.length === 0 && spotlightPool.length > 0;
+  const stageCards = spotlightPending ? spotlightPool.slice(0, 3).map((e) => e.card) : spotlightCards;
 
   // A view is counted when the light lands on a pro, once per pro per visit.
   const logSpotlight = useCallback((professionalId: string, kind: "view" | "tap") => {
@@ -1054,7 +1062,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => (
               <div key={item}>
-                <div className="aspect-square animate-pulse rounded-[22px] sm:aspect-[4/5] bg-neutral-200/60" />
+                <div className="aspect-square animate-pulse rounded-3xl sm:aspect-[4/5] bg-neutral-200/60" />
                 <div className="mt-3 h-4 w-2/3 animate-pulse rounded-full bg-neutral-200/70" />
                 <div className="mt-2 h-3 w-1/2 animate-pulse rounded-full bg-neutral-200/50" />
               </div>
@@ -1091,7 +1099,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           </h1>
           <Link
             href="/shops"
-            className="rounded-full px-4 py-2 text-sm font-medium text-ink ring-1 ring-inset ring-ink/15 transition-colors hover:bg-ink/[0.04]"
+            className={buttonClass("secondary", "md")}
           >
             Find a shop
           </Link>
@@ -1129,10 +1137,10 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
               ) : null}
             </div>
 
-        {spotlightCards.length > 0 ? (
-          <div className="mt-6">
+        {stageCards.length > 0 ? (
+          <div className={`mt-6 ${spotlightPending ? "invisible" : "lu-fade-in"}`} aria-hidden={spotlightPending || undefined}>
             <SpotlightStage
-              pros={spotlightCards.map((card) => {
+              pros={stageCards.map((card) => {
                 const props = getCardProps(card);
                 return {
                   id: card.profile.id,
@@ -1140,14 +1148,14 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                   name: props.name,
                   role: props.role,
                   place: props.place,
-                  image: props.image,
+                  image: spotlightPending ? null : props.image,
                   rating: props.rating,
                   open: props.open,
                   verified: props.verified,
                 };
               })}
-              onView={onSpotlightView}
-              onTap={onSpotlightTap}
+              onView={spotlightPending ? NO_LOG : onSpotlightView}
+              onTap={spotlightPending ? NO_LOG : onSpotlightTap}
             />
           </div>
         ) : null}
@@ -1223,7 +1231,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         </div>
 
         {filtersOpen ? (
-          <div className="lu-fade-in mt-3 rounded-[22px] bg-white p-4 ring-1 ring-ink/[0.06] sm:p-5">
+          <div className="lu-fade-in mt-3 rounded-3xl bg-white p-4 ring-1 ring-ink/[0.06] sm:p-5">
             <div className="grid gap-5 sm:grid-cols-3">
               <div>
                 <p className="text-[13px] font-medium text-neutral-500">Where</p>
@@ -1318,7 +1326,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         ) : null}
 
         {sortedCards.length === 0 ? (
-          <div className="mt-10 rounded-[28px] bg-white px-6 py-16 text-center ring-1 ring-ink/[0.06]">
+          <div className="mt-10 rounded-3xl bg-white px-6 py-16 text-center ring-1 ring-ink/[0.06]">
             <p className="text-lg font-semibold tracking-[-0.02em] text-ink">
               {isSearching ? `No one matches “${search.trim()}”` : "No one matches those filters"}
             </p>
@@ -1335,7 +1343,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
               </button>
               <Link
                 href="/requests/new"
-                className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
+                className={buttonClass("primary", "md")}
               >
                 Post a request
               </Link>
@@ -1377,7 +1385,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
             {/* The other way in, once you've seen who's here. */}
             <Link
               href="/requests/new"
-              className="group mt-14 flex items-center justify-between gap-4 rounded-[28px] bg-ink p-6 text-white transition hover:bg-neutral-900 sm:p-8"
+              className="group mt-14 flex items-center justify-between gap-4 rounded-3xl bg-ink p-6 text-white transition hover:bg-neutral-900 sm:p-8"
             >
               <div>
                 <p className="text-lg font-semibold tracking-[-0.02em] sm:text-xl">Not sure who to book?</p>
@@ -1401,7 +1409,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           role="dialog"
           aria-modal="true"
           aria-labelledby="distance-title"
-          className="lu-sheet-in max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-7"
+          className="lu-sheet-in max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-7"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-3">
