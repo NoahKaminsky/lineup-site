@@ -622,7 +622,7 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
   const [showBannerPreview, setShowBannerPreview] = useState(false);
   const [viewerUserId, setViewerUserId] = useState<string | null>(() => initialData?.viewerUserId ?? null);
   const [viewerIsCustomer, setViewerIsCustomer] = useState(() => initialData?.viewerIsCustomer ?? false);
-  const { canSave, savedIds, toggle: toggleSaved } = useSavedPros();
+  const { showSave, savedIds, toggle: toggleSaved } = useSavedPros();
   // Signed-out visitor picked a time and service: ask them to sign in, then
   // bring them straight back to this calendar.
   const [authPromptService, setAuthPromptService] = useState<string | null>(null);
@@ -2159,7 +2159,7 @@ if (loading) {
                         ? "Request again"
                         : "Request service"}
                   </Link>
-                  {canSave ? (
+                  {showSave ? (
                     <SaveHeart
                       variant="pill"
                       saved={savedIds.has(profile.id)}

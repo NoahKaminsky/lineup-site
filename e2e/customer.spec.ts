@@ -56,3 +56,13 @@ test("shops directory loads", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.getByText("We couldn't load shops just now.")).toHaveCount(0);
 });
+
+test("logged out, the save heart shows and takes you to log in and back", async ({ page }) => {
+  await page.goto("/discover");
+  await page.waitForLoadState("networkidle");
+  const heart = page.getByRole("button", { name: /^Save / }).first();
+  await expect(heart).toBeVisible({ timeout: 20_000 });
+  await heart.click();
+  await page.waitForURL(/\/login\?/, { timeout: 20_000 });
+  expect(new URL(page.url()).searchParams.get("next")).toBe("/discover");
+});

@@ -460,7 +460,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   const [loading, setLoading] = useState(() => !seed);
   const [message, setMessage] = useState("");
   const [cards, setCards] = useState<DiscoverCard[]>(() => seed ?? []);
-  const { canSave, savedIds, toggle: toggleSaved } = useSavedPros();
+  const { showSave, savedIds, toggle: toggleSaved } = useSavedPros();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<(typeof categoryOptions)[number]["value"]>("all");
   const [selectedModes, setSelectedModes] = useState<string[]>([]);
@@ -1373,7 +1373,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                     key={card.profile.id}
                     {...getCardProps(card)}
                     save={
-                      canSave
+                      showSave
                         ? { saved: savedIds.has(card.profile.id), onToggle: () => toggleSaved(card.profile.id) }
                         : undefined
                     }
