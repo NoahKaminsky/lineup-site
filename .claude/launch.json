@@ -4,8 +4,29 @@
     {
       "name": "lineup-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "lineup-dev-testdb",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:testdb"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "lineup-prod-testdb",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start:testdb"
+      ],
+      "port": 3200
     }
   ]
 }

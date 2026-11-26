@@ -10,8 +10,9 @@ import { supabase } from "../../lib/supabaseClient";
 import { isLikelyValidPhoneNumber } from "@/app/lib/phoneValidation";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import LocationAutocomplete, { type SelectedLocation } from "@/app/components/LocationAutocomplete";
-import { rememberReturnTo, takeReturnTo } from "@/app/lib/returnTo";
+import { rememberReturnTo, takeReturnTo, loginHref } from "@/app/lib/returnTo";
 import { takeReferralCode } from "@/app/components/ReferralCapture";
+import { fieldClass } from "@/app/components/ui";
 
 // See the matching flag in app/account/AccountPageClient.tsx — same reasoning.
 const SMS_SIGNUP_UI_ENABLED = false;
@@ -60,7 +61,7 @@ export default function OnboardingPage() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref(window.location.pathname + window.location.search));
         return;
       }
 
@@ -373,7 +374,7 @@ export default function OnboardingPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your full name"
-                className="w-full rounded-xl bg-neutral-50 px-4 py-3 text-sm outline-none ring-1 ring-inset ring-ink/[0.07] transition focus:bg-white focus:ring-ink"
+                className={fieldClass}
               />
             </div>
 
@@ -414,7 +415,7 @@ export default function OnboardingPage() {
                 >
                   <Briefcase className="h-5 w-5" />
                   <div>
-                    <p className="text-sm font-semibold">Professional</p>
+                    <p className="text-sm font-semibold">Pro</p>
                     <p className={`mt-0.5 text-xs leading-5 ${role === "professional" ? "text-white/70" : "text-neutral-500"}`}>
                       Offer your services & get booked
                     </p>
@@ -551,7 +552,7 @@ export default function OnboardingPage() {
                       setPhoneError("");
                     }}
                     placeholder="+12045551234"
-                    className="w-full rounded-xl bg-white px-4 py-3 text-sm outline-none ring-1 ring-inset ring-ink/[0.08] transition focus:ring-ink"
+                    className={fieldClass}
                   />
                   {phoneError ? (
                     <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>
@@ -687,7 +688,7 @@ export default function OnboardingPage() {
               {saving
                 ? "Setting up your account…"
                 : role === "professional"
-                ? "Set up my professional account"
+                ? "Set up my pro account"
                 : role === "customer"
                 ? "Set up my account"
                 : "Continue"}

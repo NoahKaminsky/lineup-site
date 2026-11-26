@@ -131,7 +131,7 @@ export default function Summary({
       <div className="flex flex-wrap gap-2">
         <Link href={calendarHref} className={buttonClass("primary")}>
           <CalendarDays className="h-4 w-4" aria-hidden="true" />
-          Go to Calendar
+          Go to calendar
         </Link>
         <Button onClick={onAnother}>Import more</Button>
       </div>

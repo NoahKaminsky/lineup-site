@@ -34,7 +34,7 @@ function Delta({ pair, kind = "percent", goodWhenDown = false }: { pair: { now: 
   const good = goodWhenDown ? !up : up;
   const Icon = up ? ArrowUpRight : ArrowDownRight;
   return (
-    <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${good ? "text-emerald-700" : "text-[#A30D25]"}`}>
+    <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${good ? "text-ink" : "text-[#A30D25]"}`}>
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
       {Math.abs(diff)}
       {kind === "percent" ? "%" : " pts"}

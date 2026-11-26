@@ -59,7 +59,10 @@ export async function fetchBookingSchedule(
     }));
     return { rows, windows };
   } catch (error) {
-    console.error("Could not load booked times:", error);
+    // A dropped connection (leaving the page mid-load, going offline) isn't a
+    // bug; callers already treat null as "couldn't load". Server errors are.
+    const network = error instanceof TypeError || (error instanceof DOMException && error.name === "AbortError");
+    (network ? console.warn : console.error)("Could not load booked times:", error);
     return null;
   }
 }

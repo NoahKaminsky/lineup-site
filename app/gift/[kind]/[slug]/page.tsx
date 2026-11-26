@@ -6,6 +6,7 @@ import { getServiceSupabase } from "@/app/lib/serverSupabase";
 import { loadGiftSeller } from "@/app/lib/giftCardsServer";
 import { GIFT_CARD_AMOUNTS_CENTS, GIFT_CARD_MAX_CENTS, GIFT_CARD_MIN_CENTS } from "@/app/lib/giftCards";
 import GiftForm from "./GiftForm";
+import { buttonClass } from "@/app/components/ui";
 
 // Buy a gift card for one pro (/gift/pro/<username>) or one shop
 // (/gift/shop/<slug>).
@@ -43,7 +44,7 @@ export default async function GiftPage({ params }: Params) {
           </p>
 
           {/* The card itself, as it will look. */}
-          <div className="lu-rise-in mt-10 aspect-[1.6/1] max-w-sm rounded-[28px] bg-ink p-7 text-white shadow-[0_30px_60px_-30px_rgba(0,0,0,0.6)]" style={{ animationDelay: "240ms" }}>
+          <div className="lu-rise-in mt-10 aspect-[1.6/1] max-w-sm rounded-3xl bg-ink p-7 text-white shadow-[0_30px_60px_-30px_rgba(0,0,0,0.6)]" style={{ animationDelay: "240ms" }}>
             <div className="flex h-full flex-col justify-between">
               <p className="text-xs font-medium uppercase tracking-[0.2em] text-white/50">LineUp gift card</p>
               <div>
@@ -80,7 +81,7 @@ export default async function GiftPage({ params }: Params) {
             <div className="rounded-3xl bg-white p-8 ring-1 ring-ink/[0.07]">
               <p className="text-lg font-semibold">{seller.name} isn&apos;t selling gift cards yet.</p>
               <p className="mt-2 text-sm leading-6 text-neutral-600">They need to finish setting up payouts on LineUp first.</p>
-              <Link href={seller.href} className="mt-6 inline-flex rounded-full bg-ink px-6 py-3 text-sm font-medium text-white hover:bg-neutral-800">
+              <Link href={seller.href} className={buttonClass("primary", "md", "mt-6")}>
                 See {seller.kind === "shop" ? "the shop" : "their profile"}
               </Link>
             </div>

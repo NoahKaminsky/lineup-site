@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getProfileHref } from "@/app/lib/profileLink";
 import SaveHeart from "@/app/components/SaveHeart";
+import { Photo } from "@/app/components/Photo";
 
 /* The client's saved pros, on their account page: the people they hearted in
    Explore or on a profile, newest first, each one tap from booking again. */
@@ -90,11 +91,11 @@ export default function SavedProsCard({ clientId }: { clientId: string }) {
   if (unavailable) return null;
 
   return (
-    <div id="saved-pros" className="scroll-mt-28 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+    <div id="saved-pros" className="scroll-mt-28 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07]">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Saved pros</h2>
         {pros && pros.length > 0 ? (
-          <Link href="/discover" className="text-xs font-semibold text-neutral-500 transition hover:text-ink">
+          <Link href="/discover" className="-my-2 inline-flex min-h-11 items-center px-2 text-xs font-semibold text-neutral-500 transition hover:text-ink">
             Find more
           </Link>
         ) : null}
@@ -117,7 +118,7 @@ export default function SavedProsCard({ clientId }: { clientId: string }) {
           <p className="text-sm leading-6 text-neutral-600">Tap the heart on a pro to save them here.</p>
           <Link
             href="/discover"
-            className="mt-4 inline-flex rounded-full bg-neutral-100 px-4 py-2 text-xs font-semibold text-ink transition hover:bg-neutral-200"
+            className="mt-4 inline-flex min-h-11 items-center rounded-full bg-neutral-100 px-5 text-sm font-semibold text-ink transition hover:bg-neutral-200"
           >
             Explore pros
           </Link>
@@ -131,7 +132,7 @@ export default function SavedProsCard({ clientId }: { clientId: string }) {
                 <Link href={getProfileHref(pro)} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-neutral-100 text-sm font-semibold text-neutral-500">
                     {pro.avatar_url ? (
-                      <img loading="lazy" src={pro.avatar_url} alt="" className="h-full w-full object-cover" />
+                      <Photo src={pro.avatar_url} width={44} className="h-full w-full object-cover" />
                     ) : (
                       name.charAt(0).toUpperCase()
                     )}

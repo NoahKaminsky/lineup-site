@@ -278,6 +278,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Importing is still being switched on. Try again soon." }, { status: 503 });
     }
     console.error("POST /api/studio/import failed:", error);
-    return NextResponse.json({ error: errorMessage(error, "Something went wrong. Please try again.") }, { status: 500 });
+    return NextResponse.json({ error: errorMessage(error, "The import didn't finish. Please try again.") }, { status: 500 });
   }
 }

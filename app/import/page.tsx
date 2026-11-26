@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { parseAppointments } from "@/app/lib/appointmentImport";
 import { parseClientList } from "@/app/studio/clientImport";
 import { SOURCE_APPS, SOURCE_APP_LABELS, type SourceApp } from "@/app/lib/importSources";
+import { fieldClass } from "@/app/components/ui";
 
 type Appt = { id: string; client: string; service: string; date: string; start: string; end: string };
 type Client = { id: string; name: string | null; email: string; phone: string | null; invited: boolean; unsubscribed: boolean };
@@ -51,9 +52,9 @@ function prettyTime(t: string) {
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
 }
 
-const panel = "rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8";
-const primary = "inline-flex items-center justify-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50";
-const secondary = "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-ink ring-1 ring-inset ring-ink/15 hover:bg-neutral-50 disabled:opacity-50";
+const panel = "rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8";
+const primary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50";
+const secondary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-ink ring-1 ring-inset ring-ink/15 hover:bg-neutral-50 disabled:opacity-50";
 
 function FilePicker({ onText, label }: { onText: (text: string, name: string) => void; label: string }) {
   const ref = useRef<HTMLInputElement | null>(null);
@@ -208,14 +209,14 @@ export default function ImportPage() {
         ) : null}
 
         {notice ? (
-          <p role={notice.tone === "error" ? "alert" : "status"} className={`rounded-xl px-4 py-3 text-sm ${notice.tone === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800"}`}>
+          <p role={notice.tone === "error" ? "alert" : "status"} className={`rounded-xl px-4 py-3 text-sm ${notice.tone === "error" ? "bg-red-50 text-red-700" : "bg-ink/[0.05] text-ink"}`}>
             {notice.text}
           </p>
         ) : null}
 
         <label className={`block ${!state.subscribed ? "pointer-events-none opacity-50" : ""}`}>
           <span className="mb-1.5 block text-[13px] font-medium text-neutral-800">Exporting from</span>
-          <select value={sourceApp} onChange={(e) => setSourceApp(e.target.value as SourceApp)} className="h-11 w-full max-w-xs rounded-xl bg-white px-3.5 text-sm ring-1 ring-inset ring-ink/15">
+          <select value={sourceApp} onChange={(e) => setSourceApp(e.target.value as SourceApp)} className={`${fieldClass} max-w-xs`}>
             {SOURCE_APPS.map((app) => (
               <option key={app} value={app}>
                 {SOURCE_APP_LABELS[app]}

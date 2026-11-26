@@ -8,79 +8,23 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, MoreHorizontal, X } from "lucide-react";
 
-export const SIGNAL = "#C8102E";
-
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
-type ButtonSize = "sm" | "md";
-
-const base =
-  "inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium transition-[background-color,color,box-shadow,transform] duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50";
-
-const variants: Record<ButtonVariant, string> = {
-  primary: "bg-ink text-white shadow-[0_1px_0_rgba(255,255,255,0.12)_inset,0_1px_2px_rgba(0,0,0,0.2)] hover:bg-neutral-800",
-  secondary: "bg-surface text-ink shadow-[inset_0_0_0_1px_rgba(10,10,10,0.14)] hover:bg-neutral-50 hover:shadow-[inset_0_0_0_1px_rgba(10,10,10,0.28)]",
-  ghost: "text-neutral-600 hover:bg-ink/[0.05] hover:text-ink",
-  danger: "text-red-700 hover:bg-red-50",
-};
-
-const sizes: Record<ButtonSize, string> = {
-  sm: "h-8 px-3.5 text-[13px]",
-  md: "h-10 px-5 text-sm",
-};
-
-export function buttonClass(variant: ButtonVariant = "secondary", size: ButtonSize = "md", extra = "") {
-  return `${base} ${variants[variant]} ${sizes[size]} ${extra}`;
-}
-
-export function Button({
-  variant = "secondary",
-  size = "md",
-  loading = false,
-  className = "",
-  children,
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize; loading?: boolean }) {
-  return (
-    <button type="button" {...rest} disabled={rest.disabled || loading} className={buttonClass(variant, size, className)}>
-      {loading ? (
-        <span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-      ) : null}
-      {children}
-    </button>
-  );
-}
-
-export const fieldClass =
-  "h-11 w-full rounded-xl bg-surface px-3.5 text-sm text-ink shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] outline-none transition-shadow placeholder:text-neutral-400 focus:shadow-[inset_0_0_0_1.5px_#0a0a0a]";
-export const textareaClass =
-  "w-full rounded-xl bg-surface px-3.5 py-3 text-sm leading-6 text-ink shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] outline-none transition-shadow placeholder:text-neutral-400 focus:shadow-[inset_0_0_0_1.5px_#0a0a0a]";
-
-export function Field({
-  label,
-  hint,
-  htmlFor,
-  optional,
-  className = "",
-  children,
-}: {
-  label: string;
-  hint?: ReactNode;
-  htmlFor?: string;
-  optional?: boolean;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className={className}>
-      <label htmlFor={htmlFor} className="mb-1.5 block text-[13px] font-medium text-neutral-800">
-        {label}
-        {optional ? <span className="ml-1 font-normal text-neutral-400">optional</span> : null}
-      </label>
-      {children}
-      {hint ? <p className="mt-1.5 text-xs leading-5 text-neutral-500">{hint}</p> : null}
-    </div>
-  );
-}
+export {
+  SIGNAL,
+  buttonClass,
+  Button,
+  fieldClass,
+  textareaClass,
+  Field,
+  Avatar,
+  Tag,
+  Section,
+  panelClass,
+  EmptyState,
+  SkeletonRows,
+  TONE,
+  TITLE,
+} from "@/app/components/ui";
+import { buttonClass, fieldClass } from "@/app/components/ui";
 
 // A row of mutually exclusive choices (a radio group drawn as a pill track).
 export function Segmented<T extends string>({
@@ -108,7 +52,7 @@ export function Segmented<T extends string>({
             aria-checked={on}
             onClick={() => onChange(o.value)}
             className={`rounded-full font-medium transition-[background-color,color,box-shadow] duration-150 ${
-              size === "sm" ? "h-7 px-3 text-[13px]" : "h-8 px-4 text-sm"
+              size === "sm" ? "h-11 px-3 text-[13px] sm:h-7" : "h-11 px-4 text-sm sm:h-8"
             } ${on ? "bg-surface text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)]" : "text-neutral-500 hover:text-ink"}`}
           >
             {o.label}
@@ -145,7 +89,7 @@ export function Toggle({
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative mt-0.5 h-6 w-10 shrink-0 rounded-full transition-colors duration-200 ${checked ? "bg-ink" : "bg-ink/15"}`}
+        className={`relative mt-0.5 h-6 w-10 before:absolute before:-inset-2.5 before:content-[''] shrink-0 rounded-full transition-colors duration-200 ${checked ? "bg-ink" : "bg-ink/15"}`}
       >
         <span
           aria-hidden="true"
@@ -154,83 +98,6 @@ export function Toggle({
           }`}
         />
       </button>
-    </div>
-  );
-}
-
-export function Avatar({ name, src, size = 36 }: { name: string | null; src?: string | null; size?: number }) {
-  const initials = (name || "?")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase())
-    .join("");
-  return src ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" width={size} height={size} className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
-  ) : (
-    <span
-      aria-hidden="true"
-      className="flex shrink-0 items-center justify-center rounded-full bg-ink/[0.07] font-semibold text-neutral-600"
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.36) }}
-    >
-      {initials}
-    </span>
-  );
-}
-
-// Small status word. Tone carries meaning: ink = live/positive, muted = info,
-// signal = needs attention.
-export function Tag({ tone = "muted", children }: { tone?: "ink" | "muted" | "signal" | "outline"; children: ReactNode }) {
-  const tones = {
-    ink: "bg-ink text-white",
-    muted: "bg-ink/[0.06] text-neutral-700",
-    signal: "bg-[#C8102E]/[0.08] text-[#A30D25]",
-    outline: "text-neutral-600 shadow-[inset_0_0_0_1px_rgba(10,10,10,0.14)]",
-  } as const;
-  return (
-    <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium ${tones[tone]}`}>{children}</span>
-  );
-}
-
-// A titled region of a page: heading + optional description + actions on the
-// right, then its content. No box; whitespace does the grouping.
-export function Section({
-  title,
-  description,
-  actions,
-  children,
-  className = "",
-}: {
-  title: ReactNode;
-  description?: ReactNode;
-  actions?: ReactNode;
-  children?: ReactNode;
-  className?: string;
-}) {
-  return (
-    <section className={className}>
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <div className="min-w-0">
-          <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">{title}</h2>
-          {description ? <p className="mt-1 max-w-xl text-sm leading-6 text-neutral-500">{description}</p> : null}
-        </div>
-        {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
-      </div>
-      {children ? <div className="mt-5">{children}</div> : null}
-    </section>
-  );
-}
-
-export const panelClass =
-  "rounded-2xl bg-surface ring-1 ring-ink/[0.06]";
-
-export function EmptyState({ title, body, action }: { title: string; body?: ReactNode; action?: ReactNode }) {
-  return (
-    <div className={`${panelClass} px-6 py-10 text-center`}>
-      <p className="text-[15px] font-semibold text-ink">{title}</p>
-      {body ? <p className="mx-auto mt-1.5 max-w-sm text-sm leading-6 text-neutral-500">{body}</p> : null}
-      {action ? <div className="mt-5 flex justify-center">{action}</div> : null}
     </div>
   );
 }
@@ -276,7 +143,7 @@ export function Menu({
         className={
           trigger
             ? buttonClass("secondary", "sm")
-            : "flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-ink/[0.06] hover:text-ink"
+            : "flex h-11 w-11 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-ink/[0.06] hover:text-ink sm:h-8 sm:w-8"
         }
       >
         {trigger || <MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
@@ -298,7 +165,7 @@ export function Menu({
               }}
               className={`flex w-full rounded-lg px-3 py-2 text-left text-sm transition-colors disabled:opacity-40 ${
                 item.danger ? "text-red-700 hover:bg-red-50" : "text-ink hover:bg-ink/[0.05]"
-              }`}
+              } min-h-11 sm:min-h-0`}
             >
               {item.label}
             </button>
@@ -365,7 +232,7 @@ export function Sheet({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="studio-sheet absolute inset-x-0 bottom-0 flex max-h-[92vh] flex-col rounded-t-[22px] bg-surface shadow-[0_-12px_48px_-12px_rgba(0,0,0,0.35)] outline-none sm:inset-y-3 sm:left-auto sm:right-3 sm:max-h-none sm:w-[440px] sm:rounded-[22px]"
+        className="studio-sheet absolute inset-x-0 bottom-0 flex max-h-[92vh] flex-col rounded-t-3xl bg-surface shadow-[0_-12px_48px_-12px_rgba(0,0,0,0.35)] outline-none sm:inset-y-3 sm:left-auto sm:right-3 sm:max-h-none sm:w-[440px] sm:rounded-3xl"
       >
         <div className="flex items-start justify-between gap-4 px-6 pb-4 pt-6">
           <div className="min-w-0">
@@ -379,7 +246,7 @@ export function Sheet({
             data-sheet-close
             onClick={onClose}
             aria-label="Close"
-            className="-mr-2 -mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-ink/[0.06] hover:text-ink"
+            className="-mr-2 -mt-1 flex h-11 w-11 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-ink/[0.06] hover:text-ink"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -422,7 +289,7 @@ export function Notice({
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="-mr-1 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+          className="-mr-1 mt-0.5 flex h-6 w-6 relative before:absolute before:-inset-2.5 before:content-[''] shrink-0 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
         >
           <X className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
@@ -556,7 +423,7 @@ export function ChipPicker({
             type="button"
             aria-pressed={on}
             onClick={() => onChange(on ? value.filter((v) => v !== o.value) : [...value, o.value])}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors ${
+            className={`inline-flex h-11 sm:h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium transition-colors ${
               on ? "bg-ink text-white" : "bg-surface text-neutral-700 shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] hover:text-ink"
             }`}
           >

@@ -9,6 +9,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ChevronRight, MapPin, MessageCircle, Navigation } from "lucide-react";
 import { appointmentInstant, shopNow } from "@/app/lib/bookingTime";
 import SplitFlap from "@/app/components/SplitFlap";
+import { buttonClass } from "@/app/components/ui";
 
 export type AppointmentLike = {
   href: string;
@@ -196,7 +197,7 @@ export function NextUpCard({
       <div className="flex gap-2 px-6 pb-5 pt-1 sm:px-7">
         <Link
           href={`${item.href}#booking-chat`}
-          className="inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-[13px] font-medium text-white transition hover:bg-neutral-800"
+          className={buttonClass("primary", "sm")}
         >
           <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
           Message
@@ -232,7 +233,7 @@ export function BookingRow({
   return (
     <Link
       href={item.href}
-      className="group flex items-center gap-4 rounded-[22px] bg-white p-3 pr-4 ring-1 ring-ink/[0.06] transition duration-200 hover:-translate-y-px hover:shadow-[0_12px_28px_-18px_rgba(0,0,0,0.35)] hover:ring-ink/[0.1]"
+      className="group flex items-center gap-4 rounded-3xl bg-white p-3 pr-4 ring-1 ring-ink/[0.06] transition duration-200 hover:-translate-y-px hover:shadow-[0_12px_28px_-18px_rgba(0,0,0,0.35)] hover:ring-ink/[0.1]"
     >
       {item.date ? <DateTile date={item.date} muted={muted} /> : <span className="h-14 w-14 shrink-0 rounded-2xl bg-neutral-100" />}
       <div className="min-w-0 flex-1">

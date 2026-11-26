@@ -34,7 +34,7 @@ export default function UnsubscribeClient({
 
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(err instanceof Error ? err.message : "That didn't go through. Try again.");
     } finally {
       setLoading(false);
     }

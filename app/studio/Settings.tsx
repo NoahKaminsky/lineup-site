@@ -266,7 +266,7 @@ function YouGroup({ data, busy, run, setNotice, reload }: SectionProps) {
         body: { takesClients: choice === "yes", myTrades },
       });
       if (!res.ok) {
-        setNotice({ tone: "error", text: res.data.error || "Could not save." });
+        setNotice({ tone: "error", text: res.data.error || "Your changes didn't save. Check your connection and try again." });
         return;
       }
       setNotice({

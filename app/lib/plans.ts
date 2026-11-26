@@ -51,7 +51,7 @@ export const STUDIO_PLANS: Record<
       "One calendar for the whole shop, with online booking",
       "Client requests near your shop, passed to the right pro",
       "Walk-ins and phone bookings at the front desk",
-      "0% LineUp commission on your own clients",
+      "0% LineUp commission on your own clients (card fee at cost)",
       "Chair openings, seen only by pros in that trade",
       "Monthly memberships for your regulars",
       "Every pro gets their own login and Pro features (2 pros or more)",

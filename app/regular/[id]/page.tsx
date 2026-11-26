@@ -8,6 +8,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import PaymentModal from "@/app/components/payments/PaymentModal";
+import { buttonClass } from "@/app/components/ui";
 
 type Regular = {
   id: string;
@@ -159,7 +160,7 @@ export default function RegularPage({ params }: { params: Promise<{ id: string }
           {regular.service || "Appointment"} with {isClient ? regular.pro.name : regular.client.name}
         </h1>
 
-        <div className="mt-8 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+        <div className="mt-8 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07]">
           <p className="text-sm text-neutral-500">{regular.active ? "Next visit" : "This regular appointment has stopped."}</p>
           {regular.active ? (
             <>
@@ -172,7 +173,7 @@ export default function RegularPage({ params }: { params: Promise<{ id: string }
               {regular.nextBookingId ? (
                 <Link
                   href={`/bookings/${regular.nextBookingId}`}
-                  className="mt-6 inline-flex rounded-full bg-ink px-6 py-3 text-sm font-medium text-white hover:bg-neutral-800"
+                  className={buttonClass("primary", "md", "mt-6")}
                 >
                   {isClient ? "You're booked. See your booking" : "Booked. See the booking"}
                 </Link>
@@ -204,7 +205,7 @@ export default function RegularPage({ params }: { params: Promise<{ id: string }
             type="button"
             onClick={stop}
             disabled={stopping}
-            className="mt-8 text-sm text-neutral-500 underline decoration-neutral-300 underline-offset-4 hover:text-red-700 disabled:opacity-60"
+            className="mt-8 inline-flex min-h-11 items-center text-sm text-neutral-500 underline decoration-neutral-300 underline-offset-4 hover:text-red-700 disabled:opacity-60"
           >
             {stopping ? "Stopping…" : "Stop this regular appointment"}
           </button>

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Repeat } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { buttonClass } from "@/app/components/ui";
 
 type Regular = { id: string; every: string; nextDate: string; start: string };
 
@@ -63,7 +64,7 @@ export default function RegularCard({ bookingId, proName }: { bookingId: string;
 
   if (regular) {
     return (
-      <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+      <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07]">
         <div className="flex min-w-0 items-start gap-3">
           <Repeat className="mt-0.5 h-5 w-5 shrink-0 text-neutral-500" aria-hidden="true" />
           <div>
@@ -81,7 +82,7 @@ export default function RegularCard({ bookingId, proName }: { bookingId: string;
   if (!canStart) return null;
 
   return (
-    <section className="mt-4 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+    <section className="mt-4 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07]">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3">
           <Repeat className="mt-0.5 h-5 w-5 shrink-0 text-neutral-500" aria-hidden="true" />
@@ -119,7 +120,7 @@ export default function RegularCard({ bookingId, proName }: { bookingId: string;
           </div>
           {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
           <div className="mt-5 flex gap-2">
-            <button type="button" onClick={start} disabled={busy} className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60">
+            <button type="button" onClick={start} disabled={busy} className={buttonClass("primary", "md")}>
               {busy ? "Setting up…" : "Make it regular"}
             </button>
             <button type="button" onClick={() => setOpen(false)} className="rounded-full px-4 py-2.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100">

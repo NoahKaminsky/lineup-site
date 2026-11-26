@@ -3,6 +3,7 @@
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import BrowseCardNudge from "@/app/components/BrowseCardNudge";
+import { browsePreview, portfolioPreviewQuery, type BrowsePreview } from "@/app/lib/browsePreview";
 import { BOOKING_TIME_ZONE, shopNow } from "@/app/lib/bookingTime";
 import { BookingRow, NextUpCard } from "@/app/components/bookings/BookingVisuals";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +27,9 @@ import { useMyServiceArea } from "@/app/lib/useMyServiceArea";
 import { useBidCounts } from "@/app/lib/useBidCounts";
 import BidCountBlip from "@/app/components/BidCountBlip";
 import { approxDistanceLabel, withinServiceArea } from "@/app/lib/serviceArea";
+import { Photo } from "@/app/components/Photo";
+import { TITLE } from "@/app/components/ui";
+import { buttonClass } from "@/app/components/ui";
 
 // "Recently completed" lists show the last 24 hours only (older work lives in
 // Archived services).
@@ -43,7 +47,7 @@ const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
   },
   {
     Icon: Inbox,
-    eyebrow: "Your Dashboard",
+    eyebrow: "Your dashboard",
     title: "Here's where you'll see new requests.",
     description:
       "Clients post exactly what they need, and matching requests from people near you show up right here. Send an offer on the ones you want to take.",
@@ -53,7 +57,7 @@ const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
     eyebrow: "Work",
     title: "This is where you manage your bookings.",
     description:
-      "Once a client accepts your offer, it becomes a confirmed booking here. After you finish a job, open that booking and tap \"Request completion\" — that's what triggers your payout once the client confirms.",
+      "Once a client accepts your offer, it becomes a confirmed booking here. After the appointment, open that booking and tap \"Request completion\" — that's what triggers your payout once the client confirms.",
   },
   {
     Icon: Wand2,
@@ -74,7 +78,7 @@ const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
     eyebrow: "Your profile",
     title: "Add a photo and connect your payouts.",
     description:
-      "A profile photo helps clients recognize and trust you, and connecting Stripe means you actually get paid once a job is done.",
+      "A profile photo helps clients recognize and trust you, and connecting Stripe means you actually get paid once a booking is done.",
   },
   {
     Icon: Star,
@@ -89,7 +93,7 @@ const CUSTOMER_TOUR_STEPS: TourStep[] = [
   {
     Icon: Sparkles,
     eyebrow: "Welcome to LineUp",
-    title: "Let's find you the right professional.",
+    title: "Let's find you the right pro.",
     description: "A quick look at how booking works before you post your first request.",
   },
   {
@@ -97,7 +101,7 @@ const CUSTOMER_TOUR_STEPS: TourStep[] = [
     eyebrow: "How it works",
     title: "Post what you need, get real offers.",
     description:
-      "Share the service, your budget, and when and where you want it done — nearby professionals send you offers, and you pick the one that fits best. After the appointment, you'll confirm it's done right on the booking page so your pro gets paid.",
+      "Share the service, your budget, and when and where you want it done — nearby pros send you offers, and you pick the one that fits best. After the appointment, you'll confirm it's done right on the booking page so your pro gets paid.",
   },
   {
     Icon: Handshake,
@@ -247,6 +251,7 @@ type ProfileRow = {
   service_modes?: string[] | null;
   full_name?: string | null;
   avatar_url?: string | null;
+  banner_url?: string | null;
   location_lat?: number | null;
   location_lng?: number | null;
 };
@@ -600,6 +605,8 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
     getCached<RequestsCache>("requests-page") ?? (initialData as unknown as RequestsCache | null);
 
   const [checklistShowing, setChecklistShowing] = useState(false);
+  // The "this is you in Explore" card, loaded with the rest of the page.
+  const [browsePreviewData, setBrowsePreviewData] = useState<BrowsePreview | null>(initialData?.browsePreview ?? null);
   const [loading, setLoading] = useState(() => !seed);
   const [role, setRole] = useState<string | null>(() => seed?.role ?? null);
   const [userId, setUserId] = useState<string | null>(() => seed?.userId ?? null);
@@ -771,19 +778,44 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
   }, []);
 
   const hydrateProfessionalData = useCallback(async (userId: string, proProfile: ProfileRow) => {
-    const { data: allRequests, error: allRequestsError } = await supabase
-      .from("service_requests")
-      .select("*")
-      .order("created_at", { ascending: false });
+    // These don't depend on each other: one round trip instead of six.
+    const [allRequestsRes, trackedRequestsRes, offersRes, notificationsRes, bookingsRes, portfolioRes] = await Promise.all([
+      supabase
+        .from("service_requests")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("service_requests")
+        .select("*")
+        .eq("accepted_professional_id", userId)
+        .in("status", ["accepted", "completion_requested", "completed"])
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("request_offers")
+        .select("request_id")
+        .eq("professional_id", userId),
+      supabase
+        .from("notifications")
+        .select("request_id")
+        .eq("user_id", userId)
+        .eq("is_read", false),
+      supabase
+        .from("bookings")
+        .select(
+          "id, professional_id, customer_id, request_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, refund_status"
+        )
+        .eq("professional_id", userId)
+        .in("status", ["confirmed", "completion_requested", "completed", "cancelled"])
+        .order("booking_date", { ascending: true })
+        .order("start_time", { ascending: true }),
+      portfolioPreviewQuery(supabase, userId),
+    ]);
+    setBrowsePreviewData(browsePreview(proProfile, portfolioRes.data || [], portfolioRes.count ?? 0));
+    const { data: allRequests, error: allRequestsError } = allRequestsRes;
 
     if (allRequestsError) throw new Error(allRequestsError.message);
 
-    const { data: trackedRequests, error: trackedRequestsError } = await supabase
-      .from("service_requests")
-      .select("*")
-      .eq("accepted_professional_id", userId)
-      .in("status", ["accepted", "completion_requested", "completed"])
-      .order("created_at", { ascending: false });
+    const { data: trackedRequests, error: trackedRequestsError } = trackedRequestsRes;
 
     if (trackedRequestsError) throw new Error(trackedRequestsError.message);
 
@@ -814,10 +846,7 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
     setRequests(mergedRequests);
     setBookings([]);
 
-    const { data: offers, error: offersError } = await supabase
-      .from("request_offers")
-      .select("request_id")
-      .eq("professional_id", userId);
+    const { data: offers, error: offersError } = offersRes;
 
     if (offersError) throw new Error(offersError.message);
 
@@ -830,11 +859,7 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
     );
     setRespondedRequestIds(uniqueRespondedIds);
 
-    const { data: notifications, error: notificationsError } = await supabase
-      .from("notifications")
-      .select("request_id")
-      .eq("user_id", userId)
-      .eq("is_read", false);
+    const { data: notifications, error: notificationsError } = notificationsRes;
 
     if (notificationsError) {
       console.error("Error loading unread notifications:", notificationsError);
@@ -851,16 +876,7 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
       setProfessionalUnreadRequestIds(unreadIds);
     }
 
-    const { data: professionalBookingsData, error: professionalBookingsError } =
-      await supabase
-        .from("bookings")
-        .select(
-          "id, professional_id, customer_id, request_id, booking_date, start_time, end_time, status, created_at, service_id, service_name, duration_minutes, cancelled_by, cancelled_at, completion_requested_at, completed_at, formatted_address, location_lat, location_lng, location_place_id, refund_status"
-        )
-        .eq("professional_id", userId)
-        .in("status", ["confirmed", "completion_requested", "completed", "cancelled"])
-        .order("booking_date", { ascending: true })
-        .order("start_time", { ascending: true });
+    const { data: professionalBookingsData, error: professionalBookingsError } = bookingsRes;
 
     if (professionalBookingsError) {
       throw new Error(professionalBookingsError.message);
@@ -936,7 +952,7 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("role, professional_type, professional_types, service_modes, full_name, location_lat, location_lng")
+        .select("role, professional_type, professional_types, service_modes, full_name, avatar_url, banner_url, location_lat, location_lng")
         .eq("id", user.id)
         .single();
 
@@ -967,11 +983,11 @@ if (profileError || !profile) {
         } else if (isProfessionalRole(userRole)) {
           await hydrateProfessionalData(user.id, typedProfile);
         } else {
-          setMessage("Invalid account role.");
+          setMessage("We couldn't tell if this is a customer or pro account. Sign out and back in.");
         }
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : "Something went wrong.";
+          error instanceof Error ? error.message : "That didn't go through. Try again.";
         setMessage(errorMessage);
       } finally {
         setLoading(false);
@@ -1096,7 +1112,7 @@ if (profileError || !profile) {
       await loadRequestsLive({ silent: true });
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong marking this complete.");
+      setMessage("We couldn't mark this complete. Try again.");
     } finally {
       setBookingActionLoadingId(null);
     }
@@ -1167,7 +1183,7 @@ if (profileError || !profile) {
       setMessage("Booking marked as completed.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong confirming completion.");
+      setMessage("We couldn't confirm completion. Try again.");
     } finally {
       setBookingActionLoadingId(null);
     }
@@ -1224,7 +1240,7 @@ if (profileError || !profile) {
       await loadRequestsLive({ silent: true });
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong cancelling this booking.");
+      setMessage("We couldn't cancel this booking. Try again.");
     } finally {
       setBookingActionLoadingId(null);
     }
@@ -1824,7 +1840,7 @@ return (
               <p className="text-sm text-neutral-500">
                 {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: BOOKING_TIME_ZONE })}
               </p>
-              <h1 className="mt-1 text-[2rem] font-semibold leading-[1.05] tracking-[-0.04em] md:text-5xl">
+              <h1 className={`mt-1 ${isProfessional ? TITLE.pro : TITLE.customer}`}>
                 {(() => {
                   const minutes = shopNow().minutes;
                   const greeting = minutes < 12 * 60 ? "Good morning" : minutes < 17 * 60 ? "Good afternoon" : "Good evening";
@@ -1836,7 +1852,7 @@ return (
             {isCustomer ? (
               <Link
                 href="/requests/new"
-                className="inline-flex shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
+                className={buttonClass("primary", "md", "shrink-0")}
               >
                 New request
               </Link>
@@ -1854,7 +1870,7 @@ return (
               />
               <VerificationBanner />
               {/* One setup prompt at a time: the checklist already asks for photos. */}
-              {!checklistShowing ? <BrowseCardNudge userId={userId} /> : null}
+              {!checklistShowing ? <BrowseCardNudge userId={userId} initial={browsePreviewData} /> : null}
               <OnboardingChecklist userId={userId} onVisibleChange={setChecklistShowing} />
             </>
           ) : null}
@@ -1890,7 +1906,7 @@ return (
                   eyebrow="Action needed"
                   title={`Was your ${service} done?`}
                   subtitle="Confirm it to wrap it up."
-                  body="Your appointment is over. Confirming is what pays your professional, then you can leave a quick review."
+                  body="Your appointment is over. Confirming is what pays your pro, then you can leave a quick review."
                   actionLabel="Confirm service completed"
                   busy={bookingActionLoadingId === customerTarget.id}
                   onAction={() => {
@@ -1925,7 +1941,7 @@ return (
           })()}
 
           {isProfessional && professionalEndedBookings.length > 0 ? (
-            <div role="status" className="lu-dialog-in mt-8 rounded-[24px] bg-ink p-6 text-white">
+            <div role="status" className="lu-dialog-in mt-8 rounded-3xl bg-ink p-6 text-white">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-medium text-white/60">Action needed</p>
@@ -1951,7 +1967,7 @@ return (
           ) : null}
 
           {isCustomer && pendingCompletionBookings.length > 0 ? (
-            <div role="status" className="lu-dialog-in mt-8 rounded-[24px] bg-ink p-6 text-white">
+            <div role="status" className="lu-dialog-in mt-8 rounded-3xl bg-ink p-6 text-white">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-medium text-white/60">Action needed</p>
@@ -2026,7 +2042,7 @@ return (
               </p>
               <Link
                 href="/requests/new"
-                className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+                className={buttonClass("primary", "md", "mt-5")}
               >
                 Post a request
               </Link>
@@ -2046,15 +2062,15 @@ return (
                   <path d="M10 2l2 5h5l-4 3 1.5 5L10 12l-4.5 3L7 10 3 7h5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
                 </svg>
               </div>
-              <h2 className="mt-4 text-xl font-semibold tracking-tight text-neutral-900">Ready for your first job</h2>
+              <h2 className="mt-4 text-xl font-semibold tracking-tight text-neutral-900">Ready for your first booking</h2>
               <p className="mt-2 text-sm text-neutral-500">
                 Make sure your services, availability, and service area are set up so clients can find you.
               </p>
               <div className="mt-5 flex flex-wrap justify-center gap-3">
-                <Link href="/services" className="inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800">
+                <Link href="/services" className={buttonClass("primary", "md")}>
                   Set up services
                 </Link>
-                <Link href="/services#availability" className="inline-flex rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-semibold text-neutral-900 transition hover:bg-neutral-50">
+                <Link href="/services#availability" className={buttonClass("secondary", "md")}>
                   Set availability
                 </Link>
               </div>
@@ -2109,7 +2125,7 @@ return (
                           <Link href={`/bookings/${booking.id}`} className="flex items-center gap-4 p-4 sm:p-5">
                             <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-ink/[0.05]">
                               {booking.professional_avatar_url ? (
-                                <img loading="lazy" src={booking.professional_avatar_url} alt="" className="h-full w-full object-cover" />
+                                <Photo src={booking.professional_avatar_url} width={48} className="h-full w-full object-cover" />
                               ) : (
                                 <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">
                                   {booking.professional_name?.charAt(0).toUpperCase() || "P"}
@@ -2177,8 +2193,9 @@ return (
                             {request.reference_photos &&
                             request.reference_photos.length > 0 ? (
                               <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-100">
-                                <img loading="lazy"
+                                <Photo
                                   src={request.reference_photos[0]}
+                                  width={96}
                                   alt="Reference preview"
                                   className="h-full w-full object-cover"
                                 />
@@ -2290,8 +2307,9 @@ return (
                           <div className="flex min-w-0 flex-1 gap-4">
                             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
                               {booking.professional_avatar_url ? (
-                                <img loading="lazy"
+                                <Photo
                                   src={booking.professional_avatar_url}
+                                  width={64}
                                   alt={booking.professional_name || "Professional"}
                                   className="h-full w-full object-cover"
                                 />
@@ -2351,7 +2369,7 @@ return (
                         <div className="mt-6">
                           <Link
                             href={`/bookings/${booking.id}`}
-                            className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
+                            className={buttonClass("secondary", "md")}
                           >
                             View booking
                           </Link>
@@ -2419,8 +2437,9 @@ return (
                               {request.reference_photos &&
                               request.reference_photos.length > 0 ? (
                                 <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-neutral-200 bg-white">
-                                  <img loading="lazy"
+                                  <Photo
                                     src={request.reference_photos[0]}
+                                    width={96}
                                     alt="Reference preview"
                                     className="h-full w-full object-cover"
                                   />
@@ -2470,7 +2489,7 @@ return (
                           <div className="mt-6">
                             <Link
                               href={`/requests/new?rebook=1&pro=${request.accepted_professional_id}&request=${request.id}`}
-                              className="inline-flex rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-100"
+                              className={buttonClass("secondary", "md")}
                             >
                               Book again
                             </Link>
@@ -2584,7 +2603,7 @@ return (
                   </div>
 
                   {professionalOpenRequests.length === 0 ? (
-                    <div className="mt-4 rounded-[22px] bg-white px-6 py-8 text-center ring-1 ring-ink/[0.06]">
+                    <div className="mt-4 rounded-3xl bg-white px-6 py-8 text-center ring-1 ring-ink/[0.06]">
                       <p className="font-medium text-ink">No matching requests right now</p>
                       <p className="mx-auto mt-1 max-w-sm text-sm text-neutral-500">
                         New requests matching your services will appear here automatically.

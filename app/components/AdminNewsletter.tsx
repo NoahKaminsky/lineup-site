@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { buttonClass } from "@/app/components/ui";
 
 type Counts = {
   recipients: number;
@@ -128,7 +129,7 @@ export default function AdminNewsletter() {
         ) : null}
 
         {notice ? (
-          <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{notice}</p>
+          <p className="mt-4 rounded-lg bg-ink/[0.05] px-3 py-2 text-sm text-ink">{notice}</p>
         ) : null}
         {error ? <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 
@@ -137,7 +138,7 @@ export default function AdminNewsletter() {
             type="button"
             onClick={sendTest}
             disabled={!!busy || loading}
-            className="rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-900 disabled:opacity-50"
+            className={buttonClass("secondary", "md")}
           >
             {busy === "test" ? "Sending test…" : `1. Send a test to ${adminEmail || "me"}`}
           </button>
@@ -161,7 +162,7 @@ export default function AdminNewsletter() {
                   type="button"
                   onClick={sendAll}
                   disabled={!!busy}
-                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 min-h-11"
                 >
                   {busy === "send" ? "Sending…" : "Yes, send it"}
                 </button>
@@ -169,7 +170,7 @@ export default function AdminNewsletter() {
                   type="button"
                   onClick={() => setConfirming(false)}
                   disabled={!!busy}
-                  className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium"
+                  className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium min-h-11"
                 >
                   Cancel
                 </button>

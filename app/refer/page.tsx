@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, Gift } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { fieldClass } from "@/app/components/ui";
 
 type Info = { link: string; joined: number; earned: number; waiting: number };
 
@@ -19,8 +20,21 @@ export default function ReferPage() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      const res = await fetch("/api/referrals", { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {} });
+      // Referrals are a pro feature; customers go to their requests without
+      // calling the pro-only API (its 403 would show as a console error).
+      if (session?.user) {
+        const { data: me } = await supabase.from("profiles").select("role").eq("id", session.user.id).maybeSingle();
+        if (String(me?.role || "").toLowerCase().includes("customer")) return window.location.replace("/requests");
+      }
+      let res: Response;
+      try {
+        res = await fetch("/api/referrals", { headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {} });
+      } catch {
+        if (!cancelled) setError("We couldn't load your link. Check your connection and refresh.");
+        return;
+      }
       if (res.status === 401) return window.location.assign("/login?next=/refer");
+      if (res.status === 403) return window.location.replace("/requests");
       const json = await res.json().catch(() => ({}));
       if (cancelled) return;
       if (res.ok) setInfo(json);
@@ -70,7 +84,7 @@ export default function ReferPage() {
 
         {info ? (
           <>
-            <div className="mt-8 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+            <div className="mt-8 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07]">
               <p className="text-xs font-medium text-neutral-500">Your link</p>
               <div className="mt-2 flex items-center gap-2">
                 <input
@@ -78,7 +92,7 @@ export default function ReferPage() {
                   value={info.link}
                   onFocus={(e) => e.currentTarget.select()}
                   aria-label="Your referral link"
-                  className="h-11 min-w-0 flex-1 rounded-xl bg-neutral-50 px-3.5 text-sm text-neutral-700 outline-none ring-1 ring-inset ring-ink/[0.08]"
+                  className={`${fieldClass} min-w-0 flex-1 text-neutral-700`}
                 />
                 <button type="button" onClick={copy} className="inline-flex h-11 items-center gap-1.5 rounded-full px-4 text-sm font-medium ring-1 ring-inset ring-ink/15 hover:bg-neutral-50">
                   {copied ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}

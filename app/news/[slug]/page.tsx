@@ -5,7 +5,6 @@ import PublicLayout from "@/app/components/site/PublicLayout";
 import { getIssueWebHtml, getPublicIssues } from "@/lib/email/issues";
 import NewsSignup from "../NewsSignup";
 import IssueFrame from "./IssueFrame";
-import { newsSerif } from "../fonts";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -29,11 +28,11 @@ export default async function IssuePage({ params }: Params) {
   const newer = issues[index - 1];
   const older = issues[index + 1];
 
-  const serif = "font-[family-name:var(--font-news-serif)]";
+  const display = "font-semibold tracking-[-0.035em]";
 
   return (
     <PublicLayout>
-      <div className={`${newsSerif.variable} lu-newsprint`}>
+      <div className={`lu-newsprint`}>
         <div className="mx-auto max-w-3xl px-4 pt-8 sm:px-6 sm:pt-12">
           {/* Small masthead back to the front page. */}
           <div aria-hidden="true" className="lu-rule">
@@ -44,7 +43,7 @@ export default async function IssuePage({ params }: Params) {
             <Link href="/news" className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-600 hover:text-ink">
               ← Front page
             </Link>
-            <Link href="/news" className={`${serif} text-2xl leading-none text-ink sm:text-3xl`}>
+            <Link href="/news" className={`${display} text-2xl leading-none text-ink sm:text-3xl`}>
               <span className="italic">The</span> LineUp
             </Link>
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-neutral-600">No. {issues.length - index}</span>
@@ -63,7 +62,7 @@ export default async function IssuePage({ params }: Params) {
             })}
           </p>
           <h1
-            className={`${serif} lu-masthead mt-3 text-center text-[clamp(3rem,9vw,5.5rem)] leading-[0.95] text-ink`}
+            className={`${display} lu-masthead mt-3 text-center text-[clamp(3rem,9vw,5.5rem)] leading-[0.95] text-ink`}
           >
             {issue.title}
           </h1>
@@ -83,7 +82,7 @@ export default async function IssuePage({ params }: Params) {
 
         <div className="mx-auto max-w-3xl px-4 pb-24 pt-12 sm:px-6">
           <div className="border-y border-ink py-6 text-center">
-            <p className={`${serif} text-3xl leading-none text-ink`}>
+            <p className={`${display} text-3xl leading-none text-ink`}>
               Get the next <span className="italic">edition</span>
             </p>
             <div className="mx-auto mt-5 max-w-md text-left">
@@ -94,7 +93,7 @@ export default async function IssuePage({ params }: Params) {
             {older ? (
               <Link href={`/news/${older.slug}`} className="group border-t border-ink/30 pt-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">← Older</p>
-                <p className={`${serif} mt-1 text-2xl leading-tight text-ink group-hover:underline`}>{older.title}</p>
+                <p className={`${display} mt-1 text-2xl leading-tight text-ink group-hover:underline`}>{older.title}</p>
               </Link>
             ) : (
               <span />
@@ -102,7 +101,7 @@ export default async function IssuePage({ params }: Params) {
             {newer ? (
               <Link href={`/news/${newer.slug}`} className="group border-t border-ink/30 pt-3 text-right">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">Newer →</p>
-                <p className={`${serif} mt-1 text-2xl leading-tight text-ink group-hover:underline`}>{newer.title}</p>
+                <p className={`${display} mt-1 text-2xl leading-tight text-ink group-hover:underline`}>{newer.title}</p>
               </Link>
             ) : null}
           </nav>

@@ -10,6 +10,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { BadgeCheck } from "lucide-react";
+import { Photo } from "@/app/components/Photo";
 
 export type PickCard = {
   id: string;
@@ -25,7 +26,7 @@ export type PickCard = {
 };
 
 // A paper tag pinned over the photo's corner, like a gallery label: the
-// month it was picked, set in the same serif as the section.
+// month it was picked.
 function PickTag() {
   const month = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
   return (
@@ -35,7 +36,7 @@ function PickTag() {
     >
       {/* the bit of tape holding it on */}
       <span className="absolute -top-2 left-1/2 h-4 w-10 -translate-x-1/2 rotate-[-4deg] bg-white/70 shadow-[0_0_0_1px_rgba(0,0,0,0.04)] backdrop-blur-[1px]" />
-      <span className="block font-serif text-[17px] italic leading-none text-ink">LineUp Pick</span>
+      <span className="block text-[15px] font-semibold leading-none tracking-[-0.01em] text-ink">LineUp Pick</span>
       <span className="mt-1 block text-[10px] leading-none text-neutral-500">{month}</span>
     </span>
   );
@@ -74,8 +75,7 @@ function PickCardView({ pick, index, solo }: { pick: PickCard; index: number; so
       <div className="relative">
         <div className="lu-pick-photo relative aspect-[4/5] overflow-hidden rounded-[6px] bg-neutral-200">
           {pick.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={pick.image} alt="" className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.03]" />
+            <Photo src={pick.image} sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw" className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.03]" />
           ) : (
             <span className="flex h-full w-full items-center justify-center bg-[#efece6] text-8xl font-semibold tracking-[-0.06em] text-ink/80">
               {pick.name.charAt(0).toUpperCase()}
@@ -96,7 +96,7 @@ function PickCardView({ pick, index, solo }: { pick: PickCard; index: number; so
           {pick.rating ? `, ★ ${pick.rating}` : ""}
         </p>
         {/* Why we picked them, set like a pull quote. */}
-        <p className={`mt-3 border-l-2 border-[#C8102E] pl-3 font-serif italic text-neutral-700 line-clamp-3 ${solo ? "text-[15px] leading-6 sm:mt-6 sm:max-w-xl sm:pl-5 sm:text-[1.6rem] sm:leading-[1.35]" : "text-[15px] leading-6"}`}>
+        <p className={`mt-3 border-l-2 border-[#C8102E] pl-3 text-neutral-700 line-clamp-3 ${solo ? "text-[15px] leading-6 sm:mt-6 sm:max-w-xl sm:pl-5 sm:text-[1.6rem] sm:leading-[1.35]" : "text-[15px] leading-6"}`}>
           {pick.why}
         </p>
         {pick.open ? <p className="mt-3 text-[13px] font-medium text-ink">{pick.open}</p> : null}
@@ -110,7 +110,7 @@ export default function LineupPicks({ picks }: { picks: PickCard[] }) {
   return (
     <section aria-labelledby="picks-heading" className="mt-12">
       <div className="flex flex-col gap-2 border-b border-ink/10 pb-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-        <h2 id="picks-heading" className="font-serif text-[1.9rem] italic leading-none tracking-[-0.02em] text-ink sm:text-[2.4rem]">
+        <h2 id="picks-heading" className="text-[1.9rem] font-semibold leading-none tracking-[-0.035em] text-ink sm:text-[2.4rem]">
           LineUp Picks
         </h2>
         <p className="text-xs leading-5 text-neutral-500 sm:max-w-[14rem] sm:text-right">Chosen by our team for their work. Nobody pays to be here.</p>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { DrawnCheck, MaskLine } from "@/app/components/moments/Moments";
+import { buttonClass } from "@/app/components/ui";
 
 type StepKey =
   | "verified"
@@ -42,7 +43,7 @@ const ESSENTIALS: Step[] = [
   { key: "service", label: "Add your services", why: "What you offer, with prices and how long each takes.", href: "/services#add-service", cta: "Add service" },
   { key: "portfolio", label: "Post 3 photos of your work", why: "Your first photo is your card in Explore. Pros with real photos get picked first.", href: "/account#portfolio", cta: "Add photos" },
   { key: "cover", label: "Add a cover photo", why: "The big photo across the top of your profile. Your shop, your chair, your work.", href: "/account#cover", cta: "Add cover" },
-  { key: "payouts", label: "Connect payouts", why: "Set up Stripe so you get paid for completed jobs.", href: "/account#payouts", cta: "Connect" },
+  { key: "payouts", label: "Connect payouts", why: "Set up Stripe so you get paid for completed bookings.", href: "/account#payouts", cta: "Connect" },
 ];
 
 const STAND_OUT: Step[] = [
@@ -107,7 +108,7 @@ export function ProfileCompleteSheet({ userId, onClose }: { userId: string; onCl
         role="dialog"
         aria-modal="true"
         aria-labelledby="profile-complete-title"
-        className="lu-sheet-in w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]"
+        className="lu-sheet-in w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)]"
       >
         {/* The studio again, with every station in place: the profile is set. */}
         <div aria-hidden="true" className="relative h-40 overflow-hidden bg-[#ecebe6] sm:h-44">
@@ -149,14 +150,14 @@ export function ProfileCompleteSheet({ userId, onClose }: { userId: string; onCl
           <div className="mt-7 flex flex-col gap-3">
             <Link
               href={`/profile/${userId}`}
-              className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+              className={buttonClass("primary", "md")}
             >
               See my profile
             </Link>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+              className={buttonClass("secondary", "md")}
             >
               Done
             </button>
@@ -322,7 +323,7 @@ export default function OnboardingChecklist({
   };
 
   return (
-    <section className="lu-dialog-in mt-8 overflow-hidden rounded-[28px] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-32px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.07]">
+    <section className="lu-dialog-in mt-8 overflow-hidden rounded-3xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-32px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.07]">
       {/* Header */}
       <div className="flex items-start gap-5 px-6 pt-6 sm:px-8 sm:pt-8">
         <ProgressRing value={progress} />

@@ -8,6 +8,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
+import { isSubscribedToSchedule, proPageRedirect } from "@/app/lib/proAccess";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import {
   FRONT_DESK_COLUMNS,
@@ -21,6 +23,7 @@ import RegularsPanel from "./RegularsPanel";
 
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { BOOKING_TIME_ZONE } from "@/app/lib/bookingTime";
+import { buttonClass } from "@/app/components/ui";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -76,24 +79,7 @@ function isShopBooking(b: CalendarBooking) {
   return !!b.studio_id && (!b.service_mode || b.service_mode === "in_shop");
 }
 
-function isSubscribedToSchedule(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {
-  const subscribed =
-    profile.subscription_status === "active" || profile.subscription_status === "trialing";
-  return subscribed && !!profile.subscription_plan && profile.subscription_plan !== "basic";
-}
 
-function normalizeRole(role: string | null | undefined) {
-  return role?.toLowerCase().trim() || "";
-}
-
-function isCustomerRole(role: string | null | undefined) {
-  return normalizeRole(role).includes("customer");
-}
-
-function isProfessionalRole(role: string | null | undefined) {
-  const normalized = normalizeRole(role);
-  return !normalized.includes("customer") && !!normalized;
-}
 
 function formatMonthYear(date: Date) {
   return date.toLocaleDateString("en-CA", {
@@ -274,7 +260,7 @@ function BookingCard({
   return (
     <Link
       href={booking.front_desk ? "/studio" : `/bookings/${booking.id}`}
-      className={`group block rounded-[22px] bg-white ring-1 ring-ink/[0.06] transition duration-200 hover:-translate-y-px hover:shadow-[0_12px_28px_-18px_rgba(0,0,0,0.35)] hover:ring-ink/[0.1] ${
+      className={`group block rounded-3xl bg-white ring-1 ring-ink/[0.06] transition duration-200 hover:-translate-y-px hover:shadow-[0_12px_28px_-18px_rgba(0,0,0,0.35)] hover:ring-ink/[0.1] ${
         compact ? "p-4" : "p-5"
       } ${booking.status === "completed" ? "opacity-70" : ""}`}
     >
@@ -436,7 +422,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref("/calendar"));
         return;
       }
 
@@ -491,14 +477,9 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
           .catch(() => {});
       }
 
-      if (isCustomerRole(userRole)) {
-        router.push("/requests");
-        return;
-      }
-
-      if (!isProfessionalRole(userRole)) {
-        setMessage("Invalid account role.");
-        setLoading(false);
+      const away = proPageRedirect(userRole, "/studio/calendar");
+      if (away) {
+        router.replace(away);
         return;
       }
 
@@ -807,7 +788,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
           </p>
           <Link
             href="/subscription"
-            className="mt-6 inline-flex rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+            className={buttonClass("primary", "md", "mt-6")}
           >
             View plans
           </Link>
@@ -821,7 +802,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       <button
         type="button"
         onClick={step === "week" ? () => goToWeek(-1) : goToPreviousMonth}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50 hover:text-ink"
+        className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-600 ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50 hover:text-ink"
         aria-label={step === "week" ? "Previous week" : "Previous month"}
       >
         <ChevronLeft aria-hidden="true" className="h-4 w-4" />
@@ -829,14 +810,14 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
       <button
         type="button"
         onClick={goToToday}
-        className="h-9 rounded-full px-3.5 text-sm font-medium text-ink ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50"
+        className={buttonClass("secondary", "md", "min-h-11")}
       >
         Today
       </button>
       <button
         type="button"
         onClick={step === "week" ? () => goToWeek(1) : goToNextMonth}
-        className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50 hover:text-ink"
+        className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-600 ring-1 ring-inset ring-ink/10 transition-colors hover:bg-neutral-50 hover:text-ink"
         aria-label={step === "week" ? "Next week" : "Next month"}
       >
         <ChevronRight aria-hidden="true" className="h-4 w-4" />
@@ -949,7 +930,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
   const bookingLists = [
     { key: "upcoming", title: "Upcoming", items: upcomingBookings, empty: "No upcoming bookings." },
     { key: "awaiting", title: "Awaiting confirmation", items: completionRequestedBookings, empty: "Nothing waiting on a client." },
-    { key: "completed", title: "Recently completed", items: recentCompletedBookings, empty: "Completed jobs show here for 24 hours, then move to your archive." },
+    { key: "completed", title: "Recently completed", items: recentCompletedBookings, empty: "Completed bookings show here for 24 hours, then move to your archive." },
   ];
 
   const listsSection = (
@@ -1007,7 +988,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
               {bookingUsage.count >= bookingUsage.cap ? (
                 <Link
                   href="/subscription"
-                  className="rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-neutral-800"
+                  className={buttonClass("primary", "sm", "min-h-11")}
                 >
                   Upgrade for unlimited
                 </Link>
@@ -1053,7 +1034,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
                 onClick={() => chooseMobileView(view)}
                 className={`rounded-full py-1.5 text-sm font-medium transition-colors duration-200 ${
                   mobileView === view ? "bg-surface text-ink shadow-sm" : "text-neutral-500"
-                }`}
+                } min-h-11`}
               >
                 {view === "days" ? "Days" : "Month"}
               </button>

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import { getMailer } from "@/app/lib/mailer";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
 import { getStudioForUser, isStudioLive, errorMessage } from "@/app/lib/studios";
 import { getSiteUrl } from "@/app/lib/siteUrl";
@@ -228,7 +228,7 @@ export async function POST(req: Request) {
         supabase.from("profiles").select("email").eq("id", studio.owner_id).maybeSingle(),
         supabase.from("studios").select("address").eq("id", studio.id).maybeSingle(),
       ]);
-      const resend = new Resend(process.env.RESEND_API_KEY);
+      const resend = getMailer();
 
       let sent = 0;
       let failed = 0;
@@ -278,6 +278,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (error) {
     console.error("POST /api/studio/clients failed:", error);
-    return NextResponse.json({ error: errorMessage(error, "Something went wrong.") }, { status: 500 });
+    return NextResponse.json({ error: errorMessage(error, "We couldn't save that. Please try again.") }, { status: 500 });
   }
 }

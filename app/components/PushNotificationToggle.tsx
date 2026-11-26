@@ -3,6 +3,7 @@
 import { useState, type MouseEvent } from "react";
 import { useWebPush } from "@/app/lib/useWebPush";
 import { burstOrigin, fireBurst } from "@/app/components/moments/Burst";
+import { buttonClass } from "@/app/components/ui";
 
 // Drop this anywhere a user should be able to turn on/off browser push —
 // it loads its own state via useWebPush() and renders nothing on a
@@ -137,14 +138,14 @@ export default function PushNotificationToggle() {
             type="button"
             onClick={handleEnable}
             disabled={working}
-            className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+            className={buttonClass("primary", "md")}
           >
             {working ? "Enabling…" : "Enable notifications"}
           </button>
         )}
       </div>
 
-      {message ? <p className="mt-2 text-xs text-red-600">{message}</p> : null}
+      {message ? <p className="mt-2 text-sm text-red-600">{message}</p> : null}
     </div>
   );
 }

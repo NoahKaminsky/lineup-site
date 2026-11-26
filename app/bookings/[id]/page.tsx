@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { loginHref } from "@/app/lib/returnTo";
 import { DateTile, countdown, dayWord } from "@/app/components/bookings/BookingVisuals";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -22,6 +23,9 @@ import {
 import { DrawnCheck, MaskLine, formatMomentPrice } from "@/app/components/moments/Moments";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { useHashTarget } from "@/app/lib/useHashTarget";
+import { TITLE } from "@/app/components/ui";
+import { buttonClass } from "@/app/components/ui";
+import { textareaClass } from "@/app/components/ui";
 type BookingStatus =
   | "confirmed"
   | "cancelled"
@@ -141,7 +145,7 @@ function formatStatus(value: BookingStatus) {
 }
 
 function formatProfessionalType(value: string | null | undefined) {
-  if (!value) return "Beauty professional";
+  if (!value) return "Beauty pro";
   return value
     .replaceAll("_", " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
@@ -154,7 +158,7 @@ function formatProfessionalTypes(profile: ProfileRow | null | undefined) {
     ? [profile.professional_type]
     : [];
 
-  if (types.length === 0) return "Beauty professional";
+  if (types.length === 0) return "Beauty pro";
 
   const MAX_SHOWN = 2;
   const shown = types.slice(0, MAX_SHOWN).map(formatProfessionalType).join(" · ");
@@ -326,6 +330,7 @@ export default function BookingDetailPage() {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   async function loadBooking(options?: { silent?: boolean }) {
     const silent = options?.silent ?? false;
@@ -337,7 +342,7 @@ export default function BookingDetailPage() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref(window.location.pathname + window.location.search));
         return;
       }
 
@@ -429,7 +434,7 @@ export default function BookingDetailPage() {
       setLoading(false);
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong loading this booking.");
+      setMessage("We couldn't load this booking. Try again.");
       setLoading(false);
     }
   }
@@ -565,7 +570,7 @@ export default function BookingDetailPage() {
       }
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong confirming completion.");
+      setMessage("We couldn't confirm completion. Try again.");
     } finally {
       setActionLoading(null);
     }
@@ -575,10 +580,11 @@ export default function BookingDetailPage() {
     if (!booking || !viewerId || reviewRating === 0) return;
 
     if (containsProfanity(reviewComment)) {
-      setMessage("Please remove inappropriate language from your review before submitting.");
+      setReviewError("Please remove inappropriate language from your review before submitting.");
       return;
     }
 
+    setReviewError("");
     setReviewSubmitting(true);
 
     try {
@@ -592,24 +598,31 @@ export default function BookingDetailPage() {
       });
 
       if (error) {
-        setMessage(`Couldn't submit your review: ${error.message}`);
+        // 23505 = unique violation: this booking already has a review.
+        if (error.code === "23505") {
+          setShowReviewModal(false);
+          setMessage("You've already reviewed this booking. Thank you.");
+        } else {
+          setReviewError("Your review didn't send. Please try again.");
+        }
         return;
       }
 
-      setMessage("Booking completed. Thanks for your review!");
+      setShowReviewModal(false);
+      setMessage("Thanks for your review.");
     } catch (error) {
       console.error(error);
-      setMessage("Couldn't submit your review — please try again.");
+      setReviewError("Your review didn't send. Please try again.");
     } finally {
+      // The modal stays open on failure so the rating and comment aren't lost.
       setReviewSubmitting(false);
-      setShowReviewModal(false);
     }
   }
 
   // Pay-at-the-shop client who didn't come: charges the shop's no-show fee
   // to the card they saved when booking.
   async function handleMarkNoShow() {
-    if (!booking || !window.confirm("Mark this client as a no-show? Their card is charged the no-show fee and the booking closes.")) {
+    if (!booking || !window.confirm("Mark this client as a no-show? The booking closes, and if there's a no-show fee and a card on file, it's charged.")) {
       return;
     }
     try {
@@ -635,7 +648,7 @@ export default function BookingDetailPage() {
       setMessage(data.message || "Marked as a no-show.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong marking the no-show.");
+      setMessage("We couldn't mark the no-show. Please try again.");
     } finally {
       setActionLoading(null);
     }
@@ -685,7 +698,7 @@ export default function BookingDetailPage() {
       setMessage("Completion request sent.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong requesting completion.");
+      setMessage("We couldn't request completion. Try again.");
     } finally {
       setActionLoading(null);
     }
@@ -751,7 +764,7 @@ export default function BookingDetailPage() {
       );
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong cancelling this booking.");
+      setMessage("We couldn't cancel this booking. Try again.");
     } finally {
       setActionLoading(null);
     }
@@ -790,7 +803,7 @@ export default function BookingDetailPage() {
 
   const isLive = booking.status === "confirmed" || booking.status === "completion_requested";
   const otherPerson = isViewerCustomer ? professional : customer;
-  const otherRole = isViewerCustomer ? "Your professional" : "Your client";
+  const otherRole = isViewerCustomer ? "Your pro" : "Your client";
   // Where it happens, worded for whoever is looking.
   const whereLabel = (() => {
     const mode = booking.service_mode;
@@ -835,7 +848,7 @@ export default function BookingDetailPage() {
         ) : null}
 
         {/* The booking at a glance: what, when, with whom, where. */}
-        <section className="lu-dialog-in mt-4 rounded-[28px] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-36px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.07] sm:p-8">
+        <section className="lu-dialog-in mt-4 rounded-3xl bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_48px_-36px_rgba(0,0,0,0.3)] ring-1 ring-ink/[0.07] sm:p-8">
           {isLive && countdown(booking.booking_date, booking.start_time) !== "Now" ? (
             <p className="text-[13px] font-medium tabular-nums text-neutral-500">
               {countdown(booking.booking_date, booking.start_time)}
@@ -844,7 +857,7 @@ export default function BookingDetailPage() {
           <div className={`flex items-center gap-4 ${isLive && countdown(booking.booking_date, booking.start_time) !== "Now" ? "mt-3" : ""}`}>
             <DateTile date={booking.booking_date} muted={!isLive} />
             <div className="min-w-0">
-              <h1 className="text-[1.9rem] font-semibold leading-[1.05] tracking-[-0.035em] sm:text-4xl">
+              <h1 className={TITLE.detail}>
                 {cleanServiceLabel(booking.service_name) || "Booked service"}
               </h1>
               <p className="mt-1.5 text-[15px] text-neutral-600">
@@ -959,11 +972,11 @@ export default function BookingDetailPage() {
         (booking.status === "completion_requested" ||
           (booking.status === "confirmed" && isServiceOver(booking.booking_date, booking.end_time))) ? (
           // The one step that releases the professional's payout.
-          <section className="lu-dialog-in mt-4 rounded-[28px] bg-ink p-6 text-white sm:p-7">
+          <section className="lu-dialog-in mt-4 rounded-3xl bg-ink p-6 text-white sm:p-7">
             <p className="text-xs font-medium text-white/60">Action needed</p>
             <p className="mt-2 text-xl font-semibold tracking-[-0.02em]">
               {booking.status === "completion_requested"
-                ? `${professional?.full_name?.split(" ")[0] ?? "Your professional"} marked this done.`
+                ? `${professional?.full_name?.split(" ")[0] ?? "Your pro"} marked this done.`
                 : "Your appointment is over."}
             </p>
             <p className="mt-2 max-w-md text-sm leading-6 text-white/70">
@@ -983,7 +996,7 @@ export default function BookingDetailPage() {
         ) : null}
 
         {isViewerProfessional && booking.status === "confirmed" ? (
-          <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+          <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07]">
             <div className="min-w-0">
               <p className="font-semibold text-ink">Finished the service?</p>
               <p className="mt-1 text-sm leading-6 text-neutral-500">
@@ -998,9 +1011,9 @@ export default function BookingDetailPage() {
                   type="button"
                   onClick={handleMarkNoShow}
                   disabled={actionLoading === "no-show"}
-                  className="mt-3 rounded text-sm font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-4 hover:text-red-700 disabled:opacity-60"
+                  className="mt-3 inline-flex min-h-11 items-center rounded text-sm font-medium text-neutral-600 underline decoration-neutral-300 underline-offset-4 hover:text-red-700 disabled:opacity-60"
                 >
-                  {actionLoading === "no-show" ? "Charging no-show fee…" : "They didn't show up"}
+                  {actionLoading === "no-show" ? "Marking no-show…" : "They didn't show up"}
                 </button>
               ) : null}
             </div>
@@ -1009,7 +1022,7 @@ export default function BookingDetailPage() {
                 type="button"
                 onClick={handleRequestCompletion}
                 disabled={actionLoading === "request-completion"}
-                className="inline-flex shrink-0 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
+                className={buttonClass("primary", "md", "shrink-0")}
               >
                 {actionLoading === "request-completion" ? "Requesting…" : "Mark service complete"}
               </button>
@@ -1027,7 +1040,7 @@ export default function BookingDetailPage() {
               ? coveredByMembership
                 ? "Covered by your membership. Your saved card is only charged if you miss the appointment."
                 : "You'll pay at the shop. Your saved card is only charged if you miss the appointment."
-              : <>Once the appointment is over, you&apos;ll confirm it here so your professional gets paid.</>}
+              : <>Once the appointment is over, you&apos;ll confirm it here so your pro gets paid.</>}
           </p>
         ) : null}
 
@@ -1036,7 +1049,7 @@ export default function BookingDetailPage() {
         ) : null}
 
         {isViewerCustomer && booking.status === "completed" ? (
-          <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07]">
+          <section className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07]">
             <div className="min-w-0">
               <p className="font-semibold text-ink">Book your next one</p>
               <p className="mt-1 text-sm leading-6 text-neutral-500">
@@ -1045,7 +1058,7 @@ export default function BookingDetailPage() {
             </div>
             <Link
               href={`/profile/${booking.professional_id}#availability`}
-              className="inline-flex shrink-0 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+              className={buttonClass("primary", "md", "shrink-0")}
             >
               Book again
             </Link>
@@ -1059,19 +1072,19 @@ export default function BookingDetailPage() {
         {/* Messages: right under the booking, not at the bottom of the page. */}
         <section
           id="booking-chat"
-          className="mt-4 scroll-mt-24 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8"
+          className="mt-4 scroll-mt-24 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8"
         >
           <div className="flex items-baseline justify-between gap-4">
             <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Messages</h2>
             <p className="text-xs text-neutral-400">
-              {isLive ? `With ${otherPerson?.full_name?.split(" ")[0] || (isViewerCustomer ? "your professional" : "your client")}` : formatStatus(booking.status)}
+              {isLive ? `With ${otherPerson?.full_name?.split(" ")[0] || (isViewerCustomer ? "your pro" : "your client")}` : formatStatus(booking.status)}
             </p>
           </div>
           <BookingChat bookingId={booking.id} viewerId={viewerId} />
         </section>
 
         {/* Manage: cancellation and the record. */}
-        <section className="mt-4 rounded-[28px] bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
+        <section className="mt-4 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] sm:p-8">
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Manage</h2>
           {isLive && (isViewerCustomer || isViewerProfessional) ? (
             <div className="mt-4">
@@ -1097,7 +1110,7 @@ export default function BookingDetailPage() {
                   <button
                     type="button"
                     onClick={() => setConfirmingCancel(false)}
-                    className="inline-flex rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                    className="inline-flex min-h-11 items-center rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
                   >
                     Keep it
                   </button>
@@ -1111,7 +1124,7 @@ export default function BookingDetailPage() {
                     type="button"
                     onClick={handleCancelBooking}
                     disabled={actionLoading === "cancel"}
-                    className="inline-flex rounded-full border border-red-300 px-5 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                    className="inline-flex min-h-11 items-center rounded-full border border-red-300 px-5 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-60"
                   >
                     Cancel booking
                   </button>
@@ -1143,12 +1156,12 @@ export default function BookingDetailPage() {
 
     {showReviewModal ? (
       <div className="lu-fade-in fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-0 sm:items-center sm:p-4">
-        <div className="lu-sheet-in w-full max-w-md rounded-t-[28px] bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-[28px] sm:p-8">
+        <div className="lu-sheet-in w-full max-w-md rounded-t-3xl bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:rounded-3xl sm:p-8">
           <DrawnCheck size={44} />
           <h2 className="mt-6 text-[1.6rem] font-semibold leading-[1.08] tracking-[-0.035em]">
             <MaskLine delay={120}>Service complete.</MaskLine>
             <MaskLine delay={200} className="text-neutral-500">
-              How was {professional?.full_name?.split(" ")[0] ?? "your professional"}?
+              How was {professional?.full_name?.split(" ")[0] ?? "your pro"}?
             </MaskLine>
           </h2>
           <p className="mt-3 text-sm text-neutral-500">
@@ -1190,10 +1203,15 @@ export default function BookingDetailPage() {
           <textarea
             value={reviewComment}
             onChange={(e) => setReviewComment(e.target.value)}
+            maxLength={1000}
             placeholder="Share details about your experience (optional)"
             rows={3}
-            className="mt-5 w-full resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-ink"
+            className={`${textareaClass} mt-5 resize-none`}
           />
+
+          {reviewError ? (
+            <p role="alert" className="mt-3 text-sm text-red-700">{reviewError}</p>
+          ) : null}
 
           <div className="mt-5 flex gap-3">
             <button

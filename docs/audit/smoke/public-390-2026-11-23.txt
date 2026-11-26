@@ -1,0 +1,40 @@
+/ | 1074ms | 6117|LineUp.| | "Image with src "/images/app-screenshots/04-offers-compare.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property ifÂ"Image with src "/images/landing/close-turn-end.webp" has "fill" prop and "sizes" prop of "100vw", but image is not rendered at full viewport width. Please adjuÂ"Image with src "/images/landing/studio-wide.webp" has "fill" prop and "sizes" prop of "100vw", but image is not rendered at full viewport width. Please adjust Â
+/about | 1006ms | 1124|Built in Winnipeg.Because nobody deserves a clappe| | no console errors
+/contact | 1038ms | 753|Say hi. We're real people.| | "@supabase/gotrue-js: Lock "lock:sb-rbsgsymjmptwczecgohb-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmountÂ
+/faq | 958ms | 1872|Questions, answered.| | no console errors
+/privacy | 961ms | 4396|Privacy Policy| | no console errors
+/terms | 1118ms | 12706|Terms of Service| | no console errors
+/news | 1221ms | 1376|The LineUp| | no console errors
+/news/lineup-is-live | 1636ms | 577|LineUp is live| | no console errors
+/beauty | 2746ms | 880|Beauty and grooming, near you.Pick your city.| | no console errors
+/beauty/winnipeg | 2482ms | 1998|Beauty and grooming pros in Winnipeg.Verified, and| | no console errors
+/beauty/winnipeg/barbers | 1478ms | 1457|Barbers in Winnipeg.Verified, and bookable on Line| | no console errors
+/discover | 2880ms | 1404|Whoâ€™s free this week?| | "Geolocation failed: PERMISSION_DENIED â€” User denied Geolocation", source: http://localhost:3000/_next/static/chunks/node_modules_next_dist_f3530cac._.js (312Â
+/shops | 1048ms | 844|Salons, barbershops and studios.Book the shop, pic| | no console errors
+/shop/trial-1-studio | 2290ms | 383|Trial 1 Studio| | "You may test your Stripe.js integration over HTTP. However, live Stripe.js integrations must use HTTPS.", source: http://localhost:3000/_next/static/chunks/nodÂ
+/profile/hrmny | 3054ms | 941|Prince dabhi| | "You may test your Stripe.js integration over HTTP. However, live Stripe.js integrations must use HTTPS.", source: http://localhost:3000/_next/static/chunks/nodÂ
+/gift/balance | 1048ms | 343|Check your balance.| | no console errors
+/login | 799ms | 114|Welcome back.| | no console errors
+/reset-password | 878ms | 499|This link can't be used.| | no console errors
+/unsubscribe | 833ms | 177|Unsubscribe| | no console errors
+/requests | 924ms | 114|Welcome back.| | no console errors
+/requests/new | 832ms | 114|Welcome back.| | no console errors
+/work | 874ms | 114|Welcome back.| | no console errors
+/account | 914ms | 114|Welcome back.| | no console errors
+/calendar | 877ms | 114|Welcome back.| | no console errors
+/services | 828ms | 20|| | no console errors
+/earnings | 806ms | 169|Earnings| | no console errors
+/analytics | 794ms | 114|Welcome back.| | no console errors
+/archive | 813ms | 114|Welcome back.| | no console errors
+/import | 978ms | 114|Welcome back.| | no console errors
+/chairs | 814ms | 30|| | no console errors
+/subscription | 788ms | 114|Welcome back.| | no console errors
+/verification | 898ms | 114|Welcome back.| | no console errors
+/refer | 993ms | 114|Welcome back.| | no console errors
+/gift-cards | 951ms | 114|Welcome back.| | no console errors
+/onboarding | 797ms | 114|Welcome back.| | no console errors
+/studio | 847ms | 114|Welcome back.| | no console errors
+/studio/team | 861ms | 114|Welcome back.| | no console errors
+/studio/join | 755ms | 92|| | no console errors
+/admin | 755ms | 25|| | no console errors
+/no-such-page | 743ms | 96|404|404 | no console errors

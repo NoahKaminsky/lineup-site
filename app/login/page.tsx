@@ -6,6 +6,8 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
 import { LuMarkPaths } from "@/app/components/LuMark";
 import { rememberReturnTo, safeReturnPath, takeReturnTo } from "@/app/lib/returnTo";
+import { buttonClass } from "@/app/components/ui";
+import { fieldClass } from "@/app/components/ui";
 
 type AuthMode = "signin" | "signup" | "forgot";
 
@@ -295,7 +297,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-xl border border-neutral-200 bg-paper/60 px-4 py-3 outline-none transition-colors placeholder:text-neutral-400 focus:border-ink focus:bg-surface"
+                className={fieldClass}
               />
             </div>
 
@@ -315,7 +317,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={isSignup ? "Create a password" : "Enter your password"}
-                  className="w-full rounded-xl border border-neutral-200 bg-paper/60 px-4 py-3 outline-none transition-colors placeholder:text-neutral-400 focus:border-ink focus:bg-surface"
+                  className={fieldClass}
                 />
                 {isSignup ? (
                   <p id="auth-password-hint" className="mt-2 text-xs text-neutral-500">
@@ -421,7 +423,7 @@ export default function LoginPage() {
                 type="button"
                 onClick={handleResendConfirmation}
                 disabled={resending}
-                className="w-full rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 disabled:opacity-60"
+                className={buttonClass("secondary", "md", "w-full")}
               >
                 {resending ? "Sending…" : "Resend confirmation email"}
               </button>

@@ -4,6 +4,7 @@ import React from "react";
 import { LuMarkPaths } from "@/app/components/LuMark";
 import { fireBurst } from "@/app/components/moments/Burst";
 import SplitFlap from "@/app/components/SplitFlap";
+import { buttonClass } from "@/app/components/ui";
 
 /* Shared confirmation "moments" for the app. They only render what the page
    already decided — every caller keeps its own state, handlers, polling and
@@ -240,7 +241,7 @@ export function CompletionReminderSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="lu-completion-title"
-        className="lu-sheet-in w-full max-w-md rounded-[28px] bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8"
+        className="lu-sheet-in w-full max-w-md rounded-3xl bg-white p-7 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8"
       >
         <span className="inline-flex rounded-full bg-ink px-3 py-1 text-xs font-medium text-white">{eyebrow}</span>
         <h2 id="lu-completion-title" className="mt-5 text-[1.75rem] font-semibold leading-[1.05] tracking-[-0.035em] text-ink">
@@ -255,7 +256,7 @@ export function CompletionReminderSheet({
             type="button"
             onClick={onAction}
             disabled={busy}
-            className="rounded-full bg-ink px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-60"
+            className={buttonClass("primary", "md")}
           >
             {busy ? "Working…" : actionLabel}
           </button>
@@ -306,7 +307,7 @@ export function BookedSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className="lu-sheet-in max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8"
+        className="lu-sheet-in max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-8"
       >
         <div className="flex items-center gap-4">
           <span ref={checkRef} className="inline-flex">
@@ -323,7 +324,7 @@ export function BookedSheet({
         </div>
 
         {ticket ? (
-          <div className="lu-rise relative mt-6 rounded-[22px] bg-neutral-50 p-5 ring-1 ring-inset ring-ink/[0.06]" style={{ "--lu-delay": "260ms" } as React.CSSProperties}>
+          <div className="lu-rise relative mt-6 rounded-3xl bg-neutral-50 p-5 ring-1 ring-inset ring-ink/[0.06]" style={{ "--lu-delay": "260ms" } as React.CSSProperties}>
             <p className="text-sm text-neutral-500">{ticket.day}</p>
             <div className="mt-2 flex items-end gap-2">
               <SplitFlap text={ticket.time.split(" ")[0]} className="text-[2.4rem] font-semibold" />

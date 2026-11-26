@@ -31,6 +31,9 @@
   --motion-enter: 200ms;
   --motion-stagger: 28ms;
   --motion-distance: 12px;
+  /* UI feedback (presses, hovers) and surfaces (page enter, dialogs). */
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
 }
 
 /* Customer — simplicity, trust, finding and booking. Same monochrome
@@ -44,6 +47,8 @@
   --motion-enter: 320ms;
   --motion-stagger: 48ms;
   --motion-distance: 18px;
+  --motion-fast: 180ms;
+  --motion-base: 280ms;
 }
 
 /* ── Lineup motion language ───────────────────────────────────────────────

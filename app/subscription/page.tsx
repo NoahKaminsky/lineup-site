@@ -8,7 +8,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
+import { proPageRedirect } from "@/app/lib/proAccess";
 import { getCached, setCached } from "@/app/lib/pageCache";
+import { buttonClass } from "@/app/components/ui";
 
 type SubscriptionStatus =
   | "active"
@@ -55,7 +58,7 @@ const PLANS: Plan[] = [
     price: 0,
     priceLabel: "$0.00",
     trialDays: null,
-    tagline: "Where every professional starts",
+    tagline: "Where every pro starts",
     recommended: false,
     isBasic: true,
     features: PLAN_FEATURES.basic,
@@ -136,7 +139,7 @@ function statusColor(status: SubscriptionStatus) {
   if (status === "active" || status === "trialing")
     return "bg-neutral-100 text-ink border-neutral-200";
   if (status === "past_due")
-    return "bg-amber-50 text-amber-700 border-amber-200";
+    return "bg-[#C8102E]/[0.04] text-[#A30D25] border-[#C8102E]/15";
   if (status === "canceled" || status === "incomplete")
     return "bg-red-50 text-red-700 border-red-200";
   return "bg-neutral-100 text-neutral-600 border-neutral-200";
@@ -176,7 +179,7 @@ export default function SubscriptionPage() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref("/subscription"));
         return;
       }
 
@@ -194,11 +197,9 @@ export default function SubscriptionPage() {
         return;
       }
 
-      const normalizedRole = String(data.role || "").toLowerCase().trim();
-      const isProfessional = !!normalizedRole && !normalizedRole.includes("customer");
-
-      if (!isProfessional) {
-        router.push("/account");
+      const away = proPageRedirect(data.role, "/studio/settings");
+      if (away) {
+        router.replace(away);
         return;
       }
 
@@ -253,7 +254,7 @@ export default function SubscriptionPage() {
       }
       window.location.href = json.url;
     } catch {
-      setMessage("Something went wrong. Please try again.");
+      setMessage("That didn't work. Please try again.");
     } finally {
       setBoosting(false);
     }
@@ -289,13 +290,13 @@ export default function SubscriptionPage() {
       const json = await res.json();
 
       if (!res.ok) {
-        setMessage(json.error || "Something went wrong.");
+        setMessage(json.error || "That didn't work. Please try again.");
         return;
       }
 
       window.location.href = json.url;
     } catch {
-      setMessage("Something went wrong. Please try again.");
+      setMessage("That didn't work. Please try again.");
     } finally {
       setSubscribing(null);
     }
@@ -343,7 +344,7 @@ export default function SubscriptionPage() {
 
       window.location.href = json.url;
     } catch {
-      setMessage("Something went wrong. Please try again.");
+      setMessage("That didn't work. Please try again.");
     } finally {
       setPortalLoadingKey(null);
     }
@@ -408,7 +409,7 @@ export default function SubscriptionPage() {
             </p>
             <Link
               href="/studio"
-              className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+              className={buttonClass("primary", "md", "mt-5 min-h-11")}
             >
               Go to your studio
             </Link>
@@ -422,7 +423,7 @@ export default function SubscriptionPage() {
             </p>
             <Link
               href="/studio"
-              className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+              className={buttonClass("primary", "md", "mt-5")}
             >
               Go to your shop
             </Link>
@@ -511,7 +512,7 @@ export default function SubscriptionPage() {
                 </button>
                 <Link
                   href="/account"
-                  className="rounded-full border border-neutral-300 px-5 py-3 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+                  className={buttonClass("secondary", "md")}
                 >
                   Back to account
                 </Link>
@@ -685,7 +686,7 @@ export default function SubscriptionPage() {
         ) : null}
 
         {/* Paid boost: a week at the top of Explore. */}
-        <div className="mt-4 flex flex-col gap-4 rounded-[28px] bg-surface ring-1 ring-ink/[0.06] p-6 sm:flex-row sm:items-center sm:p-8">
+        <div className="mt-4 flex flex-col gap-4 rounded-3xl bg-surface ring-1 ring-ink/[0.06] p-6 sm:flex-row sm:items-center sm:p-8">
           <div className="min-w-0 flex-1">
             <p className="text-lg font-semibold tracking-[-0.02em] text-ink">
               {BOOSTS.profile.label}: {formatBoostPrice("profile")} for {BOOSTS.profile.days} days
@@ -703,7 +704,7 @@ export default function SubscriptionPage() {
             type="button"
             onClick={handleBoost}
             disabled={boosting}
-            className="shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
+            className={buttonClass("primary", "md", "shrink-0 min-h-11")}
           >
             {boosting ? "Opening checkout…" : boostedUntil ? "Add a week" : "Boost my profile"}
           </button>
@@ -711,9 +712,9 @@ export default function SubscriptionPage() {
 
         {/* Past due warning */}
         {profile?.subscription_status === "past_due" && !coveredByStudio ? (
-          <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-            <p className="text-sm font-semibold text-amber-800">Payment required</p>
-            <p className="mt-1 text-sm text-amber-700">
+          <div className="mt-8 rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-5">
+            <p className="text-sm font-semibold text-[#A30D25]">Payment required</p>
+            <p className="mt-1 text-sm text-neutral-700">
               Your last payment didn&apos;t go through. Update your payment method to keep
               your plan active.
             </p>
@@ -721,7 +722,7 @@ export default function SubscriptionPage() {
               type="button"
               onClick={() => handleManageBilling()}
               disabled={portalLoadingKey === "billing"}
-              className="mt-4 rounded-full bg-amber-700 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-amber-800 disabled:opacity-60"
+              className="mt-4 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60"
             >
               {portalLoadingKey === "billing" ? "Opening…" : "Update payment method"}
             </button>

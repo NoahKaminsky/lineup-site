@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
 import AdminVerifications from "@/app/components/AdminVerifications";
 import AdminNewsletter from "@/app/components/AdminNewsletter";
+import { TITLE } from "@/app/components/ui";
+import { SkeletonRows } from "@/app/components/ui";
 
 type AdminUser = {
   id: string;
@@ -79,6 +82,8 @@ export default function AdminPage() {
   const [togglingFoundingArtistId, setTogglingFoundingArtistId] = useState<string | null>(null);
 
   const [contentQuery, setContentQuery] = useState("");
+  // Only items from the seeded TEST accounts (safe to delete when testing).
+  const [testOnly, setTestOnly] = useState(false);
   const [items, setItems] = useState<ContentItem[]>([]);
   const [people, setPeople] = useState<Record<string, { full_name: string | null; email: string | null }>>({});
   const [contentLoading, setContentLoading] = useState(false);
@@ -89,7 +94,7 @@ export default function AdminPage() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref("/admin"));
         return;
       }
 
@@ -100,7 +105,7 @@ export default function AdminPage() {
         .single();
 
       if (!profile?.is_admin) {
-        router.push("/account");
+        router.replace("/account");
         return;
       }
 
@@ -133,11 +138,11 @@ export default function AdminPage() {
     setUsersLoading(false);
   }
 
-  async function loadContent(type: ContentType) {
+  async function loadContent(type: ContentType, onlyTest = testOnly) {
     setContentLoading(true);
     setMessage("");
 
-    const res = await authedFetch(`/api/admin/content?type=${type}&q=${encodeURIComponent(contentQuery)}`);
+    const res = await authedFetch(`/api/admin/content?type=${type}&q=${encodeURIComponent(contentQuery)}${onlyTest ? "&test=1" : ""}`);
     const json = await res.json();
 
     if (!res.ok) {
@@ -272,7 +277,7 @@ export default function AdminPage() {
   }
 
   if (checking) {
-    return <main className="px-4 py-8 sm:px-6 lg:px-8 text-sm text-neutral-500">Checking access...</main>;
+    return <main className="px-4 py-8 sm:px-6 lg:px-8 text-sm text-neutral-500">Checking access…</main>;
   }
 
   if (!isAdmin) return null;
@@ -282,14 +287,14 @@ export default function AdminPage() {
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold">Admin</h1>
-            <p className="mt-1 text-sm text-neutral-500">Internal tool — manage subscriptions and moderate content.</p>
+            <h1 className={TITLE.pro}>Admin</h1>
+            <p className="mt-1 text-sm text-neutral-500">Internal tool: users, verifications, the newsletter and content.</p>
           </div>
 
           <button
             type="button"
             onClick={() => router.push("/requests")}
-            className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50"
+            className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-neutral-50 min-h-11"
           >
             Switch back to regular view
           </button>
@@ -307,7 +312,7 @@ export default function AdminPage() {
             onClick={() => setTab("users")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
               tab === "users" ? "bg-ink text-white" : "bg-white text-neutral-700 border border-neutral-200"
-            }`}
+            } min-h-11`}
           >
             Users
           </button>
@@ -316,7 +321,7 @@ export default function AdminPage() {
             onClick={() => setTab("verification")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
               tab === "verification" ? "bg-ink text-white" : "bg-white text-neutral-700 border border-neutral-200"
-            }`}
+            } min-h-11`}
           >
             Verification
           </button>
@@ -325,7 +330,7 @@ export default function AdminPage() {
             onClick={() => setTab("newsletter")}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
               tab === "newsletter" ? "bg-ink text-white" : "bg-white text-neutral-700 border border-neutral-200"
-            }`}
+            } min-h-11`}
           >
             Newsletter
           </button>
@@ -336,7 +341,7 @@ export default function AdminPage() {
               onClick={() => setTab(t.key)}
               className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                 tab === t.key ? "bg-ink text-white" : "bg-white text-neutral-700 border border-neutral-200"
-              }`}
+              } min-h-11`}
             >
               {t.label}
             </button>
@@ -355,12 +360,12 @@ export default function AdminPage() {
                 onChange={(e) => setUserQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && loadUsers()}
                 placeholder="Search by name or email"
-                className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                className="min-h-11 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
               />
               <button
                 type="button"
                 onClick={loadUsers}
-                className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white"
+                className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white min-h-11"
               >
                 Search
               </button>
@@ -402,7 +407,7 @@ export default function AdminPage() {
                                 [u.id]: { ...prev[u.id], plan: e.target.value },
                               }))
                             }
-                            className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+                            className="min-h-11 rounded-md border border-neutral-300 px-2 py-1 text-sm"
                           >
                             {PLAN_OPTIONS.map((opt) => (
                               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -418,7 +423,7 @@ export default function AdminPage() {
                                 [u.id]: { ...prev[u.id], status: e.target.value },
                               }))
                             }
-                            className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+                            className="min-h-11 rounded-md border border-neutral-300 px-2 py-1 text-sm"
                           >
                             {STATUS_OPTIONS.map((opt) => (
                               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -433,11 +438,11 @@ export default function AdminPage() {
                             title="Manually promote this profile to the top of Discover, overriding normal ranking"
                             className={`rounded-full border px-3 py-1 text-xs font-medium transition disabled:opacity-60 ${
                               u.is_featured
-                                ? "border-amber-300 bg-amber-100 text-amber-800"
+                                ? "border-ink/15 bg-ink/[0.05] text-ink"
                                 : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300"
-                            }`}
+                            } min-h-11`}
                           >
-                            {togglingFeaturedId === u.id ? "..." : u.is_featured ? "★ Featured" : "Feature"}
+                            {togglingFeaturedId === u.id ? "Saving…" : u.is_featured ? "Featured" : "Feature"}
                           </button>
                         </td>
                         <td className="px-3 py-2">
@@ -448,11 +453,11 @@ export default function AdminPage() {
                             title="Mark this profile as a Founding Artist (early sign-up recognition)"
                             className={`rounded-full border px-3 py-1 text-xs font-medium transition disabled:opacity-60 ${
                               u.is_founding_artist
-                                ? "border-orange-300 bg-orange-100 text-orange-800"
+                                ? "border-[#C8102E]/20 bg-[#C8102E]/[0.06] text-[#A30D25]"
                                 : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300"
-                            }`}
+                            } min-h-11`}
                           >
-                            {togglingFoundingArtistId === u.id ? "..." : u.is_founding_artist ? "Founding" : "Mark founding"}
+                            {togglingFoundingArtistId === u.id ? "Saving…" : u.is_founding_artist ? "Founding" : "Mark founding"}
                           </button>
                         </td>
                         <td className="px-3 py-2">
@@ -460,7 +465,7 @@ export default function AdminPage() {
                             type="button"
                             onClick={() => handleSaveUserTier(u.id)}
                             disabled={savingUserId === u.id}
-                            className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+                            className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60 min-h-11"
                           >
                             {savingUserId === u.id ? "Saving…" : "Save"}
                           </button>
@@ -480,20 +485,27 @@ export default function AdminPage() {
                 onChange={(e) => setContentQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && loadContent(tab)}
                 placeholder="Search"
-                className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                className="min-h-11 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
               />
               <button
                 type="button"
                 onClick={() => loadContent(tab)}
-                className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white"
+                className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white min-h-11"
               >
                 Search
               </button>
             </div>
+            <label className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm text-neutral-700">
+              <input type="checkbox" checked={testOnly} onChange={(e) => {
+                  setTestOnly(e.target.checked);
+                  loadContent(tab as ContentType, e.target.checked);
+                }} className="h-4 w-4 accent-ink" />
+              TEST accounts only
+            </label>
 
             <div className="mt-4 space-y-2">
               {contentLoading ? (
-                <p className="text-sm text-neutral-400">Loading…</p>
+                <SkeletonRows />
               ) : items.length === 0 ? (
                 <p className="text-sm text-neutral-400">Nothing found.</p>
               ) : (
@@ -550,7 +562,7 @@ export default function AdminPage() {
                       type="button"
                       onClick={() => handleDeleteContent(tab, item.id)}
                       disabled={deletingId === item.id}
-                      className="shrink-0 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 disabled:opacity-60"
+                      className="shrink-0 rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 disabled:opacity-60 min-h-11"
                     >
                       {deletingId === item.id ? "Deleting…" : "Delete"}
                     </button>

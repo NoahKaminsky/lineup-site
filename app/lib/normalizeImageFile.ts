@@ -119,7 +119,7 @@ async function normalizeToWebSafe(file: File): Promise<File> {
       const jpeg = await heicTo({ blob: file, type: "image/jpeg", quality: 0.9 });
       return new File([jpeg], `${baseName(file.name)}.jpg`, { type: "image/jpeg", lastModified: file.lastModified });
     } catch (error) {
-      console.error("HEIC conversion failed:", error);
+      console.warn("HEIC conversion failed:", error); // a bad file from the user, not an app error
     }
   }
 

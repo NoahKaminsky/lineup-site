@@ -22,6 +22,8 @@ import { BookedSheet } from "@/app/components/moments/Moments";
 import SplitFlap from "@/app/components/SplitFlap";
 import type { ShopPro } from "./page";
 import { shopNow } from "@/app/lib/bookingTime";
+import { Photo } from "@/app/components/Photo";
+import { buttonClass } from "@/app/components/ui";
 
 type Busy = { professional_id: string; booking_date: string; start_time: string; end_time: string };
 
@@ -193,7 +195,21 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
 
   return (
     <div className="mt-10">
-      {bookable.length && soonest.length ? (
+      {/* While the booked times load, the row keeps its place with blank
+          chips of the same size, so the team list below doesn't jump. */}
+      {bookable.length && !busy ? (
+        <div aria-hidden="true">
+          <p className="text-[15px] font-semibold">Soonest openings</p>
+          <div className="mt-3 flex gap-2 overflow-hidden pb-1">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="shrink-0 animate-pulse rounded-2xl bg-ink/[0.04] px-4 py-3">
+                <span className="invisible block text-sm font-semibold">Tue 10:00 AM</span>
+                <span className="invisible mt-0.5 block text-[13px]">with Name</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : bookable.length && soonest.length ? (
         <section aria-labelledby="soonest">
           <h2 id="soonest" className="text-[15px] font-semibold">
             Soonest openings
@@ -217,7 +233,7 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
         </section>
       ) : null}
 
-      <section aria-labelledby="team" className={bookable.length && soonest.length ? "mt-9" : ""}>
+      <section aria-labelledby="team" className={bookable.length && (!busy || soonest.length) ? "mt-9" : ""}>
         <h2 id="team" className="text-[15px] font-semibold">
           Choose who you&apos;d like to see
         </h2>
@@ -253,8 +269,7 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
 
 function Avatar({ pro, size }: { pro: ShopPro; size: number }) {
   return pro.avatarUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={pro.avatarUrl} alt="" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
+    <Photo src={pro.avatarUrl} width={size} className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
   ) : (
     <span
       aria-hidden="true"
@@ -648,7 +663,7 @@ function BookingBar({
       }
       setPaymentSecret(data.clientSecret);
     } catch {
-      setMessage("Something went wrong. Try again.");
+      setMessage("That didn't go through. Try again.");
       setWorking(false);
     }
   }
@@ -707,7 +722,7 @@ function BookingBar({
           >
             <a
               href={booked.id ? `/bookings/${booked.id}` : "/work"}
-              className="inline-flex items-center justify-center rounded-full bg-ink px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-neutral-800"
+              className={buttonClass("primary", "md")}
             >
               View booking
             </a>
@@ -728,7 +743,7 @@ function BookingBar({
 
   return (
     <div
-      className={`relative mt-6 overflow-hidden rounded-[24px] transition-colors duration-300 ${
+      className={`relative mt-6 overflow-hidden rounded-3xl transition-colors duration-300 ${
         ready ? "bg-white p-5 text-ink shadow-[0_18px_40px_-26px_rgba(0,0,0,0.4)] ring-1 ring-ink/[0.07]" : "bg-ink/[0.04] p-4"
       }`}
     >

@@ -17,12 +17,15 @@ import { useBidCounts } from "@/app/lib/useBidCounts";
 import { BookingRow, NextUpCard, type AppointmentLike } from "@/app/components/bookings/BookingVisuals";
 
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
 import { useDismissedRequests } from "@/app/lib/requestDismissals";
 import { cleanServiceLabel } from "@/app/lib/serviceLabel";
 import { DrawnCheck } from "@/app/components/moments/Moments";
 import { canCancelForRefund, hasAppointmentEnded } from "@/app/lib/bookingTime";
 import { useMyServiceArea } from "@/app/lib/useMyServiceArea";
 import { withinServiceArea } from "@/app/lib/serviceArea";
+import { buttonClass } from "@/app/components/ui";
+import { textareaClass } from "@/app/components/ui";
 type Profile = {
   id: string;
   email: string | null;
@@ -523,7 +526,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref("/work"));
         return;
       }
 
@@ -547,11 +550,11 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       } else if (isProfessionalRole(currentProfile.role)) {
         await loadProfessionalWork(user.id, currentProfile);
       } else {
-        setMessage("Invalid account role.");
+        setMessage("Your account isn't set up yet. Finish setting up your profile to see your work here.");
       }
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong loading your work.");
+      setMessage("We couldn't load your work. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -662,7 +665,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
         id: `offer-received-${offer.id}`,
         kind: "offer_received",
         title: request?.title || cleanServiceLabel(request?.service_detail) || "Offer received",
-        subtitle: offer.message || "A professional sent you an offer.",
+        subtitle: offer.message || "A pro sent you an offer.",
         status: statusLabel(offer.status),
         createdAt: offer.created_at,
         price: offer.proposed_price,
@@ -1103,7 +1106,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       }
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong updating this service.");
+      setMessage("We couldn't update this booking. Please try again.");
     } finally {
       setActionLoadingId(null);
     }
@@ -1194,7 +1197,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       name: item.professionalName,
       avatarUrl: item.professionalAvatarUrl,
       profileId: item.professionalId,
-      buttonText: "View professional",
+      buttonText: "View pro",
     };
   }
 
@@ -1345,7 +1348,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
           {!isProfessional ? (
             <Link
               href="/requests/new"
-              className="shrink-0 rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
+              className={buttonClass("primary", "md", "shrink-0 min-h-11")}
             >
               New request
             </Link>
@@ -1420,10 +1423,10 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                 <p className="mt-1.5 text-sm text-neutral-500">
                   {isProfessional
                     ? "Matching client requests will appear here. Make sure your services and availability are set up."
-                    : "Post a request and professionals will send you offers to compare."}
+                    : "Post a request and pros will send you offers to compare."}
                 </p>
                 {!isProfessional ? (
-                  <Link href="/requests/new" className="mt-5 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-neutral-800">
+                  <Link href="/requests/new" className={buttonClass("primary", "md", "mt-5")}>
                     Post a request
                   </Link>
                 ) : null}
@@ -1496,7 +1499,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
                 </p>
                 <p className="mt-1.5 text-sm text-neutral-500">
                   {isProfessional
-                    ? "Confirmed jobs and upcoming bookings will appear here."
+                    ? "Confirmed and upcoming bookings will appear here."
                     : "Once you accept an offer or make a direct booking, it'll show up here."}
                 </p>
               </div>
@@ -1681,7 +1684,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
             Service complete
           </p>
           <h2 className="mt-2 text-xl font-semibold tracking-[-0.02em]">
-            How was {reviewItem.professionalName?.split(" ")[0] ?? "your professional"}?
+            How was {reviewItem.professionalName?.split(" ")[0] ?? "your pro"}?
           </h2>
           <p className="mt-2 text-sm text-neutral-500">
             Your review helps other customers and supports the professional.
@@ -1708,7 +1711,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
             onChange={(e) => setReviewComment(e.target.value)}
             placeholder="Share details about your experience (optional)"
             rows={3}
-            className="mt-5 w-full resize-none rounded-xl border border-neutral-200 px-4 py-3 text-sm outline-none transition focus:border-ink"
+            className={`${textareaClass} mt-5 resize-none`}
           />
 
           <div className="mt-5 flex gap-3">
@@ -1816,7 +1819,7 @@ function ActivityCard({
           <button
             type="button"
             onClick={withdraw.onCancel}
-            className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-900"
+            className="rounded-full px-3 py-1.5 text-xs font-medium text-neutral-500 hover:text-neutral-900 min-h-11"
           >
             Keep it
           </button>
@@ -1829,7 +1832,7 @@ function ActivityCard({
             withdraw.phase === "confirm"
               ? "border-red-300 bg-red-50 text-red-700"
               : "border-neutral-300 text-neutral-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700"
-          }`}
+          } min-h-11`}
         >
           {withdraw.phase === "loading"
             ? "Withdrawing…"
@@ -1961,7 +1964,7 @@ function BookedList({
                   type="button"
                   onClick={() => updateBookedItemStatus(item, "completion_requested")}
                   disabled={isLoadingAction}
-                  className="shrink-0 rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-ink transition hover:bg-neutral-200 disabled:opacity-60"
+                  className="min-h-11 shrink-0 rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-ink transition hover:bg-neutral-200 disabled:opacity-60"
                 >
                   {isLoadingAction ? "Working…" : "Mark complete"}
                 </button>
@@ -1985,7 +1988,7 @@ function BookedList({
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">Was your {item.title} done?</p>
                   <p className="mt-0.5 text-xs leading-5 text-white/70">
-                    Confirm it&apos;s complete so {otherPerson.name?.split(" ")[0] || "your professional"} gets paid.
+                    Confirm it&apos;s complete so {otherPerson.name?.split(" ")[0] || "your pro"} gets paid.
                   </p>
                 </div>
                 <button
@@ -2008,7 +2011,7 @@ function BookedList({
               ["accepted", "confirmed", "completion_requested"].includes(item.status) ? (
                 <Link
                   href={`${item.href}#booking-chat`}
-                  className="rounded-full bg-neutral-100 px-4 py-2 text-xs font-medium text-neutral-900 transition hover:bg-neutral-200"
+                  className="rounded-full bg-neutral-100 px-4 py-2 text-xs font-medium text-neutral-900 transition hover:bg-neutral-200 min-h-11"
                 >
                   Message
                 </Link>
@@ -2033,14 +2036,14 @@ function BookedList({
                         updateBookedItemStatus(item, "cancelled");
                       }}
                       disabled={isLoadingAction}
-                      className="rounded-full border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
+                      className="rounded-full border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-60 min-h-11"
                     >
                       Yes, cancel
                     </button>
                     <button
                       type="button"
                       onClick={() => setCancelConfirmId(null)}
-                      className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50"
+                      className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-50 min-h-11"
                     >
                       Keep
                     </button>
@@ -2050,7 +2053,7 @@ function BookedList({
                     type="button"
                     onClick={() => setCancelConfirmId(actionKey)}
                     disabled={isLoadingAction}
-                    className="ml-auto rounded-full px-3 py-2 text-xs font-medium text-neutral-500 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60"
+                    className="ml-auto rounded-full px-3 py-2 text-xs font-medium text-neutral-500 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-60 min-h-11"
                   >
                     Cancel booking
                   </button>
@@ -2079,7 +2082,7 @@ function BookedList({
                         aria-label={`Rate ${star} star${star === 1 ? "" : "s"}`}
                         className={`text-lg leading-none transition ${
                           rated ? "cursor-default" : "cursor-pointer hover:scale-110"
-                        } ${filled ? "lu-star-pop text-amber-400" : "text-neutral-200"}`}
+                        } ${filled ? "lu-star-pop text-ink" : "text-neutral-200"}`}
                       >
                         ★
                       </button>

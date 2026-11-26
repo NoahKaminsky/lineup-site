@@ -163,7 +163,7 @@ export default function ScheduleView({ data, busy, run, setNotice }: SectionProp
             type="button"
             onClick={() => step(-1)}
             aria-label={view === "day" ? "Previous day" : "Previous month"}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-ink/[0.06] hover:text-ink"
+            className="flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-ink/[0.06] hover:text-ink"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -171,7 +171,7 @@ export default function ScheduleView({ data, busy, run, setNotice }: SectionProp
             type="button"
             onClick={() => step(1)}
             aria-label={view === "day" ? "Next day" : "Next month"}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-ink/[0.06] hover:text-ink"
+            className="flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-full text-neutral-600 transition-colors hover:bg-ink/[0.06] hover:text-ink"
           >
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -191,7 +191,7 @@ export default function ScheduleView({ data, busy, run, setNotice }: SectionProp
               aria-label="Show"
               value={proFilter}
               onChange={(e) => setProFilter(e.target.value)}
-              className="h-9 min-w-0 flex-1 rounded-full bg-surface pl-3.5 pr-8 sm:flex-none text-sm text-ink shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] outline-none focus:shadow-[inset_0_0_0_1.5px_#0a0a0a]"
+              className="h-11 min-w-0 flex-1 rounded-full bg-surface pl-3.5 pr-8 sm:h-9 sm:flex-none text-sm text-ink shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] outline-none focus:shadow-[inset_0_0_0_1.5px_#0a0a0a]"
             >
               <option value="all">Whole team</option>
               {team.map((m) => (
@@ -714,7 +714,7 @@ export function AppointmentSheet({
   }
 
   async function onlineNoShow() {
-    if (!window.confirm(`Mark ${item!.clientName || "this client"} as a no-show? Their card is charged the no-show fee.`)) return;
+    if (!window.confirm(`Mark ${item!.clientName || "this client"} as a no-show? The booking closes, and if there's a no-show fee and a card on file, it's charged.`)) return;
     await run(`ns-${item!.id}`, async () => {
       const res = await studioFetch<{ message?: string }>("/api/bookings/no-show", { method: "POST", body: { bookingId: item!.id } });
       if (!res.ok) {
@@ -745,7 +745,7 @@ export function AppointmentSheet({
           ) : null}
           {canAct && canNoShowOnline ? (
             <Button variant="danger" loading={busy === `ns-${item.id}`} onClick={onlineNoShow}>
-              No-show, charge fee
+              Mark as no-show
             </Button>
           ) : null}
           {canAct && openFrontDesk ? (
@@ -757,12 +757,15 @@ export function AppointmentSheet({
                   { label: "Cancel appointment", danger: true, onSelect: () => setStatus("cancelled", "Cancelled. The time is open again.") },
                 ]}
               />
+              {/* Separate keys: if React reused one <button> for both, the tap on
+                  "Mark done" would turn it into the submit button mid-click and
+                  save straight away (as cash, default price) before the form shows. */}
               {checkout ? (
-                <Button variant="primary" type="submit" form="fd-checkout" loading={busy === `fd-${item.id}`}>
+                <Button key="fd-save" variant="primary" type="submit" form="fd-checkout" loading={busy === `fd-${item.id}`}>
                   Save, mark done
                 </Button>
               ) : (
-                <Button variant="primary" onClick={() => setCheckoutFor(item.id)}>
+                <Button key="fd-open" variant="primary" onClick={() => setCheckoutFor(item.id)}>
                   Mark done
                 </Button>
               )}

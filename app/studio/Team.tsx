@@ -186,7 +186,7 @@ function YourSpot({
     await run(`rent-${action}`, async () => {
       const res = await studioFetch<{ url?: string }>("/api/studio/rent", { method: "POST", body: { action } });
       if (!res.ok || !res.data.url) {
-        setNotice({ tone: "error", text: res.data.error || "Something went wrong." });
+        setNotice({ tone: "error", text: res.data.error || "That didn't save. Please try again." });
         return;
       }
       window.location.assign(res.data.url);
@@ -200,8 +200,8 @@ function YourSpot({
       <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Your spot at {studio.name}</h2>
       <p className="mt-1.5 max-w-xl text-sm leading-6 text-neutral-600">
         {studio.live
-          ? "The studio covers your plan, so you have Pro features without paying for your own."
-          : "The studio doesn't have an active plan right now, so you're on your own plan."}
+          ? "The shop covers your plan, so you have Pro features without paying for your own."
+          : "The shop doesn't have an active plan right now, so you're on your own plan."}
         {isPlus && !booth && member.effectiveCut
           ? ` The shop keeps ${member.effectiveCut}% of each booking after LineUp's fee. Tips are all yours.`
           : ""}
@@ -594,7 +594,7 @@ function MemberSettings({
             <Field
               label="Shop's cut"
               htmlFor="member-cut"
-              hint={`Leave empty to use the studio default (${studio.commissionPercent}%). Taken after LineUp's fee; tips always go to the pro.`}
+              hint={`Leave empty to use the shop default (${studio.commissionPercent}%). Taken after LineUp's fee; tips always go to the pro.`}
             >
               <div className="relative w-36">
                 <input
@@ -656,7 +656,7 @@ function MemberSettings({
         <Field
           label="Shop's cut"
           htmlFor="member-cut"
-          hint="Takes effect on Studio Plus. Leave empty to use the studio default."
+          hint="Takes effect on Studio Plus. Leave empty to use the shop default."
         >
           <div className="relative w-36">
             <input
@@ -678,7 +678,7 @@ function MemberSettings({
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-5">
         {canRemove ? (
           <Button variant="danger" onClick={remove} loading={busy === `remove-${member.id}`}>
-            {self ? "Leave studio" : "Remove from team"}
+            {self ? "Leave shop" : "Remove from team"}
           </Button>
         ) : (
           <span />

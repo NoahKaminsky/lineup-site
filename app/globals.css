@@ -13,13 +13,16 @@
   /* Radius scale: panel (page-level surfaces) > 2xl card > xl control. */
   --radius-panel: 1.25rem;
   --ease-premium: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Arrival: decelerates into place (confirmations, entrances). */
+  --ease-arrive: cubic-bezier(0.16, 1, 0.3, 1);
   /* Role accent hooks — values come from theme.css (monochrome today). */
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
 }
 
-/* Motion tokens: everyday UI feedback is fast; larger surfaces a touch slower. */
+/* Motion tokens: everyday UI feedback is fast; larger surfaces a touch slower.
+   theme.css retunes both per side: Pro snappier, Customer softer. */
 :root {
   --motion-fast: 150ms;
   --motion-base: 220ms;
@@ -652,7 +655,7 @@ main {
 }
 .lu-dropcap::first-letter {
   float: left;
-  font-family: var(--font-news-serif), Georgia, serif;
+  font-weight: 600;
   font-size: 4.6em;
   line-height: 0.8;
   padding: 0.08em 0.1em 0 0;

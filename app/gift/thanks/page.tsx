@@ -5,6 +5,7 @@ import { getServiceSupabase } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
 import { activateGiftCard } from "@/app/lib/giftCardsServer";
 import { formatCad } from "@/app/lib/giftCards";
+import RefreshWhilePending from "./RefreshWhilePending";
 
 // After Stripe Checkout. Also switches the card on if the webhook hasn't yet,
 // so the buyer never lands on a "pending" card.
@@ -39,15 +40,18 @@ export default async function GiftThanksPage({ searchParams }: { searchParams: P
     <PublicLayout>
       <PageIntro
         eyebrow="Gift card"
-        title={card?.status === "active" ? "Thank you. It's on its way." : "Thanks! We're finishing up."}
+        title={card?.status === "active" ? "Thank you. It's on its way." : card ? "Thanks! We're finishing up." : "Gift cards"}
         subtitle={
           card?.status === "active"
             ? sentTo
               ? `We've emailed the ${formatCad(card.amount_cents)} gift card to ${sentTo}, and a copy to you.`
               : `We've emailed the ${formatCad(card.amount_cents)} gift card to ${card.buyer_email || "you"}, ready to pass on.`
-            : "Your payment went through. The gift card email will arrive in the next few minutes."
+            : card
+              ? "Your payment went through. The gift card email will arrive in the next few minutes."
+              : "We couldn't find a gift card purchase from this link. If you just paid, check your email for the receipt."
         }
       />
+      {card && card.status !== "active" ? <RefreshWhilePending /> : null}
       <div className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
         <Link href="/gift/balance" className="text-sm underline decoration-ink/25 underline-offset-4 hover:decoration-ink">
           Check a gift card balance

@@ -13,6 +13,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BadgeCheck } from "lucide-react";
+import { Photo } from "@/app/components/Photo";
 
 export type SpotlightPro = {
   id: string;
@@ -277,10 +278,9 @@ function SpotlightMarquee({
             style={{ ["--d" as string]: i === 0 ? 0 : 1 }}
             className={`lu-marquee-card relative block shrink-0 snap-center ${pros.length === 1 ? "w-full" : "w-[82vw]"}`}
           >
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[28px] bg-[#111113] shadow-[0_30px_60px_-32px_rgba(0,0,0,0.75)]">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-[#111113] shadow-[0_30px_60px_-32px_rgba(0,0,0,0.75)]">
               {pro.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={pro.image} alt="" className="h-full w-full object-cover" />
+                <Photo src={pro.image} sizes="(min-width: 768px) 420px, 90vw" className="h-full w-full object-cover" />
               ) : (
                 <span className="flex h-full w-full items-center justify-center text-[9rem] font-semibold tracking-[-0.07em] text-white/90">
                   {pro.name.charAt(0).toUpperCase()}
@@ -300,7 +300,7 @@ function SpotlightMarquee({
               <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
               {/* a sheen of light crosses as the card arrives under the light */}
               <div aria-hidden="true" className="lu-marquee-sheen absolute inset-0" />
-              <div aria-hidden="true" className="absolute inset-0 rounded-[28px] ring-1 ring-inset ring-white/15" />
+              <div aria-hidden="true" className="absolute inset-0 rounded-3xl ring-1 ring-inset ring-white/15" />
 
               <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                 <p className="flex items-center gap-2 text-[1.9rem] font-semibold leading-none tracking-[-0.045em]">
@@ -356,10 +356,9 @@ function StageCard({
       className={`lu-stage-card group relative block w-full max-w-[17rem] transition duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${lit ? "opacity-100" : "opacity-45 hover:opacity-80"}`}
       style={{ transform: lit ? "translateY(-6px) scale(1.02)" : "none" }}
     >
-      <div className="relative aspect-[4/5] overflow-hidden rounded-[22px] bg-[#1a1a1c]">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-[#1a1a1c]">
         {pro.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={pro.image} alt="" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
+          <Photo src={pro.image} sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw" className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
         ) : (
           <span className="flex h-full w-full items-center justify-center text-8xl font-semibold tracking-[-0.06em] text-white/90">
             {pro.name.charAt(0).toUpperCase()}

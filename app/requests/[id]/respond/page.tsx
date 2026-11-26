@@ -6,11 +6,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
+import { OFFER_PRICE_HELP, offerPriceCents } from "@/app/lib/offerPrice";
+import { accountKind } from "@/app/lib/proAccess";
 import TimeSelect from "@/app/components/TimeSelect";
 import MarkRequestNotificationRead from "@/app/components/MarkRequestNotificationRead";
 import { containsProfanity } from "@/app/lib/profanityFilter";
 import { isVerifiedNow } from "@/app/lib/verificationRules";
 import { MomentCard, MomentOverlay, formatMomentDate, formatMomentPrice } from "@/app/components/moments/Moments";
+import { buttonClass } from "@/app/components/ui";
+import { fieldClass, textareaClass } from "@/app/components/ui";
 
 type ServiceRequest = {
   id: string;
@@ -68,7 +73,7 @@ export default function RespondToRequestPage() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref(`/requests/${requestId}/respond`));
         return;
       }
 
@@ -95,12 +100,9 @@ export default function RespondToRequestPage() {
         setNeedsVerification(!isVerifiedNow(verificationRow));
       }
 
-      const normalizedRole = profile.role?.toLowerCase().trim() || "";
-      const isProfessional =
-        !!normalizedRole && !normalizedRole.includes("customer");
-
-      if (!isProfessional) {
-        router.push(`/requests/${requestId}`);
+      const kind = accountKind(profile.role);
+      if (kind !== "pro") {
+        router.replace(kind === "shop" ? "/studio/requests" : `/requests/${requestId}`);
         return;
       }
 
@@ -111,7 +113,7 @@ export default function RespondToRequestPage() {
         .single();
 
       if (requestError || !requestData) {
-        setMessage("Request not found or you do not have access.");
+        setMessage("We couldn't find this request. It may have been closed or booked by someone else.");
         setLoading(false);
         return;
       }
@@ -300,6 +302,11 @@ export default function RespondToRequestPage() {
       return;
     }
 
+    if (offerPriceCents(proposedPrice) === null) {
+      setMessage(OFFER_PRICE_HELP);
+      return;
+    }
+
     if (!offerMessage.trim()) {
       setMessage("Please enter a message.");
       return;
@@ -316,12 +323,12 @@ export default function RespondToRequestPage() {
     }
 
     if (!userId) {
-      setMessage("User not found.");
+      setMessage("Your sign-in has expired. Please sign in again.");
       return;
     }
 
     if (!request) {
-      setMessage("Request not found.");
+      setMessage("We couldn't find this request.");
       return;
     }
 
@@ -485,7 +492,7 @@ export default function RespondToRequestPage() {
 
         <div className="mx-auto max-w-4xl py-10">
           <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
-            {message || "Request not found."}
+            {message || "We couldn't find this request."}
           </div>
         </div>
       </main>
@@ -604,14 +611,14 @@ export default function RespondToRequestPage() {
           </div>
 
           {request.status !== "open" ? (
-            <div className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-              <p className="text-sm font-medium text-amber-700">
+            <div className="mt-8 rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-5">
+              <p className="text-sm font-medium text-[#A30D25]">
                 This request is no longer accepting new offers.
               </p>
               <div className="mt-4">
                 <Link
                   href={`/requests/${requestId}`}
-                  className="inline-flex rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
+                  className={buttonClass("primary", "md", "min-h-11")}
                 >
                   Back to request
                 </Link>
@@ -629,7 +636,7 @@ export default function RespondToRequestPage() {
               <div className="mt-4">
                 <Link
                   href={`/requests/${requestId}`}
-                  className="inline-flex rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
+                  className={buttonClass("primary", "md", "min-h-11")}
                 >
                   Back to request
                 </Link>
@@ -650,7 +657,7 @@ export default function RespondToRequestPage() {
               <div className="mt-4">
                 <Link
                   href="/verification"
-                  className="inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+                  className={buttonClass("primary", "md")}
                 >
                   Verify now
                 </Link>
@@ -664,10 +671,11 @@ export default function RespondToRequestPage() {
                 </label>
                 <input
                   type="text"
+                  inputMode="decimal"
                   value={proposedPrice}
                   onChange={(e) => setProposedPrice(e.target.value)}
                   placeholder="$55"
-                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
+                  className={fieldClass}
                 />
               </div>
 
@@ -783,7 +791,7 @@ export default function RespondToRequestPage() {
                           type="date"
                           value={proposedDate}
                           onChange={(e) => setProposedDate(e.target.value)}
-                          className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
+                          className={fieldClass}
                         />
                       </div>
 
@@ -822,7 +830,7 @@ export default function RespondToRequestPage() {
                   value={offerMessage}
                   onChange={(e) => setOfferMessage(e.target.value)}
                   placeholder="Hi, I’d be a great fit for this request because..."
-                  className="w-full resize-none rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink focus:bg-white"
+                  className={`${textareaClass} resize-none`}
                 />
               </div>
 

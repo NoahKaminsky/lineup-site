@@ -6,6 +6,7 @@ import { LuMarkPaths } from "@/app/components/LuMark";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { buttonClass } from "@/app/components/ui";
 
 type NavbarProfile = {
   id: string;
@@ -798,7 +799,7 @@ function NavbarComponent() {
                 </button>
 
                 {notifPanelOpen ? (
-                  <div className="lu-pop-in fixed inset-x-3 top-[4.25rem] z-50 overflow-hidden rounded-[24px] bg-surface ring-1 ring-ink/[0.06] shadow-[0_2px_6px_rgba(0,0,0,0.04),0_16px_40px_-12px_rgba(0,0,0,0.22)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:w-96">
+                  <div className="lu-pop-in fixed inset-x-3 top-[4.25rem] z-50 overflow-hidden rounded-3xl bg-surface ring-1 ring-ink/[0.06] shadow-[0_2px_6px_rgba(0,0,0,0.04),0_16px_40px_-12px_rgba(0,0,0,0.22)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:w-96">
                     <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
                       <p className="text-sm font-semibold text-ink">Notifications</p>
                       {unreadNotifItems.length > 0 ? (
@@ -831,7 +832,7 @@ function NavbarComponent() {
                           <p className="mx-auto mt-1.5 max-w-[16rem] text-xs leading-5 text-neutral-500">
                             {isProfessional
                               ? "You'll be notified here when a new request matches your services."
-                              : "When professionals send you offers, they'll show up here."}
+                              : "When pros send you offers, they'll show up here."}
                           </p>
                           <button
                             type="button"
@@ -967,7 +968,7 @@ function NavbarComponent() {
                         {profile?.full_name || "Your account"}
                       </p>
                       <p className="mt-1 text-xs text-neutral-500">
-                        {isProfessional ? "Professional account" : "Client account"}
+                        {isProfessional ? "Pro account" : "Client account"}
                       </p>
                     </div>
 
@@ -1001,7 +1002,7 @@ function NavbarComponent() {
               <Link
                 href="/login"
                 prefetch
-                className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-ink"
+                className={buttonClass("secondary", "md")}
               >
                 Log in
               </Link>

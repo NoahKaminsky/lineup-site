@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
 
 /* Saved pros: a client hearts a pro and they land in the "Saved pros" list on
    the client's account page. One row per (client, pro) in saved_pros; row-level
@@ -18,8 +19,14 @@ function isClientRole(role: string | null | undefined) {
 
 export function useSavedPros() {
   const [canSave, setCanSave] = useState(false);
+  // Logged out: the heart still shows, and a tap goes to log in and back.
+  const [signedOut, setSignedOut] = useState(false);
   const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set());
   const userIdRef = useRef<string | null>(null);
+  const signedOutRef = useRef(false);
+  useEffect(() => {
+    signedOutRef.current = signedOut;
+  }, [signedOut]);
   const savedRef = useRef<Set<string>>(savedIds);
 
   useEffect(() => {
@@ -31,7 +38,11 @@ export function useSavedPros() {
 
     async function load() {
       const user = await getSignedInUser();
-      if (!user || cancelled) return;
+      if (cancelled) return;
+      if (!user) {
+        setSignedOut(true);
+        return;
+      }
 
       const [profileResult, savedResult] = await Promise.all([
         supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
@@ -54,7 +65,10 @@ export function useSavedPros() {
   // Flips straight away so the heart feels instant; puts it back if the save fails.
   const toggle = useCallback(async (professionalId: string) => {
     const userId = userIdRef.current;
-    if (!userId) return false;
+    if (!userId) {
+      if (signedOutRef.current) window.location.assign(loginHref(window.location.pathname));
+      return false;
+    }
 
     const wasSaved = savedRef.current.has(professionalId);
     const apply = (saved: boolean) =>
@@ -80,5 +94,6 @@ export function useSavedPros() {
     return true;
   }, []);
 
-  return { canSave, savedIds, toggle };
+  // showSave: a customer can save, or someone logged out can tap through to log in.
+  return { canSave, showSave: canSave || signedOut, savedIds, toggle };
 }

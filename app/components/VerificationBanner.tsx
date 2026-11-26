@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { isVerifiedNow, todayDateString } from "@/app/lib/verificationRules";
 import { useVerificationState } from "@/app/lib/useVerificationState";
+import { buttonClass } from "@/app/components/ui";
 
 const RENEW_WARNING_DAYS = 30;
 
@@ -62,7 +63,7 @@ export default function VerificationBanner() {
         </div>
         <Link
           href="/verification"
-          className="inline-flex shrink-0 rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-white"
+          className={buttonClass("secondary", "md", "shrink-0")}
         >
           {expiringSoon ? "Renew" : "Manage"}
         </Link>
@@ -86,7 +87,7 @@ export default function VerificationBanner() {
         </div>
         <Link
           href="/verification"
-          className="inline-flex shrink-0 rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium text-neutral-900 transition hover:bg-white"
+          className={buttonClass("secondary", "md", "shrink-0")}
         >
           View status
         </Link>
@@ -128,7 +129,7 @@ export default function VerificationBanner() {
         </div>
         <Link
           href="/verification"
-          className="inline-flex shrink-0 rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
+          className={buttonClass("primary", "md", "shrink-0")}
         >
           {copy.cta}
         </Link>

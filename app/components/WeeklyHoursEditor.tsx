@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { buttonClass } from "@/app/components/ui";
 
 // Weekly hours, built for thumbs: one tidy row per day (name, hours, switch),
 // tap a day to edit just that day, one dropdown per time, and shortcuts for
@@ -162,7 +163,7 @@ export default function WeeklyHoursEditor({
             key={preset.label}
             type="button"
             onClick={preset.run}
-            className="shrink-0 rounded-full px-3.5 py-2 text-sm font-medium text-ink ring-1 ring-inset ring-ink/15 transition hover:ring-ink/30 active:scale-[0.97]"
+            className={buttonClass("secondary", "md", "shrink-0 min-h-11")}
           >
             {preset.label}
           </button>
@@ -174,7 +175,7 @@ export default function WeeklyHoursEditor({
               onChange([]);
               setEditingDay(null);
             }}
-            className="shrink-0 rounded-full px-3.5 py-2 text-sm font-medium text-neutral-500 transition hover:text-ink"
+            className="shrink-0 rounded-full px-3.5 py-2 text-sm font-medium text-neutral-500 transition hover:text-ink min-h-11"
           >
             Clear all
           </button>
@@ -196,7 +197,7 @@ export default function WeeklyHoursEditor({
                   disabled={!isOpen}
                   onClick={() => setEditingDay(isEditing ? null : day)}
                   aria-expanded={isEditing}
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-default"
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left disabled:cursor-default"
                 >
                   <span className={`w-11 shrink-0 text-[15px] font-semibold ${isOpen ? "text-ink" : "text-neutral-400"}`}>
                     {DAYS[day].slice(0, 3)}
@@ -216,7 +217,7 @@ export default function WeeklyHoursEditor({
                   aria-checked={isOpen}
                   aria-label={`${DAYS[day]} ${isOpen ? "open" : "closed"}`}
                   onClick={() => toggleDay(day)}
-                  className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 ${isOpen ? "bg-ink" : "bg-neutral-200"}`}
+                  className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 before:absolute before:-inset-2 before:content-[''] ${isOpen ? "bg-ink" : "bg-neutral-200"}`}
                 >
                   <span
                     aria-hidden="true"
@@ -279,7 +280,7 @@ export default function WeeklyHoursEditor({
                     <button
                       type="button"
                       onClick={() => addBlock(day)}
-                      className="rounded-full px-3 py-2 text-sm font-medium text-ink ring-1 ring-inset ring-ink/15 transition hover:ring-ink/30 active:scale-[0.97]"
+                      className="rounded-full px-3 py-2 text-sm font-medium text-ink ring-1 ring-inset ring-ink/15 transition hover:ring-ink/30 active:scale-[0.97] min-h-11"
                     >
                       + Add more hours
                     </button>
@@ -293,7 +294,7 @@ export default function WeeklyHoursEditor({
                           key={target.label}
                           type="button"
                           onClick={() => copyDayTo(day, target.days, target.label.toLowerCase())}
-                          className="rounded-full bg-ink/[0.05] px-3 py-2 text-xs font-medium text-ink transition hover:bg-ink/10 active:scale-[0.97]"
+                          className="rounded-full bg-ink/[0.05] px-3 py-2 text-xs font-medium text-ink transition hover:bg-ink/10 active:scale-[0.97] min-h-11"
                         >
                           {target.label}
                         </button>

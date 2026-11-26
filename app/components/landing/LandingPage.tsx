@@ -1,9 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { useGSAP } from "@gsap/react";
 import Image from "next/image";
 import Link from "next/link";
 import SiteMenu from "@/app/components/site/SiteMenu";
@@ -34,8 +31,8 @@ const stations: { kind: StationKind; left: string; leftMobile: string; spread: n
 
 const tourSteps = [
   {
-    title: "Find a professional",
-    body: "Browse beauty and grooming professionals near you. Their work, prices and real reviews, before you commit.",
+    title: "Find a pro",
+    body: "Browse beauty and grooming pros near you. Their work, prices and real reviews, before you commit.",
     src: "/images/app-screenshots/01-browse.png",
   },
   {
@@ -116,7 +113,7 @@ const proFeatures = [
   { title: "Clients come to you", body: "Requests arrive with the service, the place and the time already decided. You answer with your price." },
   { title: "Your calendar, built in", body: "Set your hours once. Clients who already know you can book you directly, no separate booking tool." },
   { title: "Paid through LineUp", body: "Every booking is paid securely through Stripe before the appointment, so nobody chases anybody." },
-  { title: "A record that follows you", body: "Every completed job adds a verified review to your public profile and portfolio." },
+  { title: "A record that follows you", body: "Every completed booking adds a verified review to your public profile and portfolio." },
   { title: "Work where you already work", body: "A shop chair, a shared space, your home studio or the client's place. You choose what you offer." },
   { title: "Looking for a chair?", body: "Shops post their open chairs on LineUp. You'll only see posts for your trade, and you can apply with your LineUp profile." },
   { title: "Free to start", body: "Take on real, paying clients without a subscription. Upgrade later if you want more." },
@@ -190,7 +187,16 @@ function videoScrubber(video: HTMLVideoElement, src: string) {
     tick();
   };
   video.addEventListener("loadedmetadata", onReady, { once: true });
-  video.src = src;
+  // Fetch the clip only once its section is within ~1.5 screens, not on load.
+  const near = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      near.disconnect();
+      video.src = src;
+    },
+    { rootMargin: "150% 0px" }
+  );
+  near.observe(video);
   return {
     set(progress: number) {
       target = progress;
@@ -199,6 +205,7 @@ function videoScrubber(video: HTMLVideoElement, src: string) {
     kill() {
       cancelAnimationFrame(raf);
       video.removeEventListener("loadedmetadata", onReady);
+      near.disconnect();
     },
   };
 }
@@ -331,8 +338,14 @@ export default function LandingPage() {
 
   // All motion lives inside "no-preference": with Reduce Motion on nothing is
   // pinned, hidden or moved, and every section renders in its final state.
-  useGSAP(
-    () => {
+  // GSAP (~110 KB) loads after the page has painted, so the hero text and
+  // photos don't wait for it.
+  useEffect(() => {
+    let cancelled = false;
+    let ctx: { revert: () => void } | undefined;
+    Promise.all([import("gsap"), import("gsap/ScrollTrigger")]).then(([{ default: gsap }, { ScrollTrigger }]) => {
+      if (cancelled) return;
+      ctx = gsap.context(() => {
       gsap.registerPlugin(ScrollTrigger);
       // Phones show/hide the address bar mid-scroll; recalculating every
       // trigger on that resize is what makes pinned sections jump.
@@ -518,9 +531,13 @@ export default function LandingPage() {
           };
         }
       );
-    },
-    { scope: rootRef }
-  );
+      }, rootRef);
+    });
+    return () => {
+      cancelled = true;
+      ctx?.revert();
+    };
+  }, []);
 
   // animate-none!: the global page-enter animation leaves a transform on
   // <main>, which would break ScrollTrigger's position:fixed pinning.
@@ -600,7 +617,7 @@ export default function LandingPage() {
                 style={{ "--l": station.left, "--l-m": station.leftMobile } as React.CSSProperties}
               >
                 <div className="js-station-inner flex h-full flex-col items-center justify-end">
-                  <Station kind={station.kind} className="w-auto max-w-none" style={{ height: `${station.height}%` }} />
+                  <Station kind={station.kind} priority className="w-auto max-w-none" style={{ height: `${station.height}%` }} />
                 </div>
               </div>
             ))}
@@ -608,7 +625,7 @@ export default function LandingPage() {
 
           <div className="js-hero-phone absolute bottom-[-24%] left-1/2 z-20 w-[min(220px,48vw)] -translate-x-1/2 lg:bottom-[-20%] lg:w-[min(268px,30vh)]">
             <PhoneFrame>
-              <Screen src="/images/app-screenshots/04-offers-compare.png" alt="Offers from nearby professionals lined up in LineUp" sizes="268px" priority />
+              <Screen src="/images/app-screenshots/04-offers-compare.png" alt="Offers from nearby pros lined up in LineUp" sizes="(min-width: 1024px) 268px, 220px" priority />
             </PhoneFrame>
           </div>
 
@@ -684,7 +701,7 @@ export default function LandingPage() {
                         muted
                         loop
                         playsInline
-                        preload="metadata"
+                        preload="none"
                         aria-label={step.title}
                       />
                     ) : (
@@ -726,7 +743,7 @@ export default function LandingPage() {
                         muted
                         loop
                         playsInline
-                        preload="metadata"
+                        preload="none"
                         aria-hidden={activeStep !== i}
                         aria-label={step.title}
                       />
@@ -860,7 +877,7 @@ export default function LandingPage() {
           <div className="mx-auto grid h-full max-w-7xl items-center gap-14 px-6 py-28 lg:grid-cols-12 lg:gap-10 lg:py-0">
             <div className="relative mx-auto w-[230px] lg:col-span-4 lg:col-start-2 lg:w-[min(290px,34vh)]">
               <PhoneFrame>
-                <Screen src="/images/app-screenshots/10-pro-calendar.png" alt="A professional's LineUp calendar" sizes="290px" eager />
+                <Screen src="/images/app-screenshots/10-pro-calendar.png" alt="A pro's LineUp calendar" sizes="(min-width: 1024px) 290px, 230px" />
               </PhoneFrame>
 
               {/* The visitor's own request, as the pro receives it. Lives
@@ -884,7 +901,7 @@ export default function LandingPage() {
             </div>
 
             <div className="lg:col-span-6 lg:col-start-7">
-              <p className="text-sm font-medium text-neutral-500">For professionals</p>
+              <p className="text-sm font-medium text-neutral-500">For pros</p>
               <h2 className="mt-4 text-[clamp(2rem,3.6vw,3rem)] font-semibold leading-[1.04] tracking-[-0.035em]">
                 Your next client
                 <span className="block text-neutral-400">is already asking.</span>
@@ -1235,7 +1252,7 @@ export default function LandingPage() {
               poster="/images/landing/close-turn-poster.webp"
               muted
               playsInline
-              preload="auto"
+              preload="none"
               tabIndex={-1}
             />
             <Image

@@ -11,7 +11,7 @@ import { formatCad, peekStudio, studioFetch } from "./studioApi";
 import { useStudio } from "./StudioContext";
 import { AppointmentSheet, NewAppointmentSheet } from "./Schedule";
 import { RequestRow, useShopRequests } from "./Requests";
-import { Avatar, Button, Tag, buttonClass, panelClass } from "./ui";
+import { Avatar, Button, SkeletonRows, Tag, buttonClass, panelClass } from "./ui";
 import {
   firstName,
   fromDateKey,
@@ -131,12 +131,12 @@ export default function TodayView() {
             <h3 id="up-next" className="text-[15px] font-semibold text-ink">
               Up next
             </h3>
-            <Link href={me.canManage ? "/studio/calendar" : "/calendar"} className="text-[13px] font-medium text-neutral-500 hover:text-ink">
+            <Link href={me.canManage ? "/studio/calendar" : "/calendar"} className="inline-flex min-h-11 items-center text-[13px] font-medium text-neutral-500 hover:text-ink sm:min-h-0">
               Calendar
             </Link>
           </div>
           {items === null ? (
-            <p className="px-5 pb-6 pt-2 text-sm text-neutral-500">Loading…</p>
+            <SkeletonRows className="px-5 pb-6 pt-2" />
           ) : upNext.length === 0 ? (
             <div className="px-5 pb-6 pt-2">
               <p className="text-sm text-neutral-500">
@@ -155,7 +155,7 @@ export default function TodayView() {
                   <button
                     type="button"
                     onClick={() => setOpen(i)}
-                    className="relative block w-full overflow-hidden rounded-[22px] bg-[#111113] p-5 text-left text-white transition active:scale-[0.995]"
+                    className="relative block w-full overflow-hidden rounded-3xl bg-[#111113] p-5 text-left text-white transition active:scale-[0.995]"
                   >
                     {/* A departures board for the chair: matte, lined, no glow. */}
                     <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_3px,rgba(255,255,255,0.025)_3px,rgba(255,255,255,0.025)_4px)]" />
@@ -270,7 +270,7 @@ export default function TodayView() {
               Requests near you{" "}
               <span className="font-normal tabular-nums text-neutral-400">{waitingRequests.length}</span>
             </h3>
-            <Link href="/studio/requests" className="shrink-0 text-[13px] font-medium text-neutral-500 hover:text-ink">
+            <Link href="/studio/requests" className="inline-flex min-h-11 shrink-0 items-center text-[13px] font-medium text-neutral-500 hover:text-ink sm:min-h-0">
               See all
             </Link>
           </div>

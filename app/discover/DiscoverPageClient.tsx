@@ -16,6 +16,9 @@ import type { DiscoverCard as InitialDiscoverCard } from "./getInitialData";
 import { BadgeCheck, MapPin, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import SaveHeart from "@/app/components/SaveHeart";
 import { useSavedPros } from "@/app/lib/savedPros";
+import { Photo } from "@/app/components/Photo";
+import { TITLE } from "@/app/components/ui";
+import { buttonClass } from "@/app/components/ui";
 
 type ProfileRow = {
   id: string;
@@ -215,13 +218,13 @@ function ProCard({ href, name, role, place, image, badge, rating, reviewCount, o
     <Link
       href={href}
       aria-label={`${name}, ${role}${place ? `, ${place}` : ""}, ${ratingText}${open ? `, ${open.toLowerCase()}` : ""}`}
-      className="group block rounded-[24px] outline-offset-4"
+      className="group block rounded-3xl outline-offset-4"
     >
-      <div className="relative aspect-[4/5] overflow-hidden rounded-[24px] bg-neutral-200">
+      <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-neutral-200">
         {image ? (
-          <img
-            loading="lazy"
+          <Photo
             src={image}
+            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
             alt=""
             className="h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.04]"
           />
@@ -230,7 +233,7 @@ function ProCard({ href, name, role, place, image, badge, rating, reviewCount, o
             <span className="relative text-7xl font-semibold tracking-[-0.06em] text-ink/80">{initial}</span>
           </div>
         )}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-[24px] ring-1 ring-inset ring-black/[0.06]" />
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-inset ring-black/[0.06]" />
 
         {badge && (badge.label === "LineUp Pick" || badge.label === "Promoted") ? (
           <span className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-ink backdrop-blur">
@@ -244,7 +247,7 @@ function ProCard({ href, name, role, place, image, badge, rating, reviewCount, o
               openSoon ? "bg-white text-ink" : "bg-white/80 text-neutral-600"
             }`}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${openSoon ? "bg-emerald-500" : "bg-neutral-300"}`} />
+            <span className={`h-1.5 w-1.5 rounded-full ${openSoon ? "bg-ink" : "bg-neutral-300"}`} />
             {open}
           </span>
         ) : null}
@@ -440,6 +443,8 @@ function buildTags(params: {
   return tags.slice(0, 2);
 }
 
+const NO_LOG = () => {};
+
 type DiscoverCache = { cards: DiscoverCard[] };
 
 type DiscoverPageClientProps = {
@@ -455,7 +460,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   const [loading, setLoading] = useState(() => !seed);
   const [message, setMessage] = useState("");
   const [cards, setCards] = useState<DiscoverCard[]>(() => seed ?? []);
-  const { canSave, savedIds, toggle: toggleSaved } = useSavedPros();
+  const { showSave, savedIds, toggle: toggleSaved } = useSavedPros();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<(typeof categoryOptions)[number]["value"]>("all");
   const [selectedModes, setSelectedModes] = useState<string[]>([]);
@@ -507,7 +512,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
             : error.code === error.TIMEOUT
             ? "TIMEOUT"
             : "UNKNOWN";
-        console.error(`Geolocation failed: ${reason} — ${error.message}`);
+        console.info(`Location not available: ${reason} — ${error.message}`);
         setLocationPermissionStatus("denied");
       },
       {
@@ -684,7 +689,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         setLoading(false);
       } catch (error) {
         console.error(error);
-        setMessage("Something went wrong loading professionals.");
+        setMessage("We couldn't load pros right now. Refresh to try again.");
         setLoading(false);
       }
     }
@@ -965,6 +970,11 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   const spotlightCards = spotlightIds
     .map((id) => spotlightPool.find((e) => e.card.profile.id === id)?.card)
     .filter((card): card is DiscoverCard => Boolean(card));
+  // Until the draw above runs (just after load), hold the stage's space with
+  // an invisible stand-in of the same size, so the page doesn't jump when it
+  // appears. No photos and no view logging for the stand-in.
+  const spotlightPending = spotlightCards.length === 0 && spotlightPool.length > 0;
+  const stageCards = spotlightPending ? spotlightPool.slice(0, 3).map((e) => e.card) : spotlightCards;
 
   // A view is counted when the light lands on a pro, once per pro per visit.
   const logSpotlight = useCallback((professionalId: string, kind: "view" | "tap") => {
@@ -1052,7 +1062,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((item) => (
               <div key={item}>
-                <div className="aspect-square animate-pulse rounded-[22px] sm:aspect-[4/5] bg-neutral-200/60" />
+                <div className="aspect-square animate-pulse rounded-3xl sm:aspect-[4/5] bg-neutral-200/60" />
                 <div className="mt-3 h-4 w-2/3 animate-pulse rounded-full bg-neutral-200/70" />
                 <div className="mt-2 h-3 w-1/2 animate-pulse rounded-full bg-neutral-200/50" />
               </div>
@@ -1084,12 +1094,12 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         {/* Explore: ask first (search), then the one paid stage, then who's
             free. The Spotlight is the only dark, lit thing on the page. */}
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-          <h1 className="text-[2.4rem] font-semibold leading-[1] tracking-[-0.05em] text-ink sm:text-[3.75rem]">
+          <h1 className={TITLE.customer}>
             {freeSoon.today.length > 0 ? "Who\u2019s free today?" : "Who\u2019s free this week?"}
           </h1>
           <Link
             href="/shops"
-            className="rounded-full px-4 py-2 text-sm font-medium text-ink ring-1 ring-inset ring-ink/15 transition-colors hover:bg-ink/[0.04]"
+            className={buttonClass("secondary", "md")}
           >
             Find a shop
           </Link>
@@ -1120,17 +1130,17 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                   type="button"
                   onClick={() => setSearch("")}
                   aria-label="Clear search"
-                  className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
+                  className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-ink"
                 >
                   <X aria-hidden="true" className="h-4 w-4" strokeWidth={2} />
                 </button>
               ) : null}
             </div>
 
-        {spotlightCards.length > 0 ? (
-          <div className="mt-6">
+        {stageCards.length > 0 ? (
+          <div className={`mt-6 ${spotlightPending ? "invisible" : "lu-fade-in"}`} aria-hidden={spotlightPending || undefined}>
             <SpotlightStage
-              pros={spotlightCards.map((card) => {
+              pros={stageCards.map((card) => {
                 const props = getCardProps(card);
                 return {
                   id: card.profile.id,
@@ -1138,14 +1148,14 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                   name: props.name,
                   role: props.role,
                   place: props.place,
-                  image: props.image,
+                  image: spotlightPending ? null : props.image,
                   rating: props.rating,
                   open: props.open,
                   verified: props.verified,
                 };
               })}
-              onView={onSpotlightView}
-              onTap={onSpotlightTap}
+              onView={spotlightPending ? NO_LOG : onSpotlightView}
+              onTap={spotlightPending ? NO_LOG : onSpotlightTap}
             />
           </div>
         ) : null}
@@ -1169,7 +1179,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                     >
                       <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-neutral-100">
                         {photo ? (
-                          <img src={photo} alt="" className="h-full w-full object-cover" />
+                          <Photo src={photo} width={40} className="h-full w-full object-cover" />
                         ) : (
                           <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-neutral-500">{name.charAt(0)}</span>
                         )}
@@ -1221,7 +1231,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         </div>
 
         {filtersOpen ? (
-          <div className="lu-fade-in mt-3 rounded-[22px] bg-white p-4 ring-1 ring-ink/[0.06] sm:p-5">
+          <div className="lu-fade-in mt-3 rounded-3xl bg-white p-4 ring-1 ring-ink/[0.06] sm:p-5">
             <div className="grid gap-5 sm:grid-cols-3">
               <div>
                 <p className="text-[13px] font-medium text-neutral-500">Where</p>
@@ -1316,7 +1326,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
         ) : null}
 
         {sortedCards.length === 0 ? (
-          <div className="mt-10 rounded-[28px] bg-white px-6 py-16 text-center ring-1 ring-ink/[0.06]">
+          <div className="mt-10 rounded-3xl bg-white px-6 py-16 text-center ring-1 ring-ink/[0.06]">
             <p className="text-lg font-semibold tracking-[-0.02em] text-ink">
               {isSearching ? `No one matches “${search.trim()}”` : "No one matches those filters"}
             </p>
@@ -1333,7 +1343,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
               </button>
               <Link
                 href="/requests/new"
-                className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800"
+                className={buttonClass("primary", "md")}
               >
                 Post a request
               </Link>
@@ -1363,7 +1373,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                     key={card.profile.id}
                     {...getCardProps(card)}
                     save={
-                      canSave
+                      showSave
                         ? { saved: savedIds.has(card.profile.id), onToggle: () => toggleSaved(card.profile.id) }
                         : undefined
                     }
@@ -1375,7 +1385,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
             {/* The other way in, once you've seen who's here. */}
             <Link
               href="/requests/new"
-              className="group mt-14 flex items-center justify-between gap-4 rounded-[28px] bg-ink p-6 text-white transition hover:bg-neutral-900 sm:p-8"
+              className="group mt-14 flex items-center justify-between gap-4 rounded-3xl bg-ink p-6 text-white transition hover:bg-neutral-900 sm:p-8"
             >
               <div>
                 <p className="text-lg font-semibold tracking-[-0.02em] sm:text-xl">Not sure who to book?</p>
@@ -1399,7 +1409,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
           role="dialog"
           aria-modal="true"
           aria-labelledby="distance-title"
-          className="lu-sheet-in max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-[28px] bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-7"
+          className="lu-sheet-in max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 shadow-[0_24px_64px_-16px_rgba(0,0,0,0.3)] sm:p-7"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-3">
@@ -1467,8 +1477,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                     style={{ left: `${x / 2}%`, top: `${y / 2}%` }}
                   >
                     {card.profile.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                      <Photo src={card.profile.avatar_url} width={64} className="h-full w-full object-cover" />
                     ) : (
                       <span className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-neutral-600">
                         {card.profile.full_name?.charAt(0).toUpperCase() || "P"}
@@ -1531,7 +1540,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                         >
                           <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-neutral-100">
                             {card.profile.avatar_url ? (
-                              <img loading="lazy" src={card.profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                              <Photo src={card.profile.avatar_url} width={36} className="h-full w-full object-cover" />
                             ) : (
                               <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-neutral-500">
                                 {card.profile.full_name?.charAt(0).toUpperCase() || "P"}

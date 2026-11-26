@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { textareaClass } from "@/app/components/ui";
 
 const input =
   "h-12 w-full rounded-xl bg-white px-4 text-[15px] text-ink outline-none ring-1 ring-inset ring-ink/[0.12] transition focus:ring-2 focus:ring-ink";
@@ -42,18 +43,25 @@ export default function GiftForm({
     setError("");
     if (!amountOk) return setError(`Pick an amount between ${cad(minCents)} and ${cad(maxCents)}.`);
     setBusy(true);
-    const res = await fetch("/api/gift-cards/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind, slug, amountCents, sendToRecipient, recipientName, recipientEmail, buyerName, message }),
-    });
+    let res: Response;
+    try {
+      res = await fetch("/api/gift-cards/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind, slug, amountCents, sendToRecipient, recipientName, recipientEmail, buyerName, message }),
+      });
+    } catch {
+      // Offline or the request never landed: don't leave the button stuck.
+      setBusy(false);
+      return setError("We couldn't reach checkout. Check your connection and try again.");
+    }
     const json = await res.json().catch(() => ({}));
     if (res.ok && json.url) {
       window.location.assign(json.url);
       return;
     }
     setBusy(false);
-    setError(json.error || "Something went wrong. Please try again.");
+    setError(json.error || "That didn't go through. Try again.");
   }
 
   const chip = (active: boolean) =>
@@ -131,7 +139,7 @@ export default function GiftForm({
             maxLength={300}
             rows={3}
             placeholder="Happy birthday! Treat yourself."
-            className="mt-2 w-full rounded-xl bg-white px-4 py-3 text-[15px] leading-6 text-ink outline-none ring-1 ring-inset ring-ink/[0.12] transition focus:ring-2 focus:ring-ink"
+            className={`${textareaClass} mt-2 text-[15px]`}
           />
         </label>
       </div>

@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, Gift } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
+import { SkeletonRows } from "@/app/components/ui";
 
 type Card = {
   id: string;
@@ -191,7 +192,7 @@ export default function GiftCardsPage() {
           {notice ? (
             <p
               role={notice.tone === "error" ? "alert" : "status"}
-              className={`mt-4 rounded-xl px-4 py-3 text-sm ${notice.tone === "error" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800"}`}
+              className={`mt-4 rounded-xl px-4 py-3 text-sm ${notice.tone === "error" ? "bg-red-50 text-red-700" : "bg-ink/[0.05] text-ink"}`}
             >
               {notice.text}
             </p>
@@ -213,7 +214,7 @@ export default function GiftCardsPage() {
                   <button
                     type="button"
                     onClick={() => copy(l.path)}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium ring-1 ring-inset ring-ink/[0.14] hover:bg-neutral-50"
+                    className="inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-sm font-medium ring-1 ring-inset ring-ink/[0.14] hover:bg-neutral-50"
                   >
                     {copied === l.path ? <Check className="h-4 w-4" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
                     {copied === l.path ? "Copied" : "Copy"}
@@ -234,7 +235,7 @@ export default function GiftCardsPage() {
             ) : null}
           </div>
           {cards === null ? (
-            <p className="mt-4 text-sm text-neutral-500">Loading…</p>
+            <SkeletonRows className="mt-4" />
           ) : cards.length ? (
             <ul className="mt-4 divide-y divide-hairline rounded-2xl bg-surface ring-1 ring-ink/[0.06]">
               {cards.map((c) => (

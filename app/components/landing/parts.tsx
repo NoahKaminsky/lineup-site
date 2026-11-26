@@ -1,5 +1,5 @@
 import React from "react";
-import Image from "next/image";
+import Image, { getImageProps } from "next/image";
 
 // While true, every plane that a generated photograph will replace shows a
 // small label naming the asset, so the layout can be reviewed before any
@@ -105,24 +105,17 @@ export function PlaceholderTag({ children, className = "" }: { children: React.R
 // from the left. Generated (scrollcraft/builds/lineup); a portrait crop is
 // art-directed for phones rather than squeezing the wide one.
 export function StudioPlate({ className = "", priority = false }: { className?: string; priority?: boolean }) {
+  // One <picture> so each device downloads only the crop it shows (two
+  // <Image priority> tags preloaded both, and the hidden one was wasted).
+  const common = { alt: "", sizes: "100vw", fetchPriority: priority ? ("high" as const) : undefined, loading: priority ? ("eager" as const) : ("lazy" as const) };
+  const { props: { srcSet: wideSrcSet } } = getImageProps({ ...common, src: "/images/landing/studio-wide.webp", width: 2400, height: 1350 });
+  const { props: tall } = getImageProps({ ...common, src: "/images/landing/studio-tall.webp", width: 1200, height: 2133 });
   return (
     <div aria-hidden="true" className={`absolute inset-0 bg-[#ecebe6] ${className}`}>
-      <Image
-        src="/images/landing/studio-wide.webp"
-        alt=""
-        fill
-        priority={priority}
-        sizes="100vw"
-        className="hidden object-cover object-[50%_78%] lg:block"
-      />
-      <Image
-        src="/images/landing/studio-tall.webp"
-        alt=""
-        fill
-        priority={priority}
-        sizes="100vw"
-        className="object-cover object-[50%_70%] lg:hidden"
-      />
+      <picture>
+        <source media="(min-width: 1024px)" srcSet={wideSrcSet} sizes="100vw" />
+        <img {...tall} className="absolute inset-0 h-full w-full object-cover object-[50%_70%] lg:object-[50%_78%]" />
+      </picture>
     </div>
   );
 }
@@ -137,13 +130,40 @@ export function Station({
   kind,
   className = "",
   style,
+  priority = false,
 }: {
   kind: StationKind;
   className?: string;
   style?: React.CSSProperties;
+  // The hero's stations are the largest thing on first paint: fetch them first.
+  priority?: boolean;
 }) {
+  // Through the image optimizer: AVIF/WebP at the size it shows (about 410px
+  // wide on phones and laptops, up to ~560px on big screens): ~12-28 KB each
+  // instead of 115-145 KB. (One local AVIF encode hung once on 25 Nov and
+  // never again; checked on the Vercel preview before keeping this.)
+  const { props } = getImageProps({
+    src: `/images/landing/station-${kind}-a.webp`,
+    alt: "",
+    width: 718,
+    height: 720,
+    sizes: "(min-width: 1536px) 560px, 420px",
+    quality: 75,
+  });
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={`/images/landing/station-${kind}-a.webp`} alt="" aria-hidden="true" draggable={false} className={className} style={style} />
+    <img
+      {...props}
+      width={undefined}
+      height={undefined}
+      style={style}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+      className={className}
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : undefined}
+      decoding="async"
+    />
   );
 }

@@ -79,7 +79,7 @@ export default function StudioTabs({
             }}
             href={studioHref(s.slug)}
             aria-current={isActive ? "page" : undefined}
-            className={`relative z-10 inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium sm:flex-1 sm:py-2.5 sm:text-sm transition-colors duration-200 ${
+            className={`relative z-10 inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium sm:min-h-0 sm:flex-1 sm:py-2.5 sm:text-sm transition-colors duration-200 ${
               isActive ? "text-ink" : "text-neutral-500 hover:text-ink"
             }`}
           >

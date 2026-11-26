@@ -1,6 +1,8 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { loginHref } from "@/app/lib/returnTo";
+import { isLikelyImageFile, photoReadFailureMessage } from "@/app/lib/imageFiles";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Scissors, Hand, Eye, Pencil, Palette, Leaf, Droplet } from "lucide-react";
 import { supabase } from "../../../lib/supabaseClient";
@@ -11,6 +13,7 @@ import { MomentCard, MomentOverlay, formatMomentDate, formatMomentPrice } from "
 import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
 import { roundForArea } from "@/app/lib/serviceArea";
 import { professionsForCategories } from "@/app/lib/professions";
+import { fieldClass } from "@/app/components/ui";
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
@@ -145,7 +148,7 @@ function NewRequestLoadingSkeleton() {
           <div className="mt-3 h-5 w-2/3 animate-pulse rounded-full bg-neutral-100" />
         </div>
 
-        <div className="mt-8 rounded-[28px] bg-white p-5 ring-1 ring-ink/[0.06]">
+        <div className="mt-8 rounded-3xl bg-white p-5 ring-1 ring-ink/[0.06]">
           <div className="space-y-5">
             {[1, 2, 3, 4].map((item) => (
               <div key={item}>
@@ -387,7 +390,7 @@ function LocationAutocomplete({
           onInputChange?.(e.target.value);
         }}
         placeholder={placeholder}
-        className="w-full rounded-xl bg-neutral-50 ring-1 ring-inset ring-ink/[0.06] px-4 py-3 text-sm text-neutral-900 outline-none transition focus:bg-white focus:ring-ink"
+        className={fieldClass}
       />
 
       {confirming ? (
@@ -504,12 +507,12 @@ function NewRequestPageContent() {
 
   useEffect(() => {
     async function loadUser() {
-      setMessage("Loading user...");
+      setMessage("Loading…");
 
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref(window.location.pathname + window.location.search));
         return;
       }
 
@@ -695,10 +698,10 @@ function NewRequestPageContent() {
   async function addFiles(rawFiles: File[]) {
     if (!rawFiles.length) return;
 
-    const imageFiles = rawFiles.filter((file) => file.type.startsWith("image/"));
+    const imageFiles = rawFiles.filter(isLikelyImageFile);
 
     if (!imageFiles.length) {
-      setMessage("Only image files can be uploaded.");
+      setMessage("Only photos can be added here.");
       return;
     }
 
@@ -713,9 +716,11 @@ function NewRequestPageContent() {
     try {
       setMessage("Compressing images...");
 
-      const processedPhotos = await Promise.all(
+      // HEIC is converted first so every browser can preview it. One bad
+      // file no longer throws away the good ones.
+      const results = await Promise.allSettled(
         filesToProcess.map(async (file) => {
-          const compressedFile = await compressImage(file);
+          const compressedFile = await compressImage(await normalizeImageFile(file));
           return {
             id: generatePhotoId(),
             file: compressedFile,
@@ -724,20 +729,24 @@ function NewRequestPageContent() {
           };
         })
       );
+      const processedPhotos = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+      const failed = results.length - processedPhotos.length;
 
       setReferencePhotos((prev) => [...prev, ...processedPhotos]);
 
-      if (imageFiles.length > availableSlots) {
+      if (failed > 0) {
+        setMessage(photoReadFailureMessage(failed));
+      } else if (imageFiles.length > availableSlots) {
         setMessage(
-          `Only the first ${availableSlots} image${
-            availableSlots === 1 ? "" : "s"
-          } were added. Max is ${MAX_REFERENCE_PHOTOS}.`
+          `Only the first ${availableSlots} photo${
+            availableSlots === 1 ? " was" : "s were"
+          } added. You can add up to ${MAX_REFERENCE_PHOTOS}.`
         );
       } else {
         setMessage("");
       }
-    } catch (error: any) {
-      setMessage(error?.message || "Could not process one or more images.");
+    } catch {
+      setMessage(photoReadFailureMessage(filesToProcess.length));
     }
   }
 
@@ -824,7 +833,7 @@ function NewRequestPageContent() {
     if (submitting) return;
 
     if (!userId) {
-      setMessage("No user found.");
+      setMessage("Please sign in to post a request.");
       return;
     }
 
@@ -1012,12 +1021,12 @@ function NewRequestPageContent() {
               past job); any other request aimed at one pro is a direct request. */}
           <div className="mb-8">
             <h1 className="text-neutral-900 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-              {isRebook ? (originalRequestId ? "Book again" : `Request ${rebookProName || "this professional"}`) : "Post a request"}
+              {isRebook ? (originalRequestId ? "Book again" : `Request ${rebookProName || "this pro"}`) : "Post a request"}
             </h1>
             <p className="mt-1.5 text-sm leading-6 text-neutral-500">
               {isRebook
-                ? `Send a new request directly to ${rebookProName || "this professional"}.`
-                : "Describe what you need and professionals will send you offers."}
+                ? `Send a new request directly to ${rebookProName || "this pro"}.`
+                : "Describe what you need and pros will send you offers."}
             </p>
           </div>
 
@@ -1025,7 +1034,7 @@ function NewRequestPageContent() {
           {isRebook && preferredProfessionalId ? (
             <div className="mb-6 rounded-2xl bg-neutral-100 p-4">
               <p className="text-sm font-semibold text-ink">
-                {originalRequestId ? "Rebooking" : "Direct request to"} {rebookProName || "this professional"}
+                {originalRequestId ? "Rebooking" : "Direct request to"} {rebookProName || "this pro"}
               </p>
               <p className="mt-0.5 text-sm text-ink">
                 This request will be sent directly to them first.
@@ -1034,7 +1043,7 @@ function NewRequestPageContent() {
           ) : null}
 
           {/* Form card */}
-          <div className="rounded-[28px] bg-white p-5 ring-1 ring-ink/[0.06] sm:p-8">
+          <div className="rounded-3xl bg-white p-5 ring-1 ring-ink/[0.06] sm:p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
 
               {requestingSpecificService ? (
@@ -1067,7 +1076,7 @@ function NewRequestPageContent() {
                 <label className={labelClass}>Service</label>
                 {isRebook && rebookProTypes && rebookProTypes.length > 0 ? (
                   <p className="mb-2 -mt-1 text-xs text-neutral-500">
-                    Only showing services {rebookProName || "this professional"} offers.
+                    Only showing services {rebookProName || "this pro"} offers.
                   </p>
                 ) : (
                   <p className="mb-2 -mt-1 text-xs text-neutral-500">
@@ -1317,7 +1326,7 @@ function NewRequestPageContent() {
                           type="date"
                           value={preferredDate}
                           onChange={(e) => setPreferredDate(e.target.value)}
-                          className="block h-12 w-full min-w-0 appearance-none rounded-xl bg-white px-4 text-left ring-1 ring-inset ring-ink/[0.08] focus:ring-ink text-sm text-neutral-900 outline-none transition [&::-webkit-date-and-time-value]:text-left"
+                          className={`${fieldClass} min-w-0 appearance-none text-left [&::-webkit-date-and-time-value]:text-left`}
                         />
                       </div>
                       <div className="min-w-0">
@@ -1330,7 +1339,7 @@ function NewRequestPageContent() {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-neutral-500">Professionals will include their available times in their offers.</p>
+                    <p className="text-sm text-neutral-500">Pros will include their available times in their offers.</p>
                   )}
                 </div>
               </div>
@@ -1449,7 +1458,7 @@ function NewRequestPageContent() {
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); handleRemovePhoto(photo.id); }}
-                                className="shrink-0 rounded-lg border border-neutral-200 px-2 py-1 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50"
+                                className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-neutral-200 px-3 text-xs font-medium text-neutral-600 transition hover:bg-neutral-50"
                               >
                                 Remove
                               </button>
@@ -1465,7 +1474,7 @@ function NewRequestPageContent() {
               </div>
 
               {/* Error message */}
-              {message && !message.startsWith("Submitting") && !message.startsWith("Compressing") ? (
+              {message && !message.startsWith("Submitting") && !message.startsWith("Compressing") && !message.startsWith("Loading") ? (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                   {message}
                 </div>

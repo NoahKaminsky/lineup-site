@@ -5,6 +5,8 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { buttonClass } from "@/app/components/ui";
+import { textareaClass } from "@/app/components/ui";
 
 export default function ReviewReply({
   reviewId,
@@ -57,14 +59,14 @@ export default function ReviewReply({
           autoFocus
           placeholder="Thanks for coming in! See you next time."
           aria-label="Your reply"
-          className="w-full rounded-2xl bg-neutral-50 px-4 py-3 text-sm leading-6 text-ink outline-none ring-1 ring-inset ring-ink/[0.08] focus:bg-white focus:ring-2 focus:ring-ink"
+          className={textareaClass}
         />
         {error ? <p className="mt-1 text-sm text-red-600">{error}</p> : null}
         <div className="mt-2 flex gap-2">
-          <button type="button" onClick={save} disabled={busy} className="rounded-full bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60">
+          <button type="button" onClick={save} disabled={busy} className={buttonClass("primary", "md", "min-h-11")}>
             {busy ? "Saving…" : "Post reply"}
           </button>
-          <button type="button" onClick={() => { setEditing(false); setText(reply || ""); }} className="rounded-full px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100">
+          <button type="button" onClick={() => { setEditing(false); setText(reply || ""); }} className="rounded-full px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100 min-h-11">
             Cancel
           </button>
         </div>
@@ -82,7 +84,7 @@ export default function ReviewReply({
         </div>
       ) : null}
       {canReply ? (
-        <button type="button" onClick={() => setEditing(true)} className="mt-3 text-sm font-medium text-ink underline decoration-ink/20 underline-offset-4 hover:decoration-ink">
+        <button type="button" onClick={() => setEditing(true)} className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-ink underline decoration-ink/20 underline-offset-4 hover:decoration-ink">
           {reply ? "Edit your reply" : "Reply"}
         </button>
       ) : null}

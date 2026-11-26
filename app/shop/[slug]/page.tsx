@@ -9,6 +9,7 @@ import { isStudioLive } from "@/app/lib/studios";
 import { getBookingWindows } from "@/app/lib/busyTimes";
 import ShopBooking from "./ShopBooking";
 import ShopMemberships from "./ShopMemberships";
+import { TITLE } from "@/app/components/ui";
 
 // A studio's public booking page: lineup-aesthetics.ca/shop/<slug>.
 // One link for the whole shop (for Instagram, Google, the shop window): the
@@ -178,7 +179,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
   return (
     <main className="min-h-screen bg-paper px-4 pb-20 pt-8 text-ink sm:px-6 sm:pt-12">
       <div className="mx-auto max-w-3xl">
-        <h1 className="text-[2rem] font-semibold leading-[1.1] tracking-[-0.04em] sm:text-[2.5rem]">{studio.name}</h1>
+        <h1 className={TITLE.customer}>{studio.name}</h1>
         {studio.tagline ? <p className="mt-3 max-w-xl text-[15px] leading-7 text-neutral-600">{studio.tagline}</p> : null}
         {isStudioLive(studio) && studio.stripe_account_id ? (
           <Link

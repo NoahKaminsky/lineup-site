@@ -57,7 +57,7 @@ export function useSection(name: string, q: Query, tick: number, sample: boolean
     let live = true;
     studioFetch<Data & { error?: string; needsPlan?: boolean }>(`${base}?section=${name}&${qs(q)}`).then((res) => {
       if (!live) return;
-      if (!res.ok) setState({ key, data: null, error: res.data.error || "Could not load this section.", needsPlan: res.data.needsPlan });
+      if (!res.ok || res.data.needsPlan) setState({ key, data: null, error: res.data.error || "Could not load this section.", needsPlan: res.data.needsPlan });
       else setState({ key, data: res.data, error: null });
     });
     return () => {
@@ -109,7 +109,7 @@ export function Card({ id, title, headline, sub, children, suggestion, onAction,
       <div className="flex items-start justify-between gap-3">
         <h2 className="text-sm font-semibold text-ink">{title}</h2>
         {csv && !state.loading && !state.error && !state.locked ? (
-          <a href={csv} download className="inline-flex shrink-0 items-center gap-1 text-xs text-neutral-500 hover:text-ink" aria-label={`Download ${title} as CSV`}>
+          <a href={csv} download className="inline-flex min-h-11 shrink-0 items-center gap-1 text-xs text-neutral-500 hover:text-ink sm:min-h-0" aria-label={`Download ${title} as CSV`}>
             <Download className="h-3.5 w-3.5" aria-hidden="true" /> CSV
           </a>
         ) : null}
@@ -736,7 +736,7 @@ export function AlertsList({ scope, tick }: { scope: "me" | "shop"; tick: number
 
 export function PdfButton({ scope, q }: { scope: "me" | "shop"; q: Query }) {
   return (
-    <a href={`/api/analytics/summary?scope=${scope}&${qs(q)}`} download className={`${buttonClass("secondary")} h-10`}>
+    <a href={`/api/analytics/summary?scope=${scope}&${qs(q)}`} download className={`${buttonClass("secondary")} h-11`}>
       <FileText className="h-4 w-4" aria-hidden="true" /> Summary PDF
     </a>
   );

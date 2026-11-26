@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Resend } from "resend";
+import { getMailer } from "@/app/lib/mailer";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
 import { getMembershipForProfile } from "@/app/lib/studios";
 import { shopNow } from "@/app/lib/bookingTime";
@@ -229,7 +229,7 @@ export async function POST(req: Request) {
       const modes: string[] = Array.isArray(me.service_modes) ? me.service_modes : [];
       // A shop address is fine to show; a home studio's isn't.
       const address = modes.includes("in_shop") ? me.formatted_address : null;
-      const resend = new Resend(process.env.RESEND_API_KEY);
+      const resend = getMailer();
 
       let sent = 0;
       let failed = 0;

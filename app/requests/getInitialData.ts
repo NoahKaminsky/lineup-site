@@ -16,6 +16,7 @@
 
 import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
 import { requestMatchesProfessional, formatProfessions } from "@/app/lib/professions";
+import { browsePreview, portfolioPreviewQuery, type BrowsePreview, type PreviewProfile } from "@/app/lib/browsePreview";
 
 type ServiceRequestRow = Record<string, unknown> & {
   id: string;
@@ -81,6 +82,8 @@ export type RequestsInitialData = {
   // here anyway so a cold load doesn't briefly show a "leave a review"
   // prompt on bookings the user already reviewed.
   reviewedBookingIds: string[];
+  // Pros only: the "this is you in Explore" card (see app/lib/browsePreview).
+  browsePreview?: BrowsePreview | null;
 };
 
 export type RequestsInitialResult =
@@ -100,7 +103,7 @@ export async function getInitialRequestsData(): Promise<RequestsInitialResult> {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role, professional_type, professional_types, service_modes, full_name, location_lat, location_lng")
+    .select("role, professional_type, professional_types, service_modes, full_name, avatar_url, banner_url, location_lat, location_lng")
     .eq("id", user.id)
     .single();
 
@@ -242,7 +245,7 @@ async function fetchProfessionalData(
   userId: string,
   role: string | null,
   userName: string | null,
-  proProfile: { professional_type?: string | null; professional_types?: string[] | null; service_modes?: string[] | null }
+  proProfile: { professional_type?: string | null; professional_types?: string[] | null; service_modes?: string[] | null } & PreviewProfile
 ): Promise<RequestsInitialData> {
   const [
     { data: allRequestsData, error: allRequestsError },
@@ -250,6 +253,7 @@ async function fetchProfessionalData(
     { data: offersData, error: offersError },
     { data: notificationsData, error: notificationsError },
     { data: professionalBookingsData, error: professionalBookingsError },
+    portfolioResult,
   ] = await Promise.all([
     supabase.from("service_requests").select("*").order("created_at", { ascending: false }),
     supabase
@@ -267,6 +271,7 @@ async function fetchProfessionalData(
       .in("status", ["confirmed", "completion_requested", "completed", "cancelled"])
       .order("booking_date", { ascending: true })
       .order("start_time", { ascending: true }),
+    portfolioPreviewQuery(supabase, userId),
   ]);
 
   if (allRequestsError) throw new Error(allRequestsError.message);
@@ -343,6 +348,7 @@ async function fetchProfessionalData(
     professionalUnreadRequestIds,
     offerCountsByRequest: {},
     unreadOfferCountsByRequest: {},
+    browsePreview: browsePreview(proProfile, portfolioResult.data || [], portfolioResult.count ?? 0),
     reviewedBookingIds: [],
   };
 }

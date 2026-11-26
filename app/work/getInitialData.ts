@@ -6,6 +6,7 @@
 // Supabase client, so it can't be called directly from here).
 
 import { createSupabaseServerClient, getVerifiedUser } from "@/app/lib/serverSupabase";
+import { loginHref } from "@/app/lib/returnTo";
 import { requestMatchesProfessional } from "@/app/lib/professions";
 
 type Profile = {
@@ -216,7 +217,7 @@ export async function getInitialWorkData(): Promise<WorkInitialResult> {
 
   const user = await getVerifiedUser(supabase);
 
-  if (!user) return { kind: "redirect", to: "/login" };
+  if (!user) return { kind: "redirect", to: loginHref("/work") };
 
   try {
     const { data: profileData, error: profileError } = await supabase

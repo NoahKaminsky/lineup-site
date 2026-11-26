@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
+import { loginHref } from "@/app/lib/returnTo";
+import { isSubscribedToSchedule, proPageRedirect } from "@/app/lib/proAccess";
 import { getCached, setCached } from "@/app/lib/pageCache";
 
 import { MapPin } from "lucide-react";
@@ -12,6 +14,8 @@ import { useHashTarget } from "@/app/lib/useHashTarget";
 import { BookingWindowControl, TimeOffControl } from "@/app/components/SchedulingControls";
 import WeeklyHoursEditor from "@/app/components/WeeklyHoursEditor";
 import { DEFAULT_SERVICE_RADIUS_KM, SERVICE_RADIUS_OPTIONS } from "@/app/lib/serviceArea";
+import { buttonClass } from "@/app/components/ui";
+import { fieldClass, textareaClass } from "@/app/components/ui";
 type Profile = {
   id: string;
   role: string | null;
@@ -28,11 +32,6 @@ type Profile = {
   subscription_plan?: string | null;
 };
 
-function isSubscribedToSchedule(profile: { subscription_status?: string | null; subscription_plan?: string | null }) {
-  const subscribed =
-    profile.subscription_status === "active" || profile.subscription_status === "trialing";
-  return subscribed && !!profile.subscription_plan && profile.subscription_plan !== "basic";
-}
 
 type AvailabilityWindow = {
   id?: string;
@@ -468,7 +467,7 @@ function LocationAutocomplete({
           onInputChange?.(e.target.value);
         }}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-ink"
+        className={fieldClass}
       />
 
       {confirming ? (
@@ -659,7 +658,7 @@ export default function ServicesPage() {
       const user = await getSignedInUser();
 
       if (!user) {
-        router.push("/login");
+        router.replace(loginHref("/services"));
         return;
       }
 
@@ -679,11 +678,9 @@ export default function ServicesPage() {
         return;
       }
 
-      const normalizedRole = String(profileData.role || "").toLowerCase().trim();
-      const isProfessional = !!normalizedRole && !normalizedRole.includes("customer");
-
-      if (!isProfessional) {
-        router.push("/account");
+      const away = proPageRedirect(profileData.role);
+      if (away) {
+        router.replace(away);
         return;
       }
 
@@ -874,7 +871,7 @@ export default function ServicesPage() {
       setMessage("Service added.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong adding the service.");
+      setMessage("We couldn't add this service. Please try again.");
     } finally {
       setServiceSaving(false);
     }
@@ -921,7 +918,7 @@ export default function ServicesPage() {
       setMessage(`${template.name} added.`);
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong adding that preset service.");
+      setMessage("We couldn't add that service. Please try again.");
     } finally {
       setServiceSaving(false);
     }
@@ -999,7 +996,7 @@ export default function ServicesPage() {
       setMessage("Service updated.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong updating this service.");
+      setMessage("We couldn't update this service. Please try again.");
     }
   }
 
@@ -1022,7 +1019,7 @@ export default function ServicesPage() {
       setMessage("Service deleted.");
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong deleting this service.");
+      setMessage("We couldn't delete this service. Please try again.");
     }
   }
 
@@ -1046,7 +1043,7 @@ export default function ServicesPage() {
       );
     } catch (error) {
       console.error(error);
-      setMessage("Something went wrong updating this service.");
+      setMessage("We couldn't update this service. Please try again.");
     }
   }
 
@@ -1279,7 +1276,7 @@ export default function ServicesPage() {
                 <li key={item.id} className="shrink-0">
                   <a
                     href={`#${item.id}`}
-                    className="block rounded-lg text-sm text-neutral-500 transition-colors hover:text-ink lg:px-3 lg:py-2 lg:hover:bg-surface"
+                    className="flex min-h-11 items-center rounded-lg text-sm text-neutral-500 transition-colors hover:text-ink lg:min-h-0 lg:px-3 lg:py-2 lg:hover:bg-surface"
                   >
                     {item.label}
                   </a>
@@ -1330,7 +1327,7 @@ export default function ServicesPage() {
                           type="button"
                           aria-expanded={editingServiceId === service.id}
                           onClick={() => setEditingServiceId(editingServiceId === service.id ? null : service.id)}
-                          className="rounded-full px-4 py-2 text-xs font-medium text-ink ring-1 ring-inset ring-ink/15 transition hover:ring-ink/30"
+                          className="rounded-full px-4 py-2 text-xs font-medium text-ink ring-1 ring-inset ring-ink/15 transition hover:ring-ink/30 min-h-11"
                         >
                           {editingServiceId === service.id ? "Done" : "Edit"}
                         </button>
@@ -1341,7 +1338,7 @@ export default function ServicesPage() {
                             service.is_bookable
                               ? "bg-ink text-white hover:bg-neutral-800"
                               : "border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
-                          }`}
+                          } min-h-11`}
                         >
                           {service.is_bookable ? "Bookable" : "Hidden"}
                         </button>
@@ -1349,7 +1346,7 @@ export default function ServicesPage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteService(service.id)}
-                          className="rounded-full px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                          className="rounded-full px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50 min-h-11"
                         >
                           Delete
                         </button>
@@ -1369,7 +1366,7 @@ export default function ServicesPage() {
                             onChange={(e) =>
                               updateServiceDraft(service.id, "service_name", e.target.value)
                             }
-                            className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
+                            className={fieldClass}
                           />
                         </div>
 
@@ -1382,7 +1379,7 @@ export default function ServicesPage() {
                             onChange={(e) =>
                               updateServiceDraft(service.id, "duration_minutes", e.target.value)
                             }
-                            className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
+                            className={fieldClass}
                           >
                             {[15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150, 180].map(
                               (minutes) => (
@@ -1407,7 +1404,7 @@ export default function ServicesPage() {
                               updateServiceDraft(service.id, "price", e.target.value)
                             }
                             placeholder="50"
-                            className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
+                            className={fieldClass}
                           />
                         </div>
 
@@ -1424,7 +1421,7 @@ export default function ServicesPage() {
                           }
                           placeholder="Optional short description shown on your public profile."
                           rows={3}
-                          className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm outline-none transition focus:border-ink"
+                          className={textareaClass}
                         />
                       </div>
 
@@ -1464,7 +1461,7 @@ export default function ServicesPage() {
                       template.exists
                         ? "cursor-not-allowed border border-neutral-200 bg-white text-neutral-400"
                         : "border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-100"
-                    }`}
+                    } min-h-11`}
                   >
                     {template.exists
                       ? `${template.name} added`
@@ -1484,7 +1481,7 @@ export default function ServicesPage() {
                 value={newServiceName}
                 onChange={(e) => setNewServiceName(e.target.value)}
                 placeholder="Haircut, Beard Trim, Gel Set, Brow Wax..."
-                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
+                className={fieldClass}
               />
             </div>
 
@@ -1495,7 +1492,7 @@ export default function ServicesPage() {
               <select
                 value={newServiceDuration}
                 onChange={(e) => setNewServiceDuration(Number(e.target.value))}
-                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
+                className={fieldClass}
               >
                 {[15, 20, 30, 45, 60, 75, 90, 105, 120, 135, 150, 180].map((minutes) => (
                   <option key={minutes} value={minutes}>
@@ -1516,7 +1513,7 @@ export default function ServicesPage() {
                 value={newServicePrice}
                 onChange={(e) => setNewServicePrice(e.target.value)}
                 placeholder="50"
-                className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
+                className={fieldClass}
               />
             </div>
 
@@ -1531,7 +1528,7 @@ export default function ServicesPage() {
               onChange={(e) => setNewServiceDescription(e.target.value)}
               placeholder="Optional short description shown on your public profile."
               rows={3}
-              className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
+              className={textareaClass}
             />
           </div>
 
@@ -1539,7 +1536,7 @@ export default function ServicesPage() {
             type="button"
             onClick={handleAddService}
             disabled={serviceSaving}
-            className="mt-5 w-full rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60 sm:w-auto sm:px-8"
+            className={buttonClass("primary", "md", "mt-5 w-full sm:w-auto")}
           >
             {serviceSaving ? "Adding…" : "Add service"}
           </button>
@@ -1566,7 +1563,7 @@ export default function ServicesPage() {
               </p>
               <Link
                 href="/subscription"
-                className="mt-4 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
+                className={buttonClass("primary", "md", "mt-4")}
               >
                 View plans
               </Link>
@@ -1640,7 +1637,7 @@ export default function ServicesPage() {
                 <select
                   value={defaultAppointmentDuration}
                   onChange={(e) => setDefaultAppointmentDuration(Number(e.target.value))}
-                  className="w-full rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 outline-none transition focus:border-ink"
+                  className={fieldClass}
                 >
                   {[30, 45, 60, 75, 90, 120].map((minutes) => (
                     <option key={minutes} value={minutes}>
@@ -1667,7 +1664,7 @@ export default function ServicesPage() {
               </p>
               <Link
                 href="/subscription"
-                className="mt-4 inline-flex rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-800"
+                className={buttonClass("primary", "md", "mt-4")}
               >
                 See plans
               </Link>
@@ -1697,7 +1694,7 @@ export default function ServicesPage() {
                     selected
                       ? "border-neutral-900 bg-neutral-900 text-white"
                       : "border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50"
-                  }`}
+                  } min-h-11`}
                 >
                   {formatModeLabel(mode)}
                 </button>
@@ -1790,7 +1787,7 @@ export default function ServicesPage() {
                       setHomeBaseSaved(cleared ? "" : homeBase.address.trim());
                       setMessage(cleared ? "Home base removed." : "Home base saved. It stays private.");
                     }}
-                    className="mt-3 inline-flex rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-50"
+                    className="mt-3 inline-flex rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:opacity-50 min-h-11 items-center"
                   >
                     {savingHomeBase ? "Saving…" : homeBase.address.trim() ? "Save home base" : "Remove home base"}
                   </button>
@@ -1866,7 +1863,7 @@ export default function ServicesPage() {
                     Map coordinates saved: {locationLat?.toFixed(5)}, {locationLng?.toFixed(5)}
                   </p>
                 ) : (
-                  <p className="mt-2 text-xs text-amber-700">
+                  <p className="mt-2 text-xs text-[#A30D25]">
                     Coordinates are missing, so map previews cannot show yet.
                   </p>
                 )}
@@ -1875,7 +1872,7 @@ export default function ServicesPage() {
                     href={businessMapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-3 inline-flex rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-900 transition hover:bg-neutral-100"
+                    className={buttonClass("secondary", "sm", "mt-3 min-h-11")}
                   >
                     Open in Maps
                   </a>
@@ -1883,11 +1880,11 @@ export default function ServicesPage() {
               </div>
             </div>
           ) : needsBusinessLocation ? (
-            <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            <p className="mt-3 rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-4 text-sm text-[#A30D25]">
               Enter a business address. Selecting a Google suggestion gives the best maps and distance accuracy.
             </p>
           ) : location.trim() ? (
-            <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            <p className="mt-3 rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-4 text-sm text-[#A30D25]">
               This address can be saved. Select a Google suggestion if you want map previews and distance accuracy.
             </p>
           ) : (
@@ -1944,7 +1941,7 @@ export default function ServicesPage() {
                     selected
                       ? "border-neutral-900 bg-neutral-900 text-white"
                       : "border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-50"
-                  }`}
+                  } min-h-11`}
                 >
                   {km === null ? "Anywhere" : `${km} km`}
                 </button>
@@ -1973,7 +1970,7 @@ export default function ServicesPage() {
                 type="button"
                 onClick={handleSaveSettings}
                 disabled={saving || justSaved}
-                className="shrink-0 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
+                className={buttonClass("primary", "md", "shrink-0")}
               >
                 {saving ? "Saving…" : justSaved ? "Saved" : "Save changes"}
               </button>
