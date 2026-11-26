@@ -74,7 +74,7 @@ export default function ArchivePage() {
 
       if (cancelled) return;
       if (error) {
-        setMessage("We couldn't load your archive. Please try again.");
+        setMessage("We couldn't load your archive. Try again.");
         setLoading(false);
         return;
       }

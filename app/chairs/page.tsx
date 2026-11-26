@@ -165,7 +165,7 @@ export default function ChairsPage() {
         <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Chair openings</h1>
         <p className="mt-3 max-w-xl text-base leading-7 text-neutral-600">
           Shops and studios on LineUp looking for pros in your trade
-          {professions.length ? ` (${professions.join(", ")})` : ""}. Only professionals in the same trade can see these.
+          {professions.length ? ` (${professions.join(", ")})` : ""}. Only pros in the same trade see these.
         </p>
 
         {error ? (

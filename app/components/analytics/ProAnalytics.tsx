@@ -865,7 +865,7 @@ export default function ProAnalytics() {
         <div className={`${panelClass} p-6`}>
           <p className="text-sm font-semibold text-ink">Your analytics start with your first booking</p>
           <p className="mt-1 max-w-xl text-sm leading-6 text-neutral-600">
-            Once clients book, this page shows your revenue and how it&apos;s changing, the next 30 days, which regulars are due back, the hours that sit empty and where your bookings come from, each with one thing to do about it.
+            Once clients book, you&apos;ll see your revenue, your best services, the next 30 days, who&apos;s due back and your empty hours, each with one thing to do about it.
           </p>
           <Link href="/calendar" className={`${buttonClass("primary")} mt-4`}>
             Open your calendar

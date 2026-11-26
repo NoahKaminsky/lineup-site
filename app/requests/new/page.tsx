@@ -1214,7 +1214,7 @@ function NewRequestPageContent() {
                 <div className="space-y-2">
                   <LocationAutocomplete
                     label="Your general area"
-                    placeholder="Neighbourhood or city, e.g. Osborne Village"
+                    placeholder="Neighbourhood or city, like Osborne Village"
                     value={areaInput}
                     onInputChange={(value) => {
                       setAreaInput(value);

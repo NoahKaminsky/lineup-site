@@ -4,7 +4,9 @@ Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. Audit and fixes
 
 ## Resume here
 
-> **Step 8 done** (26 Nov, branch `site-audit`): shop profiles like a business listing (cover, logo, photos, about, hours, contact, amenities) with **shop reviews**, a rebuilt public shop page, earnings over time against the period before (by service, weekday, tips, how clients paid, CSV), and a Services card in pro and shop Analytics. See "Step 8" at the end. Migration `20261127_shop_profile_reviews.sql`: applied to LineUp Test, then live (26 Nov, Noah OK'd).
+> **Step 9 done** (26 Nov, branch `site-audit`): a site-wide polish and wording pass. Every page was screenshotted as every role at 390 and 1280 (`SMOKE_SHOTS=dir npm run test:smoke -- e2e/smoke.spec.ts`) and gone through by eye. See "Step 9" at the end.
+>
+> **Step 8 done** (26 Nov, merged as PR #14): shop profiles like a business listing (cover, logo, photos, about, hours, contact, amenities) with **shop reviews**, a rebuilt public shop page, earnings over time against the period before (by service, weekday, tips, how clients paid, CSV), and a Services card in pro and shop Analytics. See "Step 8" at the end. Migration `20261127_shop_profile_reviews.sql`: applied to LineUp Test, then live (26 Nov, Noah OK'd).
 >
 > **Step 7 done** (26 Nov, merged as PR #13): first-run guidance for clients, pros and shops (tours, getting-started checklists, a tip on every main page, a Help page), Geist restored site-wide, the profile page's start-up cut from ~625 ms to ~110 ms, no title jump on the landing page. See "Step 7" at the end. Migration `20261126_guides_seen.sql` is applied to LineUp Test and live.
 >
@@ -451,3 +453,39 @@ Production build on LineUp Test, fresh seed before each spec.
 | Migration `20261127_shop_profile_reviews.sql` | ✅ test, then live; RLS on both new tables, read-only policies; no new security advisor findings |
 
 Not tested: photo upload from a real phone camera (tested with a PNG from the repo; the same signed-upload path), and the Instagram/Call/Directions links opening the apps.
+
+
+## Step 9: polish and plain wording (26 Nov)
+
+Asked: more UI polish everywhere so it feels premium and better than Squire, and simpler wording throughout.
+
+How: the smoke test now saves a full-page screenshot of every page it opens (`SMOKE_SHOTS=dir`), so all 75 pages × 2 sizes were reviewed by eye as each TEST user, plus a scan of every on-screen sentence for stiff words and length.
+
+- ✅ **Plain voice everywhere**: "Please try again" → "Try again" (73 places, server messages too); "You must be signed in to…" → "Sign in to…"; no "e.g.", "successfully" or exclamation marks; "professional" → "pro" wherever it still showed on screen (≈20 places: request pages, profile, account, onboarding, respond, chairs). The credential "Licensed / certified professional" and the CRA form names keep the word on purpose.
+- ✅ **Shorter sentences** where people read while setting up or stuck: verification (3), password reset, push notifications (2), Plans, the monthly request limit, the Services calendar note, the Analytics, Earnings and shop intros, the import intro, the empty Analytics pages.
+- ✅ **Sentence case**: all-caps labels and badges removed (offer cards, request editing, plan badges, verification and status chips). Calendar weekday letters and the printed gift card keep theirs.
+- ✅ **Kinder statuses**: offer "pending" → "Waiting for you", "Outbid" → "Not chosen" (client and pro side), verification "approved/rejected" → "Approved/Not approved", raw lowercase statuses capitalised.
+- ✅ **Find a shop**: each card now shows the shop's cover (or first photo), logo and rating.
+- ✅ **Earnings**: Statement (PDF) and Spreadsheet (CSV) under one Download menu, so the actions sit on one tidy row.
+- ✅ **Unsubscribe**: was a full black page (the brief rules out dark full sections); now light like the rest of the site, in plain words, and it says booking emails keep coming (it only turns off marketing, checked in the API).
+- ✅ **Fixed**: the empty shop Analytics page linked to `/studio/schedule` (a 404); now `/studio/calendar`.
+- ✅ **Email confirmation always ends somewhere clear** (Noah: "it doesn't take you back to sign in"). The "Email confirmed" screen existed but only showed when the link came back through `/auth/callback`. When the address a link was made for isn't on Supabase's allowed redirect list (www vs bare domain, a preview), Supabase sends people to the Site URL (the home page) with the code, so they landed on the home page with no sign of whether it worked. Now a code on the home or login page finishes confirming and shows "Email confirmed. Sign in to keep going." (or goes on to onboarding when signed in); an expired or used link, in the query or after the #, goes to the login page with a plain message and **Send a new link**; signing in before confirming says so with the same button, and a wrong password gets a plain message. *e2e/email-confirm.spec.ts (8, 1280 + 390), tests/money/authLinks.test.ts (5).* Worth checking too (Noah, Supabase → Authentication → URL Configuration): Site URL `https://lineup-aesthetics.ca`, and Redirect URLs include `https://lineup-aesthetics.ca/**` and `https://www.lineup-aesthetics.ca/**`, so links come straight back without the fallback.
+
+- ✅ **Shops only see requests for a shop visit**: Studio > Requests (and Today's "Requests near you") lists only requests where the client chose "Their shop" (`in_shop`). Mobile ("at my place") and home-studio requests stay with the pros and can't be passed. *tests/shop/shopRequests.test.ts.*
+- ✅ **Passing a request to a pro** (Studio > Requests > Pass to…) checked end to end and made hard to miss on the pro's side: the pro gets the in-app notification plus a **push**; on their Home the request goes to the top marked **"Passed by Sam"**, and still shows even if it's outside their usual area or they'd dismissed it; the request page says **"Sam at <shop> passed this to you"**. New `GET /api/studio/requests/passed` returns only the caller's own passes (the passes table stays server-only). *e2e/shop-desk-flow.spec.ts now follows it to the pro: notification, "Passed by", the note.*
+
+### Tests, Step 9
+Production build on LineUp Test, fresh seed before each spec, after the last change.
+
+| Check | Result |
+|---|---|
+| smoke (every page as each TEST user, 1280 + 390) | ✅ 150/150 |
+| email-confirm (new): expired link in query and after #, code on the home page → Email confirmed, unconfirmed sign-in | ✅ 8/8 |
+| shop-desk-flow (now follows a passed request to the pro: notification, "Passed by", note) | ✅ 5/5 |
+| guides, reports, shop-profile, customer, pro, studio, admin, guards | ✅ 6, 4, 3, 18, 24, 22, 2, 12 |
+| customer-flow, pro-flow, studio-flow, admin-flow, more-flows, invites-flow, shop-booking-flow, payment-guards | ✅ 7, 6, 5, 7, 6, 4, 3, 2 (paid parts skip without `stripe listen`; no payment code changed) |
+| `npm test` | ✅ 292/292 |
+| `npx tsc --noEmit`, `npm run build` | ✅ |
+| lint (app) | ✅ 50 errors, the baseline |
+
+One earlier run had seeds fail and three specs time out for about ten minutes; the test database was slow, not the code (seeding worked again moments later and the same specs passed on rerun).

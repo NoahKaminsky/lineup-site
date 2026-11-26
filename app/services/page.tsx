@@ -874,7 +874,7 @@ export default function ServicesPage() {
       setMessage("Service added.");
     } catch (error) {
       console.error(error);
-      setMessage("We couldn't add this service. Please try again.");
+      setMessage("We couldn't add this service. Try again.");
     } finally {
       setServiceSaving(false);
     }
@@ -921,7 +921,7 @@ export default function ServicesPage() {
       setMessage(`${template.name} added.`);
     } catch (error) {
       console.error(error);
-      setMessage("We couldn't add that service. Please try again.");
+      setMessage("We couldn't add that service. Try again.");
     } finally {
       setServiceSaving(false);
     }
@@ -999,7 +999,7 @@ export default function ServicesPage() {
       setMessage("Service updated.");
     } catch (error) {
       console.error(error);
-      setMessage("We couldn't update this service. Please try again.");
+      setMessage("We couldn't update this service. Try again.");
     }
   }
 
@@ -1022,7 +1022,7 @@ export default function ServicesPage() {
       setMessage("Service deleted.");
     } catch (error) {
       console.error(error);
-      setMessage("We couldn't delete this service. Please try again.");
+      setMessage("We couldn't delete this service. Try again.");
     }
   }
 
@@ -1046,7 +1046,7 @@ export default function ServicesPage() {
       );
     } catch (error) {
       console.error(error);
-      setMessage("We couldn't update this service. Please try again.");
+      setMessage("We couldn't update this service. Try again.");
     }
   }
 
@@ -1662,9 +1662,8 @@ export default function ServicesPage() {
                 Let clients book you instantly
               </h2>
               <p className="mt-2 text-sm leading-6 text-neutral-500">
-                Any paid plan unlocks a real booking calendar on your profile — clients pick an
-                open time and pay right there, no back-and-forth. It turns on automatically the
-                moment you subscribe.
+                On any paid plan, clients pick an open time on your profile and pay right there.
+                It turns on as soon as you subscribe.
               </p>
               <Link
                 href="/subscription"

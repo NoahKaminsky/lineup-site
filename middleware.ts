@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { strayAuthLanding } from "@/app/lib/authLinks";
 
 // Refreshes the Supabase session cookie on each page request. Without this, a
 // cookie-based session can go stale between requests since nothing else
@@ -10,6 +11,11 @@ import { NextResponse, type NextRequest } from "next/server";
 // it first if it has expired), so a page load no longer waits on a round
 // trip to the Supabase Auth server before anything else can start.
 export async function middleware(request: NextRequest) {
+  // A confirmation link that landed on the home or login page (see
+  // app/lib/authLinks.ts): finish confirming instead of dropping the code.
+  const stray = strayAuthLanding(request.nextUrl);
+  if (stray) return NextResponse.redirect(new URL(stray, request.url));
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(

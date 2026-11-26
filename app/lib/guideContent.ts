@@ -130,7 +130,7 @@ export const TIPS = {
   studioRequests: {
     id: "tip:studio-requests",
     title: "Requests near the shop",
-    body: "Clients nearby post what they need. Pass each request to the right pro on your team.",
+    body: "Clients nearby who want to come in to a shop. Pass each request to the right pro on your team.",
   },
   studioTeam: {
     id: "tip:studio-team",

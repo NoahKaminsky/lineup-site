@@ -50,7 +50,7 @@ export default function AnalyticsPage() {
       <div className="mx-auto max-w-5xl py-10">
         <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Analytics</h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-500">
-          Where your money comes from, which clients are slipping away, where your calendar loses money, and what to do about it this week. Payouts, fees and statements stay on Earnings.
+          How your business is doing: your best services, who&apos;s due back, your empty hours, and one thing to do about each. Money in and out is on Earnings.
           {onShop ? (
             <>
               {" "}

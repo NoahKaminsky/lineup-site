@@ -107,7 +107,7 @@ export async function GET(request: Request) {
   // often because an email scanner opened it first). For a reset, the reset
   // page shows a clear explanation; browsers carry any #fragment (e.g. tokens
   // from an implicit-flow link) across this redirect.
-  return NextResponse.redirect(
-    new URL(isRecovery ? "/reset-password" : "/login", requestUrl.origin)
-  );
+  if (isRecovery) return NextResponse.redirect(new URL("/reset-password", requestUrl.origin));
+  const expired = requestUrl.searchParams.get("error_code") || requestUrl.searchParams.get("error");
+  return NextResponse.redirect(new URL(expired ? "/login?link=expired" : "/login", requestUrl.origin));
 }

@@ -99,7 +99,7 @@ export default function ImportView({ data, setNotice }: SectionProps) {
       fileNames: input.fileNames,
       rowCount: input.rows.length,
     }).catch((error: Error & { status?: number }) => {
-      throw new Error(error.status === 402 ? error.message : "We couldn't start the import. Nothing was added. Please try again.");
+      throw new Error(error.status === 402 ? error.message : "We couldn't start the import. Nothing was added. Try again.");
     });
 
     const summary: SaveSummary = {
@@ -149,7 +149,7 @@ export default function ImportView({ data, setNotice }: SectionProps) {
       await call({ action: "save-rollback", batchId }).catch(() => undefined);
       void load();
       throw new Error(
-        "The import stopped partway through, so we took the whole import back out. Nothing was added to anyone's calendar. Please try again."
+        "The import stopped partway through, so we took the whole import back out. Nothing was added to anyone's calendar. Try again."
       );
     }
     void load();

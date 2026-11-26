@@ -29,7 +29,7 @@ function SaveCardForm({ onSaved, noShowFeeCents }: { onSaved: (setupIntentId: st
     const result = await stripe.confirmSetup({ elements, redirect: "if_required" });
 
     if (result.error || !result.setupIntent) {
-      setMessage(result.error?.message || "Your card couldn't be saved. Please try again.");
+      setMessage(result.error?.message || "Your card couldn't be saved. Try again.");
       setSaving(false);
       return;
     }

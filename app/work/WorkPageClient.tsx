@@ -321,7 +321,7 @@ function statusLabel(status: string | null) {
   if (status === "open") return "Open";
   if (status === "pending") return "Pending";
   if (status === "declined") return "Declined";
-  if (status === "not_selected") return "Outbid";
+  if (status === "not_selected") return "Not chosen";
   return status || "Unknown";
 }
 
@@ -433,7 +433,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
 
     if (!res || !res.ok) {
       const body = res ? await res.json().catch(() => null) : null;
-      setWithdrawError(body?.error || "Could not withdraw your offer. Please try again.");
+      setWithdrawError(body?.error || "Could not withdraw your offer. Try again.");
       setWithdrawState(null);
       return;
     }
@@ -1109,7 +1109,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       }
     } catch (error) {
       console.error(error);
-      setMessage("We couldn't update this booking. Please try again.");
+      setMessage("We couldn't update this booking. Try again.");
     } finally {
       setActionLoadingId(null);
     }
@@ -1144,7 +1144,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
       setReviewItem(null);
       setReviewRating(0);
       setReviewComment("");
-      setMessage("Service completed. Thanks for your review!");
+      setMessage("Done. Thanks for your review.");
     } catch (error) {
       console.error(error);
       setMessage("Couldn't submit your review — please try again.");
@@ -1691,7 +1691,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
             How was {reviewItem.professionalName?.split(" ")[0] ?? "your pro"}?
           </h2>
           <p className="mt-2 text-sm text-neutral-500">
-            Your review helps other customers and supports the professional.
+            Your review helps other clients and supports your pro.
           </p>
 
           <div className="mt-6 flex items-center gap-2">

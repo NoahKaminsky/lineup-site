@@ -32,7 +32,7 @@ export default function CheckoutForm({
     });
 
     if (result.error) {
-      setMessage(result.error.message || "Payment failed. Please try again.");
+      setMessage(result.error.message || "Payment failed. Try again.");
       setLoading(false);
       return;
     }

@@ -278,6 +278,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (error) {
     console.error("POST /api/studio/clients failed:", error);
-    return NextResponse.json({ error: errorMessage(error, "We couldn't save that. Please try again.") }, { status: 500 });
+    return NextResponse.json({ error: errorMessage(error, "We couldn't save that. Try again.") }, { status: 500 });
   }
 }

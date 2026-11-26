@@ -1,5 +1,6 @@
 "use client";
 
+import { studioFetch } from "@/app/studio/studioApi";
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import BrowseCardNudge from "@/app/components/BrowseCardNudge";
@@ -530,7 +531,7 @@ function UberLocationCard({
           </div>
 
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            <p className="text-xs font-semibold text-neutral-500">
               Location
             </p>
             <p className="mt-1 truncate text-sm font-semibold text-neutral-900">
@@ -1396,10 +1397,27 @@ if (profileError || !profile) {
   };
   const myServiceArea = useMyServiceArea(userId, isProfessional);
 
+  // Requests the pro's shop passed to them ("Passed by Sam"), first and never
+  // hidden by the service-area filter: the shop chose them for it.
+  const [passedTo, setPassedTo] = useState<Record<string, { by: string; shop: string }>>({});
+  useEffect(() => {
+    if (!isProfessional || !userId) return;
+    let cancelled = false;
+    studioFetch<{ passed?: { requestId: string; by: string; shop: string }[] }>("/api/studio/requests/passed").then((res) => {
+      if (cancelled || !res.ok) return;
+      setPassedTo(Object.fromEntries((res.data.passed || []).map((x) => [x.requestId, { by: x.by, shop: x.shop }])));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isProfessional, userId]);
+
   const professionalOpenRequests = useMemo(
     () =>
-      requests.filter((request) => {
+      requests
+        .filter((request) => {
         if (request.status !== "open") return false;
+        if (passedTo[request.id]) return true;
         if (dismissedRequestIds.has(request.id)) return false;
         if (request.is_direct_rebook) {
           return request.preferred_professional_id === userId;
@@ -1407,8 +1425,9 @@ if (profileError || !profile) {
         // Only requests inside this pro's service area.
         if (myServiceArea && !withinServiceArea(myServiceArea, request)) return false;
         return true;
-      }),
-    [requests, userId, dismissedRequestIds, myServiceArea]
+      })
+        .sort((a, b) => Number(!!passedTo[b.id]) - Number(!!passedTo[a.id])),
+    [requests, userId, dismissedRequestIds, myServiceArea, passedTo]
   );
 
   // "N pros have bid on this already" — only for requests this pro hasn't
@@ -2005,7 +2024,7 @@ return (
                       : `Confirm ${pendingCompletionBookings.length} completed services`}
                   </p>
                   <p className="mt-1 max-w-md text-sm text-white/70">
-                    Your appointment is over. Confirming it wraps up the booking and pays your professional, then
+                    Your appointment is over. Confirming it wraps up the booking and pays your pro, then
                     you can leave a review.
                   </p>
                 </div>
@@ -2066,7 +2085,7 @@ return (
               </div>
               <h2 className="mt-4 text-xl font-semibold tracking-tight text-neutral-900">You&apos;re all set up</h2>
               <p className="mt-2 text-sm text-neutral-500">
-                Post your first request and professionals in your area will send you offers to compare.
+                Post your first request and pros near you will send you offers to compare.
               </p>
               <Link
                 href="/requests/new"
@@ -2338,7 +2357,7 @@ return (
                                 <Photo
                                   src={booking.professional_avatar_url}
                                   width={64}
-                                  alt={booking.professional_name || "Professional"}
+                                  alt={booking.professional_name || "your pro"}
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
@@ -2372,7 +2391,7 @@ return (
                               </p>
 
                               <p className="mt-2 text-neutral-600">
-                                With {booking.professional_name || "Professional"}
+                                With {booking.professional_name || "your pro"}
                               </p>
 
                               <UberLocationCard
@@ -2436,7 +2455,7 @@ return (
                         </h3>
                         <p className="mt-1 text-sm text-neutral-500">
                           {formatBookingDate(booking.booking_date)} • With{" "}
-                          {booking.professional_name || "Professional"}
+                          {booking.professional_name || "your pro"}
                         </p>
                       </Link>
                     ))}
@@ -2687,7 +2706,11 @@ return (
                                   {request.original_request_id ? "Rebook" : "Direct request"}
                                 </span>
                               ) : null}
-                              {isNew ? (
+                              {passedTo[request.id] ? (
+                                <span className="shrink-0 rounded-full bg-ink px-2 py-0.5 text-[11px] font-medium text-white">
+                                  Passed by {passedTo[request.id].by}
+                                </span>
+                              ) : isNew ? (
                                 <span className="animate-notification-pop shrink-0 rounded-full bg-ink px-2 py-0.5 text-[11px] font-medium text-white">
                                   New
                                 </span>

@@ -252,7 +252,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         id: "shop-requests",
         title: "Pass requests to your pros",
         steps: [
-          "Requests shows what clients nearby are looking for.",
+          "Requests shows clients nearby who want to come in to a shop.",
           "Pass each one to the pro who's the best fit.",
         ],
         link: { label: "Open Requests", href: "/studio/requests" },

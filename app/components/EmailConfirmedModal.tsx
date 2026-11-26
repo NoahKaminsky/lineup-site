@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DrawnCheck, MaskLine } from "@/app/components/moments/Moments";
 import { buttonClass } from "@/app/components/ui";
+import { hashSaysExpired } from "@/app/lib/authLinks";
 
 // Shown once, right after someone clicks the confirmation link in their
 // signup email. /auth/callback leaves a short-lived `lu_email_confirmed`
@@ -27,6 +28,12 @@ export default function EmailConfirmedModal() {
   const [state, setState] = useState<"signedIn" | "signin" | null>(null);
 
   useEffect(() => {
+    // Supabase puts "expired / already used" after the # on whatever page it
+    // sent the person to: take them to the login page that explains it.
+    if (hashSaysExpired(window.location.hash) && window.location.pathname !== "/login") {
+      window.location.replace("/login?link=expired");
+      return;
+    }
     const value = readAndClearCookie();
     if (!value) return;
     // Let the first-visit splash screen (~700ms) clear before the moment plays.

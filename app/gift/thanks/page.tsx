@@ -40,7 +40,7 @@ export default async function GiftThanksPage({ searchParams }: { searchParams: P
     <PublicLayout>
       <PageIntro
         eyebrow="Gift card"
-        title={card?.status === "active" ? "Thank you. It's on its way." : card ? "Thanks! We're finishing up." : "Gift cards"}
+        title={card?.status === "active" ? "Thank you. It's on its way." : card ? "Thanks. We're finishing up." : "Gift cards"}
         subtitle={
           card?.status === "active"
             ? sentTo

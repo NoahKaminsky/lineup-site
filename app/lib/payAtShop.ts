@@ -152,7 +152,7 @@ export async function createPayAtShopBooking(
     return { ok: false, status: 403, error: "Not your booking." };
   }
   if (setupIntent.status !== "succeeded") {
-    return { ok: false, status: 409, error: "Your card wasn't saved. Please try again." };
+    return { ok: false, status: 409, error: "Your card wasn't saved. Try again." };
   }
 
   if (

@@ -1,5 +1,6 @@
 "use client";
 
+import PassedNote from "@/app/components/PassedNote";
 import { OFFER_PRICE_HELP, offerPriceCents } from "@/app/lib/offerPrice";
 import TipStep, { formatTipMoney } from "@/app/components/payments/TipStep";
 import { loginHref } from "@/app/lib/returnTo";
@@ -165,7 +166,7 @@ function RequestOfferCheckoutForm({
     });
 
     if (result.error) {
-      setPaymentError(result.error.message || "Payment failed. Please try again.");
+      setPaymentError(result.error.message || "Payment failed. Try again.");
       setPaymentLoading(false);
       return;
     }
@@ -455,13 +456,15 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
   function getStatusLabel(status: string) {
     if (status === "open") return "Open";
+    if (status === "pending") return "Waiting for you";
     if (status === "accepted") return "Accepted";
     if (status === "payment_pending") return "Payment pending";
     if (status === "completion_requested") return "Completion requested";
     if (status === "completed") return "Completed";
     if (status === "declined") return "Declined";
-    if (status === "not_selected") return "Outbid";
-    return status.replaceAll("_", " ");
+    if (status === "not_selected") return "Not chosen";
+    const plain = status.replaceAll("_", " ");
+    return plain.charAt(0).toUpperCase() + plain.slice(1);
   }
 
   function formatProfessionalType(value: string | null) {
@@ -1254,7 +1257,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
     if (!res || !res.ok) {
       const body = res ? await res.json().catch(() => null) : null;
-      setMessage(body?.error || "Could not withdraw your offer. Please try again.");
+      setMessage(body?.error || "Could not withdraw your offer. Try again.");
       setWithdrawingOfferId(null);
       return;
     }
@@ -1329,7 +1332,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
     const body = res ? await res.json().catch(() => null) : null;
 
     if (!res || !res.ok) {
-      setRequestEditError(body?.error || "Could not save your changes. Please try again.");
+      setRequestEditError(body?.error || "Could not save your changes. Try again.");
       setSavingRequestEdit(false);
       return;
     }
@@ -1568,7 +1571,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setMessage("You must be logged in to leave a review.");
+      setMessage("Sign in to leave a review.");
       setSubmittingReview(false);
       return;
     }
@@ -1839,7 +1842,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               {editingRequest && canManageRequest ? (
                 <form onSubmit={handleSaveRequestEdit} className="mt-5 max-w-2xl space-y-4" aria-busy={savingRequestEdit}>
                   <div>
-                    <label htmlFor="edit-title" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Title</label>
+                    <label htmlFor="edit-title" className="mb-1.5 block text-xs font-semibold text-neutral-500">Title</label>
                     <input
                       id="edit-title"
                       value={editDraft.title}
@@ -1849,7 +1852,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     />
                   </div>
                   <div>
-                    <label htmlFor="edit-description" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Details</label>
+                    <label htmlFor="edit-description" className="mb-1.5 block text-xs font-semibold text-neutral-500">Details</label>
                     <textarea
                       id="edit-description"
                       rows={4}
@@ -1860,7 +1863,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     />
                   </div>
                   <div>
-                    <label htmlFor="edit-budget" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Budget <span className="font-normal normal-case tracking-normal text-neutral-400">(optional)</span></label>
+                    <label htmlFor="edit-budget" className="mb-1.5 block text-xs font-semibold text-neutral-500">Budget <span className="font-normal normal-case tracking-normal text-neutral-400">(optional)</span></label>
                     <input
                       id="edit-budget"
                       value={editDraft.budget}
@@ -1871,7 +1874,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     />
                   </div>
                   <div>
-                    <label htmlFor="edit-timing" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">When</label>
+                    <label htmlFor="edit-timing" className="mb-1.5 block text-xs font-semibold text-neutral-500">When</label>
                     <select
                       id="edit-timing"
                       value={editDraft.timing_flexibility}
@@ -1950,6 +1953,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 </form>
               ) : (
                 <>
+              {request?.id ? <PassedNote requestId={request.id} /> : null}
               <h1 key={`title-${requestEditedAt}`} className="mt-5 max-w-4xl text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
                 {requestEditedAt ? <MaskLine>{request.title}</MaskLine> : request.title}
               </h1>
@@ -2162,7 +2166,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-[13px] font-medium text-neutral-500">
-                        Accepted professional
+                        Your pro
                       </p>
                       <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                         This request has a winner
@@ -2348,12 +2352,12 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                               <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
                                 <div className="flex flex-wrap gap-2 sm:justify-end">
                                   {isCustomer && unreadOfferIds.includes(offer.id) ? (
-                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isAccepted ? "bg-white text-black" : "bg-ink text-white"}`}>
+                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${isAccepted ? "bg-white text-black" : "bg-ink text-white"}`}>
                                       New
                                     </span>
                                   ) : null}
 
-                                  <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isAccepted ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-700"}`}>
+                                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${isAccepted ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-700"}`}>
                                     {getStatusLabel(offer.status)}
                                   </span>
                                 </div>
@@ -2366,7 +2370,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                             {offerTiming ? (
                               <div className={`mt-5 rounded-2xl border p-4 ${isAccepted ? "border-white/10 bg-white/10" : "border-neutral-200 bg-neutral-50"}`}>
-                                <p className={`text-xs font-semibold uppercase tracking-wide ${isAccepted ? "text-white/55" : "text-neutral-500"}`}>
+                                <p className={`text-xs font-semibold ${isAccepted ? "text-white/55" : "text-neutral-500"}`}>
                                   {request.timing_flexibility === "anytime"
                                     ? "Suggested time"
                                     : offer.matches_requested_time
@@ -2381,7 +2385,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                             {usesProLocation && offer.professional_formatted_address ? (
                               <div className={`mt-5 rounded-2xl border p-4 ${isAccepted ? "border-white/10 bg-white/10" : "border-neutral-200 bg-neutral-50"}`}>
-                                <p className={`text-xs font-semibold uppercase tracking-wide ${isAccepted ? "text-white/55" : "text-neutral-500"}`}>
+                                <p className={`text-xs font-semibold ${isAccepted ? "text-white/55" : "text-neutral-500"}`}>
                                   Their location
                                 </p>
                                 <p className={`mt-2 text-sm font-semibold ${isAccepted ? "text-white" : "text-neutral-900"}`}>
@@ -2398,7 +2402,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                             {offer.status === "declined" && offer.customer_response_message ? (
                               <div className="mt-4 rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-4">
-                                <p className="text-xs font-medium uppercase tracking-wide text-[#A30D25]">
+                                <p className="text-xs font-medium text-[#A30D25]">
                                   Customer feedback
                                 </p>
                                 <p className="mt-2 text-sm leading-6 text-ink">
@@ -2604,7 +2608,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               {isCustomer ? (
                 <section className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
                   <p className="text-[13px] font-medium text-neutral-500">
-                    Matched professionals
+                    Who sees it
                   </p>
 
                   <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
@@ -2612,8 +2616,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   </h2>
 
                   <p className="mt-4 leading-7 text-neutral-600">
-                    This request is currently shown only to matching professionals
-                    based on the service category selected.
+                    Only pros who do this kind of work can see this request.
                   </p>
 
                   <div className="mt-5 flex flex-wrap gap-3">
@@ -2657,7 +2660,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                 {!canAccessChat ? (
                   <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
-                    Chat is only available to the customer and the accepted professional.
+                    Only you and your pro can see this chat.
                   </div>
                 ) : null}
 
@@ -2789,7 +2792,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   </h2>
 
                   <p className="mt-4 leading-7 text-neutral-600">
-                    Your professional marked the service as done. Confirm to finalise the booking.
+                    Your pro marked it done. Confirm to wrap up the booking.
                   </p>
 
                   <div className="mt-6">
@@ -2807,7 +2810,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               {isProfessional && request.status === "open" && hasSubmittedOffer ? (
                 <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                   <p className="text-[13px] font-medium text-neutral-500">
-                    Professional actions
+                    Your actions
                   </p>
 
                   <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
@@ -2838,7 +2841,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               {isAcceptedProfessional && request.status === "accepted" ? (
                 <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                   <p className="text-[13px] font-medium text-neutral-500">
-                    Professional actions
+                    Your actions
                   </p>
 
                   <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
@@ -3061,7 +3064,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       </p>
 
                       <p className="mt-3 leading-7 text-neutral-600">
-                        Want the same professional again? Send them a direct rebook request instead of posting to the full marketplace.
+                        Want the same pro again? Ask them directly instead of posting to everyone.
                       </p>
 
                       <div className="mt-4">
@@ -3259,7 +3262,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             }}
             className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
           >
-            Message professional
+            Message your pro
           </button>
 
           <button

@@ -2058,7 +2058,7 @@ if (loading) {
             <div className="lg:w-[300px]">
               {isProfessional && viewerIsCustomer && viewerUserId !== profile.id && !profileVerified ? (
                 <div className="rounded-2xl bg-white p-4 text-sm leading-6 text-neutral-600 ring-1 ring-ink/[0.07]">
-                  This professional hasn&apos;t completed verification yet, so they can&apos;t be requested or booked right now.
+                  This pro hasn&apos;t been verified yet, so they can&apos;t be booked right now.
                 </div>
               ) : null}
 
@@ -2256,7 +2256,7 @@ if (loading) {
 
               {services.length === 0 ? (
                 <div className="mt-6 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-5 text-neutral-600">
-                  This professional has not added any bookable services yet.
+                  This pro hasn&apos;t added any services yet.
                 </div>
               ) : generatedSlots.length === 0 ? (
                 <div className="mt-6 rounded-2xl bg-neutral-50 ring-1 ring-ink/[0.05] p-5 text-neutral-600">

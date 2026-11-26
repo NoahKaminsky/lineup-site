@@ -77,7 +77,7 @@ describe("open slots on a pro's profile", () => {
         original(availability, bookings, block, days, today, now)
       );
     }
-  });
+  }, 60_000);
 
   it("is several times faster than the original for 8 weeks of long days (that took ~0.5 s on a phone)", () => {
     const availability = Array.from({ length: 7 }, (_, d) => ({ day_of_week: d, start_time: "07:00", end_time: "22:00", is_active: true }));

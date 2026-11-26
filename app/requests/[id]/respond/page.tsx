@@ -1,5 +1,6 @@
 "use client";
 
+import PassedNote from "@/app/components/PassedNote";
 import { fetchBusyTimes } from "@/app/lib/fetchBusyTimes";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -527,10 +528,11 @@ export default function RespondToRequestPage() {
             ) : null}
 
             <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
-              {request.status}
+              {request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1).replaceAll("_", " ") : null}
             </span>
           </div>
 
+          {request?.id ? <PassedNote requestId={request.id} /> : null}
           <h1 className="mt-5 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
             {request.title}
           </h1>
@@ -544,7 +546,7 @@ export default function RespondToRequestPage() {
           <div className="mt-6 space-y-4 text-sm text-neutral-700">
             <div className="rounded-2xl border border-neutral-200 bg-white p-4">
               <p className="text-[13px] font-medium text-neutral-500">
-                Customer preferred time
+                Preferred time
               </p>
               <p className="mt-2 font-medium text-neutral-900">
                 {customerTimingLabel}
@@ -651,7 +653,7 @@ export default function RespondToRequestPage() {
                 Get verified to send offers
               </p>
               <p className="mt-1 text-sm text-neutral-600">
-                Clients see offers only from professionals whose credentials we&apos;ve reviewed.
+                Clients only see offers from pros we&apos;ve verified.
                 Submit your licence, or proof of enrollment if you&apos;re a student.
               </p>
               <div className="mt-4">
@@ -760,8 +762,8 @@ export default function RespondToRequestPage() {
 
                   {timingMode === "match" && canConfirmCustomerTime ? (
                     <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                        Customer start time
+                      <p className="text-xs font-semibold text-neutral-500">
+                        Client&apos;s start time
                       </p>
                       <p className="mt-2 text-sm font-semibold text-neutral-900">
                         {customerTimingLabel}

@@ -26,7 +26,10 @@ test("shop earnings: over time, by service, and a CSV download", async ({ page }
   await expect(chart.getByText(/vs before|Nothing to compare yet/).first()).toBeVisible();
   await expect(page.getByRole("region", { name: "By service" })).toBeVisible();
   await noSideways(page);
-  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Spreadsheet (CSV)" }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), (async () => {
+    await page.getByRole("button", { name: "Download" }).click();
+    await page.getByRole("menuitem", { name: "Spreadsheet (CSV)" }).click();
+  })()]);
   expect(download.suggestedFilename()).toMatch(/^lineup-earnings-shop-\d{4}-\d{2}-\d{2}-to-\d{4}-\d{2}-\d{2}\.csv$/);
   const csv = readFileSync((await download.path())!, "utf8");
   expect(csv.split("\n")[0]).toBe("Date,Type,Item,Client,Pro,Paid via,Price,Tip,Gift card,LineUp fees,Shop's cut,Refund,To the shop");

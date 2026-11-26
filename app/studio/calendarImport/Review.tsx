@@ -170,7 +170,7 @@ export default function Review({
       summary.skipped = summary.skipped.map((s) => ({ ...s, client: byKey.get(s.key) || null }));
       onSaved(summary);
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "The import didn't finish, so nothing was added. Please try again.");
+      setSaveError(error instanceof Error ? error.message : "The import didn't finish, so nothing was added. Try again.");
     } finally {
       setSaving(null);
     }
