@@ -1,5 +1,6 @@
 "use client";
 
+import { studioFetch } from "@/app/studio/studioApi";
 import { deferRefresh } from "@/app/lib/deferRefresh";
 import Link from "next/link";
 import BrowseCardNudge from "@/app/components/BrowseCardNudge";
@@ -1396,10 +1397,27 @@ if (profileError || !profile) {
   };
   const myServiceArea = useMyServiceArea(userId, isProfessional);
 
+  // Requests the pro's shop passed to them ("Passed by Sam"), first and never
+  // hidden by the service-area filter: the shop chose them for it.
+  const [passedTo, setPassedTo] = useState<Record<string, { by: string; shop: string }>>({});
+  useEffect(() => {
+    if (!isProfessional || !userId) return;
+    let cancelled = false;
+    studioFetch<{ passed?: { requestId: string; by: string; shop: string }[] }>("/api/studio/requests/passed").then((res) => {
+      if (cancelled || !res.ok) return;
+      setPassedTo(Object.fromEntries((res.data.passed || []).map((x) => [x.requestId, { by: x.by, shop: x.shop }])));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isProfessional, userId]);
+
   const professionalOpenRequests = useMemo(
     () =>
-      requests.filter((request) => {
+      requests
+        .filter((request) => {
         if (request.status !== "open") return false;
+        if (passedTo[request.id]) return true;
         if (dismissedRequestIds.has(request.id)) return false;
         if (request.is_direct_rebook) {
           return request.preferred_professional_id === userId;
@@ -1407,8 +1425,9 @@ if (profileError || !profile) {
         // Only requests inside this pro's service area.
         if (myServiceArea && !withinServiceArea(myServiceArea, request)) return false;
         return true;
-      }),
-    [requests, userId, dismissedRequestIds, myServiceArea]
+      })
+        .sort((a, b) => Number(!!passedTo[b.id]) - Number(!!passedTo[a.id])),
+    [requests, userId, dismissedRequestIds, myServiceArea, passedTo]
   );
 
   // "N pros have bid on this already" — only for requests this pro hasn't
@@ -2687,7 +2706,11 @@ return (
                                   {request.original_request_id ? "Rebook" : "Direct request"}
                                 </span>
                               ) : null}
-                              {isNew ? (
+                              {passedTo[request.id] ? (
+                                <span className="shrink-0 rounded-full bg-ink px-2 py-0.5 text-[11px] font-medium text-white">
+                                  Passed by {passedTo[request.id].by}
+                                </span>
+                              ) : isNew ? (
                                 <span className="animate-notification-pop shrink-0 rounded-full bg-ink px-2 py-0.5 text-[11px] font-medium text-white">
                                   New
                                 </span>

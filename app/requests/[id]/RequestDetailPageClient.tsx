@@ -1,5 +1,6 @@
 "use client";
 
+import PassedNote from "@/app/components/PassedNote";
 import { OFFER_PRICE_HELP, offerPriceCents } from "@/app/lib/offerPrice";
 import TipStep, { formatTipMoney } from "@/app/components/payments/TipStep";
 import { loginHref } from "@/app/lib/returnTo";
@@ -1952,6 +1953,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                 </form>
               ) : (
                 <>
+              {request?.id ? <PassedNote requestId={request.id} /> : null}
               <h1 key={`title-${requestEditedAt}`} className="mt-5 max-w-4xl text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
                 {requestEditedAt ? <MaskLine>{request.title}</MaskLine> : request.title}
               </h1>

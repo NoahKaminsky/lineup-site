@@ -90,7 +90,7 @@ export default function RequestsView() {
   return (
     <Section
       title="Requests"
-      description={`Clients${studio.areaLabel ? ` near ${studio.areaLabel}` : " near you"} post what they want. The right pro sends an offer, the client picks one and pays through LineUp.`}
+      description={`Clients${studio.areaLabel ? ` near ${studio.areaLabel}` : " near you"} who want to come in to a shop. The right pro sends an offer, the client picks one and pays through LineUp.`}
       actions={
         <Segmented
           label="Show"

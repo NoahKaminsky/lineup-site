@@ -104,6 +104,22 @@ test("manager passes the TEST request to a TEST member", async ({ browser }) => 
   await p.close();
 });
 
+test("the pro it was passed to sees it first, marked, with a note and a notification", async ({ browser }) => {
+  const { data: pass } = await db.from("studio_request_passes").select("professional_id").eq("studio_id", ids.studio).eq("request_id", ids.request).single();
+  const who = Object.entries(ids).find(([, id]) => id === pass!.professional_id)?.[0] || "member1";
+  const { data: note } = await db.from("notifications").select("type, title").eq("user_id", pass!.professional_id).eq("request_id", ids.request).eq("type", "request_passed").limit(1);
+  expect(note?.[0]?.title).toMatch(/passed you a request/);
+
+  const p = await as(browser, who);
+  await p.goto("/requests");
+  const card = p.getByRole("link", { name: new RegExp(ids.requestTitle) }).first();
+  await expect(card).toBeVisible({ timeout: 20_000 });
+  await expect(card.getByText(/^Passed by /)).toBeVisible();
+  await card.click();
+  await expect(p.getByText(/passed this to you$/)).toBeVisible({ timeout: 15_000 });
+  await p.close();
+});
+
 test("no console errors along the way", async () => {
   expect(consoleErrors.filter((e) => !/Lock .* (was not released|stole it)|Lock broken|React DevTools|HTTP|webpack-hmr/.test(e))).toEqual([]);
 });

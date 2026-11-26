@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { sendPushToUser } from "@/app/lib/push";
+import { wantsShopVisit } from "@/app/lib/shopRequests";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
 import { errorMessage, getStudioForUser, getStudioPlace, takesClients, type StudioMemberRow } from "@/app/lib/studios";
 import { getRequestProfessions, professionLabel, requestMatchesProfessional } from "@/app/lib/professions";
@@ -82,7 +84,8 @@ export async function GET(req: Request) {
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(300);
-    const requests = (rows || []) as RequestRow[];
+    // Only requests where the client chose to come to a shop.
+    const requests = ((rows || []) as RequestRow[]).filter(wantsShopVisit);
 
     const shopBase = place.lat !== null && place.lng !== null ? { location_lat: place.lat, location_lng: place.lng } : null;
 
@@ -171,6 +174,7 @@ export async function POST(req: Request) {
 
     const { data: request } = await supabase.from("service_requests").select("*").eq("id", requestId).maybeSingle<RequestRow>();
     if (!request || request.status !== "open") return NextResponse.json({ error: "That request isn't open anymore." }, { status: 409 });
+    if (!wantsShopVisit(request)) return NextResponse.json({ error: "That client isn't looking for a shop visit." }, { status: 400 });
     if (!requestMatchesProfessional(request, pro)) {
       return NextResponse.json({ error: "That request isn't for their trade." }, { status: 400 });
     }
@@ -198,6 +202,12 @@ export async function POST(req: Request) {
         type: "request_passed",
         title: `${me?.full_name?.split(" ")[0] || ctx.studio.name} passed you a request: ${request.title || "new request"}. Send an offer.`,
       });
+      // And on their phone, so it isn't missed. Best effort: never fails the pass.
+      await sendPushToUser(pro.id, {
+        title: `A request from ${ctx.studio.name}`,
+        body: `${me?.full_name?.split(" ")[0] || "Your shop"} passed you: ${request.title || "a new request"}. Send an offer.`,
+        url: `/requests/${request.id}`,
+      }).catch(() => {});
     }
 
     return NextResponse.json({ ok: true });

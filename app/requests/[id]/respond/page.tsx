@@ -1,5 +1,6 @@
 "use client";
 
+import PassedNote from "@/app/components/PassedNote";
 import { fetchBusyTimes } from "@/app/lib/fetchBusyTimes";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -531,6 +532,7 @@ export default function RespondToRequestPage() {
             </span>
           </div>
 
+          {request?.id ? <PassedNote requestId={request.id} /> : null}
           <h1 className="mt-5 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
             {request.title}
           </h1>
