@@ -10,7 +10,7 @@ import Link from "next/link";
 import { studioFetch } from "@/app/studio/studioApi";
 import { Button, Segmented, Sheet, buttonClass, fieldClass, panelClass } from "@/app/studio/ui";
 import type { ShopSuggestion } from "@/app/lib/analyticsInsights";
-import { AlertsList, Bars, Card, CsvLinks, Delta, Kpi, PdfButton, RevenueChart, cad, qs, st, type Query, type S } from "./ProAnalytics";
+import { AlertsList, Bars, Card, CsvLinks, Delta, Kpi, PdfButton, RevenueChart, ServicesCard, cad, qs, st, type Query, type S } from "./ProAnalytics";
 import { SHOP_SAMPLE } from "./shopAnalyticsSample";
 
 const BASE = "/api/analytics/shop";
@@ -192,6 +192,7 @@ export default function ShopAnalytics() {
   const team = pick("team");
   const chairs = pick("chairs");
   const channels = pick("channels");
+  const servicesS = pick("services");
   const clients = pick("clients");
   const memberships = pick("memberships");
   const rent = pick("rent");
@@ -297,6 +298,9 @@ export default function ShopAnalytics() {
             </div>
             <div className="lg:col-span-2">
               <Team s={team} onPick={sample ? () => {} : setPro} />
+            </div>
+            <div className="lg:col-span-2">
+              <ServicesCard s={servicesS} who="the shop's" />
             </div>
             <Card id="chairs" title="Chairs" state={st(chairs)} suggestion={sug(chairs) as never} headline={chairs.data ? `${chairs.data.chairs.reduce((t: number, c: { emptyHours: number }) => t + c.emptyHours, 0)} h` : undefined} sub={chairs.data ? "of open chair time not booked this period. Each pro's hours are their chair." : null}>
               {chairs.data ? (

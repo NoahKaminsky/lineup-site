@@ -62,6 +62,7 @@ export type StudioData = {
     hasBilling: boolean;
     slug: string | null;
     tagline: string | null;
+    profileReady?: boolean;
     payAtShop: boolean;
     noShowFeePercent: number;
     coversTeam: boolean;

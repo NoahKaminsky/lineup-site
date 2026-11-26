@@ -510,3 +510,54 @@ export function recurringWords(reviews: string[], top = 8) {
     .slice(0, top)
     .map(([word, count]) => ({ word, count }));
 }
+
+// ── Services ────────────────────────────────────────────────────────────
+// Which services earn the most, per hour of chair time, how that's changed,
+// and how many of the clients who had each one came back afterwards.
+export type ServiceStat = {
+  name: string;
+  bookings: number;
+  revenue: number;
+  avgTicket: number;
+  perHour: number | null;
+  share: number;
+  change: number | null;
+  cameBack: number | null; // % of this service's clients (in the period) with a later visit
+};
+
+export function serviceStats(visits: AVisit[], p: Period, cmp: Period, top = 10): ServiceStat[] {
+  const done = visits.filter(paidDone);
+  const group = (q: Period) => {
+    const m = new Map<string, { name: string; list: AVisit[] }>();
+    for (const v of done.filter((x) => inP(x, q))) {
+      const k = v.service.trim().toLowerCase();
+      const g = m.get(k) || { name: v.service.trim(), list: [] };
+      g.list.push(v);
+      m.set(k, g);
+    }
+    return m;
+  };
+  const now = group(p);
+  const prev = group(cmp);
+  const total = sum([...now.values()].flatMap((g) => g.list), (v) => v.sales) || 1;
+  const later = visits.filter((v) => (v.state === "done" || v.state === "upcoming") && v.clientKey);
+  const out: ServiceStat[] = [...now.entries()].map(([k, g]) => {
+    const revenue = sum(g.list, (v) => v.sales);
+    const minutes = sum(g.list, (v) => v.minutes);
+    const prevRevenue = sum(prev.get(k)?.list || [], (v) => v.sales);
+    const clients = new Map<string, string>(); // client -> their last visit for this service
+    for (const v of g.list) if (v.clientKey && (clients.get(v.clientKey) || "") < v.date) clients.set(v.clientKey, v.date);
+    const back = [...clients.entries()].filter(([c, d]) => later.some((v) => v.clientKey === c && v.date > d)).length;
+    return {
+      name: g.name,
+      bookings: g.list.length,
+      revenue,
+      avgTicket: g.list.length ? Math.round(revenue / g.list.length) : 0,
+      perHour: minutes > 0 && revenue > 0 ? Math.round(revenue / (minutes / 60)) : null,
+      share: Math.round((revenue / total) * 100),
+      change: prevRevenue ? Math.round(((revenue - prevRevenue) / prevRevenue) * 100) : null,
+      cameBack: clients.size ? Math.round((back / clients.size) * 100) : null,
+    };
+  });
+  return out.sort((a, b) => b.revenue - a.revenue || b.bookings - a.bookings).slice(0, top);
+}

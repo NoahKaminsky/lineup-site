@@ -13,7 +13,8 @@
 // clashes at payment, and the database refuses two bookings that overlap.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ShieldCheck } from "lucide-react";
+import { ChevronDown, ShieldCheck, Star } from "lucide-react";
+import { serviceKey, shopMenu } from "@/app/lib/shopMenu";
 import { supabase } from "@/lib/supabaseClient";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
 import PaymentModal from "@/app/components/payments/PaymentModal";
@@ -108,6 +109,10 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
     time: null,
     serviceId: null,
   });
+  // "What would you like?": a service name picked from the shop's menu, or null for anything.
+  const [want, setWant] = useState<string | null>(null);
+  const menu = useMemo(() => shopMenu(bookable), [bookable]);
+  const serviceFor = useCallback((pro: ShopPro) => (want ? pro.services.find((s) => serviceKey(s.name) === want) || null : null), [want]);
 
   const load = useCallback(async () => {
     if (!bookable.length) return;
@@ -164,8 +169,10 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
     if (!busy) return map;
     for (const pro of bookable) {
       const list: { day: string; time: string }[] = [];
+      const wanted = serviceFor(pro);
+      if (want && !wanted) continue;
       for (const day of days) {
-        for (const time of openTimes(pro, busy, day, pro.defaultMinutes, today)) {
+        for (const time of openTimes(pro, busy, day, wanted?.minutes || pro.defaultMinutes, today)) {
           list.push({ day, time });
           if (list.length >= 3) break;
         }
@@ -174,7 +181,7 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
       map[pro.id] = list;
     }
     return map;
-  }, [bookable, busy, days, today]);
+  }, [bookable, busy, days, today, want, serviceFor]);
 
   const soonest = useMemo(
     () =>
@@ -187,14 +194,52 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
 
   function openPro(pro: ShopPro, day: string | null = null, time: string | null = null) {
     setOpenId(pro.id);
-    setPick({ day, time, serviceId: pro.services.length === 1 ? pro.services[0].id : null });
+    const wanted = serviceFor(pro);
+    setPick({ day, time, serviceId: wanted?.id || (pro.services.length === 1 ? pro.services[0].id : null) });
     window.setTimeout(() => {
       document.getElementById(`pro-${pro.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 40);
   }
 
+  const shownPros = want ? pros.filter((p) => serviceFor(p)) : pros;
+
   return (
-    <div className="mt-10">
+    <div>
+      {menu.length > 1 ? (
+        <section aria-labelledby="want" className="mb-9">
+          <h2 id="want" className="text-[15px] font-semibold">
+            What would you like?
+          </h2>
+          <div role="radiogroup" aria-labelledby="want" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
+            {[{ key: null as string | null, name: "Anything", from: null as number | null, minutes: null as number | null }, ...menu].map((m) => {
+              const on = want === m.key;
+              return (
+                <button
+                  key={m.key || "any"}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => {
+                    setWant(m.key);
+                    setOpenId(null);
+                  }}
+                  className={`flex min-h-11 shrink-0 flex-col items-start justify-center rounded-2xl px-4 py-2 text-left transition-colors ${
+                    on ? "bg-ink text-white" : "bg-surface text-ink shadow-[0_0_0_1px_rgba(10,10,10,0.08)] hover:shadow-[0_0_0_1.5px_#0a0a0a]"
+                  }`}
+                >
+                  <span className="text-sm font-semibold">{m.name}</span>
+                  {m.from !== null ? (
+                    <span className={`text-[12px] tabular-nums ${on ? "text-white/70" : "text-neutral-500"}`}>
+                      from ${m.from % 1 ? m.from.toFixed(2) : m.from}
+                      {m.minutes ? ` · ${m.minutes} min` : ""}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
       {/* While the booked times load, the row keeps its place with blank
           chips of the same size, so the team list below doesn't jump. */}
       {bookable.length && !busy ? (
@@ -235,7 +280,7 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
 
       <section aria-labelledby="team" className={bookable.length && (!busy || soonest.length) ? "mt-9" : ""}>
         <h2 id="team" className="text-[15px] font-semibold">
-          Choose who you&apos;d like to see
+          {want ? `Who does ${menu.find((m) => m.key === want)?.name || "it"}` : "Choose who you'd like to see"}
         </h2>
         {pros.length === 0 ? (
           <p className="mt-3 rounded-2xl bg-surface p-6 text-sm text-neutral-600 shadow-[0_0_0_1px_rgba(10,10,10,0.07)]">
@@ -243,7 +288,7 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
           </p>
         ) : (
           <ul className="mt-3 space-y-3">
-            {pros.map((pro) => (
+            {shownPros.map((pro) => (
               <ProCard
                 key={pro.id}
                 pro={pro}
@@ -264,6 +309,25 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
         )}
       </section>
     </div>
+  );
+}
+
+// "Barber · ★ 4.9 (12)": what they do and how clients rate them.
+function ProMeta({ pro }: { pro: ShopPro }) {
+  const bits = [pro.professions.join(", ")].filter(Boolean);
+  return (
+    <span className="flex items-center gap-1.5 truncate text-[13px] text-neutral-500">
+      {bits.length ? <span className="truncate">{bits[0]}</span> : null}
+      {pro.rating ? (
+        <>
+          {bits.length ? <span aria-hidden="true">·</span> : null}
+          <Star className="h-3.5 w-3.5 shrink-0 fill-ink text-ink" aria-hidden="true" />
+          <span className="tabular-nums text-ink">{pro.rating.toFixed(1)}</span>
+          <span className="tabular-nums">({pro.reviewCount})</span>
+          <span className="sr-only">stars from {pro.reviewCount} reviews</span>
+        </>
+      ) : null}
+    </span>
   );
 }
 
@@ -356,7 +420,7 @@ function ProCard({
               <span className="truncate">{pro.name}</span>
               <ShieldCheck className="h-4 w-4 shrink-0" aria-label="Verified" />
             </span>
-            {pro.professions.length ? <span className="block truncate text-[13px] text-neutral-500">{pro.professions.join(", ")}</span> : null}
+            <ProMeta pro={pro} />
             <span className="mt-1 block text-[13px] font-medium text-ink">{nextLabel}</span>
           </span>
           <span
@@ -379,7 +443,7 @@ function ProCard({
               <span className="truncate">{pro.name}</span>
               <ShieldCheck className="h-4 w-4 shrink-0" aria-label="Verified" />
             </span>
-            {pro.professions.length ? <span className="block truncate text-[13px] text-neutral-500">{pro.professions.join(", ")}</span> : null}
+            <ProMeta pro={pro} />
             <span className="mt-1 block text-[13px] text-neutral-500">{nextLabel}</span>
           </span>
           <a href={pro.href} className="inline-flex h-10 shrink-0 items-center rounded-full px-4 text-sm font-medium shadow-[inset_0_0_0_1px_rgba(10,10,10,0.14)] hover:bg-neutral-50">

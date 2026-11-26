@@ -2,11 +2,12 @@
 
 import { use } from "react";
 import { notFound } from "next/navigation";
-import { Armchair, CalendarDays, Contact, Crown, FileUp, Inbox, Lightbulb, LineChart, Receipt, Settings2, Users, type LucideIcon } from "lucide-react";
+import { Armchair, CalendarDays, Contact, Crown, FileUp, Inbox, Lightbulb, LineChart, Receipt, Settings2, Store, Users, type LucideIcon } from "lucide-react";
 import { useStudio } from "../StudioContext";
 import PageTip from "@/app/components/guides/PageTip";
 import { STUDIO_SECTION_TIPS } from "@/app/lib/guideContent";
 import ScheduleView from "../Schedule";
+import ProfileView from "../Profile";
 import RequestsView from "../Requests";
 import TeamView from "../Team";
 import MembershipsView from "../Memberships";
@@ -36,6 +37,8 @@ export default function StudioSectionPage({ params }: { params: Promise<{ sectio
 
   function sectionView() {
   switch (section) {
+    case "profile":
+      return me.canManage ? <ProfileView {...props} /> : <OnlyManagers />;
     case "calendar":
       return <ScheduleView {...props} />;
     case "requests":
@@ -63,6 +66,7 @@ export default function StudioSectionPage({ params }: { params: Promise<{ sectio
 }
 
 const STUDIO_TIP_ICONS: Record<string, LucideIcon> = {
+  profile: Store,
   calendar: CalendarDays,
   requests: Inbox,
   team: Users,

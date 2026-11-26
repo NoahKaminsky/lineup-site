@@ -4,7 +4,9 @@ Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. Audit and fixes
 
 ## Resume here
 
-> **Step 7 done** (26 Nov, branch `site-audit`): first-run guidance for clients, pros and shops (tours, getting-started checklists, a tip on every main page, a Help page), Geist restored site-wide, the profile page's start-up cut from ~625 ms to ~110 ms, no title jump on the landing page. See "Step 7" at the end. Migration `20261126_guides_seen.sql` is applied to LineUp Test and live.
+> **Step 8 done** (26 Nov, branch `site-audit`): shop profiles like a business listing (cover, logo, photos, about, hours, contact, amenities) with **shop reviews**, a rebuilt public shop page, earnings over time against the period before (by service, weekday, tips, how clients paid, CSV), and a Services card in pro and shop Analytics. See "Step 8" at the end. Migration `20261127_shop_profile_reviews.sql`: applied to LineUp Test, then live (26 Nov, Noah OK'd).
+>
+> **Step 7 done** (26 Nov, merged as PR #13): first-run guidance for clients, pros and shops (tours, getting-started checklists, a tip on every main page, a Help page), Geist restored site-wide, the profile page's start-up cut from ~625 ms to ~110 ms, no title jump on the landing page. See "Step 7" at the end. Migration `20261126_guides_seen.sql` is applied to LineUp Test and live.
 >
 > **Step 6 and the decisions after it done** (25 Nov; merged to main as PR #12). Every page measured is faster or the same in real load time; Discover on live data 37 s → 4 s, landing 13.6 s → 4.5 s. Offer price check and the RLS speed-up are live. No charge without a booking; Studio hydration error fixed. **Next (Noah):** three settings at the end (Preview keys, BLIK, test key) and the customer-email call.
 >
@@ -413,3 +415,39 @@ Production build on LineUp Test, fresh seed before each spec.
 | Migration `20261126_guides_seen.sql` | ✅ LineUp Test, then live (26 Nov, Noah OK'd) |
 
 Not tested: real push notifications from the checklist's "Turn on" (needs a real phone; the button calls the same code as Account's toggle), and Apple's "Add to Home Screen" path.
+
+
+## Step 8: earnings and analytics gaps, shop profiles and reviews (26 Nov)
+
+Asked: really good earnings reports and analytics (fill the gaps), and a shop page that's ultra easy to use and beautiful, customizable like a Google Business Profile on LineUp, with shop reviews.
+
+### Gaps found
+- Earnings had the totals, the statement, payouts, the shop split and every line, but nothing over time, no comparison with the period before, nothing by service, weekday, tips or payment method, and no spreadsheet export.
+- Analytics had revenue, forecast, clients, open time, sources, requests, profile, boosts, prices and goals, but nothing per service.
+- The shop page was a name, a list of pros and memberships: no photos, hours, contact, rating, reviews or service menu.
+
+### Built
+- ✅ **Earnings, read more ways** (pro and shop): take-home over time (by day, week or month to suit the range) with Take-home, Visits, Per visit and Tips (shop: Client payments) against the same length of time before; by service (most earned, count × average price); by day of the week with the best day named; tips (total, % on top of sales, % of visits tipped); how clients paid; **Spreadsheet (CSV)** of every line. Same rows as the statement, so totals always agree. *tests/money/earningsInsights.test.ts (9), e2e/reports.spec.ts.*
+- ✅ **Analytics: Services** (pro and shop): per service the revenue and its change, bookings, average price, revenue per hour of chair time and how many of those clients came back; the top service and the best earner per hour named. In the CSV and the example data. *tests/analytics/services.test.ts.*
+- ✅ **Shop profile** (Studio > Profile, owner and managers): cover and logo, a gallery of up to 30 photos (uploaded straight to storage with a signed link, forced under the shop's own folder), about, opening hours (or the team's combined), phone, Instagram, website and 12 amenities. Validated on the server (hours merge and order, https websites, Instagram handles, fixed amenity list). *tests/shop (20).*
+- ✅ **Shop reviews**: a client with a completed booking at the shop rates it (1–5 stars, optional comment) from the booking page, once per visit (unique per booking; a second try gets 409); public names are first name + last initial; the owner and managers reply from Profile. New tables are readable by anyone, written only by the server.
+- ✅ **Public shop page rebuilt**: cover and overlapping logo, rating, trades and area, Open now / closes at, one-tap Book now, Directions, Call, Instagram, Gift card and Share; pinned section links; **"What would you like?"** service menu that filters the team and pre-selects the service; pros' own ratings on their cards; photo gallery (swipe row on phones, grid on laptops, full-screen viewer with arrows, swipe and Esc); reviews with the spread of stars and replies; About, Hours (today in bold), Find us, Good to know; schema.org business data for search. Monochrome, Geist, lucide only.
+- ✅ The shop setup card adds "Fill in your shop's page"; the Studio tour, Help and a Profile tip cover it.
+
+### Tests, Step 8
+Production build on LineUp Test, fresh seed before each spec.
+
+| Check | Result |
+|---|---|
+| `e2e/shop-profile.spec.ts` (new): owner edits the profile and adds/removes a photo, public page shows it (1280 + 390); client reviews from a completed visit, a second review is refused, owner replies, public page shows review, name as "TEST C." and the reply | ✅ 3/3 (the review runs once, on desktop) |
+| `e2e/reports.spec.ts` (new): shop earnings over time and by service, CSV download with the right columns; Services card for a pro and the shop (1280 + 390) | ✅ 4/4 |
+| smoke (every page as each TEST user, 1280 + 390) | ✅ 150/150 |
+| guides, customer, pro, studio, admin, guards | ✅ 6, 18, 24, 22, 2, 12 |
+| customer-flow, pro-flow, studio-flow, admin-flow, more-flows, invites-flow, shop-booking-flow, shop-desk-flow, payment-guards | ✅ 7, 6, 5, 7, 6, 4, 3, 4, 2 (paid parts skip without `stripe listen`; no payment code changed) |
+| New shop page, Lighthouse mobile, logged out | ✅ score 90, LCP 3.6 s, CLS 0.001, TBT 46 ms, 394 KB (old page: 91) |
+| `npm test` | ✅ 285/285 |
+| `npx tsc --noEmit`, `npm run build` | ✅ |
+| lint (app) | ✅ 50 errors, the baseline |
+| Migration `20261127_shop_profile_reviews.sql` | ✅ test, then live; RLS on both new tables, read-only policies; no new security advisor findings |
+
+Not tested: photo upload from a real phone camera (tested with a PNG from the repo; the same signed-upload path), and the Instagram/Call/Directions links opening the apps.
