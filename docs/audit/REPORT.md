@@ -4,7 +4,9 @@ Branch `site-audit` (from main at 17a65a2). Started 23 Nov 2026. Audit and fixes
 
 ## Resume here
 
-> **Step 6 and the decisions after it done** (25 Nov, branch `site-audit`, pushed). Every page measured is faster or the same in real load time; Discover on live data 37 s → 4 s, landing 13.6 s → 4.5 s. Offer price check and the RLS speed-up are live. No charge without a booking; Studio hydration error fixed. **Next (Noah):** three settings at the end (Preview keys, BLIK, test key) and the customer-email call.
+> **Step 7 done** (26 Nov, branch `site-audit`): first-run guidance for clients, pros and shops (tours, getting-started checklists, a tip on every main page, a Help page), Geist restored site-wide, the profile page's start-up cut from ~625 ms to ~110 ms, no title jump on the landing page. See "Step 7" at the end. Migration `20261126_guides_seen.sql` is applied to LineUp Test and live.
+>
+> **Step 6 and the decisions after it done** (25 Nov; merged to main as PR #12). Every page measured is faster or the same in real load time; Discover on live data 37 s → 4 s, landing 13.6 s → 4.5 s. Offer price check and the RLS speed-up are live. No charge without a booking; Studio hydration error fixed. **Next (Noah):** three settings at the end (Preview keys, BLIK, test key) and the customer-email call.
 >
 > To test (on the TEST database): `npm run testdb:seed`, then either `npm run dev:testdb` or a production build (`npm run build:testdb && npm run start:testdb`, port 3200), run `npm run test:smoke` (with `SMOKE_BASE_URL=http://localhost:3200` for the production build; add `STRIPE_FORWARDING=1` with `stripe listen` for payment flows), then `npm run testdb:cleanup`. Speed: `e2e/tools/lighthouse.mjs`, `e2e/tools/cls.mjs`, `e2e/tools/shots.mjs`. Nothing touches the live database.
 
@@ -356,11 +358,58 @@ Logged out: `e2e/admin.spec.ts` 2/2 (1280 + 390). With TEST data (Noah OK'd): ad
 **Fixed across Steps 1–6 and the decisions above:** guarded routes, 44px tap targets, plain-English Stripe requirements, invite share links, the shop calendar "Mark done" bug, the email off-switch, a separate LineUp Test database (seed, cleanup, crons), the RLS speed-up and offer price check (both live), no charge without a booking, one booking cap, the Studio hydration error, and Step 6: pages that load a fraction of the bytes (Discover on live data 11 MB → 0.5 MB, 37 s → 4 s; landing 3.8 MB → 0.64 MB), no layout jumps, one shared UI kit, role-aware motion, monochrome everywhere, one plain voice (pro, request, offer, booking, shop).
 
 **Settings (25 Nov):**
-1. ✅ *Done:* Vercel Preview now has the test plan prices (Apprentice, Pro, Master) and `EMAIL_DISABLED=1`, so previews never email anyone. **Still yours:** pointing Preview at LineUp Test needs the test project's keys pasted into Vercel (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` from `.env.testdb.local`, Preview only). Until then, previews read and write the live database.
-2. **Still yours: Stripe → Settings → Payment methods → BLIK → Off** (also Bancontact and EPS, unless you want European methods). The Stripe CLI's live key isn't allowed to change payment-method settings.
+1. ✅ *Done (Noah, 25 Nov):* Vercel Preview uses LineUp Test (the three Supabase variables are Preview-only); checked on a redeployed preview: its code points at the test project, and the test database logged the preview's page loads. Earlier: Preview has the test plan prices and `EMAIL_DISABLED=1`. *Was:* pointing Preview at LineUp Test needs the test project's keys pasted into Vercel (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` from `.env.testdb.local`, Preview only). Until then, previews read and write the live database.
+2. ✅ *Done (Noah, 25 Nov):* live checkout offers cards, Apple Pay, Google Pay and Link only (Klarna, BLIK, Bancontact, EPS off; checked with the Stripe CLI, read-only). *Was:* **Stripe → Settings → Payment methods → BLIK → Off** (also Bancontact and EPS, unless you want European methods). The Stripe CLI's live key isn't allowed to change payment-method settings.
 3. **Still yours: Supabase → LineUp Test → Project Settings → API keys**: rotate the secret key, then update `.env.testdb.local`.
 4. ✅ *Scheduled:* a one-time check of Vercel image usage runs on 2 Dec (Claude app → Scheduled → "LineUp: check Vercel image usage"); it only reads and reports.
 5. **Your call: customer emails vs push.** Customers are emailed for confirmations, offers and reminders; turning those off would leave customers without push with no confirmations at all.
 6. ✅ *Checked 25 Nov:* live database 19 MB of the free plan's 500 MB, 14 of 60 connections, 100% cache hits, no stuck queries, no Postgres errors in the last 24 hours, no health warnings.
 
-**Worth doing next (code):** trace the profile page's start-up and cut its ~700 ms of main-thread work.
+**Worth doing next (code):** ~~trace the profile page's start-up~~ done in Step 7.
+
+## Step 7: first-run guidance and the last clean-ups (26 Nov)
+
+Asked: clean up what was left, make every feature easy to find, and guide first-time users well, with a detailed onboarding for clients, pros and shops.
+
+### Onboarding
+- ✅ **Welcome tours**, shown once on first visit and replayable from Help: clients (5 steps: Explore, two ways to book, paying, Bookings; ends on Explore), pros (7 steps, plain voice), **shop owners** (6 steps on Studio Today: front desk, calendar and requests, team, growing, money) and **pros who join a shop** (3 steps). *e2e/guides.spec.ts.*
+- ✅ **Getting started checklists.** Clients: find a pro, first booking, notifications (turn on in place; iPhone gets "How"), profile photo. Shops: the old 4-step card is now 7 steps, each with a reason, a progress bar, the next step spelled out, the names of pros who still have no services, a "Share your shop's booking page" step (native share or copy), and Hide. Pros keep their existing checklist. Both decide on the first paint, so nothing below them jumps.
+- ✅ **A short tip the first time someone opens a page** (21 pages: Explore, Bookings, New request; Requests, Services, Calendar, Earnings, Analytics, Gift cards, Chairs, Import, Plans, Account for pros; every Studio section). It sits above the page (over the phone tab bar's edge, bottom-right on desktop), so it never shifts anything; "Got it" closes it for good on every device. One at a time; never over a tour.
+- ✅ **Help and guides** (`/help`): 25 step-by-step guides for clients, pros and shops, each with a button to the right page; "Replay the tour" brings back the tour and tips. In every account menu, the public menu and the sitemap.
+- ✅ **Easier to find:** the pro account menu (13 links) is grouped under Your business, Grow and More; Help in every menu.
+- ✅ **Remembered across devices:** `profiles.guides_seen` (migration `20261126_guides_seen.sql`, additive, RLS unchanged: people already update their own profile row and no protect_* trigger touches it). Tours seen before (the old columns) count as seen. TEST users start with everything seen so other specs aren't covered by tips.
+- Wording checked by test: every tip and guide link opens a real page, no "job/bid/professional", tips under 160 characters. *tests/guides (46 tests).*
+
+### Clean-ups
+- ✅ **Profile page start-up**: traced (`e2e/tools/trace.mjs`): ~0.5 s went to the open-times loop, which re-formatted the date, re-read the clock and re-filtered every booking for each 15-minute slot over 8 weeks. Now once per day; identical slots (checked against the old code on 200 random weeks). Script time 625 → 110 ms at 4× CPU; Lighthouse **71 → 86**, TBT 52 ms. *tests/speed/openSlots.test.ts.*
+- ✅ **Shop payouts** say exactly what Stripe still needs ("Stripe still needs a quick selfie to confirm it's you, your bank account"), the same plain list pros see. *tests/guides/shopPayouts.test.ts.*
+- ✅ **Analytics busy-hours chart**: 28×32 px squares on phones (were 18×24), day names pinned while it scrolls, the tapped square outlined and read out. Same chart from 640 px up.
+- ✅ **Geist restored site-wide.** `--font-sans` had been missing from the theme since March (commit 074f883), so every page used the device's system font while Geist was downloaded and never used. Now Geist everywhere with next/font's size-matched fallback (CLS still 0.000). *tests/pro/font.test.ts.*
+- ✅ **Landing: no title jump.** Before GSAP loaded (~3.5 s on a slow phone) the title sat at the top, then jumped to the centre and replayed its intro. The opening is now drawn in CSS from the first paint and GSAP takes over from exactly that state; the scene behind the closed shutters stays transparent until they open; the hero has its own pin wrapper so pinning doesn't move it. Checked at 390 (slow 4G, 4× CPU), 1280 and reduced motion: the title never moves while loading, the reveal plays fully on scroll. *e2e/tools/hero.mjs.* Desktop LCP 0.14 s. The tagline now shows with the page instead of fading in half a second later.
+- ⏸ **Landing on Lighthouse's simulated phone stays ~79 / LCP 5.5 s.** Real slow-phone LCP is ~3.6–3.8 s and isn't tied to anything moving (checked: no re-insert, no splash effect, fonts in by 1 s); Lighthouse attributes the whole start-up script to the first paint. Next lever would be less script on the landing page (GSAP + React), which is a bigger change.
+- Pricing text "0% LineUp commission on your own clients (card fee at cost)" already says the card fee applies; left as is.
+
+### Lighthouse, Step 7 (mobile, logged out, local production build on LineUp Test, median of 3)
+| Page | Before | After |
+|---|---|---|
+| Profile | 71, LCP 4.1 s | **86**, LCP 4.1 s, TBT 52 ms |
+| Landing | 79, LCP 5.6 s | 78–79, LCP 5.5 s (no jump now; desktop LCP 0.14 s) |
+| Discover | 89, LCP 3.8 s | 88, LCP 3.8 s (real LCP ~1.2 s) |
+
+### Tests, Step 7
+Production build on LineUp Test, fresh seed before each spec.
+
+| Check | Result |
+|---|---|
+| `e2e/guides.spec.ts` (new): client tour, checklist, a tip that stays closed after reload, Help and Replay; pro tip and grouped menu; shop tour, setup card, section tip, Hide; 1280 + 390 | ✅ 6/6 |
+| smoke (every page as each TEST user, 1280 + 390), after the last change | ✅ 150/150 |
+| customer, studio (re-run after the last change), pro, admin, guards | ✅ 18, 22, 24, 2, 12 |
+| customer-flow, pro-flow, studio-flow, admin-flow, more-flows, invites-flow, shop-booking-flow, shop-desk-flow, payment-guards | ✅ 7, 6, 5, 7, 6, 4, 3, 4, 2 (paid parts skip without `stripe listen`; no payment code changed this step) |
+| Landing hero (`e2e/tools/hero.mjs`): title never moves while loading, reveal plays on scroll; 390 slow 4G, 1280, reduced motion | ✅ |
+| CLS (`e2e/tools/cls.mjs`): landing 0.000, Discover 0.001 | ✅ |
+| `npm test` | ✅ 252/252 |
+| `npx tsc --noEmit`, `npm run build` | ✅ |
+| lint (app) | ✅ 50 errors, the baseline |
+| Migration `20261126_guides_seen.sql` | ✅ LineUp Test, then live (26 Nov, Noah OK'd) |
+
+Not tested: real push notifications from the checklist's "Turn on" (needs a real phone; the button calls the same code as Account's toggle), and Apple's "Add to Home Screen" path.
