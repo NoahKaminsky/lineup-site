@@ -557,14 +557,14 @@ export default function SubscriptionPage() {
                 >
                   {/* Top badges */}
                   {(isRecommended || isCurrent) ? (
-                    <div className="bg-ink px-5 py-2 text-center text-xs font-semibold uppercase tracking-widest text-white">
-                      {isCurrent ? "You" : "Most popular"}
+                    <div className="bg-ink px-5 py-2 text-center text-xs font-semiboldst text-white">
+                      {isCurrent ? "Your plan" : "Most popular"}
                     </div>
                   ) : null}
 
                   <div className="flex flex-1 flex-col p-6">
                     {/* Plan name + price */}
-                    <p className="text-sm font-medium uppercase tracking-wide text-neutral-500">
+                    <p className="text-sm font-medium text-neutral-500">
                       {plan.name}
                     </p>
                     <div className="mt-2 flex items-end gap-1">

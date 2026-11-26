@@ -455,13 +455,15 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
   function getStatusLabel(status: string) {
     if (status === "open") return "Open";
+    if (status === "pending") return "Waiting for you";
     if (status === "accepted") return "Accepted";
     if (status === "payment_pending") return "Payment pending";
     if (status === "completion_requested") return "Completion requested";
     if (status === "completed") return "Completed";
     if (status === "declined") return "Declined";
-    if (status === "not_selected") return "Outbid";
-    return status.replaceAll("_", " ");
+    if (status === "not_selected") return "Not chosen";
+    const plain = status.replaceAll("_", " ");
+    return plain.charAt(0).toUpperCase() + plain.slice(1);
   }
 
   function formatProfessionalType(value: string | null) {
@@ -1839,7 +1841,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               {editingRequest && canManageRequest ? (
                 <form onSubmit={handleSaveRequestEdit} className="mt-5 max-w-2xl space-y-4" aria-busy={savingRequestEdit}>
                   <div>
-                    <label htmlFor="edit-title" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Title</label>
+                    <label htmlFor="edit-title" className="mb-1.5 block text-xs font-semibold text-neutral-500">Title</label>
                     <input
                       id="edit-title"
                       value={editDraft.title}
@@ -1849,7 +1851,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     />
                   </div>
                   <div>
-                    <label htmlFor="edit-description" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Details</label>
+                    <label htmlFor="edit-description" className="mb-1.5 block text-xs font-semibold text-neutral-500">Details</label>
                     <textarea
                       id="edit-description"
                       rows={4}
@@ -1860,7 +1862,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     />
                   </div>
                   <div>
-                    <label htmlFor="edit-budget" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">Budget <span className="font-normal normal-case tracking-normal text-neutral-400">(optional)</span></label>
+                    <label htmlFor="edit-budget" className="mb-1.5 block text-xs font-semibold text-neutral-500">Budget <span className="font-normal normal-case tracking-normal text-neutral-400">(optional)</span></label>
                     <input
                       id="edit-budget"
                       value={editDraft.budget}
@@ -1871,7 +1873,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                     />
                   </div>
                   <div>
-                    <label htmlFor="edit-timing" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-neutral-500">When</label>
+                    <label htmlFor="edit-timing" className="mb-1.5 block text-xs font-semibold text-neutral-500">When</label>
                     <select
                       id="edit-timing"
                       value={editDraft.timing_flexibility}
@@ -2348,12 +2350,12 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                               <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
                                 <div className="flex flex-wrap gap-2 sm:justify-end">
                                   {isCustomer && unreadOfferIds.includes(offer.id) ? (
-                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isAccepted ? "bg-white text-black" : "bg-ink text-white"}`}>
+                                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${isAccepted ? "bg-white text-black" : "bg-ink text-white"}`}>
                                       New
                                     </span>
                                   ) : null}
 
-                                  <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${isAccepted ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-700"}`}>
+                                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${isAccepted ? "bg-white/15 text-white" : "bg-neutral-100 text-neutral-700"}`}>
                                     {getStatusLabel(offer.status)}
                                   </span>
                                 </div>
@@ -2366,7 +2368,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                             {offerTiming ? (
                               <div className={`mt-5 rounded-2xl border p-4 ${isAccepted ? "border-white/10 bg-white/10" : "border-neutral-200 bg-neutral-50"}`}>
-                                <p className={`text-xs font-semibold uppercase tracking-wide ${isAccepted ? "text-white/55" : "text-neutral-500"}`}>
+                                <p className={`text-xs font-semibold ${isAccepted ? "text-white/55" : "text-neutral-500"}`}>
                                   {request.timing_flexibility === "anytime"
                                     ? "Suggested time"
                                     : offer.matches_requested_time
@@ -2381,7 +2383,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                             {usesProLocation && offer.professional_formatted_address ? (
                               <div className={`mt-5 rounded-2xl border p-4 ${isAccepted ? "border-white/10 bg-white/10" : "border-neutral-200 bg-neutral-50"}`}>
-                                <p className={`text-xs font-semibold uppercase tracking-wide ${isAccepted ? "text-white/55" : "text-neutral-500"}`}>
+                                <p className={`text-xs font-semibold ${isAccepted ? "text-white/55" : "text-neutral-500"}`}>
                                   Their location
                                 </p>
                                 <p className={`mt-2 text-sm font-semibold ${isAccepted ? "text-white" : "text-neutral-900"}`}>
@@ -2398,7 +2400,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                             {offer.status === "declined" && offer.customer_response_message ? (
                               <div className="mt-4 rounded-2xl border border-[#C8102E]/15 bg-[#C8102E]/[0.04] p-4">
-                                <p className="text-xs font-medium uppercase tracking-wide text-[#A30D25]">
+                                <p className="text-xs font-medium text-[#A30D25]">
                                   Customer feedback
                                 </p>
                                 <p className="mt-2 text-sm leading-6 text-ink">

@@ -512,7 +512,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
                       {PROFESSION_LABELS[s.profession_type] || s.profession_type}
                     </p>
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
                         s.status === "approved"
                           ? "bg-neutral-900 text-white"
                           : s.status === "rejected"
@@ -520,7 +520,7 @@ export default function VerificationPageClient({ initialData }: VerificationPage
                           : "bg-neutral-100 text-neutral-600"
                       }`}
                     >
-                      {s.status === "pending" ? "Under review" : s.status}
+                      {s.status === "pending" ? "Under review" : s.status === "approved" ? "Approved" : s.status === "rejected" ? "Not approved" : s.status}
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-neutral-500">

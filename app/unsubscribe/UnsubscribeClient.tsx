@@ -1,5 +1,7 @@
 "use client";
 
+import { buttonClass } from "@/app/components/ui";
+
 import { useState } from "react";
 
 type UnsubscribeClientProps = {
@@ -41,39 +43,26 @@ export default function UnsubscribeClient({
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#07080d] px-6 py-16 text-white">
-      <div className="w-full max-w-xl rounded-3xl border border-white/10 bg-white/5 p-8">
-        <p className="mb-3 text-xs uppercase tracking-[0.3em] text-neutral-500">
-          LineUp Aesthetics
-        </p>
-
-        <h1 className="mb-4 text-3xl font-semibold tracking-[-0.03em] md:text-4xl">
-          Unsubscribe
-        </h1>
+    <main className="flex min-h-screen items-center justify-center bg-paper px-4 py-16 text-ink">
+      <div className="w-full max-w-md rounded-3xl bg-surface p-7 ring-1 ring-ink/[0.07] sm:p-8">
+        <h1 className="text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">{done ? "You're unsubscribed" : "Unsubscribe"}</h1>
 
         {done ? (
-          <p className="text-base leading-7 text-neutral-300">
-            You have been unsubscribed from LineUp marketing emails for{" "}
-            <span className="text-white">{email}</span>.
+          <p className="mt-3 text-[15px] leading-7 text-neutral-600">
+            We won&apos;t send newsletters or news to <span className="font-medium text-ink">{email}</span> any more. Booking emails still
+            arrive as usual.
           </p>
         ) : (
           <>
-            <p className="mb-6 text-base leading-7 text-neutral-300">
-              Click below to stop receiving newsletters, launch updates,
-              promotions, and product news for{" "}
-              <span className="text-white">{email || "this address"}</span>.
+            <p className="mt-3 text-[15px] leading-7 text-neutral-600">
+              Stop newsletters and LineUp news for <span className="font-medium text-ink">{email || "this address"}</span>. Booking emails
+              still arrive as usual.
             </p>
 
-            {error ? (
-              <p className="mb-4 text-sm text-red-400">{error}</p>
-            ) : null}
+            {error ? <p className="mt-4 text-sm text-[#A30D25]">{error}</p> : null}
 
-            <button
-              onClick={handleUnsubscribe}
-              disabled={loading || !email}
-              className="rounded-full bg-white px-5 py-3 text-sm font-medium text-black transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "Unsubscribing…" : "Confirm unsubscribe"}
+            <button type="button" onClick={handleUnsubscribe} disabled={loading || !email} className={buttonClass("primary", "md", "mt-6 w-full")}>
+              {loading ? "Unsubscribing…" : "Unsubscribe"}
             </button>
           </>
         )}

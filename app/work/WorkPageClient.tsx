@@ -321,7 +321,7 @@ function statusLabel(status: string | null) {
   if (status === "open") return "Open";
   if (status === "pending") return "Pending";
   if (status === "declined") return "Declined";
-  if (status === "not_selected") return "Outbid";
+  if (status === "not_selected") return "Not chosen";
   return status || "Unknown";
 }
 

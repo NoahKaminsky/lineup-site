@@ -760,8 +760,8 @@ export default function RespondToRequestPage() {
 
                   {timingMode === "match" && canConfirmCustomerTime ? (
                     <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                        Customer start time
+                      <p className="text-xs font-semibold text-neutral-500">
+                        Client's start time
                       </p>
                       <p className="mt-2 text-sm font-semibold text-neutral-900">
                         {customerTimingLabel}

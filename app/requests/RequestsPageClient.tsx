@@ -530,7 +530,7 @@ function UberLocationCard({
           </div>
 
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+            <p className="text-xs font-semibold text-neutral-500">
               Location
             </p>
             <p className="mt-1 truncate text-sm font-semibold text-neutral-900">
