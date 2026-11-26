@@ -8,6 +8,9 @@ import { loginHref } from "@/app/lib/returnTo";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { proPageRedirect } from "@/app/lib/proAccess";
 import EarningsReport from "@/app/components/earnings/EarningsReport";
+import PageTip from "@/app/components/guides/PageTip";
+import { TIPS } from "@/app/lib/guideContent";
+import { Receipt as TipReceipt } from "lucide-react";
 
 // A pro's own earnings, for their records and their accountant. Free on every
 // plan: everyone has to file taxes.
@@ -44,6 +47,7 @@ export default function EarningsPage() {
 
   return (
     <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <PageTip {...TIPS.earnings} Icon={TipReceipt} />
       <div className="mx-auto max-w-4xl py-10">
         <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Earnings</h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-500">

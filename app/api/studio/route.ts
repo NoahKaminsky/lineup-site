@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser, getServiceSupabase, isSameOriginRequest } from "@/app/lib/serverSupabase";
 import { stripe } from "@/app/lib/stripe";
+import { plainStripeRequirements } from "@/app/lib/stripeRequirements";
 import {
   STUDIO_COLUMNS,
   effectiveCutPercent,
@@ -81,13 +82,18 @@ export async function GET(req: Request) {
       .select("pay_at_shop_enabled, no_show_fee_percent")
       .eq("id", studio.id)
       .maybeSingle();
-    const payoutsPromise: Promise<{ connected: boolean; ready: boolean } | null> = isOwner
+    const payoutsPromise: Promise<{ connected: boolean; ready: boolean; needs: string[] } | null> = isOwner
       ? (async () => {
-          const result = { connected: !!studio.stripe_account_id, ready: false };
+          const result = { connected: !!studio.stripe_account_id, ready: false, needs: [] as string[] };
           if (studio.stripe_account_id) {
             try {
               const account = await stripe.accounts.retrieve(studio.stripe_account_id);
               result.ready = Boolean(account.payouts_enabled && account.details_submitted);
+              // What Stripe still wants, in plain words (same list a pro sees on Account).
+              result.needs = plainStripeRequirements([
+                ...(account.requirements?.currently_due || []),
+                ...(account.requirements?.past_due || []),
+              ]);
             } catch (error) {
               console.error("Studio payout account lookup failed:", error);
             }
@@ -216,7 +222,7 @@ export async function GET(req: Request) {
     let schedule: unknown[] = [];
     let services: Record<string, { id: string; name: string; durationMinutes: number; priceCents: number | null }[]> = {};
     let earnings: unknown = null;
-    let payouts: { connected: boolean; ready: boolean } | null = null;
+    let payouts: { connected: boolean; ready: boolean; needs: string[] } | null = null;
 
     // Owners and managers see the whole team's day; members see their own.
     const scheduleIds = canManage ? bookableIds : me.profile_id && takesClients(me) ? [me.profile_id] : [];

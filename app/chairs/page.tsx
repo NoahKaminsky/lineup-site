@@ -10,6 +10,9 @@ import { formatCad, studioFetch } from "@/app/studio/studioApi";
 import { supabase } from "@/lib/supabaseClient";
 import { buttonClass } from "@/app/components/ui";
 import { fieldClass, textareaClass } from "@/app/components/ui";
+import PageTip from "@/app/components/guides/PageTip";
+import { TIPS } from "@/app/lib/guideContent";
+import { Armchair as TipArmchair } from "lucide-react";
 
 // Chair openings for professionals: only chairs in their own trade(s).
 // Studios post these from the Chairs tab on /studio.
@@ -157,6 +160,7 @@ export default function ChairsPage() {
 
   return (
     <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <PageTip {...TIPS.chairs} Icon={TipArmchair} />
       <div className="mx-auto max-w-3xl py-6 sm:py-10">
         <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Chair openings</h1>
         <p className="mt-3 max-w-xl text-base leading-7 text-neutral-600">

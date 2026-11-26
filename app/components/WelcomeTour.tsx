@@ -7,6 +7,8 @@ import type { LucideIcon } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { MaskLine } from "@/app/components/moments/Moments";
 import { buttonClass } from "@/app/components/ui";
+import { markGuideSeen, useGuides } from "@/app/components/guides/useGuides";
+import type { GuideKey } from "@/app/lib/guides";
 
 // The landing page's studio, reused as the tour's window. Each step moves the
 // camera further down the row of stations; the wall and the stations travel
@@ -38,21 +40,35 @@ export default function WelcomeTour({
   steps,
   finalCtaLabel,
   finalCtaHref,
+  seenKey,
 }: {
   userId: string;
   role: string;
   steps: TourStep[];
   finalCtaLabel: string;
   finalCtaHref: string;
+  // Newer tours (e.g. the shop's) are remembered in profiles.guides_seen
+  // instead of a column of their own.
+  seenKey?: GuideKey;
 }) {
+  const guides = useGuides();
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   // Which way the visitor last moved, so the copy enters from that side.
   const [direction, setDirection] = useState<"next" | "back">("next");
 
+  // Guides-backed tour: shown once, marked seen the moment it appears.
+  const showFromGuides = !!seenKey && guides.shouldShow(seenKey);
   useEffect(() => {
-    if (typeof window === "undefined" || !userId) return;
+    if (!seenKey || !showFromGuides) return;
+    markGuideSeen(seenKey);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- opening once, in response to the guides store
+    setVisible(true);
+  }, [seenKey, showFromGuides]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !userId || seenKey) return;
 
     if (localStorage.getItem(storageKey(userId, role))) return;
 
@@ -88,7 +104,7 @@ export default function WelcomeTour({
     return () => {
       cancelled = true;
     };
-  }, [userId, role]);
+  }, [userId, role, seenKey]);
 
   // Lock the background page in place while the tour is open. On iOS Safari
   // in particular, letting the page scroll behind a `fixed` overlay lets the
@@ -105,8 +121,9 @@ export default function WelcomeTour({
   }, [visible]);
 
   async function finish() {
-    localStorage.setItem(storageKey(userId, role), "1");
     setVisible(false);
+    if (seenKey) return markGuideSeen(seenKey);
+    localStorage.setItem(storageKey(userId, role), "1");
     const { error } = await supabase
       .from("profiles")
       .update({ [profileColumn(role)]: true })

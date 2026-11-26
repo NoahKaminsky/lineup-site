@@ -10,6 +10,7 @@ import { studioFetch } from "./studioApi";
 import { AddressField, Button, ChipPicker, Field, Segmented, Tag, Toggle, fieldClass, type PickedPlace } from "./ui";
 import { PlanPicker } from "./Plans";
 import { TRADES, type SectionProps } from "./types";
+import { shopPayoutHint } from "@/app/lib/shopPayouts";
 
 type RedirectTo = (path: string, body: unknown, key: string) => Promise<void>;
 
@@ -215,6 +216,9 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
             {payouts?.ready ? "Open payout dashboard" : payouts?.connected ? "Finish setup" : "Set up payouts"}
           </Button>
         </div>
+        {!payouts?.ready ? (
+          <p className="mt-3 text-[13px] leading-5 text-neutral-500">{shopPayoutHint(payouts)}</p>
+        ) : null}
       </Group>
 
       <Group

@@ -16,6 +16,9 @@ import type { DiscoverCard as InitialDiscoverCard } from "./getInitialData";
 import { BadgeCheck, MapPin, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import SaveHeart from "@/app/components/SaveHeart";
 import { useSavedPros } from "@/app/lib/savedPros";
+import PageTip from "@/app/components/guides/PageTip";
+import { TIPS } from "@/app/lib/guideContent";
+import { Compass } from "lucide-react";
 import { Photo } from "@/app/components/Photo";
 import { TITLE } from "@/app/components/ui";
 import { buttonClass } from "@/app/components/ui";
@@ -460,7 +463,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   const [loading, setLoading] = useState(() => !seed);
   const [message, setMessage] = useState("");
   const [cards, setCards] = useState<DiscoverCard[]>(() => seed ?? []);
-  const { showSave, savedIds, toggle: toggleSaved } = useSavedPros();
+  const { canSave, showSave, savedIds, toggle: toggleSaved } = useSavedPros();
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<(typeof categoryOptions)[number]["value"]>("all");
   const [selectedModes, setSelectedModes] = useState<string[]>([]);
@@ -1090,6 +1093,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
   return (
     <>
     <main onClickCapture={rememberTap} className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <PageTip {...TIPS.discover} Icon={Compass} show={canSave} />
       <div className="mx-auto max-w-6xl py-6 sm:py-8">
         {/* Explore: ask first (search), then the one paid stage, then who's
             free. The Spotlight is the only dark, lit thing on the page. */}

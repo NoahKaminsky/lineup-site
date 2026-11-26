@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, Plus } from "lucide-react";
+import { Armchair, ArrowRight, CalendarDays, Check, Crown, Plus, Receipt, Store, Sun, Users } from "lucide-react";
 import { formatCad, peekStudio, studioFetch } from "./studioApi";
 import { useStudio } from "./StudioContext";
 import { AppointmentSheet, NewAppointmentSheet } from "./Schedule";
@@ -24,6 +24,9 @@ import {
 } from "./types";
 import { shopNow } from "@/app/lib/bookingTime";
 import SplitFlap from "@/app/components/SplitFlap";
+import WelcomeTour, { type TourStep } from "@/app/components/WelcomeTour";
+import { markGuideSeen, useGuides } from "@/app/components/guides/useGuides";
+import { shopChecklist } from "@/app/lib/guides";
 
 type Hours = Record<string, Record<number, [string, string][]>>;
 type TimeOff = Record<string, { start: string; end: string }[]>;
@@ -123,6 +126,7 @@ export default function TodayView() {
       </div>
 
       {me.canManage ? <SetupSteps openPlans={openPlans} /> : null}
+      <ShopTour />
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         {/* Up next */}
@@ -373,31 +377,168 @@ function FloorRow({
   );
 }
 
-// What's left before the shop is fully running. Disappears when done.
+const OWNER_TOUR: TourStep[] = [
+  {
+    Icon: Store,
+    eyebrow: "Welcome to Studio",
+    title: "Your shop, run from one place.",
+    description: "A quick look around before your first day. It takes a minute.",
+  },
+  {
+    Icon: Sun,
+    eyebrow: "Today",
+    title: "This is your front desk.",
+    description: "See who's in, what's next and who's free right now. Add a walk-in in one tap.",
+  },
+  {
+    Icon: CalendarDays,
+    eyebrow: "Calendar and requests",
+    title: "Every pro's day, side by side.",
+    description:
+      "Phone bookings and walk-ins go straight on the calendar. Requests from clients nearby can be passed to the right pro.",
+  },
+  {
+    Icon: Users,
+    eyebrow: "Team",
+    title: "Bring your pros in.",
+    description: "Invite them by email. Each pro gets their own column, their own bookings and their own payouts.",
+  },
+  {
+    Icon: Crown,
+    eyebrow: "Grow",
+    title: "Keep regulars coming back.",
+    description:
+      "Memberships, gift cards and your shop's booking page bring regulars back and new clients in. Post an open chair when you're hiring.",
+  },
+  {
+    Icon: Receipt,
+    eyebrow: "Money",
+    title: "See the shop's money.",
+    description: "Set up the shop's payouts in Settings. Earnings shows the shop's cut, booth rent and memberships as they come in.",
+  },
+];
+
+const MEMBER_TOUR: TourStep[] = [
+  {
+    Icon: Store,
+    eyebrow: "Welcome to the team",
+    title: "Your shop, on LineUp.",
+    description: "A quick look at how working in a shop works here.",
+  },
+  {
+    Icon: Sun,
+    eyebrow: "Today",
+    title: "Your day at the shop.",
+    description: "Your appointments for today, including walk-ins and phone bookings the front desk adds for you.",
+  },
+  {
+    Icon: Armchair,
+    eyebrow: "Your own business too",
+    title: "Your profile still works for you.",
+    description:
+      "Clients can book you from the shop's page or your own profile. Your services, payouts and earnings stay in your own account.",
+  },
+];
+
+// Shown once on the first visit to Studio Today.
+function ShopTour() {
+  const { data } = useStudio();
+  const guides = useGuides();
+  const me = data.me!;
+  if (!guides.userId) return null;
+  const owner = me.canManage;
+  const needsTeam = (data.team || []).length <= 1;
+  return (
+    <WelcomeTour
+      userId={guides.userId}
+      role={owner ? "shop" : "shop-member"}
+      steps={owner ? OWNER_TOUR : MEMBER_TOUR}
+      seenKey={owner ? "tour:shop" : "tour:shop-member"}
+      finalCtaLabel={owner ? (needsTeam ? "Invite your team" : "Open the calendar") : "See my calendar"}
+      finalCtaHref={owner ? (needsTeam ? "/studio/team" : "/studio/calendar") : "/studio/calendar"}
+    />
+  );
+}
+
+// What's left before the shop is fully running. Disappears when done, or
+// when the owner hides it.
 function SetupSteps({ openPlans }: { openPlans: () => void }) {
   const { data } = useStudio();
+  const guides = useGuides();
+  const [copied, setCopied] = useState(false);
   const studio = data.studio!;
   const me = data.me!;
-  const teamCount = (data.team || []).length;
-  const steps = [
-    { done: !!studio.address, label: "Add the shop's address", href: "/studio/settings" },
-    { done: teamCount > 1, label: "Invite your team", href: "/studio/team" },
-    { done: studio.live, label: "Choose a plan", onClick: me.isOwner ? openPlans : undefined },
-    ...(me.isOwner ? [{ done: !!data.payouts?.ready, label: "Set up payouts to the shop", href: "/studio/settings" }] : []),
-  ];
+  const team = data.team || [];
+  const services = data.services || {};
+  const missingServices = team.filter((m) => isBookable(m) && m.profileId && !(services[m.profileId] || []).length);
+
+  const steps = shopChecklist({
+    isOwner: me.isOwner,
+    hasAddress: !!studio.address,
+    hasTagline: !!(studio.tagline || "").trim(),
+    teamCount: team.length,
+    bookableWithoutServices: missingServices.length,
+    live: studio.live,
+    payoutsReady: !!data.payouts?.ready,
+    shared: guides.seen("checklist:shop-shared"),
+    hasSlug: !!studio.slug,
+  });
   const left = steps.filter((s) => !s.done);
-  if (!left.length) return null;
+  // Decided from this browser's list on the first paint, so the page below
+  // never jumps; the profile can still hide it a moment later.
+  if (!left.length || guides.seen("checklist:shop")) return null;
+  const next = left[0];
+
+  async function share() {
+    const url = `${window.location.origin}/shop/${studio.slug}`;
+    try {
+      if (navigator.share) await navigator.share({ title: studio.name, url });
+      else await navigator.clipboard.writeText(url);
+      setCopied(true);
+      markGuideSeen("checklist:shop-shared");
+    } catch {
+      // Share sheet closed: not shared yet, so the step stays.
+    }
+  }
+
+  function why(key: string, fallback: string) {
+    if (key === "services" && missingServices.length) {
+      const names = missingServices.map((m) => (m.name || "A pro").split(" ")[0]);
+      const list = names.length > 2 ? `${names.slice(0, 2).join(", ")} and ${names.length - 2} more` : names.join(" and ");
+      return `${list} ${names.length === 1 ? "has" : "have"} no services yet. Each pro adds theirs on their Services page.`;
+    }
+    return fallback;
+  }
 
   return (
     <section aria-label="Finish setting up" className="mt-6 rounded-2xl bg-ink p-5 text-white sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-[15px] font-semibold">Finish setting up {studio.name}</h3>
-        <p className="text-[13px] text-white/60">
-          {steps.length - left.length} of {steps.length} done
-        </p>
+        <div className="flex items-baseline gap-3">
+          <p className="text-[13px] text-white/60">
+            {steps.length - left.length} of {steps.length} done
+          </p>
+          <button
+            type="button"
+            onClick={() => markGuideSeen("checklist:shop")}
+            className="min-h-9 text-[13px] text-white/50 underline-offset-4 transition-colors hover:text-white hover:underline"
+          >
+            Hide
+          </button>
+        </div>
       </div>
+      <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/[0.12]" aria-hidden="true">
+        <div
+          className="h-full rounded-full bg-white transition-[width] duration-700 ease-premium"
+          style={{ width: `${((steps.length - left.length) / steps.length) * 100}%` }}
+        />
+      </div>
+      <p className="mt-4 text-[13px] leading-5 text-white/70">
+        <span className="font-medium text-white">Next: {next.label}.</span> {why(next.key, next.why)}
+      </p>
       <ol className="mt-4 grid gap-2 sm:grid-cols-2">
         {steps.map((s) => {
+          const action = s.key === "plan" && me.isOwner ? openPlans : s.key === "share" ? share : undefined;
           const inner = (
             <>
               <span
@@ -407,23 +548,25 @@ function SetupSteps({ openPlans }: { openPlans: () => void }) {
               >
                 {s.done ? <Check className="h-3 w-3" aria-hidden="true" strokeWidth={3} /> : null}
               </span>
-              <span className={s.done ? "text-white/50 line-through decoration-white/30" : ""}>{s.label}</span>
+              <span className={s.done ? "text-white/50 line-through decoration-white/30" : ""}>
+                {s.key === "share" && copied ? "Link copied" : s.label}
+              </span>
               {!s.done ? <ArrowRight className="ml-auto h-4 w-4 text-white/50" aria-hidden="true" /> : null}
             </>
           );
-          const cls = "flex w-full items-center gap-3 rounded-xl bg-white/[0.06] px-3.5 py-3 text-left text-sm transition-colors";
+          const cls = "flex min-h-11 w-full items-center gap-3 rounded-xl bg-white/[0.06] px-3.5 py-3 text-left text-sm transition-colors";
           return (
-            <li key={s.label}>
+            <li key={s.key}>
               {s.done ? (
                 <div className={cls}>{inner}</div>
+              ) : action ? (
+                <button type="button" onClick={action} className={`${cls} hover:bg-white/[0.12]`}>
+                  {inner}
+                </button>
               ) : s.href ? (
                 <Link href={s.href} className={`${cls} hover:bg-white/[0.12]`}>
                   {inner}
                 </Link>
-              ) : s.onClick ? (
-                <button type="button" onClick={s.onClick} className={`${cls} hover:bg-white/[0.12]`}>
-                  {inner}
-                </button>
               ) : (
                 <div className={cls}>{inner}</div>
               )}

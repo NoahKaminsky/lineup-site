@@ -16,6 +16,9 @@ import WeeklyHoursEditor from "@/app/components/WeeklyHoursEditor";
 import { DEFAULT_SERVICE_RADIUS_KM, SERVICE_RADIUS_OPTIONS } from "@/app/lib/serviceArea";
 import { buttonClass } from "@/app/components/ui";
 import { fieldClass, textareaClass } from "@/app/components/ui";
+import PageTip from "@/app/components/guides/PageTip";
+import { TIPS } from "@/app/lib/guideContent";
+import { Wand2 as TipWand2 } from "lucide-react";
 type Profile = {
   id: string;
   role: string | null;
@@ -1237,6 +1240,7 @@ export default function ServicesPage() {
 
   return (
     <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8 sm:py-10">
+      <PageTip {...TIPS.services} Icon={TipWand2} />
 
 
       <div className="mx-auto max-w-6xl py-8">

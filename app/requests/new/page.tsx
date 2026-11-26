@@ -14,6 +14,9 @@ import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
 import { roundForArea } from "@/app/lib/serviceArea";
 import { professionsForCategories } from "@/app/lib/professions";
 import { fieldClass } from "@/app/components/ui";
+import PageTip from "@/app/components/guides/PageTip";
+import { TIPS } from "@/app/lib/guideContent";
+import { ClipboardList as TipClipboardList } from "lucide-react";
 const MAX_REFERENCE_PHOTOS = 5;
 const MAX_IMAGE_DIMENSION = 1600;
 const JPEG_QUALITY = 0.8;
@@ -1015,6 +1018,7 @@ function NewRequestPageContent() {
     <>
 
       <main className="min-h-screen bg-paper pb-20">
+        <PageTip {...TIPS.newRequest} Icon={TipClipboardList} />
         <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
 
           {/* Page header. "Rebook" only for a repeat client (started from a

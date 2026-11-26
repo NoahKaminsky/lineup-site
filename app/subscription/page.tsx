@@ -12,6 +12,9 @@ import { loginHref } from "@/app/lib/returnTo";
 import { proPageRedirect } from "@/app/lib/proAccess";
 import { getCached, setCached } from "@/app/lib/pageCache";
 import { buttonClass } from "@/app/components/ui";
+import PageTip from "@/app/components/guides/PageTip";
+import { TIPS } from "@/app/lib/guideContent";
+import { Star as TipStar } from "lucide-react";
 
 type SubscriptionStatus =
   | "active"
@@ -377,6 +380,7 @@ export default function SubscriptionPage() {
 
   return (
     <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <PageTip {...TIPS.subscription} Icon={TipStar} />
 
 
       <div className="mx-auto max-w-5xl py-10">
