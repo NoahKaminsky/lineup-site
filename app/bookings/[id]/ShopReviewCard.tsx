@@ -64,11 +64,11 @@ export default function ShopReviewCard({ bookingId }: { bookingId: string }) {
             ))}
           </p>
           {state.review.comment ? <p className="mt-2 text-sm leading-6 text-neutral-600">{state.review.comment}</p> : null}
-          <p className="mt-2 text-[13px] text-neutral-500">Thanks. It's on the shop's page now.</p>
+          <p className="mt-2 text-[13px] text-neutral-500">Thanks. It&apos;s on the shop&apos;s page now.</p>
         </>
       ) : (
         <>
-          <p className="mt-1 text-sm leading-6 text-neutral-500">Rate the shop itself: the space, the welcome, the whole visit. It shows on the shop's page.</p>
+          <p className="mt-1 text-sm leading-6 text-neutral-500">Rate the shop itself: the space, the welcome, the whole visit. It shows on the shop&apos;s page.</p>
           <div className="mt-3 flex gap-1" role="radiogroup" aria-label="Your rating" onMouseLeave={() => setHover(0)}>
             {[1, 2, 3, 4, 5].map((i) => (
               <button
