@@ -79,12 +79,19 @@ describe("open slots on a pro's profile", () => {
     }
   });
 
-  it("is fast for 8 weeks of long days (it used to take ~0.5 s on a phone)", () => {
+  it("is several times faster than the original for 8 weeks of long days (that took ~0.5 s on a phone)", () => {
     const availability = Array.from({ length: 7 }, (_, d) => ({ day_of_week: d, start_time: "07:00", end_time: "22:00", is_active: true }));
     const bookings = Array.from({ length: 300 }, (_, i) => ({ booking_date: dateKey(new Date(2026, 10, 1 + (i % 56))), start_time: "12:00", end_time: "12:45", status: "confirmed" }));
-    const t = performance.now();
-    const slots = buildOpenSlots({ availability, bookings, slotBlockMinutes: 30, daysAhead: 56, today: new Date(2026, 10, 1), nowMinutes: 0, dayLabels: LABELS });
-    expect(slots.length).toBeGreaterThan(2000);
-    expect(performance.now() - t).toBeLessThan(60);
+    const today = new Date(2026, 10, 1);
+    // Timed side by side in the same run, so a busy machine slows both alike.
+    const time = (f: () => unknown) => {
+      const t = performance.now();
+      for (let i = 0; i < 3; i++) f();
+      return performance.now() - t;
+    };
+    const fast = time(() => buildOpenSlots({ availability, bookings, slotBlockMinutes: 30, daysAhead: 56, today, nowMinutes: 0, dayLabels: LABELS }));
+    const slow = time(() => original(availability, bookings, 30, 56, today, 0));
+    expect(buildOpenSlots({ availability, bookings, slotBlockMinutes: 30, daysAhead: 56, today, nowMinutes: 0, dayLabels: LABELS }).length).toBeGreaterThan(2000);
+    expect(fast * 3).toBeLessThan(slow);
   });
 });
