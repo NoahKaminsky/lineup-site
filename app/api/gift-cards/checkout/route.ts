@@ -97,6 +97,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error("POST /api/gift-cards/checkout failed:", error);
-    return NextResponse.json({ error: "Could not start checkout. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: "Could not start checkout. Try again." }, { status: 500 });
   }
 }

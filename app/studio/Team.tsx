@@ -186,7 +186,7 @@ function YourSpot({
     await run(`rent-${action}`, async () => {
       const res = await studioFetch<{ url?: string }>("/api/studio/rent", { method: "POST", body: { action } });
       if (!res.ok || !res.data.url) {
-        setNotice({ tone: "error", text: res.data.error || "That didn't save. Please try again." });
+        setNotice({ tone: "error", text: res.data.error || "That didn't save. Try again." });
         return;
       }
       window.location.assign(res.data.url);

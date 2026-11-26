@@ -604,7 +604,7 @@ export default function BookingDetailPage() {
           setShowReviewModal(false);
           setMessage("You've already reviewed this booking. Thank you.");
         } else {
-          setReviewError("Your review didn't send. Please try again.");
+          setReviewError("Your review didn't send. Try again.");
         }
         return;
       }
@@ -613,7 +613,7 @@ export default function BookingDetailPage() {
       setMessage("Thanks for your review.");
     } catch (error) {
       console.error(error);
-      setReviewError("Your review didn't send. Please try again.");
+      setReviewError("Your review didn't send. Try again.");
     } finally {
       // The modal stays open on failure so the rating and comment aren't lost.
       setReviewSubmitting(false);
@@ -649,7 +649,7 @@ export default function BookingDetailPage() {
       setMessage(data.message || "Marked as a no-show.");
     } catch (error) {
       console.error(error);
-      setMessage("We couldn't mark the no-show. Please try again.");
+      setMessage("We couldn't mark the no-show. Try again.");
     } finally {
       setActionLoading(null);
     }
@@ -878,7 +878,7 @@ export default function BookingDetailPage() {
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-ink">{otherPerson?.full_name || (isViewerCustomer ? "Professional" : "Client")}</p>
+              <p className="truncate font-semibold text-ink">{otherPerson?.full_name || (isViewerCustomer ? "Your pro" : "Client")}</p>
               <p className="truncate text-sm text-neutral-500">
                 {otherRole}
                 {isViewerCustomer && formatProfessionalTypes(professional) ? ` · ${formatProfessionalTypes(professional)}` : ""}

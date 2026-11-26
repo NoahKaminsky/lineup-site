@@ -71,6 +71,11 @@ for (const r of SMOKE_ROUTES) {
     const page = await ctx.newPage();
     const problems = await visit(page, path);
     if (r.expectPath) expect.soft(new URL(page.url()).pathname, "redirect").toMatch(new RegExp(`^${r.expectPath}`));
+    // SMOKE_SHOTS=<dir>: also save a full-page screenshot of each page, for reviewing the look by eye.
+    if (process.env.SMOKE_SHOTS) {
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: `${process.env.SMOKE_SHOTS}/${info.project.name}/${r.as}${r.path.replace(/[^a-z0-9]+/gi, "_")}.png`, fullPage: true }).catch(() => {});
+    }
     await ctx.close();
     expect(problems, problems.join("\n")).toEqual([]);
   });

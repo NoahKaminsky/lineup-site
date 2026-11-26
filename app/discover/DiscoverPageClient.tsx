@@ -143,7 +143,7 @@ function isProfessionalRole(role: string | null | undefined) {
 }
 
 function formatLabel(value: string | null | undefined) {
-  if (!value) return "Professional";
+  if (!value) return "Pro";
   if (value === "nail_tech") return "Nail Artist";
   return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
@@ -907,13 +907,13 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
 
   function getCardProps(card: DiscoverCard): ProCardProps {
     const roles = getProfessionalTypes(card.profile);
-    const roleLabel = roles.slice(0, 2).map(formatLabel).join(" & ") || "Professional";
+    const roleLabel = roles.slice(0, 2).map(formatLabel).join(" & ") || "Pro";
     const serviceNames = Array.from(
       new Set(card.services.filter((service) => service.is_active).map((service) => service.service_name.trim()).filter(Boolean))
     );
     return {
       href: getProfileHref(card.profile),
-      name: card.profile.full_name || "Professional",
+      name: card.profile.full_name || "LineUp pro",
       role: roleLabel,
       place: formatDistanceLabel(getCardDistanceKm(card, userLocation)) ?? getShortLocation(card.profile),
       services:
@@ -1111,7 +1111,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
 
         <div className="relative mt-6">
               <label htmlFor="browse-search" className="sr-only">
-                Search professionals by name, service, or area
+                Search pros by name, service or area
               </label>
               <Search aria-hidden="true" className="pointer-events-none absolute left-5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-neutral-400" strokeWidth={2} />
               <input
@@ -1173,7 +1173,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
               <div className="-mx-4 mt-3 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
                 {freeStrip.map(({ card, label }, index) => {
                   const photo = card.profile.avatar_url || card.portfolioPreview?.image_url || null;
-                  const name = card.profile.full_name || "Professional";
+                  const name = card.profile.full_name || "LineUp pro";
                   return (
                     <Link
                       key={card.profile.id}
@@ -1191,7 +1191,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                       <span className="min-w-0 leading-tight">
                         <span className="block max-w-[9rem] truncate text-sm font-semibold tracking-[-0.01em] text-ink">{name}</span>
                         <span className="block text-xs text-neutral-500">
-                          {getProfessionalTypes(card.profile).slice(0, 1).map(formatLabel)[0] || "Professional"}, {label.toLowerCase()}
+                          {getProfessionalTypes(card.profile).slice(0, 1).map(formatLabel)[0] || "Pro"}, {label.toLowerCase()}
                         </span>
                       </span>
                     </Link>
@@ -1476,7 +1476,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                     key={card.profile.id}
                     href={getProfileHref(card.profile)}
                     onClick={() => setNearbyPanelOpen(false)}
-                    title={`${card.profile.full_name || "Professional"} · ${formatDistanceLabel(distance)}`}
+                    title={`${card.profile.full_name || "LineUp pro"} · ${formatDistanceLabel(distance)}`}
                     className="lu-lift-in absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full bg-neutral-100 ring-2 ring-white shadow-[0_4px_10px_-4px_rgba(0,0,0,0.45)] transition-transform hover:z-10 hover:scale-125"
                     style={{ left: `${x / 2}%`, top: `${y / 2}%` }}
                   >
@@ -1534,7 +1534,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                 <ul className="lu-lineup mt-5 space-y-1 border-t border-ink/[0.06] pt-4">
                   {nearbyProfessionals.map(({ card, distance }) => {
                     const roles = getProfessionalTypes(card.profile);
-                    const primaryRole = roles[0] ? formatLabel(roles[0]) : "Professional";
+                    const primaryRole = roles[0] ? formatLabel(roles[0]) : "Pro";
                     return (
                       <li key={card.profile.id}>
                         <Link
@@ -1552,7 +1552,7 @@ export default function DiscoverPageClient({ initialCards }: DiscoverPageClientP
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-ink">{card.profile.full_name || "Professional"}</p>
+                            <p className="truncate text-sm font-medium text-ink">{card.profile.full_name || "LineUp pro"}</p>
                             <p className="truncate text-xs text-neutral-500">{primaryRole}</p>
                           </div>
                           <span className="shrink-0 text-xs tabular-nums text-neutral-500">{formatDistanceLabel(distance)}</span>

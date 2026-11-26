@@ -138,7 +138,7 @@ export default function RegularPage({ params }: { params: Promise<{ id: string }
     const res = await authed("/api/standing", { method: "POST", body: JSON.stringify({ action: "end", id: regular.id }) });
     setStopping(false);
     if (res.ok) setRegular({ ...regular, active: false });
-    else setError("Couldn't stop it. Please try again.");
+    else setError("Couldn't stop it. Try again.");
   }
 
   if (!regular) {

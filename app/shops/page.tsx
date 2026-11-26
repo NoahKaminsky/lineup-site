@@ -7,6 +7,7 @@ import { isStudioLive } from "@/app/lib/studios";
 import { cityForPoint } from "@/app/lib/cities";
 import { professionLabel } from "@/app/lib/professions";
 import ShopFilter from "./ShopFilter";
+import { reviewSummary } from "@/app/lib/shopProfile";
 import { buttonClass } from "@/app/components/ui";
 
 // Find a shop: every salon, barbershop and studio taking bookings on LineUp,
@@ -28,6 +29,10 @@ export type ShopCard = {
   area: string;
   citySlug: string | null;
   teamSize: number;
+  cover: string | null;
+  logo: string | null;
+  rating: number | null;
+  reviews: number;
 };
 
 async function loadShops(): Promise<ShopCard[] | null> {
@@ -35,7 +40,7 @@ async function loadShops(): Promise<ShopCard[] | null> {
     const supabase = getServiceSupabase();
     const { data: studios } = await supabase
       .from("studios")
-      .select("id, slug, name, tagline, trades, lat, lng, area_label, plan, subscription_status")
+      .select("id, slug, name, tagline, trades, lat, lng, area_label, plan, subscription_status, cover_url, logo_url")
       .not("slug", "is", null);
     const live = (studios || []).filter((s) => isStudioLive(s) && s.slug);
     if (!live.length) return [];
@@ -51,6 +56,15 @@ async function loadShops(): Promise<ShopCard[] | null> {
     const team = new Map<string, number>();
     for (const m of members || []) team.set(m.studio_id, (team.get(m.studio_id) || 0) + 1);
 
+    // Each shop's own reviews, and its first photo when there's no cover.
+    const ids = live.map((s) => s.id);
+    const [{ data: reviews }, { data: photos }] = await Promise.all([
+      supabase.from("studio_reviews").select("studio_id, rating").in("studio_id", ids),
+      supabase.from("studio_photos").select("studio_id, url, sort").in("studio_id", ids).order("sort"),
+    ]);
+    const firstPhoto = new Map<string, string>();
+    for (const ph of photos || []) if (!firstPhoto.has(ph.studio_id)) firstPhoto.set(ph.studio_id, ph.url);
+
     return live
       .map((s) => {
         const city = cityForPoint(s.lat, s.lng);
@@ -63,6 +77,12 @@ async function loadShops(): Promise<ShopCard[] | null> {
           area: city ? `${city.name}, ${city.province}` : s.area_label || "Canada",
           citySlug: city?.slug || null,
           teamSize: team.get(s.id) || 0,
+          cover: (s.cover_url as string | null) || firstPhoto.get(s.id) || null,
+          logo: (s.logo_url as string | null) || null,
+          ...(() => {
+            const mine = (reviews || []).filter((r) => r.studio_id === s.id);
+            return { rating: mine.length ? reviewSummary(mine).average : null, reviews: mine.length };
+          })(),
         };
       })
       .sort((a, b) => a.area.localeCompare(b.area) || b.teamSize - a.teamSize || a.name.localeCompare(b.name));

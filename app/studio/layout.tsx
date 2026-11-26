@@ -103,7 +103,7 @@ function StudioShell({ children }: { children: ReactNode }) {
       await run(key, async () => {
         const res = await studioFetch<{ url?: string }>(path, { method: "POST", body });
         if (!res.ok || !res.data.url) {
-          setNotice({ tone: "error", text: res.data.error || "That didn't save. Please try again." });
+          setNotice({ tone: "error", text: res.data.error || "That didn't save. Try again." });
           return;
         }
         window.location.assign(res.data.url);

@@ -92,8 +92,7 @@ function ShopEarnings() {
     <div>
       <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Earnings</h2>
       <p className="mt-1 max-w-xl text-sm leading-6 text-neutral-500">
-        Everything that came through the shop: each pro&apos;s sales, the shop&apos;s cut, booth rent, memberships and gift cards.
-        Walk-ins and phone bookings count once they&apos;re marked done.
+        Each pro&apos;s sales, the shop&apos;s cut, booth rent, memberships and gift cards. Walk-ins count once they&apos;re marked done.
       </p>
       <div className="mt-6">
         <EarningsReport scope="shop" />
@@ -107,7 +106,7 @@ function ShopAnalytics() {
     <div>
       <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Analytics</h2>
       <p className="mt-1 max-w-xl text-sm leading-6 text-neutral-500">
-        Which pros, chairs and hours make the shop money, where it&apos;s leaking, and one thing to do about each. Payouts and statements stay on Earnings.
+        Which pros, services, chairs and hours make the shop money, and one thing to do about each. Money in and out is on Earnings.
       </p>
       <div className="mt-6">
         <ShopAnalyticsView />

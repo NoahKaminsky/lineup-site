@@ -170,9 +170,8 @@ export default function ResetPasswordPage() {
           ) : linkState === "invalid" ? (
             <div className="space-y-4">
               <p className="text-sm leading-6 text-neutral-700">
-                This reset link has expired, was already used, or was opened somewhere different from where
-                you asked for it. That happens when an email app opens links in its own browser, or a mail
-                filter opens the link before you do.
+                This link has expired or was already used. That can happen when your email app opens links in
+                its own browser.
               </p>
               <p className="text-sm leading-6 text-neutral-700">
                 Request a new link, then open it in the same browser you request it from (Safari or Chrome

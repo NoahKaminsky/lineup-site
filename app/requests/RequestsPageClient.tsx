@@ -2005,7 +2005,7 @@ return (
                       : `Confirm ${pendingCompletionBookings.length} completed services`}
                   </p>
                   <p className="mt-1 max-w-md text-sm text-white/70">
-                    Your appointment is over. Confirming it wraps up the booking and pays your professional, then
+                    Your appointment is over. Confirming it wraps up the booking and pays your pro, then
                     you can leave a review.
                   </p>
                 </div>
@@ -2066,7 +2066,7 @@ return (
               </div>
               <h2 className="mt-4 text-xl font-semibold tracking-tight text-neutral-900">You&apos;re all set up</h2>
               <p className="mt-2 text-sm text-neutral-500">
-                Post your first request and professionals in your area will send you offers to compare.
+                Post your first request and pros near you will send you offers to compare.
               </p>
               <Link
                 href="/requests/new"
@@ -2338,7 +2338,7 @@ return (
                                 <Photo
                                   src={booking.professional_avatar_url}
                                   width={64}
-                                  alt={booking.professional_name || "Professional"}
+                                  alt={booking.professional_name || "your pro"}
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
@@ -2372,7 +2372,7 @@ return (
                               </p>
 
                               <p className="mt-2 text-neutral-600">
-                                With {booking.professional_name || "Professional"}
+                                With {booking.professional_name || "your pro"}
                               </p>
 
                               <UberLocationCard
@@ -2436,7 +2436,7 @@ return (
                         </h3>
                         <p className="mt-1 text-sm text-neutral-500">
                           {formatBookingDate(booking.booking_date)} • With{" "}
-                          {booking.professional_name || "Professional"}
+                          {booking.professional_name || "your pro"}
                         </p>
                       </Link>
                     ))}

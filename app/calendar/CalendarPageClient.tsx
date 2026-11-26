@@ -1015,7 +1015,7 @@ export default function CalendarPageClient({ initialData }: CalendarPageClientPr
             </div>
             {bookingUsage.count >= bookingUsage.cap ? (
               <p className="mt-2 text-xs text-red-600">
-                You&apos;ve reached your monthly request limit. New requests can&apos;t be booked until next month or you upgrade. Direct calendar bookings are unaffected.
+                You&apos;ve hit this month&apos;s limit for request bookings. New ones open next month, or upgrade. Bookings from your calendar still work.
               </p>
             ) : null}
           </div>

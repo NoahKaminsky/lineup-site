@@ -478,7 +478,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       const user = await getSignedInUser();
 
       if (!user) {
-        setMessage("You must be signed in to upload a photo.");
+        setMessage("Sign in to upload a photo.");
         return;
       }
 
@@ -536,7 +536,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       const user = await getSignedInUser();
 
       if (!user) {
-        setMessage("You must be signed in to upload a banner.");
+        setMessage("Sign in to upload a cover photo.");
         return;
       }
 
@@ -595,7 +595,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
       const user = await getSignedInUser();
 
       if (!user) {
-        setMessage("You must be signed in to upload portfolio work.");
+        setMessage("Sign in to add photos of your work.");
         return;
       }
 
@@ -880,7 +880,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
     const cleanPhoneNumber = phoneNumber.trim();
 
     if (cleanPhoneNumber && !isLikelyValidPhoneNumber(cleanPhoneNumber)) {
-      setPhoneError("Enter your number in international format, e.g. +12045551234.");
+      setPhoneError("Enter your number with the country code, like +12045551234.");
       return;
     }
 
@@ -1617,7 +1617,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                     <>
                       <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-5">
                         <p className="text-xs font-medium text-neutral-500">
-                          Professional categories
+                          What you do
                         </p>
                         <p className="mt-2 text-sm text-neutral-500">
                           Select every service category you offer. These help clients find you.
@@ -1802,7 +1802,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         />
                         <span>
                           <span className="block text-sm font-semibold text-neutral-900">
-                            Email me when professionals send offers
+                            Email me when pros send offers
                           </span>
                           <span className="mt-1 block text-sm leading-6 text-neutral-500">
                             You can turn this off if offer emails get too frequent. Booking confirmations and appointment reminders are always sent.
@@ -1818,7 +1818,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                         Text alerts
                       </p>
                       <p className="mt-2 text-sm leading-6 text-neutral-500">
-                        Add your number to get time-sensitive alerts by text — faster than email for things like a new offer or an appointment coming up.
+                        Add your number to get texts for new offers and upcoming appointments.
                       </p>
 
                       <div className="mt-4">
@@ -1836,7 +1836,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                           className={fieldClass}
                         />
                         <p className="mt-1.5 text-xs text-neutral-500">
-                          International format, e.g. +1 for Canada/US.
+                          Start with your country code, like +1 for Canada and the US.
                         </p>
                         {phoneError ? (
                           <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>

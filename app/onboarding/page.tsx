@@ -152,7 +152,7 @@ export default function OnboardingPage() {
 
     if (savedRole === "professional" && professionalTypes.length === 0) {
       setSaving(false);
-      setErrorMessage(role === "shop" ? "Pick what you do so clients can book you." : "Please choose at least one professional category.");
+      setErrorMessage(role === "shop" ? "Pick what you do so clients can book you." : "Pick at least one thing you do.");
       return;
     }
 
@@ -170,7 +170,7 @@ export default function OnboardingPage() {
 
     if (cleanPhoneNumber && !isLikelyValidPhoneNumber(cleanPhoneNumber)) {
       setSaving(false);
-      setPhoneError("Enter your number in international format, e.g. +12045551234.");
+      setPhoneError("Enter your number with the country code, like +12045551234.");
       return;
     }
 
@@ -557,7 +557,7 @@ export default function OnboardingPage() {
                   {phoneError ? (
                     <p className="mt-1.5 text-xs text-red-600">{phoneError}</p>
                   ) : (
-                    <p className="mt-1.5 text-xs text-neutral-500">International format, e.g. +1 for Canada/US.</p>
+                    <p className="mt-1.5 text-xs text-neutral-500">Start with your country code, like +1 for Canada and the US.</p>
                   )}
                 </div>
 

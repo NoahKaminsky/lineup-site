@@ -165,13 +165,13 @@ export async function POST(req: Request) {
 
   if (documentPath) {
     if (!(await ownsUploadedFile(documentPath))) {
-      return NextResponse.json({ error: "We couldn't find your uploaded document. Please try again." }, { status: 400 });
+      return NextResponse.json({ error: "We couldn't find your uploaded document. Try again." }, { status: 400 });
     }
     row.document_path = documentPath;
   }
 
   if (!(await ownsUploadedFile(idDocumentPath))) {
-    return NextResponse.json({ error: "We couldn't find your uploaded ID. Please try again." }, { status: 400 });
+    return NextResponse.json({ error: "We couldn't find your uploaded ID. Try again." }, { status: 400 });
   }
   row.id_document_path = idDocumentPath;
 

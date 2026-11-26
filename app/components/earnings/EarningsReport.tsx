@@ -9,10 +9,10 @@ import EarningsInsights from "./EarningsInsights";
 import { earningsCsv, previousRange } from "@/app/lib/earningsInsights";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowUpRight, ChevronDown, Download, FileText, Landmark, Plus, RotateCw, Wallet } from "lucide-react";
+import { AlertCircle, ArrowUpRight, ChevronDown, Download, Landmark, Plus, RotateCw, Wallet } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { peekStudio, studioFetch } from "@/app/studio/studioApi";
-import { Button, EmptyState, Field, Section, Segmented, Sheet, Tag, fieldClass, panelClass } from "@/app/studio/ui";
+import { Button, EmptyState, Field, Menu, Section, Segmented, Sheet, Tag, fieldClass, panelClass } from "@/app/studio/ui";
 import type { AttentionItem, EarningsRow, Payouts } from "@/app/lib/earnings";
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from "@/app/lib/expenseCategories";
 import { PAID_LABEL, TYPE_LABEL, buildStatement, money, type Line } from "@/app/lib/earningsStatement";
@@ -231,14 +231,20 @@ function EarningsView({ scope }: { scope: Scope }) {
         <Plus className="h-4 w-4" aria-hidden="true" />
         Add an expense
       </Button>
-      <Button variant="ghost" onClick={() => setAskDetails(true)} disabled={!data}>
-        <FileText className="h-4 w-4" aria-hidden="true" />
-        Statement (PDF)
-      </Button>
-      <Button variant="ghost" onClick={downloadCsv} disabled={!data?.rows?.length}>
-        <Download className="h-4 w-4" aria-hidden="true" />
-        Spreadsheet (CSV)
-      </Button>
+      <Menu
+        label="Download"
+        size="md"
+        trigger={
+          <>
+            <Download className="h-4 w-4" aria-hidden="true" />
+            Download
+          </>
+        }
+        items={[
+          { label: "Statement (PDF)", onSelect: () => setAskDetails(true), disabled: !data },
+          { label: "Spreadsheet (CSV)", onSelect: downloadCsv, disabled: !data?.rows?.length },
+        ]}
+      />
     </div>
   );
 

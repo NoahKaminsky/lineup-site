@@ -27,8 +27,8 @@ export default function PushNotificationToggle() {
           Push notifications
         </p>
         <p className="mt-2 text-sm leading-6 text-neutral-500">
-          On iPhone, add LineUp to your Home Screen first — then notifications work just like a
-          real app, with the LineUp icon and everything.
+          On iPhone, add LineUp to your Home Screen first (Share, then Add to Home Screen). Then
+          notifications work like any app.
         </p>
         <ol className="mt-4 space-y-2 text-sm leading-6 text-neutral-700">
           <li className="flex items-start gap-2">
@@ -92,8 +92,7 @@ export default function PushNotificationToggle() {
         Push notifications
       </p>
       <p className="mt-2 text-sm leading-6 text-neutral-500">
-        Get instant alerts right on this device — new offers, matching requests, and appointment
-        reminders — even when LineUp isn&apos;t open. Free, and nothing to type in.
+        Get new offers, requests and reminders on this device, even when LineUp is closed.
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">

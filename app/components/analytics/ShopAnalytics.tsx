@@ -258,9 +258,9 @@ export default function ShopAnalytics() {
         <div className={`${panelClass} p-6`}>
           <p className="text-sm font-semibold text-ink">Your shop&apos;s analytics start with its first appointments</p>
           <p className="mt-1 max-w-xl text-sm leading-6 text-neutral-600">
-            Once your team takes bookings and walk-ins, this page compares your pros, shows which chairs and hours earn the most, where clients come from, and what the next 30 days look like.
+            Once your team takes bookings and walk-ins, you&apos;ll see each pro side by side, your best services, chairs and hours, and the next 30 days.
           </p>
-          <Link href="/studio/schedule" className={`${buttonClass("primary")} mt-4`}>
+          <Link href="/studio/calendar" className={`${buttonClass("primary")} mt-4`}>
             Open the schedule
           </Link>
         </div>

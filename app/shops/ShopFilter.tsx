@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { MapPin, Search, Users } from "lucide-react";
+import { MapPin, Search, Star, Users } from "lucide-react";
+import { Photo } from "@/app/components/Photo";
 import type { ShopCard } from "./page";
 
 // Search by shop name or city, and narrow by what they do.
@@ -67,25 +68,55 @@ export default function ShopFilter({ shops, labels }: { shops: ShopCard[]; label
                 <li key={shop.slug}>
                   <Link
                     href={`/shop/${shop.slug}`}
-                    className="flex h-full flex-col rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] transition-shadow hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.18)]"
+                    className="group flex h-full flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-ink/[0.07] transition-shadow duration-(--motion-base) ease-premium hover:shadow-[0_12px_36px_-14px_rgba(0,0,0,0.22)]"
                   >
-                    <p className="text-lg font-semibold tracking-tight">{shop.name}</p>
-                    {shop.tagline ? <p className="mt-1 text-sm leading-6 text-neutral-600">{shop.tagline}</p> : null}
-                    {shop.trades.length ? (
-                      <p className="mt-3 text-sm text-neutral-600">{shop.trades.map((t) => labels[t] || t).join(" · ")}</p>
-                    ) : null}
-                    <p className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-4 text-xs text-neutral-500">
-                      <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-                        {shop.area}
-                      </span>
-                      {shop.teamSize ? (
-                        <span className="inline-flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5" aria-hidden="true" />
-                          {shop.teamSize} {shop.teamSize === 1 ? "pro" : "pros"}
+                    {/* The shop's cover (or first photo), with its logo over the corner. */}
+                    <div className="relative aspect-[16/9] bg-ink/[0.04]">
+                      {shop.cover ? (
+                        <Photo
+                          src={shop.cover}
+                          alt=""
+                          width={720}
+                          sizes="(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw"
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-premium group-hover:scale-[1.03]"
+                        />
+                      ) : (
+                        <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center text-5xl font-semibold tracking-[-0.05em] text-ink/[0.08]">
+                          {shop.name.slice(0, 1)}
                         </span>
+                      )}
+                      <span className="absolute -bottom-6 left-5 flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-ink text-lg font-semibold text-white ring-4 ring-white">
+                        {shop.logo ? <Photo src={shop.logo} alt="" width={128} sizes="48px" className="h-full w-full object-cover" /> : shop.name.slice(0, 1)}
+                      </span>
+                    </div>
+                    <div className="flex flex-1 flex-col p-5 pt-9">
+                      <p className="text-lg font-semibold tracking-tight">{shop.name}</p>
+                      {shop.rating ? (
+                        <p className="mt-1 flex items-center gap-1 text-sm">
+                          <Star className="h-3.5 w-3.5 fill-ink text-ink" aria-hidden="true" />
+                          <span className="font-medium tabular-nums text-ink">{shop.rating.toFixed(1)}</span>
+                          <span className="tabular-nums text-neutral-500">
+                            ({shop.reviews} {shop.reviews === 1 ? "review" : "reviews"})
+                          </span>
+                        </p>
                       ) : null}
-                    </p>
+                      {shop.tagline ? <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-neutral-600">{shop.tagline}</p> : null}
+                      {shop.trades.length ? (
+                        <p className="mt-2 text-sm text-neutral-600">{shop.trades.map((t) => labels[t] || t).join(" · ")}</p>
+                      ) : null}
+                      <p className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-4 text-xs text-neutral-500">
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                          {shop.area}
+                        </span>
+                        {shop.teamSize ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                            {shop.teamSize} {shop.teamSize === 1 ? "pro" : "pros"}
+                          </span>
+                        ) : null}
+                      </p>
+                    </div>
                   </Link>
                 </li>
               ))}

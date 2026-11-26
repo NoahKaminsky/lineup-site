@@ -72,7 +72,7 @@ export default function MembershipsView({ data, busy, run, setNotice }: SectionP
           await reload();
           return;
         }
-        setNotice({ tone: "error", text: res.data.error || "That didn't save. Please try again." });
+        setNotice({ tone: "error", text: res.data.error || "That didn't save. Try again." });
         return;
       }
       setNotice({ tone: "success", text: success });

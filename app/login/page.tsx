@@ -57,7 +57,7 @@ export default function LoginPage() {
 
     if (params.get("confirmed") === "1") {
       setMessageTone("success");
-      setMessage("Email confirmed successfully. Sign in to continue setup.");
+      setMessage("Email confirmed. Sign in to finish setting up.");
       setMode("signin");
     }
 
@@ -415,7 +415,7 @@ export default function LoginPage() {
             <p className="mt-4 text-center text-sm leading-6 text-neutral-600">
               We sent a confirmation link to{" "}
               <span className="font-semibold text-neutral-900">{email}</span>.
-              Click the link, then sign in to finish setting up your account.
+              Tap the link, then sign in to finish setting up.
             </p>
 
             <div className="mt-6 space-y-3">

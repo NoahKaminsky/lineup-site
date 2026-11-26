@@ -107,11 +107,14 @@ export function Menu({
   label,
   items,
   trigger,
+  size = "sm",
 }: {
   label: string;
   items: { label: string; onSelect: () => void; danger?: boolean; disabled?: boolean }[];
   // A labelled button instead of the "⋯" icon.
   trigger?: ReactNode;
+  // Size of the labelled button, to match the buttons beside it.
+  size?: "sm" | "md";
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -142,7 +145,7 @@ export function Menu({
         onClick={() => setOpen((v) => !v)}
         className={
           trigger
-            ? buttonClass("secondary", "sm")
+            ? buttonClass("secondary", size)
             : "flex h-11 w-11 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-ink/[0.06] hover:text-ink sm:h-8 sm:w-8"
         }
       >

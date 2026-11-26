@@ -257,7 +257,7 @@ export default function SubscriptionPage() {
       }
       window.location.href = json.url;
     } catch {
-      setMessage("That didn't work. Please try again.");
+      setMessage("That didn't work. Try again.");
     } finally {
       setBoosting(false);
     }
@@ -293,13 +293,13 @@ export default function SubscriptionPage() {
       const json = await res.json();
 
       if (!res.ok) {
-        setMessage(json.error || "That didn't work. Please try again.");
+        setMessage(json.error || "That didn't work. Try again.");
         return;
       }
 
       window.location.href = json.url;
     } catch {
-      setMessage("That didn't work. Please try again.");
+      setMessage("That didn't work. Try again.");
     } finally {
       setSubscribing(null);
     }
@@ -347,7 +347,7 @@ export default function SubscriptionPage() {
 
       window.location.href = json.url;
     } catch {
-      setMessage("That didn't work. Please try again.");
+      setMessage("That didn't work. Try again.");
     } finally {
       setPortalLoadingKey(null);
     }
@@ -422,8 +422,8 @@ export default function SubscriptionPage() {
           <div className="mb-10 rounded-panel bg-surface ring-1 ring-ink/[0.06] p-6 sm:p-8">
             <p className="text-lg font-semibold tracking-[-0.02em] text-ink">Your shop&apos;s plan can cover you</p>
             <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-600">
-              Once your shop is on a studio plan with 2 or more pros taking clients, you get Pro features from it and don&apos;t
-              need a plan of your own. If you already pay for one, it stops renewing then, so you&apos;re never charged twice.
+              When your shop is on a Studio plan with 2 or more pros taking clients, you get Pro features through it. If you
+              already pay for a plan, it stops renewing then, so you&apos;re never charged twice.
             </p>
             <Link
               href="/studio"
@@ -437,7 +437,7 @@ export default function SubscriptionPage() {
         {/* Success banner */}
         {showSuccess ? (
           <div className="mb-8 rounded-2xl border border-neutral-200 bg-neutral-100 p-4 text-sm font-medium text-ink">
-            You&apos;re subscribed! Your plan is now active.
+            You&apos;re subscribed. Your plan is active.
           </div>
         ) : null}
 

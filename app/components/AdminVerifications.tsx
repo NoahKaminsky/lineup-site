@@ -147,7 +147,7 @@ export default function AdminVerifications() {
     setBusyId(null);
 
     if (!res.ok) {
-      setMessage(json.error || "That didn't save. Please try again.");
+      setMessage(json.error || "That didn't save. Try again.");
       return false;
     }
 

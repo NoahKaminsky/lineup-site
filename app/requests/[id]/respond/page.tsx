@@ -651,7 +651,7 @@ export default function RespondToRequestPage() {
                 Get verified to send offers
               </p>
               <p className="mt-1 text-sm text-neutral-600">
-                Clients see offers only from professionals whose credentials we&apos;ve reviewed.
+                Clients only see offers from pros we&apos;ve verified.
                 Submit your licence, or proof of enrollment if you&apos;re a student.
               </p>
               <div className="mt-4">

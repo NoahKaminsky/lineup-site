@@ -165,7 +165,7 @@ function RequestOfferCheckoutForm({
     });
 
     if (result.error) {
-      setPaymentError(result.error.message || "Payment failed. Please try again.");
+      setPaymentError(result.error.message || "Payment failed. Try again.");
       setPaymentLoading(false);
       return;
     }
@@ -1254,7 +1254,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
     if (!res || !res.ok) {
       const body = res ? await res.json().catch(() => null) : null;
-      setMessage(body?.error || "Could not withdraw your offer. Please try again.");
+      setMessage(body?.error || "Could not withdraw your offer. Try again.");
       setWithdrawingOfferId(null);
       return;
     }
@@ -1329,7 +1329,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
     const body = res ? await res.json().catch(() => null) : null;
 
     if (!res || !res.ok) {
-      setRequestEditError(body?.error || "Could not save your changes. Please try again.");
+      setRequestEditError(body?.error || "Could not save your changes. Try again.");
       setSavingRequestEdit(false);
       return;
     }
@@ -1568,7 +1568,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setMessage("You must be logged in to leave a review.");
+      setMessage("Sign in to leave a review.");
       setSubmittingReview(false);
       return;
     }
@@ -2162,7 +2162,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-[13px] font-medium text-neutral-500">
-                        Accepted professional
+                        Your pro
                       </p>
                       <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
                         This request has a winner
@@ -2604,7 +2604,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               {isCustomer ? (
                 <section className="rounded-panel border border-neutral-200 bg-neutral-50 p-6">
                   <p className="text-[13px] font-medium text-neutral-500">
-                    Matched professionals
+                    Who sees it
                   </p>
 
                   <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
@@ -2612,8 +2612,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   </h2>
 
                   <p className="mt-4 leading-7 text-neutral-600">
-                    This request is currently shown only to matching professionals
-                    based on the service category selected.
+                    Only pros who do this kind of work can see this request.
                   </p>
 
                   <div className="mt-5 flex flex-wrap gap-3">
@@ -2657,7 +2656,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
 
                 {!canAccessChat ? (
                   <div className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-600">
-                    Chat is only available to the customer and the accepted professional.
+                    Only you and your pro can see this chat.
                   </div>
                 ) : null}
 
@@ -2789,7 +2788,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                   </h2>
 
                   <p className="mt-4 leading-7 text-neutral-600">
-                    Your professional marked the service as done. Confirm to finalise the booking.
+                    Your pro marked it done. Confirm to wrap up the booking.
                   </p>
 
                   <div className="mt-6">
@@ -2807,7 +2806,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               {isProfessional && request.status === "open" && hasSubmittedOffer ? (
                 <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                   <p className="text-[13px] font-medium text-neutral-500">
-                    Professional actions
+                    Your actions
                   </p>
 
                   <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
@@ -2838,7 +2837,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
               {isAcceptedProfessional && request.status === "accepted" ? (
                 <section className="rounded-panel border border-neutral-200 bg-white p-6 shadow-sm">
                   <p className="text-[13px] font-medium text-neutral-500">
-                    Professional actions
+                    Your actions
                   </p>
 
                   <h2 className="mt-3 text-xl font-semibold tracking-[-0.02em]">
@@ -3061,7 +3060,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
                       </p>
 
                       <p className="mt-3 leading-7 text-neutral-600">
-                        Want the same professional again? Send them a direct rebook request instead of posting to the full marketplace.
+                        Want the same pro again? Ask them directly instead of posting to everyone.
                       </p>
 
                       <div className="mt-4">
@@ -3259,7 +3258,7 @@ export default function RequestDetailPage({ initialData }: RequestDetailPageClie
             }}
             className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white transition hover:bg-neutral-800"
           >
-            Message professional
+            Message your pro
           </button>
 
           <button
