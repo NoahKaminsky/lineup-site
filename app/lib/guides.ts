@@ -22,6 +22,10 @@ export function mergeSeen(a: readonly string[] | null | undefined, b: readonly s
   return out.slice(-200);
 }
 
+// Marks that the old welcome_tour_seen_* / onboarding_checklist_dismissed
+// columns have been copied into the list (done once per person).
+export const LEGACY_IMPORTED = "legacy:imported";
+
 // "Show tips again" clears page tips and tours; checklists keep their state
 // because they retire on their own once everything is done.
 export function withoutReplayable(seen: readonly string[]): string[] {

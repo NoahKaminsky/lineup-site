@@ -16,7 +16,9 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPAB
 });
 
 async function guidesOn(who: string) {
-  const { error } = await db.from("profiles").update({ guides_seen: [] }).eq("email", `lineup.test+${who}@example.com`);
+  // A first-time user: nothing seen (the marker means the old "tour seen"
+  // columns the seed sets were already imported, so they don't count).
+  const { error } = await db.from("profiles").update({ guides_seen: ["legacy:imported"] }).eq("email", `lineup.test+${who}@example.com`);
   if (error) throw error;
 }
 async function guidesOff(who: string) {

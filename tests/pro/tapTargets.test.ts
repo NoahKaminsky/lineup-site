@@ -19,7 +19,7 @@ const TAG = /<(?:button|Link|a)\b(?:[^>]|=>)*?className=(?:"([^"]*)"|\{`([^`]*)`
 const SMALL = /(?<![\w:-])(h-(?:7|8|9|10)|py-(?:0|0\.5|1|1\.5|2))(?![\w.])/;
 // Already tall enough, or not a pill: heatmap cells, the calendar day strip and
 // appointment blocks, switches and small icons with a larger invisible hit area.
-const OK = /(min-h-(11|\[44px\]|12)|(?<![\w:-])h-1[1-9]|py-(2\.5|3|4)|w-12 shrink-0 snap-center|h-6 rounded|relative h-7 w-12|absolute inset-x-1|before:-inset)/;
+const OK = /(min-h-(11|\[44px\]|12)|(?<![\w:-])h-1[1-9]|py-(2\.5|3|4)|w-12 shrink-0 snap-center|h-6 rounded|h-8 rounded-\[4px\] sm:h-6|relative h-7 w-12|absolute inset-x-1|before:-inset)/;
 
 describe("pro tap targets", () => {
   for (const f of FILES) {

@@ -186,6 +186,7 @@ export const STUDIO_SECTION_TIPS: Record<string, TipContent> = {
 // Every guide key, for test users who should start with all guides already
 // seen (scripts/test-data.mts) and for "seen everything" checks.
 export const ALL_GUIDE_KEYS: string[] = [
+  "legacy:imported",
   "tour:customer",
   "tour:pro",
   "tour:shop",

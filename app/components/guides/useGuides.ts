@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { isSeen, mergeSeen, withSeen, withoutReplayable, type GuideKey } from "@/app/lib/guides";
+import { LEGACY_IMPORTED, isSeen, mergeSeen, withSeen, withoutReplayable, type GuideKey } from "@/app/lib/guides";
 
 // One shared store for every tour, tip and checklist on the page.
 // - This browser's list (localStorage) answers instantly, so nothing flashes.
@@ -101,12 +101,16 @@ async function start() {
 
   const remote = (row?.guides_seen as string[] | null) || [];
   // Tours and the pro checklist from before guides_seen existed: someone who
-  // saw them then mustn't get them again now.
-  const legacy = [
-    row?.welcome_tour_seen_customer ? "tour:customer" : "",
-    row?.welcome_tour_seen_professional ? "tour:pro" : "",
-    row?.onboarding_checklist_dismissed ? "checklist:pro" : "",
-  ];
+  // saw them then mustn't get them again now. Copied across once (marked
+  // with LEGACY_IMPORTED), so "Replay the tour" isn't undone on the next load.
+  const legacy = remote.includes(LEGACY_IMPORTED)
+    ? []
+    : [
+        LEGACY_IMPORTED,
+        row?.welcome_tour_seen_customer ? "tour:customer" : "",
+        row?.welcome_tour_seen_professional ? "tour:pro" : "",
+        row?.onboarding_checklist_dismissed ? "checklist:pro" : "",
+      ];
   const seen = mergeSeen(remote, mergeSeen(legacy, local));
   writeLocal(userId, seen);
   emit({ ready: true, userId, seen });

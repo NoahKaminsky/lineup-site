@@ -20,6 +20,9 @@ describe("guides seen list", () => {
   it("'show tips again' brings back tips and tours but keeps checklists", () => {
     expect(withoutReplayable(["tip:work", "tour:shop", "checklist:customer"])).toEqual(["checklist:customer"]);
   });
+  it("replaying keeps the one-time import marker, so old tour columns aren't copied back", () => {
+    expect(withoutReplayable(["legacy:imported", "tour:customer"])).toEqual(["legacy:imported"]);
+  });
 });
 
 import { customerChecklist, shopChecklist } from "@/app/lib/guides";
