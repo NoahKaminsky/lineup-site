@@ -183,7 +183,9 @@ export const HELP_SECTIONS: HelpSection[] = [
         steps: [
           "Earnings shows what you've made and what's on its way.",
           "Download a statement any time.",
+          "See it over time, by service and by day of the week, compared with the period before.",
           "Add cash or outside income, and use Tax year for expenses and receipts.",
+          "Download a PDF statement or a spreadsheet for your accountant.",
         ],
         link: { label: "Open Earnings", href: "/earnings" },
       },
@@ -191,7 +193,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         id: "grow",
         title: "Grow your business",
         steps: [
-          "Analytics shows how often clients come back and your busiest hours.",
+          "Analytics shows how often clients come back, your busiest hours, and which services earn the most per hour.",
           "Sell gift cards with your own link.",
           "Bring your clients over from your old booking app.",
           "Looking for a chair? Shops post openings under Chair openings.",
@@ -230,10 +232,11 @@ export const HELP_SECTIONS: HelpSection[] = [
         title: "Set up and share your shop's page",
         steps: [
           "In Settings, add your address, a one-line tagline and your link.",
-          "Tap Booking page at the top of Studio to copy the link.",
-          "Put it in your Instagram bio and Google listing.",
+          "In Profile, add a cover photo, photos of the space, a few lines about the shop, your hours and how to reach you.",
+          "Tap Booking page at the top of Studio to copy the link, and put it in your Instagram bio and Google listing.",
+          "Clients review the shop after a visit. Reply to them from Profile.",
         ],
-        link: { label: "Open Settings", href: "/studio/settings" },
+        link: { label: "Open Profile", href: "/studio/profile" },
       },
       {
         id: "front-desk",
@@ -259,7 +262,8 @@ export const HELP_SECTIONS: HelpSection[] = [
         title: "Payouts and earnings",
         steps: [
           "In Settings, set up the shop's payouts. It's separate from any pro's account.",
-          "Earnings shows your pros' sales, the shop's cut, rent, memberships and gift cards.",
+          "Earnings shows your pros' sales, the shop's cut, rent, memberships and gift cards, with a chart against the period before.",
+          "Download a PDF statement or a spreadsheet any time.",
         ],
         link: { label: "Open Earnings", href: "/studio/earnings" },
       },

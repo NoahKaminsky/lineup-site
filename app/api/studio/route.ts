@@ -363,6 +363,8 @@ export async function GET(req: Request) {
         hasBilling: !!studio.stripe_customer_id,
         slug: studio.slug,
         tagline: studio.tagline,
+        // The public page has a cover photo and an about: the setup card's "Fill in your shop's page".
+        profileReady: !!((studio as { cover_url?: string | null }).cover_url && (studio as { about?: string | null }).about),
         payAtShop: !!payAtShop?.pay_at_shop_enabled,
         noShowFeePercent: payAtShop ? Number(payAtShop.no_show_fee_percent) : 50,
       },

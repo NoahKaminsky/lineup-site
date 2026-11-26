@@ -52,6 +52,10 @@ describe("shop checklist", () => {
   it("a pro with no services keeps that step open", () => {
     expect(shopChecklist({ ...base, bookableWithoutServices: 2 }).find((s) => s.key === "services")?.done).toBe(false);
   });
+  it("asks for the shop's page (cover and about) until it's filled in", () => {
+    expect(shopChecklist(base).find((s) => s.key === "profile")?.done).toBe(false);
+    expect(shopChecklist({ ...base, hasProfile: true }).find((s) => s.key === "profile")?.done).toBe(true);
+  });
   it("sharing only shows once the shop has a page", () => {
     expect(shopChecklist({ ...base, hasSlug: false }).some((s) => s.key === "share")).toBe(false);
   });

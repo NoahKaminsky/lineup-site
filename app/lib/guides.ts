@@ -82,6 +82,7 @@ export function shopChecklist(input: {
   isOwner: boolean;
   hasAddress: boolean;
   hasTagline: boolean;
+  hasProfile?: boolean;
   teamCount: number;
   bookableWithoutServices: number;
   live: boolean;
@@ -92,6 +93,7 @@ export function shopChecklist(input: {
   return [
     { key: "address", label: "Add the shop's address", why: "So clients can find you and see you in Shops near them.", href: "/studio/settings", done: input.hasAddress },
     { key: "tagline", label: "Write a one-line tagline", why: "The first thing clients read on your shop's page.", href: "/studio/settings", done: input.hasTagline },
+    { key: "profile", label: "Fill in your shop's page", why: "A cover photo, a few lines about the shop and your hours. Clients look before they book.", href: "/studio/profile", done: !!input.hasProfile },
     { key: "team", label: "Invite your team", why: "Each pro gets their own column on the calendar and their own bookings.", href: "/studio/team", done: input.teamCount > 1 },
     {
       key: "services",

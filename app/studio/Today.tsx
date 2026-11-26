@@ -476,6 +476,7 @@ function SetupSteps({ openPlans }: { openPlans: () => void }) {
     isOwner: me.isOwner,
     hasAddress: !!studio.address,
     hasTagline: !!(studio.tagline || "").trim(),
+    hasProfile: !!studio.profileReady,
     teamCount: team.length,
     bookableWithoutServices: missingServices.length,
     live: studio.live,

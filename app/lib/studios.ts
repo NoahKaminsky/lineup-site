@@ -58,7 +58,7 @@ export type StudioMemberRow = {
 };
 
 export const STUDIO_COLUMNS =
-  "id, name, owner_id, plan, subscription_status, subscription_current_period_end, stripe_customer_id, stripe_subscription_id, commission_percent, stripe_account_id, slug, tagline, created_at";
+  "id, name, owner_id, plan, subscription_status, subscription_current_period_end, stripe_customer_id, stripe_subscription_id, commission_percent, stripe_account_id, slug, tagline, cover_url, about, created_at";
 export const MEMBER_COLUMNS =
   "id, studio_id, profile_id, role, status, invited_email, invite_expires_at, commission_percent, arrangement, rent_cents, rent_interval, rent_subscription_id, rent_status, rent_current_period_end, joined_at, created_at";
 
