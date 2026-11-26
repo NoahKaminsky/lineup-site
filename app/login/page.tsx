@@ -36,6 +36,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [resending, setResending] = useState(false);
+  // Show a "Send a new link" button under the message (expired link, or
+  // signing in before confirming).
+  const [offerResend, setOfferResend] = useState(false);
 
   const isSignup = mode === "signup";
   const isForgot = mode === "forgot";
@@ -58,6 +61,13 @@ export default function LoginPage() {
     if (params.get("confirmed") === "1") {
       setMessageTone("success");
       setMessage("Email confirmed. Sign in to finish setting up.");
+      setMode("signin");
+    }
+
+    if (params.get("link") === "expired") {
+      setMessageTone("error");
+      setMessage("That link has expired or was already used. If you confirmed already, just sign in. If not, enter your email and we'll send a new link.");
+      setOfferResend(true);
       setMode("signin");
     }
 
@@ -134,7 +144,8 @@ export default function LoginPage() {
       }
 
       setMessageTone("success");
-      setMessage("Confirmation email resent.");
+      setMessage(`We sent a new link to ${email}. Tap it and you're in.`);
+      setOfferResend(false);
     } finally {
       setResending(false);
     }
@@ -225,7 +236,14 @@ export default function LoginPage() {
 
       if (error) {
         setMessageTone("error");
-        setMessage(error.message);
+        if (/not confirmed/i.test(error.message)) {
+          setMessage("Confirm your email first: tap the link we sent you. Can't find it? We'll send a new one.");
+          setOfferResend(true);
+        } else if (/invalid login credentials/i.test(error.message)) {
+          setMessage("That email and password don't match. Try again, or reset your password.");
+        } else {
+          setMessage(error.message);
+        }
         return;
       }
 
@@ -383,6 +401,11 @@ export default function LoginPage() {
               >
                 {message}
               </p>
+            ) : null}
+            {offerResend && !isSignup ? (
+              <button type="button" onClick={handleResendConfirmation} disabled={resending} className={buttonClass("secondary", "md", "w-full")}>
+                {resending ? "Sending…" : "Send a new link"}
+              </button>
             ) : null}
           </form>
         </div>

@@ -50,7 +50,7 @@ test("post a direct request (photos preview, bad file reported, then removed)", 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Request TEST Master Pro");
   await page.getByRole("button", { name: "Hair", exact: true }).click();
   await page.getByRole("button", { name: /^Their shop/ }).click();
-  await page.getByPlaceholder("Neighbourhood or city, e.g. Osborne Village").fill("Winnipeg");
+  await page.getByPlaceholder("Neighbourhood or city, like Osborne Village").fill("Winnipeg");
   await page.getByRole("button", { name: /Winnipeg/ }).first().click({ timeout: 30_000 });
   await page.getByRole("button", { name: "Anytime", exact: true }).click();
   await page.getByRole("button", { name: /^Add details/ }).click();
