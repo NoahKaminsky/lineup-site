@@ -117,6 +117,11 @@ export const TIPS = {
   },
 
   // Shops (Studio sections)
+  studioProfile: {
+    id: "tip:studio-profile",
+    title: "Your shop's page",
+    body: "Add a cover photo, your space, hours and how to reach you. It's what clients see before they book, and where they review you.",
+  },
   studioCalendar: {
     id: "tip:studio-calendar",
     title: "The shop calendar",
@@ -171,6 +176,7 @@ export const TIPS = {
 
 // Which tip belongs to which Studio section slug ("" is Today, which has the tour).
 export const STUDIO_SECTION_TIPS: Record<string, TipContent> = {
+  profile: TIPS.studioProfile,
   calendar: TIPS.studioCalendar,
   requests: TIPS.studioRequests,
   team: TIPS.studioTeam,

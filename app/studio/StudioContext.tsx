@@ -28,6 +28,7 @@ export function useStudio() {
 // The sections of /studio, in nav order.
 export const STUDIO_SECTIONS = [
   { slug: "", label: "Today" },
+  { slug: "profile", label: "Profile" },
   { slug: "calendar", label: "Calendar" },
   { slug: "requests", label: "Requests" },
   { slug: "team", label: "Team" },

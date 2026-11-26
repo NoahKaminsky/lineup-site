@@ -8,6 +8,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import BookingChat from "@/app/components/BookingChat";
+import ShopReviewCard from "./ShopReviewCard";
 import RegularCard from "./RegularCard";
 import ClientNotes from "./ClientNotes";
 import { getCached, setCached } from "@/app/lib/pageCache";
@@ -1064,6 +1065,8 @@ export default function BookingDetailPage() {
             </Link>
           </section>
         ) : null}
+
+        {isViewerCustomer && booking.status === "completed" ? <ShopReviewCard bookingId={booking.id} /> : null}
 
         {booking.status !== "cancelled" && (isViewerCustomer || isViewerProfessional) ? (
           <RegularCard bookingId={booking.id} proName={professional?.full_name || "your pro"} />
