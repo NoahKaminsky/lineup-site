@@ -197,8 +197,8 @@ export default function ImportPage() {
         <div>
           <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Bring your clients over</h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-600">
-            Moving from Squire, Booksy, Fresha, Vagaro or Square? Export your upcoming appointments and your client list as CSV
-            files and add them here. Your appointments are held on your LineUp calendar so nobody can book over them.
+            Moving from Squire, Booksy, Fresha, Vagaro or Square? Export your appointments and clients as CSV files and add
+            them here. Those times are held on your calendar, so nobody books over them.
           </p>
         </div>
 

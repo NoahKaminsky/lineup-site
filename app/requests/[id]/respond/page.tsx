@@ -527,7 +527,7 @@ export default function RespondToRequestPage() {
             ) : null}
 
             <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-medium tracking-[0.01em] text-neutral-700">
-              {request.status}
+              {request.status ? request.status.charAt(0).toUpperCase() + request.status.slice(1).replaceAll("_", " ") : null}
             </span>
           </div>
 
@@ -544,7 +544,7 @@ export default function RespondToRequestPage() {
           <div className="mt-6 space-y-4 text-sm text-neutral-700">
             <div className="rounded-2xl border border-neutral-200 bg-white p-4">
               <p className="text-[13px] font-medium text-neutral-500">
-                Customer preferred time
+                Preferred time
               </p>
               <p className="mt-2 font-medium text-neutral-900">
                 {customerTimingLabel}
