@@ -7,6 +7,15 @@ const open = grid((dow) => (dow === 0 || dow === 1 ? 0 : 240));
 const booked = grid((dow, h) => (dow === 0 || dow === 1 ? 0 : dow === 2 && h >= 6 ? 30 : dow >= 5 ? 220 : 150));
 
 export const SAMPLE = {
+  services: {
+    byService: [
+      { name: "Skin fade", bookings: 52, revenue: 239200, avgTicket: 4600, perHour: 6133, share: 37, change: 12, cameBack: 71 },
+      { name: "Cut and beard", bookings: 31, revenue: 186000, avgTicket: 6000, perHour: 5143, share: 29, change: 4, cameBack: 64 },
+      { name: "Kids cut", bookings: 22, revenue: 66000, avgTicket: 3000, perHour: 6000, share: 10, change: -8, cameBack: 82 },
+      { name: "Line up", bookings: 13, revenue: 26000, avgTicket: 2000, perHour: 6000, share: 4, change: null, cameBack: 55 },
+    ],
+    suggestion: null,
+  },
   overview: {
     revenue: { now: 642000, prev: 571000 },
     bookings: { now: 118, prev: 109 },

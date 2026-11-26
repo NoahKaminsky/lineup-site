@@ -768,6 +768,7 @@ export default function ProAnalytics() {
   const sample = !!overviewLive.needsPlan;
   const overviewSample = useSection("overview", q, tick, true);
   const overview = sample ? overviewSample : overviewLive;
+  const servicesS = useSection("services", q, tick, sample);
   const forecast = useSection("forecast", q, tick, sample);
   const clients = useSection("clients", q, tick, sample);
   const calendar = useSection("calendar", q, tick, sample);
@@ -878,6 +879,9 @@ export default function ProAnalytics() {
           <div className="lg:col-span-2">
             <Overview s={overview} compareLabel={compareLabel} />
           </div>
+          <div className="lg:col-span-2">
+            <ServicesCard s={servicesS} />
+          </div>
           <Forecast s={forecast} />
           <Goals s={goals} onSaved={() => setTick((t) => t + 1)} open={false} />
           <div className="lg:col-span-2">
@@ -897,5 +901,84 @@ export default function ProAnalytics() {
         </CsvLinks.Provider>
       )}
     </div>
+  );
+}
+
+// ── Services ─────────────────────────────────────────────────────────────
+// What each service earns, per hour of chair time, how that changed, and how
+// many of the clients who had it came back. A table on laptops, stacked rows
+// on phones. Shared by pro and shop Analytics.
+type ServiceRow = { name: string; bookings: number; revenue: number; avgTicket: number; perHour: number | null; share: number; change: number | null; cameBack: number | null };
+
+export function ServicesCard({ s, who = "your" }: { s: S; who?: "your" | "the shop's" }) {
+  const rows: ServiceRow[] = s.data?.byService || [];
+  const best = rows.filter((r) => r.perHour !== null).sort((a, b) => (b.perHour || 0) - (a.perHour || 0))[0];
+  return (
+    <Card
+      id="services"
+      title="Services"
+      state={st(s)}
+      headline={rows.length ? rows[0].name : undefined}
+      sub={
+        rows.length
+          ? rows[0].revenue > 0
+            ? `${rows[0].share}% of ${who} revenue this period.${best && best.name !== rows[0].name ? ` ${best.name} earns the most per hour (${cad(best.perHour)}).` : ""}`
+            : "Most booked this period."
+          : s.data
+          ? "No completed services this period."
+          : null
+      }
+    >
+      {rows.length ? (
+        <div className="-mx-1 overflow-hidden">
+          <div className="hidden grid-cols-[minmax(0,1.6fr)_repeat(5,minmax(0,1fr))] gap-3 px-1 pb-2 text-[11px] font-medium text-neutral-500 md:grid">
+            <span>Service</span>
+            <span className="text-right">Revenue</span>
+            <span className="text-right">Bookings</span>
+            <span className="text-right">Average</span>
+            <span className="text-right">Per hour</span>
+            <span className="text-right">Came back</span>
+          </div>
+          <ul className="divide-y divide-hairline">
+            {rows.map((r) => (
+              <li key={r.name} className="grid grid-cols-2 gap-x-3 gap-y-1 px-1 py-3 md:grid-cols-[minmax(0,1.6fr)_repeat(5,minmax(0,1fr))] md:items-center">
+                <div className="col-span-2 min-w-0 md:col-span-1">
+                  <p className="truncate text-sm font-medium text-ink">{r.name}</p>
+                  <span className="mt-1.5 block h-1 overflow-hidden rounded-full bg-ink/[0.07]" aria-hidden="true">
+                    <span className="block h-full rounded-full bg-ink" style={{ width: `${Math.max(r.share, 2)}%` }} />
+                  </span>
+                </div>
+                <p className="text-sm tabular-nums text-ink md:text-right">
+                  <span className="text-neutral-500 md:hidden">Revenue </span>
+                  {cad(r.revenue)}
+                  {r.change !== null ? (
+                    <span className={`ml-1.5 text-[11px] ${r.change < 0 ? "text-[#A30D25]" : "text-neutral-500"}`}>
+                      {r.change > 0 ? "+" : ""}
+                      {r.change}%
+                    </span>
+                  ) : null}
+                </p>
+                <p className="text-sm tabular-nums text-neutral-700 md:text-right">
+                  <span className="text-neutral-500 md:hidden">Bookings </span>
+                  {r.bookings}
+                </p>
+                <p className="text-sm tabular-nums text-neutral-700 md:text-right">
+                  <span className="text-neutral-500 md:hidden">Average </span>
+                  {cad(r.avgTicket)}
+                </p>
+                <p className="text-sm tabular-nums text-neutral-700 md:text-right">
+                  <span className="text-neutral-500 md:hidden">Per hour </span>
+                  {r.perHour === null ? "–" : cad(r.perHour)}
+                </p>
+                <p className="text-sm tabular-nums text-neutral-700 md:text-right">
+                  <span className="text-neutral-500 md:hidden">Came back </span>
+                  {r.cameBack === null ? "–" : `${r.cameBack}%`}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </Card>
   );
 }

@@ -29,6 +29,7 @@ import {
   sources,
   change,
   clientStats,
+  serviceStats,
   type AnalyticsAccess,
   type AVisit,
   type GoalKind,
@@ -39,7 +40,7 @@ import { suggestions, type Suggestion } from "./analyticsInsights";
 
 type DB = ReturnType<typeof getServiceSupabase>;
 
-export const SECTIONS = ["overview", "forecast", "clients", "calendar", "sources", "requests", "profile", "boosts", "prices", "goals"] as const;
+export const SECTIONS = ["overview", "services", "forecast", "clients", "calendar", "sources", "requests", "profile", "boosts", "prices", "goals"] as const;
 export type SectionName = (typeof SECTIONS)[number];
 // Apprentice ("Basic analytics" in plans.ts) gets the overview and its chart.
 export const BASIC_SECTIONS: SectionName[] = ["overview"];
@@ -222,6 +223,8 @@ export async function section(name: SectionName, c: Ctx): Promise<Record<string,
   switch (name) {
     case "overview":
       return overviewSection(c);
+    case "services":
+      return servicesSection(c);
     case "forecast":
       return forecastSection(c);
     case "clients":
@@ -273,6 +276,11 @@ export async function standingFor(db: DB, proId: string) {
     for (const s of svc || []) prices.set(s.id as string, Math.round(Number(s.price || 0) * 100));
   }
   return (data || []).map((s) => ({ clientKey: (s.customer_id as string) || null, nextDate: (s.next_date as string) || null, cents: prices.get(s.service_id as string) || 0 }));
+}
+
+async function servicesSection(c: Ctx) {
+  const visits = await loadVisits(c.db, c.proId, c.today);
+  return { byService: serviceStats(visits, c.period, c.compare), suggestion: null };
 }
 
 async function forecastSection(c: Ctx) {

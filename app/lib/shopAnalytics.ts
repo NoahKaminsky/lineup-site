@@ -9,7 +9,7 @@ import { shopEarnings as shopEarningsFresh } from "./earnings";
 import { boothRentStatus, summarize } from "./earningsCore";
 import { getServiceSupabase } from "./serverSupabase";
 import type { StudioRow } from "./studios";
-import { addDays, change, forecast, overview, rebookRate, retentionCohorts, revenueSeries, type Period } from "./analyticsMetrics";
+import { addDays, change, forecast, overview, rebookRate, retentionCohorts, revenueSeries, serviceStats, type Period } from "./analyticsMetrics";
 import { chairFunnel, chairs, channels, leavingShop, localShopCompare, membershipStats, proStats, sharedClients, teamFlags, type ProInput, type ShopVisit } from "./shopAnalyticsMetrics";
 import { shopSuggestions, type ShopSuggestion } from "./analyticsInsights";
 import { loadVisitsBy, offDaysIn, openHours, sharedLoad, standingFor } from "./proAnalytics";
@@ -19,7 +19,7 @@ type DB = ReturnType<typeof getServiceSupabase>;
 // Shared between the sections loading at the same time (it reads Stripe).
 const shopEarnings = (db: DB, studio: StudioRow, from: string, to: string) => sharedLoad(`earnings:${studio.id}:${from}:${to}`, () => shopEarningsFresh(db, studio, from, to));
 
-export const SHOP_SECTIONS = ["overview", "team", "chairs", "channels", "clients", "memberships", "rent", "forecast", "local"] as const;
+export const SHOP_SECTIONS = ["overview", "services", "team", "chairs", "channels", "clients", "memberships", "rent", "forecast", "local"] as const;
 export type ShopSectionName = (typeof SHOP_SECTIONS)[number];
 
 export type ShopCtx = { db: DB; studio: StudioRow; userId: string; today: string; period: Period; compare: Period; service: string | null; accessToken: string | null };
@@ -67,6 +67,11 @@ export async function shopSection(name: ShopSectionName, c: ShopCtx): Promise<Re
         empty: !visits.some((x) => x.state === "done" || x.state === "upcoming"),
         suggestion: pick(shopSuggestions({ overview: { revenueChange: change(o.revenue), ownIncome: ownNow.total, ownIncomePrev: ownPrev.total } })),
       };
+    }
+
+    case "services": {
+      const visits = await loadVisitsBy(c.db, "studio_id", c.studio.id, c.today);
+      return { byService: serviceStats(visits, c.period, c.compare), suggestion: null };
     }
 
     case "team":

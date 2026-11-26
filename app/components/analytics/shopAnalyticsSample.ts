@@ -8,6 +8,15 @@ const team = [
 ];
 
 export const SHOP_SAMPLE = {
+  services: {
+    byService: [
+      { name: "Skin fade", bookings: 164, revenue: 754400, avgTicket: 4600, perHour: 6133, share: 34, change: 9, cameBack: 69 },
+      { name: "Colour", bookings: 38, revenue: 456000, avgTicket: 12000, perHour: 4800, share: 21, change: 15, cameBack: 58 },
+      { name: "Cut and style", bookings: 71, revenue: 390500, avgTicket: 5500, perHour: 5500, share: 18, change: -3, cameBack: 66 },
+      { name: "Gel nails", bookings: 49, revenue: 245000, avgTicket: 5000, perHour: 4000, share: 11, change: 6, cameBack: 74 },
+    ],
+    suggestion: null,
+  },
   overview: {
     revenue: { now: 842000, prev: 751800 },
     bookings: { now: 155, prev: 141 },
