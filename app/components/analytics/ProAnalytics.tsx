@@ -388,6 +388,7 @@ function Clients({ s, nudge, sending }: { s: S; nudge: (ids: string[] | "all") =
 function Calendar({ s }: { s: S }) {
   const d = s.data;
   const [tip, setTip] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
   const hours = d ? d.hourEnd - d.hourStart + 1 : 0;
   return (
     <Card
@@ -401,14 +402,20 @@ function Calendar({ s }: { s: S }) {
       {d ? (
         <>
           <div className="overflow-x-auto">
-            <div className="inline-grid gap-[3px]" style={{ gridTemplateColumns: `2rem repeat(${hours}, minmax(1.15rem, 1fr))`, minWidth: "100%" }}>
-              <span />
+            {/* Bigger squares on phones (easy to tap; the grid scrolls sideways
+                with the day names pinned), the original size from 640px up. */}
+            <div
+              className="inline-grid gap-[3px] [--cell:1.75rem] sm:[--cell:1.15rem]"
+              onMouseLeave={() => setTip(picked)}
+              style={{ gridTemplateColumns: `2rem repeat(${hours}, minmax(var(--cell), 1fr))`, minWidth: "100%" }}
+            >
+              <span className="sticky left-0 z-10 bg-surface" />
               {Array.from({ length: hours }, (_, i) => (
                 <span key={i} className="text-center text-[10px] text-neutral-500">{(d.hourStart + i) % 2 === 0 ? hourLabel(d.hourStart + i) : ""}</span>
               ))}
               {WEEK.map((dow) => (
                 <div key={dow} className="contents">
-                  <span className="self-center text-[11px] text-neutral-500">{DAYS_SHORT[dow]}</span>
+                  <span className="sticky left-0 z-10 flex items-center self-stretch bg-surface text-[11px] text-neutral-500">{DAYS_SHORT[dow]}</span>
                   {Array.from({ length: hours }, (_, i) => {
                     const booked = d.booked[dow][i] as number;
                     const open = d.open[dow][i] as number;
@@ -419,9 +426,15 @@ function Calendar({ s }: { s: S }) {
                         key={i}
                         type="button"
                         aria-label={label}
-                        onClick={() => setTip(label)}
+                        aria-pressed={picked === label}
+                        onClick={() => {
+                          setTip(label);
+                          setPicked(label);
+                        }}
                         onMouseEnter={() => setTip(label)}
-                        className={`h-6 rounded-[4px] ${open || booked ? "" : "bg-transparent ring-1 ring-inset ring-ink/[0.05]"}`}
+                        className={`h-8 rounded-[4px] sm:h-6 ${open || booked ? "" : "bg-transparent ring-1 ring-inset ring-ink/[0.05]"} ${
+                          picked === label ? "outline outline-2 outline-offset-1 outline-ink" : ""
+                        }`}
                         style={open || booked ? { background: rate === 0 ? "rgba(10,10,10,0.06)" : `rgba(10,10,10,${0.18 + 0.82 * rate})` } : undefined}
                       />
                     );
@@ -430,7 +443,7 @@ function Calendar({ s }: { s: S }) {
               ))}
             </div>
           </div>
-          <p className="mt-2 text-xs text-neutral-500">{tip || "Darker is more booked. Pale squares are open hours with nothing booked; tap one for detail."}</p>
+          <p aria-live="polite" className="mt-2 text-xs text-neutral-500">{tip || "Darker is more booked. Pale squares are open hours with nothing booked; tap one for detail."}</p>
           <dl className="mt-4 grid grid-cols-2 gap-2.5 text-sm">
             <div className="rounded-xl bg-neutral-50 p-3">
               <dt className="text-xs text-neutral-500">Busiest</dt>
