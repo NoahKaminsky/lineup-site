@@ -91,7 +91,7 @@ export type StudioData = {
     owedCents: number;
     inShopCutCents: number;
   };
-  payouts?: null | { connected: boolean; ready: boolean };
+  payouts?: null | { connected: boolean; ready: boolean; needs?: string[] };
 };
 
 export type NoticeValue = { tone: "error" | "success"; text: string } | null;

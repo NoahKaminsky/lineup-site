@@ -39,6 +39,7 @@ import SaveHeart from "@/app/components/SaveHeart";
 import { useModalSheet } from "@/app/lib/useModalSheet";
 import { useSavedPros } from "@/app/lib/savedPros";
 import { shopNow } from "@/app/lib/bookingTime";
+import { buildOpenSlots } from "@/app/lib/openSlots";
 import { Photo } from "@/app/components/Photo";
 import { buttonClass } from "@/app/components/ui";
 import { fieldClass } from "@/app/components/ui";
@@ -953,85 +954,16 @@ export default function ProfessionalProfilePage({ initialData }: ProfilePageClie
       return [];
     }
 
-    const activeAvailability = availability.filter((row) => row.is_active);
-    const nextSevenDays: GeneratedSlot[] = [];
-
-    // Only as far ahead as this pro takes bookings.
-    const daysAhead = Math.min(BOOKING_WINDOW_DAYS, Math.max(1, bookingWindowDays));
-    for (let offset = 0; offset < daysAhead; offset += 1) {
-      const currentDate = new Date();
-      currentDate.setHours(0, 0, 0, 0);
-      currentDate.setDate(currentDate.getDate() + offset);
-
-      const dayOfWeek = currentDate.getDay();
-      const matchingWindows = activeAvailability.filter(
-        (row) => Number(row.day_of_week) === dayOfWeek
-      );
-
-      if (matchingWindows.length === 0) continue;
-
-      for (const window of matchingWindows) {
-        const startMinutes = timeToMinutes(window.start_time);
-        const endMinutes = timeToMinutes(window.end_time);
-
-        for (
-          let slotStart = startMinutes;
-          slotStart + slotBlockMinutes <= endMinutes;
-          slotStart += 15
-        ) {
-          const slotEnd = slotStart + slotBlockMinutes;
-
-          // Today: never offer a time that has already started (15 min buffer).
-          if (offset === 0) {
-            if (slotStart <= shopNow().minutes + 15) continue;
-          }
-
-          const dateKey = formatDateKey(currentDate);
-          const startTime = minutesToTime(slotStart);
-          const endTime = minutesToTime(slotEnd);
-
-          const dayBookings = bookings.filter(
-            (booking) => booking.booking_date === dateKey && booking.status !== "cancelled"
-          );
-          const overlapsExistingBooking = dayBookings.some((booking) => {
-            const bookingStart = timeToMinutes(booking.start_time);
-            const bookingEnd = timeToMinutes(booking.end_time);
-
-            return slotStart < bookingEnd && slotEnd > bookingStart;
-          });
-
-          if (overlapsExistingBooking) continue;
-
-          // How long this time stays free: until closing or the next booking.
-          const freeUntil = dayBookings.reduce((bound, booking) => {
-            const bookingStart = timeToMinutes(booking.start_time);
-            return bookingStart >= slotStart && bookingStart < bound ? bookingStart : bound;
-          }, endMinutes);
-
-          nextSevenDays.push({
-            key: `${dateKey}-${startTime}-${endTime}-${slotBlockMinutes}`,
-            date: dateKey,
-            dayLabel:
-              offset === 0
-                ? "Today"
-                : offset === 1
-                ? "Tomorrow"
-                : dayLabels[dayOfWeek],
-            dateLabel: currentDate.toLocaleDateString("en-CA", {
-              month: "short",
-              day: "numeric",
-            }),
-            start_time: startTime,
-            end_time: endTime,
-            // The longest service that fits starting here.
-            duration_minutes: freeUntil - slotStart,
-          });
-        }
-      }
-    }
-
-    return nextSevenDays;
-  }, [availability, bookings, profile, slotBlockMinutes, canDirectBook, bookingWindowDays]);
+    // Only as far ahead as this pro takes bookings. See app/lib/openSlots.ts.
+    return buildOpenSlots({
+      availability,
+      bookings,
+      slotBlockMinutes,
+      daysAhead: Math.min(BOOKING_WINDOW_DAYS, Math.max(1, bookingWindowDays)),
+      nowMinutes: shopNow().minutes,
+      dayLabels,
+    });
+  }, [availability, bookings, slotBlockMinutes, canDirectBook, bookingWindowDays]);
 
   const groupedSlots = useMemo(() => {
     const groups = new Map<

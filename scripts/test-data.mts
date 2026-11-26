@@ -21,6 +21,7 @@
  * Plain TypeScript run by Node 24's built-in type stripping (no build step).
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { ALL_GUIDE_KEYS } from "../app/lib/guideContent.ts";
 
 const LIVE_PROJECT_REF = "rbsgsymjmptwczecgohb";
 const LIVE_OK_VALUE = "yes-noah-approved";
@@ -139,6 +140,9 @@ async function seed() {
     welcome_tour_seen_customer: true,
     welcome_tour_seen_professional: true,
     onboarding_checklist_dismissed: true,
+    // Tours, page tips and checklists start as seen, so flows aren't covered
+    // by them; e2e/guides.spec.ts turns them back on for its own checks.
+    guides_seen: ALL_GUIDE_KEYS,
     email_request_notifications: false,
     email_offer_notifications: false,
     sms_notifications_enabled: false,

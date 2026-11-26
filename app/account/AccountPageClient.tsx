@@ -21,6 +21,9 @@ import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
 import { useHashTarget } from "@/app/lib/useHashTarget";
 import { buttonClass } from "@/app/components/ui";
 import { fieldClass, textareaClass } from "@/app/components/ui";
+import PageTip from "@/app/components/guides/PageTip";
+import { TIPS } from "@/app/lib/guideContent";
+import { UserCircle as TipUserCircle } from "lucide-react";
 
 // SMS alerts are superseded by push notifications (free, no Twilio account
 // needed) -- hidden from the UI for now rather than removed, since the
@@ -1095,6 +1098,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
   return (
     <>
       <main className="min-h-screen bg-paper px-4 pb-36 pt-6 text-neutral-900 sm:px-6 lg:px-8">
+        <PageTip {...TIPS.account} Icon={TipUserCircle} show={isProfessional} />
         <div className="mx-auto max-w-6xl">
           <div className="mb-6 overflow-hidden rounded-3xl bg-white ring-1 ring-ink/[0.07]">
             {/* Pros lead with a cover photo. Clients get one compact row instead:

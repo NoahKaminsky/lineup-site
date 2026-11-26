@@ -367,14 +367,9 @@ export default function LandingPage() {
           // into the studio, the camera pulls back (each plane at its own
           // rate), the stations spread into a line, and the phone rises
           // between them while the word settles at the top.
-          const splashUp = !!document.querySelector(".z-\\[200\\]");
-          gsap.from(".js-title-wrap .js-line", {
-            yPercent: 115,
-            duration: 1.4,
-            ease: "expo.out",
-            delay: splashUp ? 0.95 : 0.15,
-          });
-          gsap.from(".js-tease-inner", { autoAlpha: 0, y: 10, duration: 1, delay: splashUp ? 1.3 : 0.5, ease: "power3.out" });
+          // The title's slide-up plays in CSS from the first paint
+          // (globals.css, "Landing hero"), so it never waits for this script
+          // or replays when it arrives.
 
           // Distance from the title's resting place to the centre of the
           // frame, so the reveal can start with it dead centre.
@@ -398,6 +393,7 @@ export default function LandingPage() {
               start: "top top",
               end: () => `+=${window.innerHeight * (desktop ? 2.2 : 1.4)}`,
               pin: true,
+              pinSpacer: ".js-hero-spacer",
               anticipatePin: 1,
               // Touch scrolling already carries momentum; a long catch-up on
               // top of it reads as lag, so phones follow the finger closer.
@@ -407,7 +403,11 @@ export default function LandingPage() {
             },
           });
 
-          tl.to(".js-hero-tease", { autoAlpha: 0, duration: 0.8, ease: "none" }, 0.1)
+          // The scene sits behind closed shutters until the visitor scrolls;
+          // it's kept transparent until then (.js-veiled) so the browser
+          // doesn't count unseen photos as the page's first big paint.
+          tl.set(".js-veiled", { autoAlpha: 1 }, 0.3)
+            .to(".js-hero-tease", { autoAlpha: 0, duration: 0.8, ease: "none" }, 0.1)
             .fromTo(".js-title-wrap", { y: centreOffset, scale: desktop ? 1.55 : 1.3 }, { y: 0, scale: 1, duration: 4 }, 0.3)
             .fromTo(".js-shutter-t", { yPercent: 0 }, { yPercent: -100, duration: 4 }, 0.3)
             .fromTo(".js-shutter-b", { yPercent: 0 }, { yPercent: 100, duration: 4 }, 0.3)
@@ -417,7 +417,7 @@ export default function LandingPage() {
             .fromTo(".js-stations", { scale: 1.75, yPercent: 8 }, { scale: 1, yPercent: 0, duration: 4.4, ease: "power2.out" }, 0.3)
             .from(".js-station-inner", { x: (i) => stations[i].spread * spreadPx(), duration: 2.6, stagger: 0.12 }, 2.4)
             .from(".js-front", { yPercent: 100, duration: 3, ease: "power2.out" }, 2.2)
-            .from(".js-hero-follow", { autoAlpha: 0, y: 16, duration: 1.2, stagger: 0.2, ease: "power2.out" }, 4.1)
+            .fromTo(".js-hero-follow", { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 1.2, stagger: 0.2, ease: "power2.out" }, 4.1)
             .from(".js-hero-phone", { yPercent: 105, duration: 3.2, ease: "power3.out" }, 4.6)
             .to({}, { duration: 1.2 });
 
@@ -594,9 +594,13 @@ export default function LandingPage() {
       </header>
 
       {/* ───────────────────────── Hero: the reveal ───────────────────────── */}
+      {/* The hero's own pin wrapper, so pinning it for the scroll reveal
+          doesn't move it in the page (GSAP would otherwise wrap it after
+          load, which repaints the hero and holds back the largest paint). */}
+      <div className="js-hero-spacer">
       <section className="js-hero relative h-[100svh] min-h-[620px] overflow-hidden bg-paper" aria-labelledby="hero-title">
         <div className="js-scene absolute inset-0">
-          <div className="js-back absolute inset-0 origin-[50%_65%]">
+          <div className="js-back js-veiled absolute inset-0 origin-[50%_65%]">
             <StudioPlate priority />
             <video
               className="js-hero-video absolute inset-0 hidden h-full w-full object-cover lg:block motion-reduce:hidden"
@@ -609,7 +613,7 @@ export default function LandingPage() {
             />
           </div>
 
-          <div className="js-stations absolute inset-x-0 bottom-[9%] will-change-transform h-[34%] origin-[50%_100%] lg:bottom-[10%] lg:h-[36%]">
+          <div className="js-stations js-veiled absolute inset-x-0 bottom-[9%] will-change-transform h-[34%] origin-[50%_100%] lg:bottom-[10%] lg:h-[36%]">
             {stations.map((station) => (
               <div
                 key={station.kind}
@@ -623,7 +627,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <div className="js-hero-phone absolute bottom-[-24%] left-1/2 z-20 w-[min(220px,48vw)] -translate-x-1/2 lg:bottom-[-20%] lg:w-[min(268px,30vh)]">
+          <div className="js-hero-phone js-veiled absolute bottom-[-24%] left-1/2 z-20 w-[min(220px,48vw)] -translate-x-1/2 lg:bottom-[-20%] lg:w-[min(268px,30vh)]">
             <PhoneFrame>
               <Screen src="/images/app-screenshots/04-offers-compare.png" alt="Offers from nearby pros lined up in LineUp" sizes="(min-width: 1024px) 268px, 220px" priority />
             </PhoneFrame>
@@ -677,6 +681,7 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+      </div>
 
       {/* ───────────────────────── The app, step by step ───────────────────────── */}
       <section id="tour" className="relative border-t border-ink/[0.08] bg-white">

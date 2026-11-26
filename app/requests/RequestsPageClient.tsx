@@ -8,7 +8,7 @@ import { BOOKING_TIME_ZONE, shopNow } from "@/app/lib/bookingTime";
 import { BookingRow, NextUpCard } from "@/app/components/bookings/BookingVisuals";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Inbox, Briefcase, Wand2, UserCircle, Images, Star, ClipboardList, Handshake, MapPin } from "lucide-react";
+import { Sparkles, Inbox, Briefcase, Wand2, UserCircle, Images, Star, MapPin, Compass, CalendarCheck, ShieldCheck, MessageCircle } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { requestMatchesProfessional, formatProfessions } from "@/app/lib/professions";
 import { getSignedInUser } from "@/lib/getSignedInUser";
@@ -17,6 +17,7 @@ import type { RequestsInitialData } from "./getInitialData";
 import { getCustomerRatingsMap, type CustomerRatingSummary } from "@/app/lib/customerRatings";
 import WelcomeTour, { type TourStep } from "../components/WelcomeTour";
 import OnboardingChecklist from "../components/OnboardingChecklist";
+import CustomerChecklist from "../components/guides/CustomerChecklist";
 import VerificationBanner from "../components/VerificationBanner";
 import NotificationNudge from "../components/NotificationNudge";
 import { canCancelForRefund, formatCancellationDeadline, hasAppointmentEnded } from "@/app/lib/bookingTime";
@@ -42,50 +43,48 @@ const PROFESSIONAL_TOUR_STEPS: TourStep[] = [
     Icon: Sparkles,
     eyebrow: "Welcome to LineUp",
     title: "Let's get you set up.",
-    description:
-      "A quick walk through the essentials before your first booking — this'll only take a minute.",
+    description: "A one-minute look at how LineUp brings you clients, before your first booking.",
   },
   {
     Icon: Inbox,
-    eyebrow: "Your dashboard",
-    title: "Here's where you'll see new requests.",
+    eyebrow: "Home",
+    title: "New requests show up here.",
     description:
-      "Clients post exactly what they need, and matching requests from people near you show up right here. Send an offer on the ones you want to take.",
+      "Clients post exactly what they want. Requests that match your work and area land on Home. Send an offer with your price on the ones you want.",
   },
   {
     Icon: Briefcase,
-    eyebrow: "Work",
-    title: "This is where you manage your bookings.",
+    eyebrow: "Bookings",
+    title: "Accepted offers become bookings.",
     description:
-      "Once a client accepts your offer, it becomes a confirmed booking here. After the appointment, open that booking and tap \"Request completion\" — that's what triggers your payout once the client confirms.",
+      "Your upcoming appointments, chats and history live in Bookings. After an appointment, open it and mark it done. That's what sends your payout.",
   },
   {
     Icon: Wand2,
     eyebrow: "Services",
-    title: "Add what you offer, your pricing, and your address.",
+    title: "Add what you offer.",
     description:
-      "This is what clients see when deciding whether to book you. If you take in-shop or home studio bookings, add that address here too — it's kept private and only shared with a customer after they've booked.",
+      "Each service with its price and how long it takes, plus where you work. Your address stays private until someone books.",
   },
   {
     Icon: Images,
-    eyebrow: "Show your work",
-    title: "Build a portfolio.",
+    eyebrow: "Your profile",
+    title: "Photos win bookings.",
     description:
-      "Add photos — or short videos — of work you're proud of. It's the first thing clients look at when deciding who to book, and it lives right on your account page.",
+      "Add a profile photo and at least three photos of your work. It's the first thing clients look at when they choose who to book.",
   },
   {
     Icon: UserCircle,
-    eyebrow: "Your profile",
-    title: "Add a photo and connect your payouts.",
-    description:
-      "A profile photo helps clients recognize and trust you, and connecting Stripe means you actually get paid once a booking is done.",
+    eyebrow: "Get paid",
+    title: "Connect payouts.",
+    description: "Set up payouts on your Account page so money from completed bookings reaches your bank.",
   },
   {
     Icon: Star,
-    eyebrow: "Last step",
+    eyebrow: "Grow",
     title: "Choose how you want to grow.",
     description:
-      "Basic is free and lets you take on real clients right away. Any paid plan turns on an instant-booking calendar on your profile automatically — clients pick an open time and pay right there, no offers needed. It's on by default once you subscribe, and you can turn it off in Services if you'd rather not.",
+      "Basic is free and gets you real clients right away. Paid plans add instant booking: clients pick an open time on your profile and pay right there, no offers needed.",
   },
 ];
 
@@ -93,22 +92,36 @@ const CUSTOMER_TOUR_STEPS: TourStep[] = [
   {
     Icon: Sparkles,
     eyebrow: "Welcome to LineUp",
-    title: "Let's find you the right pro.",
-    description: "A quick look at how booking works before you post your first request.",
+    title: "Booking, made easy.",
+    description: "Here's how LineUp works. It takes a minute.",
   },
   {
-    Icon: ClipboardList,
-    eyebrow: "How it works",
-    title: "Post what you need, get real offers.",
+    Icon: Compass,
+    eyebrow: "Explore",
+    title: "Find a pro you like.",
     description:
-      "Share the service, your budget, and when and where you want it done — nearby pros send you offers, and you pick the one that fits best. After the appointment, you'll confirm it's done right on the booking page so your pro gets paid.",
+      "Explore shows verified pros near you, with their work, prices and reviews. Tap the heart to save the ones you like.",
   },
   {
-    Icon: Handshake,
-    eyebrow: "Ready to go",
-    title: "Post your first request.",
+    Icon: CalendarCheck,
+    eyebrow: "Two ways to book",
+    title: "Pick a time, or post a request.",
     description:
-      "It only takes a minute, and payment is handled securely right in the app once you accept an offer.",
+      "Many pros let you choose an open time and book right on their profile. Or post what you want, and pros nearby send you offers to choose from.",
+  },
+  {
+    Icon: ShieldCheck,
+    eyebrow: "Paying",
+    title: "Pay safely in the app.",
+    description:
+      "You pay securely when you book. After your visit, confirm it's done so your pro gets paid. If plans change, cancel from the booking.",
+  },
+  {
+    Icon: MessageCircle,
+    eyebrow: "Bookings",
+    title: "Everything in one place.",
+    description:
+      "Bookings has your appointments, the address and a chat with your pro. Turn on notifications so you never miss an offer or a reminder.",
   },
 ];
 
@@ -605,6 +618,9 @@ export default function RequestsPageClient({ initialData, initialUserLocation }:
     getCached<RequestsCache>("requests-page") ?? (initialData as unknown as RequestsCache | null);
 
   const [checklistShowing, setChecklistShowing] = useState(false);
+  // Starts true so the notifications nudge doesn't flash in before the
+  // customer checklist (which asks for notifications itself) has decided.
+  const [customerChecklistShowing, setCustomerChecklistShowing] = useState(true);
   // The "this is you in Explore" card, loaded with the rest of the page.
   const [browsePreviewData, setBrowsePreviewData] = useState<BrowsePreview | null>(initialData?.browsePreview ?? null);
   const [loading, setLoading] = useState(() => !seed);
@@ -1865,8 +1881,9 @@ return (
                 userId={userId}
                 role="professional"
                 steps={PROFESSIONAL_TOUR_STEPS}
-                finalCtaLabel="View subscription plans"
+                finalCtaLabel="See the plans"
                 finalCtaHref="/subscription"
+                seenKey="tour:pro"
               />
               <VerificationBanner />
               {/* One setup prompt at a time: the checklist already asks for photos. */}
@@ -1880,12 +1897,23 @@ return (
               userId={userId}
               role="customer"
               steps={CUSTOMER_TOUR_STEPS}
-              finalCtaLabel="Post your first request"
-              finalCtaHref="/requests/new"
+              finalCtaLabel="Find a pro"
+              finalCtaHref="/discover"
+              seenKey="tour:customer"
             />
           ) : null}
 
-          <NotificationNudge />
+          {isCustomer && userId ? (
+            <CustomerChecklist
+              userId={userId}
+              requests={requests.length}
+              bookings={bookings.length}
+              onVisibleChange={setCustomerChecklistShowing}
+            />
+          ) : null}
+
+          {/* One setup prompt at a time: the checklist already asks for notifications. */}
+          {!(isCustomer && customerChecklistShowing) ? <NotificationNudge /> : null}
 
           {message ? (
             <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

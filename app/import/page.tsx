@@ -13,6 +13,9 @@ import { parseAppointments } from "@/app/lib/appointmentImport";
 import { parseClientList } from "@/app/studio/clientImport";
 import { SOURCE_APPS, SOURCE_APP_LABELS, type SourceApp } from "@/app/lib/importSources";
 import { fieldClass } from "@/app/components/ui";
+import PageTip from "@/app/components/guides/PageTip";
+import { TIPS } from "@/app/lib/guideContent";
+import { FileUp as TipFileUp } from "lucide-react";
 
 type Appt = { id: string; client: string; service: string; date: string; start: string; end: string };
 type Client = { id: string; name: string | null; email: string; phone: string | null; invited: boolean; unsubscribed: boolean };
@@ -189,6 +192,7 @@ export default function ImportPage() {
 
   return (
     <main className="min-h-screen bg-paper px-4 py-8 text-ink sm:px-6 lg:px-8">
+      <PageTip {...TIPS.importClients} Icon={TipFileUp} />
       <div className="mx-auto max-w-3xl space-y-6 py-6 sm:py-8">
         <div>
           <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Bring your clients over</h1>

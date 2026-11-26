@@ -709,19 +709,20 @@ function NavbarComponent() {
         { href: "/admin", label: "Switch to admin", show: !!profile?.is_admin },
       ].filter((link) => link.show)
     : [
-    { href: "/account", label: "Profile", show: true },
-    { href: "/work", label: isProfessional ? "Offers and history" : "Bookings", show: true },
-    { href: "/archive", label: "Archived services", show: true },
-    { href: "/services", label: "Services & availability", show: isProfessional },
-    { href: "/studio", label: onStudio ? "Your shop" : "Open a shop", show: isProfessional },
-    { href: "/import", label: "Bring your clients over", show: isProfessional },
-    { href: "/gift-cards", label: "Gift cards", show: isProfessional },
-    { href: "/refer", label: "Invite a pro, get a free month", show: isProfessional },
-    { href: "/chairs", label: "Chair openings", show: isProfessional },
-    { href: "/analytics", label: "Analytics", show: isProfessional },
-    { href: "/earnings", label: "Earnings", show: isProfessional },
-    { href: "/subscription", label: "Subscription", show: isProfessional },
-    { href: "/admin", label: "Switch to admin", show: !!profile?.is_admin },
+    // Pros: grouped so the long list scans quickly. Clients get a short flat list.
+    { href: "/account", label: "Profile", show: true, group: isProfessional ? "Your business" : "" },
+    { href: "/services", label: "Services & availability", show: isProfessional, group: "Your business" },
+    { href: "/work", label: isProfessional ? "Offers and history" : "Bookings", show: true, group: isProfessional ? "Your business" : "" },
+    { href: "/earnings", label: "Earnings", show: isProfessional, group: "Your business" },
+    { href: "/analytics", label: "Analytics", show: isProfessional, group: "Your business" },
+    { href: "/subscription", label: "Subscription", show: isProfessional, group: "Your business" },
+    { href: "/gift-cards", label: "Gift cards", show: isProfessional, group: "Grow" },
+    { href: "/import", label: "Bring your clients over", show: isProfessional, group: "Grow" },
+    { href: "/refer", label: "Invite a pro, get a free month", show: isProfessional, group: "Grow" },
+    { href: "/studio", label: onStudio ? "Your shop" : "Open a shop", show: isProfessional, group: "Grow" },
+    { href: "/chairs", label: "Chair openings", show: isProfessional, group: "Grow" },
+    { href: "/archive", label: "Archived services", show: true, group: isProfessional ? "More" : "" },
+    { href: "/admin", label: "Switch to admin", show: !!profile?.is_admin, group: isProfessional ? "More" : "" },
   ].filter((link) => link.show);
 
   return (
@@ -972,8 +973,15 @@ function NavbarComponent() {
                       </p>
                     </div>
 
-                    <nav aria-label="Account" className="p-1.5">
-                      {accountLinks.map((link) => (
+                    <nav aria-label="Account" className="max-h-[min(60vh,32rem)] overflow-y-auto p-1.5">
+                      {accountLinks.map((link, i) => {
+                        const group = "group" in link ? (link.group as string) : "";
+                        const prev = i > 0 && "group" in accountLinks[i - 1] ? (accountLinks[i - 1] as { group?: string }).group : "";
+                        return (
+                        <div key={link.href}>
+                        {group && group !== prev ? (
+                          <p className={`px-3 pb-1 text-xs font-medium text-neutral-400 ${i > 0 ? "pt-3" : "pt-1.5"}`}>{group}</p>
+                        ) : null}
                         <Link
                           key={link.href}
                           href={link.href}
@@ -984,10 +992,15 @@ function NavbarComponent() {
                         >
                           {link.label}
                         </Link>
-                      ))}
+                        </div>
+                        );
+                      })}
                     </nav>
 
                     <div className="border-t border-hairline p-1.5">
+                      <Link href="/help" prefetch onClick={handleNavClick} aria-current={isActive("/help") ? "page" : undefined} className={menuItemClass(isActive("/help"))}>
+                        Help and guides
+                      </Link>
                       <a href="mailto:lineupmb@gmail.com" className={menuItemClass(false)}>
                         Contact us
                       </a>

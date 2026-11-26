@@ -8,6 +8,9 @@ import { loginHref } from "@/app/lib/returnTo";
 import { getSignedInUser } from "@/lib/getSignedInUser";
 import { proPageRedirect } from "@/app/lib/proAccess";
 import ProAnalytics from "@/app/components/analytics/ProAnalytics";
+import PageTip from "@/app/components/guides/PageTip";
+import { TIPS } from "@/app/lib/guideContent";
+import { LineChart as TipLineChart } from "lucide-react";
 
 // A pro's analytics: what's growing, who's overdue, which hours sit empty.
 export default function AnalyticsPage() {
@@ -43,6 +46,7 @@ export default function AnalyticsPage() {
 
   return (
     <main className="min-h-screen bg-paper px-4 py-8 text-neutral-900 sm:px-6 lg:px-8">
+      <PageTip {...TIPS.analytics} Icon={TipLineChart} />
       <div className="mx-auto max-w-5xl py-10">
         <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Analytics</h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-neutral-500">

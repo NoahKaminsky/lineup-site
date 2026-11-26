@@ -26,6 +26,9 @@ import { useMyServiceArea } from "@/app/lib/useMyServiceArea";
 import { withinServiceArea } from "@/app/lib/serviceArea";
 import { buttonClass } from "@/app/components/ui";
 import { textareaClass } from "@/app/components/ui";
+import PageTip from "@/app/components/guides/PageTip";
+import { TIPS } from "@/app/lib/guideContent";
+import { Briefcase as TipBriefcase, CalendarCheck as TipCalendarCheck } from "lucide-react";
 type Profile = {
   id: string;
   email: string | null;
@@ -1339,6 +1342,7 @@ export default function WorkPageClient({ initialData }: WorkPageClientProps) {
   return (
     <>
     <main className="min-h-dvh bg-paper px-4 py-6 text-neutral-900 sm:px-6 sm:py-8 lg:px-8">
+      {isProfessional ? <PageTip {...TIPS.work} Icon={TipBriefcase} /> : isCustomer ? <PageTip {...TIPS.customerBookings} Icon={TipCalendarCheck} /> : null}
 
       <div className="mx-auto max-w-6xl py-4 sm:py-6">
         <div className="flex items-end justify-between gap-4">

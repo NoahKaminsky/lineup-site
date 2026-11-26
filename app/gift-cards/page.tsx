@@ -7,6 +7,9 @@ import { useEffect, useState } from "react";
 import { Check, Copy, Gift } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { SkeletonRows } from "@/app/components/ui";
+import PageTip from "@/app/components/guides/PageTip";
+import { TIPS } from "@/app/lib/guideContent";
+import { Gift as TipGift } from "lucide-react";
 
 type Card = {
   id: string;
@@ -128,6 +131,7 @@ export default function GiftCardsPage() {
 
   return (
     <main className="min-h-screen bg-paper px-4 py-8 text-ink sm:px-6 lg:px-8">
+      <PageTip {...TIPS.giftCards} Icon={TipGift} />
       <div className="mx-auto max-w-3xl space-y-12 py-6 sm:py-8">
         <div>
           <h1 className="text-3xl font-semibold tracking-[-0.03em] md:text-4xl">Gift cards</h1>

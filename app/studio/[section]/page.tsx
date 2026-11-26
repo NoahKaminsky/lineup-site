@@ -2,7 +2,10 @@
 
 import { use } from "react";
 import { notFound } from "next/navigation";
+import { Armchair, CalendarDays, Contact, Crown, FileUp, Inbox, Lightbulb, LineChart, Receipt, Settings2, Users, type LucideIcon } from "lucide-react";
 import { useStudio } from "../StudioContext";
+import PageTip from "@/app/components/guides/PageTip";
+import { STUDIO_SECTION_TIPS } from "@/app/lib/guideContent";
 import ScheduleView from "../Schedule";
 import RequestsView from "../Requests";
 import TeamView from "../Team";
@@ -19,7 +22,19 @@ export default function StudioSectionPage({ params }: { params: Promise<{ sectio
   const { data, busy, run, setNotice, reload, redirectTo } = useStudio();
   const props = { data, busy, run, setNotice, reload };
   const me = data.me!;
+  const view = sectionView();
+  // First visit to a section: a short tip on what it's for (not on the
+  // "only managers" notice, which isn't a page they can use).
+  const tip = STUDIO_SECTION_TIPS[section];
+  const usable = view && !(view.type === OnlyManagers);
+  return (
+    <>
+      {tip && usable ? <PageTip {...tip} Icon={STUDIO_TIP_ICONS[section] || Lightbulb} /> : null}
+      {view}
+    </>
+  );
 
+  function sectionView() {
   switch (section) {
     case "calendar":
       return <ScheduleView {...props} />;
@@ -44,7 +59,21 @@ export default function StudioSectionPage({ params }: { params: Promise<{ sectio
     default:
       notFound();
   }
+  }
 }
+
+const STUDIO_TIP_ICONS: Record<string, LucideIcon> = {
+  calendar: CalendarDays,
+  requests: Inbox,
+  team: Users,
+  clients: Contact,
+  import: FileUp,
+  memberships: Crown,
+  chairs: Armchair,
+  analytics: LineChart,
+  earnings: Receipt,
+  settings: Settings2,
+};
 
 function OnlyManagers({ owner = false }: { owner?: boolean }) {
   return (
