@@ -5,9 +5,11 @@
 // way, and open any line to see every fee. Every number comes from
 // app/lib/earningsCore; this file only lays them out.
 
+import EarningsInsights from "./EarningsInsights";
+import { earningsCsv, previousRange } from "@/app/lib/earningsInsights";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowUpRight, ChevronDown, FileText, Landmark, Plus, RotateCw, Wallet } from "lucide-react";
+import { AlertCircle, ArrowUpRight, ChevronDown, Download, FileText, Landmark, Plus, RotateCw, Wallet } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { peekStudio, studioFetch } from "@/app/studio/studioApi";
 import { Button, EmptyState, Field, Section, Segmented, Sheet, Tag, fieldClass, panelClass } from "@/app/studio/ui";
@@ -114,6 +116,20 @@ function EarningsView({ scope }: { scope: Scope }) {
   const { from, to } = range === "custom" ? custom : rangeFor(range, todayKey());
   const path = `/api/earnings?scope=${scope}&from=${from}&to=${to}`;
   const data = loaded[path] || peekStudio<Response>(path);
+  // The same length of time just before, for "vs before" on the charts.
+  const before = previousRange(from, to);
+  const prevPath = `/api/earnings?scope=${scope}&from=${before.from}&to=${before.to}`;
+  const prevData = loaded[prevPath] || peekStudio<Response>(prevPath);
+
+  useEffect(() => {
+    let cancelled = false;
+    studioFetch<Response>(prevPath).then((res) => {
+      if (!cancelled && res.ok) setLoaded((prev) => ({ ...prev, [prevPath]: res.data }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [prevPath, tick]);
 
   useEffect(() => {
     let cancelled = false;
@@ -157,6 +173,15 @@ function EarningsView({ scope }: { scope: Scope }) {
 
   const rows = useMemo(() => data?.rows || [], [data]);
   const attention = data?.attention || [];
+  const downloadCsv = () => {
+    const blob = new Blob([earningsCsv(rows, scope)], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `lineup-earnings-${scope === "shop" ? "shop-" : ""}${from}-to-${to}.csv`;
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   const st = useMemo(() => buildStatement(rows, scope), [rows, scope]);
   const split = useMemo(() => (scope === "shop" ? shopSplit(rows, data?.ownerId || null) : null), [rows, scope, data?.ownerId]);
   const rentMembers = data?.rent;
@@ -209,6 +234,10 @@ function EarningsView({ scope }: { scope: Scope }) {
       <Button variant="ghost" onClick={() => setAskDetails(true)} disabled={!data}>
         <FileText className="h-4 w-4" aria-hidden="true" />
         Statement (PDF)
+      </Button>
+      <Button variant="ghost" onClick={downloadCsv} disabled={!data?.rows?.length}>
+        <Download className="h-4 w-4" aria-hidden="true" />
+        Spreadsheet (CSV)
       </Button>
     </div>
   );
@@ -272,6 +301,8 @@ function EarningsView({ scope }: { scope: Scope }) {
             </div>
 
             <OnTheWay payouts={p} scope={scope} onOpenStripe={openStripe} opening={opening} />
+
+            <EarningsInsights rows={rows} prevRows={prevData?.rows || null} from={from} to={to} scope={scope} />
 
             <div className="lg:hidden">{actions}</div>
 
