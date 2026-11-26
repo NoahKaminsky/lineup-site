@@ -471,7 +471,21 @@ How: the smoke test now saves a full-page screenshot of every page it opens (`SM
 - ✅ **Fixed**: the empty shop Analytics page linked to `/studio/schedule` (a 404); now `/studio/calendar`.
 - ✅ **Email confirmation always ends somewhere clear** (Noah: "it doesn't take you back to sign in"). The "Email confirmed" screen existed but only showed when the link came back through `/auth/callback`. When the address a link was made for isn't on Supabase's allowed redirect list (www vs bare domain, a preview), Supabase sends people to the Site URL (the home page) with the code, so they landed on the home page with no sign of whether it worked. Now a code on the home or login page finishes confirming and shows "Email confirmed. Sign in to keep going." (or goes on to onboarding when signed in); an expired or used link, in the query or after the #, goes to the login page with a plain message and **Send a new link**; signing in before confirming says so with the same button, and a wrong password gets a plain message. *e2e/email-confirm.spec.ts (8, 1280 + 390), tests/money/authLinks.test.ts (5).* Worth checking too (Noah, Supabase → Authentication → URL Configuration): Site URL `https://lineup-aesthetics.ca`, and Redirect URLs include `https://lineup-aesthetics.ca/**` and `https://www.lineup-aesthetics.ca/**`, so links come straight back without the fallback.
 
+- ✅ **Shops only see requests for a shop visit**: Studio > Requests (and Today's "Requests near you") lists only requests where the client chose "Their shop" (`in_shop`). Mobile ("at my place") and home-studio requests stay with the pros and can't be passed. *tests/shop/shopRequests.test.ts.*
 - ✅ **Passing a request to a pro** (Studio > Requests > Pass to…) checked end to end and made hard to miss on the pro's side: the pro gets the in-app notification plus a **push**; on their Home the request goes to the top marked **"Passed by Sam"**, and still shows even if it's outside their usual area or they'd dismissed it; the request page says **"Sam at <shop> passed this to you"**. New `GET /api/studio/requests/passed` returns only the caller's own passes (the passes table stays server-only). *e2e/shop-desk-flow.spec.ts now follows it to the pro: notification, "Passed by", the note.*
 
 ### Tests, Step 9
-STEP9_TESTS
+Production build on LineUp Test, fresh seed before each spec, after the last change.
+
+| Check | Result |
+|---|---|
+| smoke (every page as each TEST user, 1280 + 390) | ✅ 150/150 |
+| email-confirm (new): expired link in query and after #, code on the home page → Email confirmed, unconfirmed sign-in | ✅ 8/8 |
+| shop-desk-flow (now follows a passed request to the pro: notification, "Passed by", note) | ✅ 5/5 |
+| guides, reports, shop-profile, customer, pro, studio, admin, guards | ✅ 6, 4, 3, 18, 24, 22, 2, 12 |
+| customer-flow, pro-flow, studio-flow, admin-flow, more-flows, invites-flow, shop-booking-flow, payment-guards | ✅ 7, 6, 5, 7, 6, 4, 3, 2 (paid parts skip without `stripe listen`; no payment code changed) |
+| `npm test` | ✅ 292/292 |
+| `npx tsc --noEmit`, `npm run build` | ✅ |
+| lint (app) | ✅ 50 errors, the baseline |
+
+One earlier run had seeds fail and three specs time out for about ten minutes; the test database was slow, not the code (seeding worked again moments later and the same specs passed on rerun).
