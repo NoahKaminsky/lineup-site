@@ -41,7 +41,7 @@ export const SHOP_SECTIONS: readonly ShopSection[] = [
   },
   {
     key: "money",
-    label: "Money",
+    label: "Earnings",
     icon: "money",
     pages: [
       { slug: "earnings", label: "Earnings", managersOnly: true },
@@ -52,7 +52,8 @@ export const SHOP_SECTIONS: readonly ShopSection[] = [
 
 /** Behind the gear, for owners and managers. Settings is the owner's. */
 export const SHOP_GEAR_PAGES: readonly (ShopPage & { ownerOnly?: boolean })[] = [
-  { slug: "profile", label: "Your page", managersOnly: true },
+  { slug: "profile", label: "Shop page", managersOnly: true },
+  { slug: "billing", label: "Plan and billing", ownerOnly: true },
   { slug: "settings", label: "Settings", ownerOnly: true },
 ];
 

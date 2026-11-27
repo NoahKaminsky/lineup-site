@@ -4,7 +4,7 @@ import { SHOP_GEAR_PAGES, SHOP_SECTIONS, modeForPath, shopSectionKey, shopSlugFr
 
 describe("the shop's five sections", () => {
   it("has at most five sections in the bar", () => {
-    expect(SHOP_SECTIONS.map((s) => s.label)).toEqual(["Today", "Calendar", "Clients", "Team", "Money"]);
+    expect(SHOP_SECTIONS.map((s) => s.label)).toEqual(["Today", "Calendar", "Clients", "Team", "Earnings"]);
   });
 
   it("every Studio page has exactly one home: a section or the gear", () => {

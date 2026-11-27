@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       }
       const portal = await stripe.billingPortal.sessions.create({
         customer: studio.stripe_customer_id,
-        return_url: `${siteUrl}/studio`,
+        return_url: `${siteUrl}/studio/billing`,
       });
       return NextResponse.json({ url: portal.url });
     }
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
       await supabase.from("studios").update({ plan }).eq("id", studio.id);
       await syncStudioMemberPlans(supabase, studio.id);
 
-      return NextResponse.json({ url: `${siteUrl}/studio/settings?plan_changed=${plan}` });
+      return NextResponse.json({ url: `${siteUrl}/studio/billing?plan_changed=${plan}` });
     }
 
     // Already on this plan (or no subscription on file): send them to the
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     if (isStudioLive(studio) && studio.stripe_customer_id) {
       const portal = await stripe.billingPortal.sessions.create({
         customer: studio.stripe_customer_id,
-        return_url: `${siteUrl}/studio`,
+        return_url: `${siteUrl}/studio/billing`,
       });
       return NextResponse.json({ url: portal.url });
     }

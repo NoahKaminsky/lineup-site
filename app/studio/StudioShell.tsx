@@ -5,6 +5,7 @@
 // switching sections is instant. No studio yet: the setup flow instead.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Check, Copy, ExternalLink, Link2 } from "lucide-react";
 import LuLoader from "@/app/components/LuLoader";
@@ -80,6 +81,7 @@ function StudioFrame({ children }: { children: ReactNode }) {
     const params = new URLSearchParams(window.location.search);
     if (params.get("boosted") === "1") setNotice({ tone: "success", text: "Payment received. Your opening is featured for the next week." });
     else if (params.get("subscribed") === "1") setNotice({ tone: "success", text: "Your Studio plan is active." });
+    else if (params.get("plan_changed")) setNotice({ tone: "success", text: "Your plan has been changed. The difference shows on your next invoice." });
     else if (params.get("rent") === "1") setNotice({ tone: "success", text: "Rent payments are set up. They'll come out automatically." });
     else if (params.get("payouts") === "done") setNotice({ tone: "success", text: "Payout details saved." });
     const tab = params.get("tab");
@@ -152,8 +154,25 @@ function StudioFrame({ children }: { children: ReactNode }) {
             <div className="min-w-0">
               <h1 className="truncate text-2xl font-semibold tracking-[-0.035em] sm:text-[1.75rem]">{studio.name}</h1>
               <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px] text-neutral-500">
-                {studio.live && studio.plan ? <Tag tone="ink">{STUDIO_PLANS[studio.plan].label}</Tag> : <Tag tone="outline">No plan yet</Tag>}
+                {me.isOwner ? (
+                  // The plan, one tap from its billing page.
+                  <Link
+                    href="/studio/billing"
+                    className="group inline-flex min-h-11 items-center gap-1.5 rounded-full outline-offset-2 sm:min-h-0"
+                    aria-label={studio.live && studio.plan ? `${STUDIO_PLANS[studio.plan].label} plan. Manage plan and billing` : "No plan yet. Choose a plan"}
+                  >
+                    {studio.live && studio.plan ? <Tag tone="ink">{STUDIO_PLANS[studio.plan].label}</Tag> : <Tag tone="outline">No plan yet</Tag>}
+                    <span className="text-[13px] font-medium text-neutral-500 underline-offset-4 group-hover:text-ink group-hover:underline">
+                      {studio.live && studio.plan ? "Manage plan" : "Choose a plan"}
+                    </span>
+                  </Link>
+                ) : studio.live && studio.plan ? (
+                  <Tag tone="ink">{STUDIO_PLANS[studio.plan].label}</Tag>
+                ) : (
+                  <Tag tone="outline">No plan yet</Tag>
+                )}
                 <span>
+                  <span aria-hidden="true" className="mr-2 text-neutral-300">·</span>
                   {proCount} {proCount === 1 ? "pro" : "pros"}
                   {studio.areaLabel ? `, ${studio.areaLabel}` : ""}
                 </span>

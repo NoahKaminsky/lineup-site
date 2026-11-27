@@ -408,13 +408,13 @@ const OWNER_TOUR: TourStep[] = [
     eyebrow: "Grow",
     title: "Keep regulars coming back.",
     description:
-      "Memberships live in Clients. Hiring lives in Team. Your shop's page and settings are behind the gear.",
+      "Memberships are in Clients and hiring is in Team. Your shop page, plan and settings are behind the gear.",
   },
   {
     Icon: Receipt,
-    eyebrow: "Money",
-    title: "Money, in one place.",
-    description: "Set up payouts behind the gear. Money shows the shop's cut, rent and memberships as they come in.",
+    eyebrow: "Earnings",
+    title: "Your earnings, in one place.",
+    description: "Set up payouts and your plan behind the gear. Earnings shows the shop's cut, rent and memberships as they come in.",
   },
 ];
 

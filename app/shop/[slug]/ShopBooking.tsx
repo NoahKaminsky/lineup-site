@@ -425,22 +425,22 @@ function WhoChip({
       role="radio"
       aria-checked={on}
       onClick={onClick}
-      className={`flex w-[168px] shrink-0 flex-col items-start gap-2.5 rounded-2xl p-3.5 text-left transition ${
+      className={`flex w-[176px] shrink-0 flex-col items-start gap-3 rounded-2xl p-4 text-left transition ${
         on ? "bg-ink text-white" : "bg-ink/[0.035] text-ink hover:bg-ink/[0.07]"
       }`}
     >
       {avatar}
       <span className="w-full min-w-0">
-        <span className="flex items-center gap-1 text-[14px] font-semibold">
-          <span className="truncate">{title}</span>
+        <span className="flex items-start gap-1.5 text-[14px] font-semibold leading-5">
+          <span className="line-clamp-2 min-w-0">{title}</span>
           {rating ? (
-            <span className={`ml-auto flex shrink-0 items-center gap-0.5 text-[12px] tabular-nums ${on ? "text-white/80" : "text-neutral-600"}`}>
+            <span className={`ml-auto mt-px flex shrink-0 items-center gap-0.5 text-[12px] tabular-nums ${on ? "text-white/80" : "text-neutral-600"}`}>
               <Star className={`h-3 w-3 ${on ? "fill-white text-white" : "fill-ink text-ink"}`} aria-hidden="true" />
               {rating.toFixed(1)}
             </span>
           ) : null}
         </span>
-        <span className={`mt-0.5 block truncate text-[12px] ${on ? "text-white/65" : "text-neutral-500"}`}>{sub}</span>
+        <span className={`mt-1 block truncate text-[12px] ${on ? "text-white/65" : "text-neutral-500"}`}>{sub}</span>
       </span>
     </button>
   );

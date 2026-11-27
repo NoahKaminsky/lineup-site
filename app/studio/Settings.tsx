@@ -1,9 +1,11 @@
 "use client";
 
 // Settings, grouped the way an owner thinks about the shop: how it appears to
-// clients, how money is split, where it's paid, and the plan.
+// clients, how money is split and where it's paid. The plan has its own page.
 
 import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { buttonClass } from "@/app/components/ui";
 import { STUDIO_MAX_COMMISSION_PERCENT } from "@/app/lib/commission";
 import { STUDIO_PLANS } from "@/app/lib/plans";
 import { studioFetch } from "./studioApi";
@@ -81,7 +83,7 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
   return (
     <div>
       <form onSubmit={save}>
-        <Group title="Your shop" description="Your name, link and the requests you get.">
+        <Group title="Shop details" description="Shop name, booking link and the requests you receive.">
           <Field label="Name" htmlFor="s-name">
             <input id="s-name" required minLength={2} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} className={fieldClass} />
           </Field>
@@ -124,7 +126,7 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
 
         <Group
           title="Payments"
-          description="The split, and how clients pay."
+          description="Commission and how clients pay."
         >
           <Field
             label="Shop's cut"
@@ -221,33 +223,13 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
         ) : null}
       </Group>
 
-      <Group
-        title="Plan and billing"
-        description={
-          studio.live && studio.plan
-            ? `${STUDIO_PLANS[studio.plan].label}, ${STUDIO_PLANS[studio.plan].priceLabel} CAD a month${
-                studio.periodEnd
-                  ? `. Renews ${new Date(studio.periodEnd).toLocaleDateString("en-CA", { month: "long", day: "numeric" })}`
-                  : ""
-              }.`
-            : "No active plan."
-        }
-      >
-        {studio.hasBilling ? (
-          <div className="flex justify-end">
-            <Button loading={busy === "portal"} onClick={() => redirectTo("/api/studio/billing", { action: "portal" }, "portal")}>
-              Manage billing
-            </Button>
-          </div>
-        ) : null}
-        <PlanPicker
-          compact={studio.live}
-          stacked={!studio.live}
-          isOwner
-          current={studio.live ? studio.plan : null}
-          busy={busy}
-          onChoose={(plan) => redirectTo("/api/studio/billing", { action: "checkout", plan }, `plan-${plan}`)}
-        />
+      <Group title="Plan and billing" description="Your Studio plan, invoices and card.">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          {studio.live && studio.plan ? <Tag tone="ink">{STUDIO_PLANS[studio.plan].label}</Tag> : <Tag>No plan yet</Tag>}
+          <Link href="/studio/billing" className={buttonClass("secondary", "md")}>
+            Manage plan and billing
+          </Link>
+        </div>
       </Group>
     </div>
   );
@@ -282,7 +264,7 @@ function YouGroup({ data, busy, run, setNotice, reload }: SectionProps) {
   }
 
   return (
-    <Group title="You" description="Take clients yourself, or just run the shop.">
+    <Group title="Your role" description="Take clients yourself, or run the shop only.">
       <Segmented
         label="Do you take clients?"
         value={choice}
@@ -303,5 +285,47 @@ function YouGroup({ data, busy, run, setNotice, reload }: SectionProps) {
         </Button>
       ) : null}
     </Group>
+  );
+}
+
+// Plan and billing: the shop's Studio subscription on a page of its own, so
+// it's easy to find (gear > Plan and billing, or the plan badge up top).
+export function PlanBillingView({ data, busy, redirectTo }: Pick<SectionProps, "data" | "busy"> & { redirectTo: RedirectTo }) {
+  const studio = data.studio!;
+  return (
+    <div>
+      <div className="mb-8">
+        <h2 className="text-[1.65rem] font-semibold leading-tight tracking-[-0.035em] text-ink">Plan and billing</h2>
+        <p className="mt-1 text-sm text-neutral-500">One monthly price for the whole shop. Change plans or cancel any time.</p>
+      </div>
+      <Group
+        title="Your plan"
+        description={
+          studio.live && studio.plan
+            ? `${STUDIO_PLANS[studio.plan].label}, ${STUDIO_PLANS[studio.plan].priceLabel} CAD a month${
+                studio.periodEnd
+                  ? `. Renews ${new Date(studio.periodEnd).toLocaleDateString("en-CA", { month: "long", day: "numeric" })}`
+                  : ""
+              }.`
+            : "No active plan."
+        }
+      >
+        {studio.hasBilling ? (
+          <div className="flex justify-end">
+            <Button loading={busy === "portal"} onClick={() => redirectTo("/api/studio/billing", { action: "portal" }, "portal")}>
+              Manage billing
+            </Button>
+          </div>
+        ) : null}
+        <PlanPicker
+          compact={studio.live}
+          stacked={!studio.live}
+          isOwner
+          current={studio.live ? studio.plan : null}
+          busy={busy}
+          onChoose={(plan) => redirectTo("/api/studio/billing", { action: "checkout", plan }, `plan-${plan}`)}
+        />
+      </Group>
+    </div>
   );
 }
