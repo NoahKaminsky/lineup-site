@@ -158,7 +158,7 @@ function StudioFrame({ children }: { children: ReactNode }) {
                   // The plan, one tap from its billing page.
                   <Link
                     href="/studio/billing"
-                    className="group inline-flex items-center gap-1.5 rounded-full outline-offset-2"
+                    className="group inline-flex min-h-11 items-center gap-1.5 rounded-full outline-offset-2 sm:min-h-0"
                     aria-label={studio.live && studio.plan ? `${STUDIO_PLANS[studio.plan].label} plan. Manage plan and billing` : "No plan yet. Choose a plan"}
                   >
                     {studio.live && studio.plan ? <Tag tone="ink">{STUDIO_PLANS[studio.plan].label}</Tag> : <Tag tone="outline">No plan yet</Tag>}
