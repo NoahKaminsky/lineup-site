@@ -459,7 +459,7 @@ export default function AdminPage() {
                                   disabled={savingShopId === u.id}
                                   onChange={(e) => handleSetShopPlan(u, e.target.value)}
                                   aria-label={`Shop plan for ${u.shop.name}`}
-                                  className="mt-1 rounded-md border border-neutral-300 px-2 py-1 text-sm disabled:opacity-60"
+                                  className="mt-1 min-h-11 rounded-md border border-neutral-300 px-2 py-1 text-sm disabled:opacity-60"
                                 >
                                   {SHOP_PLAN_OPTIONS.map((opt) => (
                                     <option key={opt.value} value={opt.value}>{opt.label}</option>

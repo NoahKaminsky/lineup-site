@@ -1,6 +1,9 @@
+import { PAGE_TITLES } from "@/app/lib/pageTitles";
 import { redirect } from "next/navigation";
 import { getInitialRequestsData } from "./getInitialData";
 import RequestsPageClient from "./RequestsPageClient";
+
+export const metadata = { title: PAGE_TITLES["/requests"] };
 
 // Server Component: does the auth check and the first data fetch with the
 // user's own cookie-based session, so the HTML that comes back already has
