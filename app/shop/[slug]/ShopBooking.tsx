@@ -95,8 +95,8 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
   const minutesFor = useCallback((pro: ShopPro) => serviceFor(pro)?.minutes || pro.defaultMinutes, [serviceFor]);
   // Pros who do what they picked (everyone, before they pick).
   const able = useMemo(() => (pick.want ? bookable.filter((p) => serviceFor(p)) : bookable), [bookable, pick.want, serviceFor]);
-  const chosenPro = pick.who === "any" ? null : able.find((p) => p.id === pick.who) || null;
-  const candidates = chosenPro ? [chosenPro] : able;
+  const chosenPro = useMemo(() => (pick.who === "any" ? null : able.find((p) => p.id === pick.who) || null), [able, pick.who]);
+  const candidates = useMemo(() => (chosenPro ? [chosenPro] : able), [chosenPro, able]);
 
   // Each pro's next opening, for "Who with?".
   const nextFor = useMemo(() => {
@@ -333,7 +333,7 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
       {/* Phones: what's picked so far, always in reach. */}
       {pick.want && !(bookingPro && bookingService) ? (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:hidden">
-          <div className="pointer-events-auto mx-auto flex max-w-md items-center gap-3 rounded-[22px] bg-ink py-2 pl-4 pr-2 text-white shadow-[0_14px_36px_-12px_rgba(0,0,0,0.5)]">
+          <div className="pointer-events-auto mx-auto flex max-w-md items-center gap-3 rounded-3xl bg-ink py-2 pl-4 pr-2 text-white shadow-[0_14px_36px_-12px_rgba(0,0,0,0.5)]">
             <p className="min-w-0 flex-1 truncate text-[13px]">
               <span className="font-semibold">{wantItem?.name}</span>
               <span className="text-white/60"> · {chosenPro ? firstName(chosenPro.name) : "Anyone"}</span>

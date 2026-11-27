@@ -6,13 +6,14 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Check, Copy, ExternalLink, Link2, Settings as SettingsIcon } from "lucide-react";
+import { Check, Copy, ExternalLink, Link2 } from "lucide-react";
 import LuLoader from "@/app/components/LuLoader";
 import { STUDIO_PLANS } from "@/app/lib/plans";
 import { peekStudio, studioFetch } from "./studioApi";
 import { loginHref } from "@/app/lib/returnTo";
 import { shopNow } from "@/app/lib/bookingTime";
-import { Button, Menu, Notice, Sheet, Tag } from "./ui";
+import { Button, Notice, Sheet, Tag } from "./ui";
+import GearMenu from "@/app/components/GearMenu";
 import { PlanPicker } from "./Plans";
 import ShopSetup from "./Setup";
 import StudioTabs from "./StudioTabs";
@@ -161,10 +162,9 @@ function StudioShell({ children }: { children: ReactNode }) {
             <div className="flex shrink-0 items-center gap-2">
               {studio.slug ? <ShareLink slug={studio.slug} /> : null}
               {gearPages.length ? (
-                <Menu
+                <GearMenu
                   label="Your page and settings"
-                  icon={<SettingsIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
-                  items={gearPages.map((p) => ({ label: p.label, onSelect: () => router.push(shopHref(p.slug)) }))}
+                  items={[...gearPages.map((p) => ({ label: p.label, href: shopHref(p.slug) })), { label: "Help and guides", href: "/help" }]}
                 />
               ) : null}
             </div>

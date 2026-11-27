@@ -108,7 +108,6 @@ export function Menu({
   items,
   trigger,
   size = "sm",
-  icon,
 }: {
   label: string;
   items: { label: string; onSelect: () => void; danger?: boolean; disabled?: boolean }[];
@@ -116,8 +115,6 @@ export function Menu({
   trigger?: ReactNode;
   // Size of the labelled button, to match the buttons beside it.
   size?: "sm" | "md";
-  // An icon in a round outlined chip (like the shop's gear) instead of "⋯".
-  icon?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -149,14 +146,10 @@ export function Menu({
         className={
           trigger
             ? buttonClass("secondary", size)
-            : icon
-            ? `flex h-11 w-11 items-center justify-center rounded-full transition-colors sm:h-10 sm:w-10 ${
-                open ? "bg-ink text-white" : "bg-surface text-neutral-600 shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] hover:text-ink"
-              }`
             : "flex h-11 w-11 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-ink/[0.06] hover:text-ink sm:h-8 sm:w-8"
         }
       >
-        {trigger || icon || <MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
+        {trigger || <MoreHorizontal className="h-4 w-4" aria-hidden="true" />}
       </button>
       {open ? (
         <div

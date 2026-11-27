@@ -15,7 +15,7 @@ describe("open times for one pro", () => {
     expect(openTimes(pro("a"), [busy("a", "09:00", "09:45")], DAY, 30, TODAY, 0)).toEqual(["09:45", "10:00", "10:30", "11:00", "11:30"]);
   });
   it("never offers a time starting in the next 15 minutes", () => {
-    expect(openTimes(pro("a"), [], TODAY === DAY ? DAY : DAY, 30, DAY, 9 * 60 + 20)).toEqual(["10:00", "10:30", "11:00", "11:30"]);
+    expect(openTimes(pro("a"), [], DAY, 30, DAY, 9 * 60 + 20)).toEqual(["10:00", "10:30", "11:00", "11:30"]);
   });
   it("nothing past their booking window or on a day off", () => {
     expect(openTimes({ ...pro("a"), bookingWindowDays: 1 }, [], DAY, 30, TODAY, 0)).toEqual([]);
