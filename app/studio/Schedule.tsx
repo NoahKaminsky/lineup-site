@@ -852,7 +852,7 @@ export function NewAppointmentSheet({
       open={!!draft}
       onClose={onClose}
       title="New appointment"
-      description="For walk-ins and phone bookings, paid at the shop. Online clients can't book over it."
+      description="Walk-ins and phone bookings, paid at the shop."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

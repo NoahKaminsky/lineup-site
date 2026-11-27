@@ -81,21 +81,21 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
   return (
     <div>
       <form onSubmit={save}>
-        <Group title="Your shop" description="How the shop appears on its booking page, and which requests it gets.">
+        <Group title="Your shop" description="Your name, link and the requests you get.">
           <Field label="Name" htmlFor="s-name">
             <input id="s-name" required minLength={2} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} className={fieldClass} />
           </Field>
           <Field
             label="Address"
             htmlFor="s-address"
-            hint="Shown on your booking page. Chair openings and requests only ever show the area."
+            hint="On your booking page. Elsewhere, only the area shows."
           >
             <AddressField id="s-address" value={studio.address || ""} onPick={setPlace} />
           </Field>
           <Field label="What the shop offers">
             <ChipPicker label="What the shop offers" options={TRADES} value={trades} onChange={setTrades} />
           </Field>
-          <Field label="Booking page link" htmlFor="s-slug" hint="Changing it breaks the old link anywhere you've posted it.">
+          <Field label="Booking page link" htmlFor="s-slug" hint="Changing it breaks the old link.">
             <div className="flex h-11 items-center overflow-hidden rounded-xl bg-surface text-sm shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] focus-within:shadow-[inset_0_0_0_1.5px_#0a0a0a]">
               <span className="shrink-0 pl-3.5 text-neutral-400">lineup-aesthetics.ca/shop/</span>
               <input
@@ -124,7 +124,7 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
 
         <Group
           title="Payments"
-          description="How money from bookings is split, and how clients can pay."
+          description="The split, and how clients pay."
         >
           <Field
             label="Shop's cut"
@@ -157,7 +157,7 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
             checked={payAtShop}
             onChange={setPayAtShop}
             label="Let clients pay at the shop"
-            description="They book online and save a card instead of paying. Nothing is charged unless they don't show up."
+            description="Clients save a card and pay in person. Charged only if they don't show."
           />
           {payAtShop ? (
             <Field
@@ -202,7 +202,7 @@ export default function SettingsView({ data, busy, run, setNotice, reload, redir
 
       <Group
         title="Shop payouts"
-        description="Where the shop's cut, booth rent and memberships are paid. The shop's own account, separate from any pro's payouts."
+        description="Where the shop's cut, rent and memberships are paid. Separate from the pros' payouts."
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
@@ -282,7 +282,7 @@ function YouGroup({ data, busy, run, setNotice, reload }: SectionProps) {
   }
 
   return (
-    <Group title="You" description="Whether clients can book you, or you just run the shop.">
+    <Group title="You" description="Take clients yourself, or just run the shop.">
       <Segmented
         label="Do you take clients?"
         value={choice}

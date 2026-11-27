@@ -185,7 +185,7 @@ export default function ShopSetup({ data, busy, run, setNotice, reload, redirect
             <Field
               label="Address"
               htmlFor="shop-address"
-              hint="Clients see it on your booking page. Pros and requests only ever see the area."
+              hint="On your booking page. Elsewhere, only the area shows."
             >
               <AddressField id="shop-address" value={place?.address || ""} onPick={setPlace} />
             </Field>

@@ -283,7 +283,7 @@ function ShareLink({ slug }: { slug: string }) {
         >
           <p className="text-sm font-semibold text-ink">Your booking page</p>
           <p className="mt-0.5 text-[13px] leading-5 text-neutral-500">
-            Clients pick a pro and book. Put it in your Instagram bio and Google listing.
+            Clients book here. Put it in your Instagram bio and Google listing.
           </p>
           <div className="mt-3 flex items-center gap-2 rounded-xl bg-ink/[0.04] py-1.5 pl-3 pr-1.5">
             <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{url.replace(/^https?:\/\//, "")}</span>

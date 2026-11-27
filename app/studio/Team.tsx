@@ -129,7 +129,7 @@ export default function TeamView({ data, busy, run, setNotice, reload }: Section
       ) : null}
 
       {me.canManage && invited.length ? (
-        <Section title="Waiting to join" description="Invites last 14 days. Resend to give them a fresh link.">
+        <Section title="Waiting to join" description="Invites last 14 days. Resend for a fresh link.">
           <ul className={`${panelClass} divide-y divide-hairline`}>
             {invited.map((m) => (
               <InviteRow key={m.id} member={m} canCancel={me.canManage} busy={busy} run={run} setNotice={setNotice} reload={reload} />
@@ -351,7 +351,7 @@ function InviteSheet({
       open={open}
       onClose={onClose}
       title="Invite a pro"
-      description="They get an email to join your team. New pros create their own login; pros already on LineUp keep theirs."
+      description="They get an email to join. Pros already on LineUp keep their login."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

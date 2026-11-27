@@ -136,7 +136,7 @@ export default function ClientsView({ data, setNotice }: SectionProps) {
     <div className="space-y-12">
       <Section
         title="Your clients"
-        description={`Bring over your client list, then invite everyone to book with ${studio.name} on LineUp. Each client gets one email, sent in your shop's name.`}
+        description={`Bring your list over, then invite everyone to book with ${studio.name}. One email each, in your shop's name.`}
         actions={
           <>
             <Button onClick={() => setImporting(true)}>
@@ -341,7 +341,7 @@ function ImportSheet({
       open={open}
       onClose={onClose}
       title="Add clients"
-      description="Upload the CSV export from your current booking app, or paste a list with one client per line."
+      description="Upload a CSV from your old booking app, or paste one client per line."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
@@ -510,7 +510,7 @@ function InviteSheet({
       open={open}
       onClose={onClose}
       title={`Invite ${count} ${count === 1 ? "client" : "clients"}`}
-      description="Everyone on your list who hasn't been invited yet gets this email. You can only send it to each client once."
+      description="Goes to everyone not yet invited. Each client gets it once."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
