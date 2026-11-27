@@ -5,19 +5,20 @@
 // switching sections is instant. No studio yet: the setup flow instead.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Check, Copy, ExternalLink, Link2, Settings as SettingsIcon } from "lucide-react";
+import { Check, Copy, ExternalLink, Link2 } from "lucide-react";
 import LuLoader from "@/app/components/LuLoader";
 import { STUDIO_PLANS } from "@/app/lib/plans";
 import { peekStudio, studioFetch } from "./studioApi";
 import { loginHref } from "@/app/lib/returnTo";
 import { shopNow } from "@/app/lib/bookingTime";
 import { Button, Notice, Sheet, Tag } from "./ui";
+import GearMenu from "@/app/components/GearMenu";
 import { PlanPicker } from "./Plans";
 import ShopSetup from "./Setup";
 import StudioTabs from "./StudioTabs";
-import { STUDIO_SECTIONS, StudioContext, studioHref, type StudioContextValue } from "./StudioContext";
+import { StudioContext, studioHref, type StudioContextValue } from "./StudioContext";
+import { SHOP_GEAR_PAGES, shopHref, shopSlugFromPath, visibleShopSections } from "@/app/lib/shopNav";
 import type { NoticeValue, StudioData } from "./types";
 
 const OLD_TABS: Record<string, string> = {
@@ -132,12 +133,15 @@ function StudioFrame({ children }: { children: ReactNode }) {
 
   const studio = data.studio;
   const me = data.me!;
-  // A shop account's main nav already lists the sections.
-  const navInHeader = data.role !== "shop";
-  const section = pathname.replace(/^\/studio\/?/, "").split("/")[0] || "";
-  // Chairs and the client list are for managers. A regular member's shop appointments are already
-  // on their own Calendar (tagged "Shop"), so the team calendar is for managers.
-  const sections = STUDIO_SECTIONS.filter((s) => (s.slug === "profile" || s.slug === "chairs" || s.slug === "calendar" || s.slug === "clients" || s.slug === "import" || s.slug === "earnings" || s.slug === "analytics" ? me.canManage : true));
+  const section = shopSlugFromPath(pathname) ?? "";
+  // The top bar lists the shop's sections for shop accounts and for owners
+  // and managers (in Shop). Other pros on the team get them here instead.
+  const sectionsInBar = data.role === "shop" || me.canManage;
+  const visible = visibleShopSections(me.canManage);
+  const current = visible.find((s) => s.pages.some((p) => p.slug === section));
+  // Related pages in this section (Team and Hiring), as a small switch.
+  const subPages = current && current.pages.length > 1 ? current.pages : null;
+  const gearPages = SHOP_GEAR_PAGES.filter((p) => (p.ownerOnly ? me.isOwner : me.canManage));
   const proCount = studio.proCount ?? (data.team || []).filter((m) => m.status === "active").length;
 
   return (
@@ -157,30 +161,34 @@ function StudioFrame({ children }: { children: ReactNode }) {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {studio.slug ? <ShareLink slug={studio.slug} /> : null}
-              {me.isOwner ? (
-                <Link
-                  href="/studio/settings"
-                  aria-label="Shop settings"
-                  aria-current={section === "settings" ? "page" : undefined}
-                  className={`flex h-11 w-11 sm:h-10 sm:w-10 items-center justify-center rounded-full transition-colors ${
-                    section === "settings"
-                      ? "bg-ink text-white"
-                      : "bg-surface text-neutral-600 shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] hover:text-ink"
-                  }`}
-                >
-                  <SettingsIcon className="h-[18px] w-[18px]" aria-hidden="true" />
-                </Link>
+              {gearPages.length ? (
+                <GearMenu
+                  label="Your page and settings"
+                  items={[...gearPages.map((p) => ({ label: p.label, href: shopHref(p.slug) })), { label: "Help and guides", href: "/help" }]}
+                />
               ) : null}
             </div>
           </div>
         </div>
 
-        {navInHeader ? (
+        {!sectionsInBar ? (
+          // Pros on the team (not managers): the shop's few sections, here.
           <nav aria-label="Shop" className="sticky top-16 z-30 mt-5 bg-paper/85 py-2 backdrop-blur-md supports-[backdrop-filter]:bg-paper/70">
             <div className="px-4 sm:px-6 lg:px-8">
               <div className="mx-auto max-w-6xl">
-                <StudioTabs sections={sections} active={section} />
+                <StudioTabs
+                  sections={visible.map((s) => ({ slug: s.pages[0].slug, label: s.label }))}
+                  active={current ? current.pages[0].slug : section}
+                />
               </div>
+            </div>
+          </nav>
+        ) : null}
+        {subPages ? (
+          // Related pages in this section: Team and Hiring, Earnings and Reports.
+          <nav aria-label={current!.label} className="px-4 pt-5 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-6xl">
+              <StudioTabs sections={subPages} active={section} compact />
             </div>
           </nav>
         ) : (
@@ -275,7 +283,7 @@ function ShareLink({ slug }: { slug: string }) {
         >
           <p className="text-sm font-semibold text-ink">Your booking page</p>
           <p className="mt-0.5 text-[13px] leading-5 text-neutral-500">
-            Clients pick a pro and book. Put it in your Instagram bio and Google listing.
+            Clients book here. Put it in your Instagram bio and Google listing.
           </p>
           <div className="mt-3 flex items-center gap-2 rounded-xl bg-ink/[0.04] py-1.5 pl-3 pr-1.5">
             <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{url.replace(/^https?:\/\//, "")}</span>

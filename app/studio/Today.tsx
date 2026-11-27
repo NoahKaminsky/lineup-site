@@ -395,7 +395,7 @@ const OWNER_TOUR: TourStep[] = [
     eyebrow: "Calendar and requests",
     title: "Every pro's day, side by side.",
     description:
-      "Phone bookings and walk-ins go straight on the calendar. Requests from clients nearby can be passed to the right pro.",
+      "Phone bookings and walk-ins go straight on the calendar. Requests from clients nearby show on Today; pass them to the right pro.",
   },
   {
     Icon: Users,
@@ -408,13 +408,13 @@ const OWNER_TOUR: TourStep[] = [
     eyebrow: "Grow",
     title: "Keep regulars coming back.",
     description:
-      "Memberships, gift cards and your shop's booking page bring regulars back and new clients in. Post an open chair when you're hiring.",
+      "Memberships live in Clients. Hiring lives in Team. Your shop's page and settings are behind the gear.",
   },
   {
     Icon: Receipt,
     eyebrow: "Money",
-    title: "See the shop's money.",
-    description: "Set up the shop's payouts in Settings. Earnings shows the shop's cut, booth rent and memberships as they come in.",
+    title: "Money, in one place.",
+    description: "Set up payouts behind the gear. Money shows the shop's cut, rent and memberships as they come in.",
   },
 ];
 

@@ -123,7 +123,7 @@ export default function RequestsView() {
         </div>
       )}
       <p className="mt-4 text-[13px] leading-5 text-neutral-500">
-        New clients from requests are the only bookings LineUp takes a commission on. Your own clients are always 0%.
+        LineUp only takes a commission on new clients from requests. Your own clients are 0%.
       </p>
     </Section>
   );

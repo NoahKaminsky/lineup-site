@@ -20,6 +20,7 @@ import { getSignedInUser } from "@/lib/getSignedInUser";
 import { normalizeImageFile } from "@/app/lib/normalizeImageFile";
 import { useHashTarget } from "@/app/lib/useHashTarget";
 import { buttonClass } from "@/app/components/ui";
+import GearMenu, { type GearItem } from "@/app/components/GearMenu";
 import { fieldClass, textareaClass } from "@/app/components/ui";
 import PageTip from "@/app/components/guides/PageTip";
 import { TIPS } from "@/app/lib/guideContent";
@@ -1218,7 +1219,24 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
                   </div>
                 </div>
 
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0 items-center gap-2">
+                  <GearMenu
+                    label="Profile settings"
+                    items={
+                      [
+                        { label: "Edit profile", onSelect: () => { setMessage(""); setIsEditing(true); } },
+                        ...(isProfessional
+                          ? [
+                              { label: "Services and hours", href: "/services" },
+                              { label: "Subscription", href: "/subscription" },
+                              { label: "Payouts and verification", href: "/account#your-account" },
+                            ]
+                          : [{ label: "Your bookings", href: "/work" }]),
+                        { label: "Notifications", href: "/account#push-notifications" },
+                        { label: "Help and guides", href: "/help" },
+                      ] satisfies GearItem[]
+                    }
+                  />
                   {isProfessional ? (
                     <Link
                       href={getProfileHref(profile)}
@@ -1902,7 +1920,7 @@ export default function AccountPageClient({ initialData }: AccountPageClientProp
 
               {/* Your account: the things that decide whether you get booked and
                   paid, each with the one action it needs. */}
-              <div className={`rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] ${isProfessional ? "" : "hidden"}`}>
+              <div id="your-account" className={`scroll-mt-28 rounded-3xl bg-white p-6 ring-1 ring-ink/[0.07] ${isProfessional ? "" : "hidden"}`}>
                 <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Your account</h2>
                 <ul className="mt-2 divide-y divide-ink/[0.06]">
                   {(() => {

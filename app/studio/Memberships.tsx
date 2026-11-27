@@ -94,7 +94,7 @@ export default function MembershipsView({ data, busy, run, setNotice }: SectionP
     <div className="space-y-12">
       <Section
         title="Memberships"
-        description="Clients pay monthly by card and it goes to the shop's payout account. Check members in at each visit."
+        description="Clients pay monthly by card, paid out to the shop. Check them in each visit."
         actions={
           info.canManage && info.live ? (
             <Button variant="primary" onClick={() => setCreating(true)}>
@@ -314,7 +314,7 @@ function NewMembershipSheet({
       open={open}
       onClose={onClose}
       title="New membership"
-      description="Billed to the client's card every month. They can cancel any time."
+      description="Billed monthly. Clients can cancel any time."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

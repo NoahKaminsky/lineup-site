@@ -198,7 +198,7 @@ export default function ImportView({ data, setNotice }: SectionProps) {
         <EmptyState title="Add your team first" body="Appointments are matched to the people on your team, so invite them before importing." />
       )}
 
-      <Section title="Import history" description="Undo takes out everything an import added that nobody has used since. Appointments already marked done and paid, and clients you've since emailed, edited or booked, stay.">
+      <Section title="Import history" description="Undo removes what the import added, except anything you've used since.">
         {!imports ? (
           <SkeletonRows />
         ) : !imports.batches.length ? (

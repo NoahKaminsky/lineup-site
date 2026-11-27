@@ -231,12 +231,12 @@ export const HELP_SECTIONS: HelpSection[] = [
         id: "shop-page",
         title: "Set up and share your shop's page",
         steps: [
-          "In Settings, add your address, a one-line tagline and your link.",
-          "In Profile, add a cover photo, photos of the space, a few lines about the shop, your hours and how to reach you.",
+          "Tap the gear, then Settings, to add your address, a tagline and your link.",
+          "Tap the gear, then Your page, to add a cover photo, photos, a few lines about the shop, your hours and how to reach you.",
           "Tap Booking page at the top of Studio to copy the link, and put it in your Instagram bio and Google listing.",
-          "Clients review the shop after a visit. Reply to them from Profile.",
+          "Clients review the shop after a visit. Reply from Your page.",
         ],
-        link: { label: "Open Profile", href: "/studio/profile" },
+        link: { label: "Open Your page", href: "/studio/profile" },
       },
       {
         id: "front-desk",
@@ -252,7 +252,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         id: "shop-requests",
         title: "Pass requests to your pros",
         steps: [
-          "Requests shows clients nearby who want to come in to a shop.",
+          "Today shows clients nearby who want to come in to a shop. Tap See all for the full list.",
           "Pass each one to the pro who's the best fit.",
         ],
         link: { label: "Open Requests", href: "/studio/requests" },
@@ -261,8 +261,8 @@ export const HELP_SECTIONS: HelpSection[] = [
         id: "shop-money",
         title: "Payouts and earnings",
         steps: [
-          "In Settings, set up the shop's payouts. It's separate from any pro's account.",
-          "Earnings shows your pros' sales, the shop's cut, rent, memberships and gift cards, with a chart against the period before.",
+          "Tap the gear, then Settings, to set up the shop's payouts. It's separate from any pro's account.",
+          "Money shows your pros' sales, the shop's cut, rent, memberships and gift cards. Reports, next to it, shows trends.",
           "Download a PDF statement or a spreadsheet any time.",
         ],
         link: { label: "Open Earnings", href: "/studio/earnings" },
@@ -271,9 +271,9 @@ export const HELP_SECTIONS: HelpSection[] = [
         id: "shop-grow",
         title: "Memberships, gift cards and chairs",
         steps: [
-          "Create memberships for regulars, and check members in at the desk.",
+          "In Clients, open Memberships to create plans for regulars, and check them in at the desk.",
           "Sell shop gift cards from your shop's page.",
-          "Hiring? Post an open chair and review who applies.",
+          "Hiring? In Team, open Hiring to post a chair and see who applies.",
         ],
         link: { label: "Open Memberships", href: "/studio/memberships" },
       },
@@ -281,7 +281,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         id: "shop-import",
         title: "Bring your calendar over",
         steps: [
-          "In Import, upload the export from your old booking app.",
+          "In Clients, open Import and upload the export from your old booking app.",
           "Check what came in, then save. Clients and upcoming appointments move with you.",
         ],
         link: { label: "Open Import", href: "/studio/import" },

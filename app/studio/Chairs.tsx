@@ -144,7 +144,7 @@ export default function ChairsView({ data, busy, run, setNotice }: SectionProps)
     <div className="space-y-8">
       <Section
         title="Chair openings"
-        description="Only pros in the trades you pick can see these. Nearby ones get a notification when you post."
+        description="Pros in the trades you pick see these. Nearby ones get notified."
         actions={
           studio.live ? (
             <Button variant="primary" onClick={() => setPosting(true)}>
@@ -367,7 +367,7 @@ function PostOpeningSheet({
       open={open}
       onClose={onClose}
       title="Post a chair opening"
-      description="Shows your area, never your street address. Stays up for 30 days."
+      description="Shows your area, not your address. Stays up 30 days."
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>

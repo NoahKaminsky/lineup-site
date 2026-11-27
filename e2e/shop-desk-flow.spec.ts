@@ -107,8 +107,14 @@ test("manager passes the TEST request to a TEST member", async ({ browser }) => 
 test("the pro it was passed to sees it first, marked, with a note and a notification", async ({ browser }) => {
   const { data: pass } = await db.from("studio_request_passes").select("professional_id").eq("studio_id", ids.studio).eq("request_id", ids.request).single();
   const who = Object.entries(ids).find(([, id]) => id === pass!.professional_id)?.[0] || "member1";
-  const { data: note } = await db.from("notifications").select("type, title").eq("user_id", pass!.professional_id).eq("request_id", ids.request).eq("type", "request_passed").limit(1);
-  expect(note?.[0]?.title).toMatch(/passed you a request/);
+  // The server saves the pass, then the notification: wait for it.
+  await expect
+    .poll(
+      async () =>
+        (await db.from("notifications").select("title").eq("user_id", pass!.professional_id).eq("request_id", ids.request).eq("type", "request_passed").limit(1)).data?.[0]?.title ?? "",
+      { timeout: 15_000 }
+    )
+    .toMatch(/passed you a request/);
 
   const p = await as(browser, who);
   await p.goto("/requests");

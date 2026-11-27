@@ -148,7 +148,7 @@ export default function ProfileView({ data, setNotice }: SectionProps) {
         <div>
           <h2 className="text-lg font-semibold tracking-[-0.02em] text-ink">Shop profile</h2>
           <p className="mt-1 max-w-xl text-sm text-neutral-500">
-            What clients see before they book: photos, hours, where you are and what people say. A full profile gets more bookings.
+            What clients see before they book. A full page gets more bookings.
           </p>
         </div>
         {studio.slug ? (
@@ -159,7 +159,7 @@ export default function ProfileView({ data, setNotice }: SectionProps) {
         ) : null}
       </div>
 
-      <Group title="Cover and logo" description="The big photo across the top of your page, and a small logo beside your name. A bright photo of the shop works best.">
+      <Group title="Cover and logo" description="A big photo across the top, and your logo. Bright shop photos work best.">
         <div className={`${panelClass} overflow-hidden`}>
           <div className="relative aspect-[16/7] bg-ink/[0.05]">
             {pr?.cover_url ? <Photo src={pr.cover_url} alt="" width={1200} sizes="(min-width: 768px) 576px, 100vw" className="absolute inset-0 h-full w-full object-cover" /> : null}
@@ -193,7 +193,7 @@ export default function ProfileView({ data, setNotice }: SectionProps) {
         </div>
       </Group>
 
-      <Group title="Photos" description={`The space, the chairs, the work. Up to 30; clients swipe through them on your page. ${p.photos.length} added.`}>
+      <Group title="Photos" description={`The space and the work. Up to 30. ${p.photos.length} added.`}>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {p.photos.map((ph) => (
             <div key={ph.id} className="group relative aspect-square overflow-hidden rounded-xl bg-ink/[0.05]">
@@ -220,13 +220,13 @@ export default function ProfileView({ data, setNotice }: SectionProps) {
         </div>
       </Group>
 
-      <Group title="About" description="A few lines on the shop: your style, who you are, what makes a visit good.">
+      <Group title="About" description="A few lines on your style and what a visit is like.">
         <Field label="About the shop" htmlFor="sp-about" optional>
           <textarea id="sp-about" rows={5} maxLength={1500} disabled={!canEdit} value={about} onChange={(e) => setAbout(e.target.value)} className={textareaClass} placeholder="A neighbourhood shop for sharp cuts and easy conversation…" />
         </Field>
       </Group>
 
-      <Group title="Opening hours" description="Shown on your page with “Open now”. Or use your team's working hours, combined.">
+      <Group title="Opening hours" description="Shown with “Open now”. Or use your team's hours.">
         <Toggle label="Use the team's hours" checked={teamHours} onChange={(v) => canEdit && setTeamHours(v)} />
         {!teamHours ? (
           <ul className="space-y-2">
@@ -261,7 +261,7 @@ export default function ProfileView({ data, setNotice }: SectionProps) {
         ) : null}
       </Group>
 
-      <Group title="Contact" description="How clients reach you. All optional; only what you fill in shows.">
+      <Group title="Contact" description="All optional. Only what you fill in shows.">
         <Field label="Phone" htmlFor="sp-phone" optional>
           <input id="sp-phone" type="tel" inputMode="tel" autoComplete="tel" value={phone} disabled={!canEdit} onChange={(e) => setPhone(e.target.value)} className={fieldClass} placeholder="204-555-0123" />
         </Field>
@@ -273,7 +273,7 @@ export default function ProfileView({ data, setNotice }: SectionProps) {
         </Field>
       </Group>
 
-      <Group title="Good to know" description="Tick what's true. Clients often check these before they book.">
+      <Group title="Good to know" description="Tick what's true.">
         {canEdit ? (
           <ChipPicker label="Amenities" options={AMENITIES.map((a) => ({ value: a, label: a }))} value={amenities} onChange={setAmenities} />
         ) : (
