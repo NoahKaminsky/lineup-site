@@ -14,7 +14,7 @@ import MembershipsView from "../Memberships";
 import ChairsView from "../Chairs";
 import ClientsView from "../Clients";
 import ImportView from "../Import";
-import SettingsView from "../Settings";
+import SettingsView, { PlanBillingView } from "../Settings";
 import ShopAnalyticsView from "@/app/components/analytics/ShopAnalytics";
 import EarningsReport from "@/app/components/earnings/EarningsReport";
 
@@ -57,6 +57,8 @@ export default function StudioSectionPage({ params }: { params: Promise<{ sectio
       return me.canManage ? <ShopAnalytics /> : <OnlyManagers />;
     case "earnings":
       return me.canManage ? <ShopEarnings /> : <OnlyManagers />;
+    case "billing":
+      return me.isOwner ? <PlanBillingView data={data} busy={busy} redirectTo={redirectTo} /> : <OnlyManagers owner />;
     case "settings":
       return me.isOwner ? <SettingsView {...props} redirectTo={redirectTo} /> : <OnlyManagers owner />;
     default:

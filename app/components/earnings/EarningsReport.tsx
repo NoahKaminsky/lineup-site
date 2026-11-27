@@ -300,7 +300,7 @@ function EarningsView({ scope }: { scope: Scope }) {
           {/* Left: the figures. On phones this all comes first. */}
           <div className="space-y-8">
             <div className={`${panelClass} p-5 sm:p-6`}>
-              <p className="text-sm text-neutral-500">{scope === "shop" ? "What the shop keeps" : "Your net earnings"} {period}</p>
+              <p className="text-sm text-neutral-500">{scope === "shop" ? "Shop revenue" : "Your net earnings"} {period}</p>
               <p className="mt-1 text-4xl font-semibold tabular-nums tracking-[-0.03em] text-ink">{money(topCents)}</p>
               <p className="mt-3 text-[15px] leading-7 text-neutral-700">{sentence}</p>
               {error ? <p className="mt-2 text-sm text-[#A30D25]">{error}</p> : null}
@@ -333,7 +333,7 @@ function EarningsView({ scope }: { scope: Scope }) {
 
             {scope === "shop" && split ? (
               <>
-                <Section title="What the shop keeps" description="Its cut, rent, memberships, gift cards, products and the owner's own appointments.">
+                <Section title="Shop revenue" description="Its cut, rent, memberships, gift cards, products and the owner's own appointments.">
                   <Lines
                     lines={[
                       { label: "Commission from the team", cents: split.shopOwn.commission },
@@ -347,7 +347,7 @@ function EarningsView({ scope }: { scope: Scope }) {
                       ...(st.summary.expenses ? [{ label: "Expenses", cents: -st.summary.expenses }] : []),
                     ].filter((l) => l.cents)}
                     total={split.shopOwn.total}
-                    totalLabel="What the shop keeps"
+                    totalLabel="Shop revenue"
                   />
                 </Section>
 

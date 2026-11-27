@@ -232,11 +232,11 @@ export const HELP_SECTIONS: HelpSection[] = [
         title: "Set up and share your shop's page",
         steps: [
           "Tap the gear, then Settings, to add your address, a tagline and your link.",
-          "Tap the gear, then Your page, to add a cover photo, photos, a few lines about the shop, your hours and how to reach you.",
+          "Tap the gear, then Shop page, to add a cover photo, photos, a few lines about the shop, your hours and how to reach you.",
           "Tap Booking page at the top of Studio to copy the link, and put it in your Instagram bio and Google listing.",
-          "Clients review the shop after a visit. Reply from Your page.",
+          "Clients review the shop after a visit. Reply from Shop page.",
         ],
-        link: { label: "Open Your page", href: "/studio/profile" },
+        link: { label: "Open Shop page", href: "/studio/profile" },
       },
       {
         id: "front-desk",
@@ -262,7 +262,7 @@ export const HELP_SECTIONS: HelpSection[] = [
         title: "Payouts and earnings",
         steps: [
           "Tap the gear, then Settings, to set up the shop's payouts. It's separate from any pro's account.",
-          "Money shows your pros' sales, the shop's cut, rent, memberships and gift cards. Reports, next to it, shows trends.",
+          "Earnings shows your pros' sales, the shop's cut, rent, memberships and gift cards. Reports, beside it, shows trends.",
           "Download a PDF statement or a spreadsheet any time.",
         ],
         link: { label: "Open Earnings", href: "/studio/earnings" },

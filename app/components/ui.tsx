@@ -23,8 +23,8 @@ const variants: Record<ButtonVariant, string> = {
 
 const sizes: Record<ButtonSize, string> = {
   // 44px tall on phones (easy to tap); the original sizes from 640px up.
-  sm: "h-11 px-3.5 text-[13px] sm:h-8",
-  md: "h-11 px-5 text-sm sm:h-10",
+  sm: "h-11 px-4 text-[13px] sm:h-9",
+  md: "h-11 px-5.5 text-sm sm:h-10",
 };
 
 export function buttonClass(variant: ButtonVariant = "secondary", size: ButtonSize = "md", extra = "") {
@@ -111,7 +111,7 @@ export function Tag({ tone = "muted", children }: { tone?: "ink" | "muted" | "si
     outline: "text-neutral-600 shadow-[inset_0_0_0_1px_rgba(10,10,10,0.14)]",
   } as const;
   return (
-    <span className={`inline-flex h-6 items-center rounded-full px-2.5 text-xs font-medium ${tones[tone]}`}>{children}</span>
+    <span className={`inline-flex h-[26px] items-center whitespace-nowrap rounded-full px-3 text-xs font-medium ${tones[tone]}`}>{children}</span>
   );
 }
 

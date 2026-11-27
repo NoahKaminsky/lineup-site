@@ -753,7 +753,8 @@ function NavbarComponent() {
 
   const accountLinks = shopMode
     ? [
-        { href: "/studio/profile", label: "Your shop's page", show: true },
+        { href: "/studio/profile", label: "Shop page", show: true },
+        { href: "/studio/billing", label: "Plan and billing", show: isShop || ownsShop },
         { href: "/studio/settings", label: "Shop settings", show: isShop || ownsShop },
         { href: "/gift-cards", label: "Gift cards", show: true },
         { href: "/account", label: "Account", show: true },

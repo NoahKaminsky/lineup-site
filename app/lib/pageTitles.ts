@@ -38,7 +38,7 @@ export const PAGE_TITLES = {
 // Kept here rather than read from StudioContext (a client file the server
 // can't read values from). A test checks it matches the Studio tabs.
 const STUDIO_SECTION_LABELS: Record<string, string> = {
-  profile: "Profile",
+  profile: "Shop page",
   calendar: "Calendar",
   requests: "Requests",
   team: "Team",
@@ -48,6 +48,8 @@ const STUDIO_SECTION_LABELS: Record<string, string> = {
   chairs: "Chairs",
   analytics: "Analytics",
   earnings: "Earnings",
+  billing: "Plan and billing",
+  settings: "Settings",
 };
 
 /** "Calendar · Studio" for /studio/calendar; just "Studio" for anything unknown. */

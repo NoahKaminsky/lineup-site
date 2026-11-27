@@ -307,9 +307,10 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
           </div>
 
           {/* What people do here, one tap each. */}
-          <div className="-mx-4 mt-6 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
+          {/* Phones: Book now across the top, the rest two to a row. */}
+          <div className={`mt-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap ${bookable ? "[&>*:last-child:nth-child(even)]:col-span-2" : "[&>*:last-child:nth-child(odd)]:col-span-2"}`}>
             {bookable ? (
-              <a href="#book" className={buttonClass("primary", "md", "shrink-0")}>
+              <a href="#book" className={buttonClass("primary", "md", "col-span-2 shrink-0")}>
                 <CalendarCheck className="h-4 w-4" aria-hidden="true" />
                 Book now
               </a>
