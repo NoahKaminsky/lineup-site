@@ -61,7 +61,7 @@ async function saveTestCardAndBook(p: Page) {
 test("member books the soonest opening with their membership (card held, not charged)", async () => {
   const before = (await shopBookings()).length;
   await page.goto(`/shop/${ids.slug}`);
-  await page.getByRole("button", { name: /with TEST/ }).first().click();
+  await page.getByRole("radiogroup", { name: "Times" }).getByRole("radio").first().click();
   await expect(page.getByRole("radio", { name: /^Membership/ })).toBeChecked();
   await page.getByRole("button", { name: "Book with membership" }).click();
   await saveTestCardAndBook(page);
@@ -76,7 +76,9 @@ test("without a membership: pay at the shop, card saved with a test card (not ch
   try {
     const before = (await shopBookings()).length;
     await page.goto(`/shop/${ids.slug}`);
-    await page.getByRole("button", { name: /with TEST/ }).last().click(); // far from the slot the first test booked
+    // A later day, far from the slot the first test booked.
+    await page.locator("#step-when button[aria-pressed]:not([disabled])").last().click();
+    await page.getByRole("radiogroup", { name: "Times" }).getByRole("radio").last().click();
     await page.getByRole("radio", { name: /^Pay at the shop/ }).click();
     await page.getByRole("button", { name: "Hold my spot" }).click();
     await saveTestCardAndBook(page);

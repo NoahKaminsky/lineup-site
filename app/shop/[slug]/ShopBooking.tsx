@@ -13,7 +13,7 @@
 // clashes at payment, and the database refuses two bookings that overlap.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Star } from "lucide-react";
+import { Check, Star, Users } from "lucide-react";
 import { serviceKey, shopMenu } from "@/app/lib/shopMenu";
 import { supabase } from "@/lib/supabaseClient";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
@@ -204,7 +204,11 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
             onClick={() => setPick((p) => ({ ...p, who: "any", time: null }))}
             title="Anyone"
             sub={busy === null ? "Checking…" : soonestAny ? `Soonest: ${whenShort(soonestAny, today)}` : "No openings"}
-            avatar={<span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-full bg-ink text-[13px] font-semibold text-white">Any</span>}
+            avatar={
+              <span aria-hidden="true" className={`flex h-11 w-11 items-center justify-center rounded-full ${pick.who === "any" ? "bg-white/15 text-white" : "bg-ink/[0.06] text-ink"}`}>
+                <Users className="h-5 w-5" strokeWidth={1.8} />
+              </span>
+            }
           />
           {able.map((pro) => (
             <WhoChip
@@ -330,24 +334,6 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
         </p>
       ) : null}
 
-      {/* Phones: what's picked so far, always in reach. */}
-      {pick.want && !(bookingPro && bookingService) ? (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:hidden">
-          <div className="pointer-events-auto mx-auto flex max-w-md items-center gap-3 rounded-3xl bg-ink py-2 pl-4 pr-2 text-white shadow-[0_14px_36px_-12px_rgba(0,0,0,0.5)]">
-            <p className="min-w-0 flex-1 truncate text-[13px]">
-              <span className="font-semibold">{wantItem?.name}</span>
-              <span className="text-white/60"> · {chosenPro ? firstName(chosenPro.name) : "Anyone"}</span>
-            </p>
-            <button
-              type="button"
-              onClick={() => scrollTo("step-when")}
-              className="h-10 shrink-0 rounded-full bg-white px-4 text-[13px] font-semibold text-ink"
-            >
-              Pick a time
-            </button>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
