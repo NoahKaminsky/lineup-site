@@ -13,7 +13,7 @@
 // clashes at payment, and the database refuses two bookings that overlap.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, ShieldCheck, Star } from "lucide-react";
+import { Check, Star } from "lucide-react";
 import { serviceKey, shopMenu } from "@/app/lib/shopMenu";
 import { supabase } from "@/lib/supabaseClient";
 import { loginHref, rememberReturnTo } from "@/app/lib/returnTo";
@@ -23,96 +23,20 @@ import { BookedSheet } from "@/app/components/moments/Moments";
 import SplitFlap from "@/app/components/SplitFlap";
 import type { ShopPro } from "./page";
 import { shopNow } from "@/app/lib/bookingTime";
+import { DAYS_SHOWN, PERIODS, addDays, dayName, fromMin, nextDayWord, openTimes, resolveAnyone, time12, toMin, type Busy, type PeriodKey } from "@/app/lib/shopSlots";
 import { Photo } from "@/app/components/Photo";
 import { buttonClass } from "@/app/components/ui";
 
-type Busy = { professional_id: string; booking_date: string; start_time: string; end_time: string };
-
-const DAYS_SHOWN = 14;
-// Start times on the half hour, plus the moment a pro frees up (so a 15
-// minute gap after a booking isn't lost). Fewer, cleaner choices.
-const STEP_MIN = 30;
-
-const PERIODS = [
-  { key: "morning", label: "Morning", from: 0, to: 12 * 60 },
-  { key: "afternoon", label: "Afternoon", from: 12 * 60, to: 17 * 60 },
-  { key: "evening", label: "Evening", from: 17 * 60, to: 24 * 60 },
-] as const;
-type PeriodKey = (typeof PERIODS)[number]["key"];
-const LEAD_MIN = 15; // never offer a time starting in the next 15 minutes
-
-function dateKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function addDays(key: string, n: number) {
-  const d = new Date(`${key}T00:00:00`);
-  d.setDate(d.getDate() + n);
-  return dateKey(d);
-}
-function toMin(t: string) {
-  const [h, m] = t.slice(0, 5).split(":").map(Number);
-  return h * 60 + m;
-}
-function fromMin(n: number) {
-  return `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
-}
-// "tomorrow" reads as part of the sentence; weekday names keep their capital.
-function nextDayWord(label: string) {
-  return label.toLowerCase() === "tomorrow" ? "tomorrow" : label;
-}
-function time12(t: string) {
-  const [h, m] = t.split(":").map(Number);
-  const hour = h % 12 || 12;
-  // Always "4:00pm", never "4pm", so times line up with "4:30pm".
-  return `${hour}:${String(m || 0).padStart(2, "0")}${h >= 12 ? "pm" : "am"}`;
-}
-function dayName(key: string, today: string) {
-  if (key === today) return "Today";
-  if (key === addDays(today, 1)) return "Tomorrow";
-  return new Date(`${key}T00:00:00`).toLocaleDateString("en-CA", { weekday: "long", month: "short", day: "numeric" });
-}
-
-// Open start times for one pro on one day, for an appointment this long.
-function openTimes(pro: ShopPro, busy: Busy[], day: string, minutes: number, today: string) {
-  const offset = Math.round((new Date(`${day}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86_400_000);
-  if (offset < 0 || offset >= pro.bookingWindowDays) return [];
-  const windows = pro.hours[new Date(`${day}T00:00:00`).getDay()] || [];
-  const taken = busy
-    .filter((b) => b.professional_id === pro.id && b.booking_date === day)
-    .map((b) => [toMin(b.start_time), b.end_time.startsWith("24") ? 24 * 60 : toMin(b.end_time)] as const);
-  const earliest = day === today ? shopNow().minutes + LEAD_MIN : -1;
-  const out: string[] = [];
-  for (const [ws, we] of windows) {
-    const start = toMin(ws);
-    const end = toMin(we);
-    const candidates = new Set<number>();
-    for (let t = Math.ceil(start / STEP_MIN) * STEP_MIN; t <= end; t += STEP_MIN) candidates.add(t);
-    candidates.add(start);
-    // Right when a booking ends, if that's inside their hours.
-    for (const [, be] of taken) if (be > start && be < end) candidates.add(be);
-    for (const t of candidates) {
-      if (t + minutes > end || t <= earliest) continue;
-      if (taken.some(([bs, be]) => t < be && t + minutes > bs)) continue;
-      out.push(fromMin(t));
-    }
-  }
-  return [...new Set(out)].sort();
-}
+type BookingPick = { want: string | null; who: string; day: string | null; time: string | null };
 
 export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: string }) {
   const bookable = useMemo(() => pros.filter((p) => p.canBookOnline), [pros]);
   const [today, setToday] = useState(() => shopNow().dateKey);
   const [busy, setBusy] = useState<Busy[] | null>(bookable.length ? null : []);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [pick, setPick] = useState<{ day: string | null; time: string | null; serviceId: string | null }>({
-    day: null,
-    time: null,
-    serviceId: null,
-  });
-  // "What would you like?": a service name picked from the shop's menu, or null for anything.
-  const [want, setWant] = useState<string | null>(null);
   const menu = useMemo(() => shopMenu(bookable), [bookable]);
-  const serviceFor = useCallback((pro: ShopPro) => (want ? pro.services.find((s) => serviceKey(s.name) === want) || null : null), [want]);
+  // One thing on the menu: it's already chosen.
+  const [pick, setPick] = useState<BookingPick>(() => ({ want: menu.length === 1 ? menu[0].key : null, who: "any", day: null, time: null }));
+  const [periodChoice, setPeriodChoice] = useState<PeriodKey | null>(null);
 
   const load = useCallback(async () => {
     if (!bookable.length) return;
@@ -145,189 +69,394 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
 
   const days = useMemo(() => Array.from({ length: DAYS_SHOWN }, (_, i) => addDays(today, i)), [today]);
 
-  // Back from signing in: reopen the pro with the time they'd picked.
+  // Back from signing in: put back the service, pro and time they'd picked.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const pro = bookable.find((p) => p.id === params.get("pro"));
     if (!pro) return;
+    const service = pro.services.find((s) => s.id === params.get("service"));
     const day = params.get("day");
     const time = params.get("time");
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from the URL
-    setOpenId(pro.id);
     setPick({
+      want: service ? serviceKey(service.name) : null,
+      who: pro.id,
       day: day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null,
       time: time && /^\d{2}:\d{2}$/.test(time) ? time : null,
-      serviceId: pro.services.some((s) => s.id === params.get("service")) ? params.get("service") : null,
     });
     window.history.replaceState(null, "", window.location.pathname);
-    window.setTimeout(() => document.getElementById(`pro-${pro.id}`)?.scrollIntoView({ block: "start" }), 120);
+    window.setTimeout(() => document.getElementById("step-when")?.scrollIntoView({ block: "start" }), 120);
   }, [bookable]);
 
-  // Each bookable pro's first openings, at their shortest service.
+  const serviceFor = useCallback(
+    (pro: ShopPro) => (pick.want ? pro.services.find((s) => serviceKey(s.name) === pick.want) || null : null),
+    [pick.want]
+  );
+  const minutesFor = useCallback((pro: ShopPro) => serviceFor(pro)?.minutes || pro.defaultMinutes, [serviceFor]);
+  // Pros who do what they picked (everyone, before they pick).
+  const able = useMemo(() => (pick.want ? bookable.filter((p) => serviceFor(p)) : bookable), [bookable, pick.want, serviceFor]);
+  const chosenPro = pick.who === "any" ? null : able.find((p) => p.id === pick.who) || null;
+  const candidates = chosenPro ? [chosenPro] : able;
+
+  // Each pro's next opening, for "Who with?".
   const nextFor = useMemo(() => {
-    const map: Record<string, { day: string; time: string }[]> = {};
+    const map: Record<string, { day: string; time: string } | null> = {};
     if (!busy) return map;
-    for (const pro of bookable) {
-      const list: { day: string; time: string }[] = [];
-      const wanted = serviceFor(pro);
-      if (want && !wanted) continue;
+    for (const pro of able) {
+      map[pro.id] = null;
       for (const day of days) {
-        for (const time of openTimes(pro, busy, day, wanted?.minutes || pro.defaultMinutes, today)) {
-          list.push({ day, time });
-          if (list.length >= 3) break;
+        const t = openTimes(pro, busy, day, minutesFor(pro), today)[0];
+        if (t) {
+          map[pro.id] = { day, time: t };
+          break;
         }
-        if (list.length >= 3) break;
       }
-      map[pro.id] = list;
     }
     return map;
-  }, [bookable, busy, days, today, want, serviceFor]);
+  }, [able, busy, days, today, minutesFor]);
+  const soonestAny = Object.values(nextFor)
+    .filter(Boolean)
+    .sort((a, b) => (a!.day + a!.time).localeCompare(b!.day + b!.time))[0] as { day: string; time: string } | undefined;
 
-  const soonest = useMemo(
-    () =>
-      bookable
-        .flatMap((p) => (nextFor[p.id] || []).slice(0, 2).map((s) => ({ ...s, pro: p })))
-        .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time))
-        .slice(0, 6),
-    [bookable, nextFor]
-  );
+  // Open times per day across whoever they're booking with.
+  const perDay = useMemo(() => {
+    if (!busy || !pick.want) return {} as Record<string, string[]>;
+    return Object.fromEntries(
+      days.map((d) => [d, [...new Set(candidates.flatMap((p) => openTimes(p, busy, d, minutesFor(p), today)))].sort()])
+    ) as Record<string, string[]>;
+  }, [busy, pick.want, days, candidates, minutesFor, today]);
+  const day = pick.day && perDay[pick.day]?.length ? pick.day : days.find((d) => perDay[d]?.length) || null;
+  const times = day ? perDay[day] || [] : [];
+  const time = pick.time && times.includes(pick.time) ? pick.time : null;
+  const byPeriod = PERIODS.map((p) => ({ ...p, times: times.filter((t) => toMin(t) >= p.from && toMin(t) < p.to) })).filter((p) => p.times.length);
+  const timePeriod = time ? byPeriod.find((p) => p.times.includes(time))?.key : undefined;
+  const period = byPeriod.find((p) => p.key === periodChoice)?.key || timePeriod || byPeriod[0]?.key || null;
+  const shownTimes = byPeriod.find((p) => p.key === period)?.times || [];
 
-  function openPro(pro: ShopPro, day: string | null = null, time: string | null = null) {
-    setOpenId(pro.id);
-    const wanted = serviceFor(pro);
-    setPick({ day, time, serviceId: wanted?.id || (pro.services.length === 1 ? pro.services[0].id : null) });
-    window.setTimeout(() => {
-      document.getElementById(`pro-${pro.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 40);
+  // Who actually takes the booking, and for which of their services.
+  const bookingPro = day && time ? chosenPro || (busy ? resolveAnyone(able, busy, day, time, minutesFor, today) : null) : null;
+  const bookingService = bookingPro ? serviceFor(bookingPro) : null;
+  const wantItem = menu.find((m) => m.key === pick.want) || null;
+
+  function scrollTo(id: string) {
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 40);
   }
 
-  const shownPros = want ? pros.filter((p) => serviceFor(p)) : pros;
+  if (pros.length === 0) {
+    return (
+      <p className="rounded-2xl bg-surface p-6 text-sm text-neutral-600 shadow-[0_0_0_1px_rgba(10,10,10,0.07)]">
+        The team is still getting set up. Check back soon.
+      </p>
+    );
+  }
+
+  const offline = pros.filter((p) => !p.canBookOnline);
 
   return (
-    <div>
-      {menu.length > 1 ? (
-        <section aria-labelledby="want" className="mb-9">
-          <h2 id="want" className="text-[15px] font-semibold">
-            What would you like?
-          </h2>
-          <div role="radiogroup" aria-labelledby="want" className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
-            {[{ key: null as string | null, name: "Anything", from: null as number | null, minutes: null as number | null }, ...menu].map((m) => {
-              const on = want === m.key;
-              return (
-                <button
-                  key={m.key || "any"}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  onClick={() => {
-                    setWant(m.key);
-                    setOpenId(null);
-                  }}
-                  className={`flex min-h-11 shrink-0 flex-col items-start justify-center rounded-2xl px-4 py-2 text-left transition-colors ${
-                    on ? "bg-ink text-white" : "bg-surface text-ink shadow-[0_0_0_1px_rgba(10,10,10,0.08)] hover:shadow-[0_0_0_1.5px_#0a0a0a]"
-                  }`}
-                >
-                  <span className="text-sm font-semibold">{m.name}</span>
-                  {m.from !== null ? (
-                    <span className={`text-[12px] tabular-nums ${on ? "text-white/70" : "text-neutral-500"}`}>
-                      from ${m.from % 1 ? m.from.toFixed(2) : m.from}
-                      {m.minutes ? ` · ${m.minutes} min` : ""}
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
-      {/* While the booked times load, the row keeps its place with blank
-          chips of the same size, so the team list below doesn't jump. */}
-      {bookable.length && !busy ? (
-        <div aria-hidden="true">
-          <p className="text-[15px] font-semibold">Soonest openings</p>
-          <div className="mt-3 flex gap-2 overflow-hidden pb-1">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="shrink-0 animate-pulse rounded-2xl bg-ink/[0.04] px-4 py-3">
-                <span className="invisible block text-sm font-semibold">Tue 10:00 AM</span>
-                <span className="invisible mt-0.5 block text-[13px]">with Name</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : bookable.length && soonest.length ? (
-        <section aria-labelledby="soonest">
-          <h2 id="soonest" className="text-[15px] font-semibold">
-            Soonest openings
-          </h2>
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {soonest.map((s) => (
+    <div className="space-y-3">
+      {/* 1. What */}
+      <Step
+        id="step-what"
+        n={1}
+        title="What would you like?"
+        done={wantItem ? `${wantItem.name}${wantItem.from !== null ? ` · from $${fmtPrice(wantItem.from)}` : ""}` : null}
+        onChange={menu.length > 1 ? () => setPick((p) => ({ ...p, want: null, day: null, time: null })) : undefined}
+      >
+        {menu.length ? (
+          <div role="radiogroup" aria-label="Services" className="grid gap-2 sm:grid-cols-2">
+            {menu.map((m) => (
               <button
-                key={`${s.pro.id}-${s.day}-${s.time}`}
+                key={m.key}
                 type="button"
-                onClick={() => openPro(s.pro, s.day, s.time)}
-                className="shrink-0 rounded-2xl bg-surface px-4 py-3 text-left shadow-[0_0_0_1px_rgba(10,10,10,0.08)] transition-shadow hover:shadow-[0_0_0_1.5px_#0a0a0a]"
+                role="radio"
+                aria-checked={pick.want === m.key}
+                onClick={() => {
+                  setPick((p) => ({ ...p, want: m.key, time: null, who: p.who !== "any" && !bookable.find((b) => b.id === p.who)?.services.some((s) => serviceKey(s.name) === m.key) ? "any" : p.who }));
+                  scrollTo("step-when");
+                }}
+                className="flex min-h-[60px] items-center justify-between gap-3 rounded-2xl bg-ink/[0.035] px-4 py-3 text-left transition-colors hover:bg-ink/[0.07]"
               >
-                <span className="block text-sm font-semibold tabular-nums">
-                  {s.day === today ? "" : `${dayName(s.day, today).split(",")[0]} `}
-                  {time12(s.time)}
+                <span className="min-w-0">
+                  <span className="block truncate text-[15px] font-semibold text-ink">{m.name}</span>
+                  {m.minutes ? <span className="block text-[13px] text-neutral-500">{m.minutes} min</span> : null}
                 </span>
-                <span className="mt-0.5 block text-[13px] text-neutral-500">with {s.pro.name.split(" ")[0]}</span>
+                {m.from !== null ? <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink">${fmtPrice(m.from)}</span> : null}
               </button>
             ))}
           </div>
-        </section>
-      ) : null}
+        ) : (
+          <p className="text-sm text-neutral-500">No one takes online bookings yet. Message a pro from their profile below.</p>
+        )}
+      </Step>
 
-      <section aria-labelledby="team" className={bookable.length && (!busy || soonest.length) ? "mt-9" : ""}>
-        <h2 id="team" className="text-[15px] font-semibold">
-          {want ? `Who does ${menu.find((m) => m.key === want)?.name || "it"}` : "Choose who you'd like to see"}
-        </h2>
-        {pros.length === 0 ? (
-          <p className="mt-3 rounded-2xl bg-surface p-6 text-sm text-neutral-600 shadow-[0_0_0_1px_rgba(10,10,10,0.07)]">
-            The team is still getting set up. Check back soon.
+      {/* 2. Who */}
+      <Step
+        id="step-who"
+        n={2}
+        title="Who with?"
+        locked={!pick.want}
+        done={pick.want ? (chosenPro ? chosenPro.name : "Anyone") : null}
+        keepOpen
+      >
+        <div role="radiogroup" aria-label="Who with" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <WhoChip
+            on={pick.who === "any"}
+            onClick={() => setPick((p) => ({ ...p, who: "any", time: null }))}
+            title="Anyone"
+            sub={busy === null ? "Checking…" : soonestAny ? `Soonest: ${whenShort(soonestAny, today)}` : "No openings"}
+            avatar={<span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-full bg-ink text-[13px] font-semibold text-white">Any</span>}
+          />
+          {able.map((pro) => (
+            <WhoChip
+              key={pro.id}
+              on={pick.who === pro.id}
+              onClick={() => setPick((p) => ({ ...p, who: pro.id, time: null }))}
+              title={pro.name}
+              rating={pro.rating}
+              sub={busy === null ? "Checking…" : nextFor[pro.id] ? `Next: ${whenShort(nextFor[pro.id]!, today)}` : "No openings"}
+              avatar={<Avatar pro={pro} size={44} />}
+            />
+          ))}
+        </div>
+      </Step>
+
+      {/* 3. When */}
+      <Step id="step-when" n={3} title="When?" locked={!pick.want} done={day && time ? `${dayName(day, today)}, ${time12(time)}` : null} keepOpen>
+        {busy === null ? (
+          <div aria-hidden="true" className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="h-11 animate-pulse rounded-xl bg-ink/[0.04]" />
+            ))}
+          </div>
+        ) : !day ? (
+          <p className="text-sm text-neutral-500">
+            No openings in the next two weeks{chosenPro ? ` with ${firstName(chosenPro.name)}` : ""}.{" "}
+            {chosenPro ? (
+              <a href={chosenPro.href} className="font-medium text-ink underline underline-offset-4">
+                Send a request
+              </a>
+            ) : null}
           </p>
         ) : (
-          <ul className="mt-3 space-y-3">
-            {shownPros.map((pro) => (
-              <ProCard
-                key={pro.id}
-                pro={pro}
-                open={openId === pro.id}
-                next={nextFor[pro.id]}
-                loading={busy === null}
-                today={today}
-                days={days}
-                busy={busy || []}
-                pick={openId === pro.id ? pick : { day: null, time: null, serviceId: null }}
-                setPick={setPick}
-                onToggle={() => (openId === pro.id ? setOpenId(null) : openPro(pro))}
-                onChanged={load}
-                slug={slug}
-              />
-            ))}
-          </ul>
+          <>
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {days.map((d) => {
+                const has = (perDay[d] || []).length > 0;
+                const on = d === day;
+                const date = new Date(`${d}T00:00:00`);
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    disabled={!has}
+                    aria-pressed={on}
+                    aria-label={`${dayName(d, today)}${has ? "" : ", no openings"}`}
+                    onClick={() => {
+                      setPeriodChoice(null);
+                      setPick((p) => ({ ...p, day: d, time: null }));
+                    }}
+                    className={`flex w-[52px] shrink-0 flex-col items-center rounded-2xl py-2.5 transition-colors disabled:cursor-not-allowed ${
+                      on ? "bg-ink text-white" : has ? "bg-ink/[0.035] text-ink hover:bg-ink/[0.08]" : "text-neutral-300"
+                    }`}
+                  >
+                    <span className={`text-[11px] font-medium ${on ? "text-white/70" : has ? "text-neutral-500" : ""}`}>
+                      {d === today ? "Today" : date.toLocaleDateString("en-CA", { weekday: "short" })}
+                    </span>
+                    <span className="mt-0.5 text-[17px] font-semibold tabular-nums">{date.getDate()}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {byPeriod.length > 1 ? (
+              <div role="tablist" aria-label="Part of the day" className="mt-4 inline-flex rounded-full bg-ink/[0.06] p-1">
+                {byPeriod.map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={p.key === period}
+                    onClick={() => setPeriodChoice(p.key)}
+                    className={`h-9 rounded-full px-3.5 text-[13px] font-medium transition-colors ${
+                      p.key === period ? "bg-surface text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)]" : "text-neutral-500 hover:text-ink"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <div role="radiogroup" aria-label="Times" className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
+              {shownTimes.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  role="radio"
+                  aria-checked={t === time}
+                  onClick={() => {
+                    setPick((p) => ({ ...p, day, time: t }));
+                    scrollTo("step-book");
+                  }}
+                  className={`h-11 rounded-xl text-[13px] font-semibold tabular-nums transition-colors sm:text-sm ${
+                    t === time ? "bg-ink text-white" : "bg-surface shadow-[inset_0_0_0_1px_rgba(10,10,10,0.1)] hover:shadow-[inset_0_0_0_1.5px_#0a0a0a]"
+                  }`}
+                >
+                  {time12(t)}
+                </button>
+              ))}
+            </div>
+          </>
         )}
-      </section>
+      </Step>
+
+      {/* 4. Book */}
+      <Step id="step-book" n={4} title="Confirm and pay" locked={!bookingPro || !bookingService} keepOpen>
+        {bookingPro && bookingService && day && time ? (
+          <BookingBar key={`${bookingPro.id}-${day}-${time}`} pro={bookingPro} service={bookingService} day={day} time={time} today={today} slug={slug} onChanged={load} />
+        ) : null}
+      </Step>
+
+      {offline.length ? (
+        <p className="px-1 pt-3 text-[13px] text-neutral-500">
+          Also here:{" "}
+          {offline.map((p, i) => (
+            <span key={p.id}>
+              {i ? ", " : ""}
+              <a href={p.href} className="font-medium text-ink underline underline-offset-4">
+                {p.name}
+              </a>
+            </span>
+          ))}
+          . Book them by sending a request.
+        </p>
+      ) : null}
+
+      {/* Phones: what's picked so far, always in reach. */}
+      {pick.want && !(bookingPro && bookingService) ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-30 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:hidden">
+          <div className="pointer-events-auto mx-auto flex max-w-md items-center gap-3 rounded-[22px] bg-ink py-2 pl-4 pr-2 text-white shadow-[0_14px_36px_-12px_rgba(0,0,0,0.5)]">
+            <p className="min-w-0 flex-1 truncate text-[13px]">
+              <span className="font-semibold">{wantItem?.name}</span>
+              <span className="text-white/60"> · {chosenPro ? firstName(chosenPro.name) : "Anyone"}</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => scrollTo("step-when")}
+              className="h-10 shrink-0 rounded-full bg-white px-4 text-[13px] font-semibold text-ink"
+            >
+              Pick a time
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-// "Barber · ★ 4.9 (12)": what they do and how clients rate them.
-function ProMeta({ pro }: { pro: ShopPro }) {
-  const bits = [pro.professions.join(", ")].filter(Boolean);
+function fmtPrice(n: number) {
+  return n % 1 ? n.toFixed(2) : String(n);
+}
+function firstName(name: string) {
+  return name.split(" ")[0];
+}
+function whenShort(s: { day: string; time: string }, today: string) {
+  return `${s.day === today ? "today" : nextDayWord(dayName(s.day, today).split(",")[0])} ${time12(s.time)}`;
+}
+
+// One numbered step. Locked until the one before is done; a finished step
+// shows what was picked, with Change.
+function Step({
+  id,
+  n,
+  title,
+  done,
+  locked = false,
+  keepOpen = false,
+  onChange,
+  children,
+}: {
+  id: string;
+  n: number;
+  title: string;
+  done?: string | null;
+  locked?: boolean;
+  keepOpen?: boolean;
+  onChange?: () => void;
+  children: React.ReactNode;
+}) {
+  const collapsed = !!done && !keepOpen;
   return (
-    <span className="flex items-center gap-1.5 truncate text-[13px] text-neutral-500">
-      {bits.length ? <span className="truncate">{bits[0]}</span> : null}
-      {pro.rating ? (
-        <>
-          {bits.length ? <span aria-hidden="true">·</span> : null}
-          <Star className="h-3.5 w-3.5 shrink-0 fill-ink text-ink" aria-hidden="true" />
-          <span className="tabular-nums text-ink">{pro.rating.toFixed(1)}</span>
-          <span className="tabular-nums">({pro.reviewCount})</span>
-          <span className="sr-only">stars from {pro.reviewCount} reviews</span>
-        </>
-      ) : null}
-    </span>
+    <section
+      id={id}
+      aria-labelledby={`${id}-title`}
+      className={`scroll-mt-28 rounded-3xl bg-surface transition-opacity duration-300 ${
+        locked ? "opacity-50 shadow-[0_0_0_1px_rgba(10,10,10,0.05)]" : "shadow-[0_0_0_1px_rgba(10,10,10,0.07),0_12px_32px_-24px_rgba(0,0,0,0.25)]"
+      }`}
+    >
+      <div className="flex items-center gap-3 px-5 pt-5 sm:px-6">
+        <span
+          aria-hidden="true"
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold tabular-nums ${
+            done ? "bg-ink text-white" : "bg-ink/[0.06] text-neutral-500"
+          }`}
+        >
+          {done ? <Check className="h-3.5 w-3.5" strokeWidth={2.6} /> : n}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 id={`${id}-title`} className="text-[17px] font-semibold tracking-[-0.02em] text-ink">
+            {title}
+          </h2>
+          {done ? <p className="truncate text-[13px] text-neutral-500">{done}</p> : null}
+        </div>
+        {collapsed && onChange ? (
+          <button type="button" onClick={onChange} className="h-10 shrink-0 rounded-full px-3 text-[13px] font-medium text-neutral-600 hover:text-ink">
+            Change
+          </button>
+        ) : null}
+      </div>
+      {!locked && !collapsed ? <div className="px-5 pb-5 pt-4 sm:px-6 sm:pb-6">{children}</div> : <div className="pb-5" />}
+    </section>
+  );
+}
+
+function WhoChip({
+  on,
+  onClick,
+  title,
+  sub,
+  avatar,
+  rating,
+}: {
+  on: boolean;
+  onClick: () => void;
+  title: string;
+  sub: string;
+  avatar: React.ReactNode;
+  rating?: number | null;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={on}
+      onClick={onClick}
+      className={`flex w-[168px] shrink-0 flex-col items-start gap-2.5 rounded-2xl p-3.5 text-left transition ${
+        on ? "bg-ink text-white" : "bg-ink/[0.035] text-ink hover:bg-ink/[0.07]"
+      }`}
+    >
+      {avatar}
+      <span className="w-full min-w-0">
+        <span className="flex items-center gap-1 text-[14px] font-semibold">
+          <span className="truncate">{title}</span>
+          {rating ? (
+            <span className={`ml-auto flex shrink-0 items-center gap-0.5 text-[12px] tabular-nums ${on ? "text-white/80" : "text-neutral-600"}`}>
+              <Star className={`h-3 w-3 ${on ? "fill-white text-white" : "fill-ink text-ink"}`} aria-hidden="true" />
+              {rating.toFixed(1)}
+            </span>
+          ) : null}
+        </span>
+        <span className={`mt-0.5 block truncate text-[12px] ${on ? "text-white/65" : "text-neutral-500"}`}>{sub}</span>
+      </span>
+    </button>
   );
 }
 
@@ -342,240 +471,6 @@ function Avatar({ pro, size }: { pro: ShopPro; size: number }) {
     >
       {pro.name.charAt(0).toUpperCase()}
     </span>
-  );
-}
-
-function ProCard({
-  pro,
-  open,
-  next,
-  loading,
-  today,
-  days,
-  busy,
-  pick,
-  setPick,
-  onToggle,
-  onChanged,
-  slug,
-}: {
-  pro: ShopPro;
-  open: boolean;
-  next: { day: string; time: string }[] | undefined;
-  loading: boolean;
-  today: string;
-  days: string[];
-  busy: Busy[];
-  pick: { day: string | null; time: string | null; serviceId: string | null };
-  setPick: (p: { day: string | null; time: string | null; serviceId: string | null }) => void;
-  onToggle: () => void;
-  onChanged: () => void;
-  slug: string;
-}) {
-  const service = pro.services.find((s) => s.id === pick.serviceId) || null;
-  const minutes = service?.minutes || pro.defaultMinutes;
-
-  const perDay = useMemo(
-    () => (open ? Object.fromEntries(days.map((d) => [d, openTimes(pro, busy, d, minutes, today)])) : {}),
-    [open, days, pro, busy, minutes, today]
-  );
-  const day = pick.day && perDay[pick.day]?.length ? pick.day : days.find((d) => perDay[d]?.length) || null;
-  const times = day ? perDay[day] || [] : [];
-  // A time that's no longer free (someone booked it, or the service is longer) drops out.
-  const time = pick.time && times.includes(pick.time) ? pick.time : null;
-
-  // One part of the day at a time: the one with the picked time, the one they
-  // chose, or the first with openings.
-  const [periodChoice, setPeriodChoice] = useState<PeriodKey | null>(null);
-  const byPeriod = PERIODS.map((p) => ({
-    ...p,
-    times: times.filter((t) => toMin(t) >= p.from && toMin(t) < p.to),
-  })).filter((p) => p.times.length > 0);
-  const timePeriod = time ? byPeriod.find((p) => p.times.includes(time))?.key : undefined;
-  const period =
-    byPeriod.find((p) => p.key === periodChoice)?.key || timePeriod || byPeriod[0]?.key || null;
-  const shownTimes = byPeriod.find((p) => p.key === period)?.times || [];
-
-  const nextLabel = !pro.canBookOnline
-    ? "Book by sending a request"
-    : loading
-    ? "Checking times…"
-    : next && next.length
-    ? `Next opening ${next[0].day === today ? "today" : nextDayWord(dayName(next[0].day, today).split(",")[0])} at ${time12(next[0].time)}`
-    : "No openings in the next two weeks";
-
-
-  return (
-    <li
-      id={`pro-${pro.id}`}
-      className={`scroll-mt-24 overflow-hidden rounded-2xl bg-surface transition-shadow ${
-        open ? "shadow-[0_0_0_1.5px_#0a0a0a,0_16px_40px_-20px_rgba(0,0,0,0.35)]" : "shadow-[0_0_0_1px_rgba(10,10,10,0.08)]"
-      }`}
-    >
-      {pro.canBookOnline ? (
-        <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-center gap-4 p-4 text-left sm:p-5">
-          <Avatar pro={pro} size={52} />
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-1.5 font-semibold">
-              <span className="truncate">{pro.name}</span>
-              <ShieldCheck className="h-4 w-4 shrink-0" aria-label="Verified" />
-            </span>
-            <ProMeta pro={pro} />
-            <span className="mt-1 block text-[13px] font-medium text-ink">{nextLabel}</span>
-          </span>
-          <span
-            className={`hidden h-10 shrink-0 items-center rounded-full px-4 text-sm font-medium sm:inline-flex ${
-              open ? "bg-ink/[0.06] text-ink" : "bg-ink text-white"
-            }`}
-          >
-            {open ? "Close" : "See times"}
-          </span>
-          <ChevronDown
-            aria-hidden="true"
-            className={`h-5 w-5 shrink-0 text-neutral-400 transition-transform sm:hidden ${open ? "rotate-180" : ""}`}
-          />
-        </button>
-      ) : (
-        <div className="flex items-center gap-4 p-4 sm:p-5">
-          <Avatar pro={pro} size={52} />
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-1.5 font-semibold">
-              <span className="truncate">{pro.name}</span>
-              <ShieldCheck className="h-4 w-4 shrink-0" aria-label="Verified" />
-            </span>
-            <ProMeta pro={pro} />
-            <span className="mt-1 block text-[13px] text-neutral-500">{nextLabel}</span>
-          </span>
-          <a href={pro.href} className="inline-flex h-10 shrink-0 items-center rounded-full px-4 text-sm font-medium shadow-[inset_0_0_0_1px_rgba(10,10,10,0.14)] hover:bg-neutral-50">
-            Profile
-          </a>
-        </div>
-      )}
-
-      {open ? (
-        <div className="border-t border-hairline px-4 pb-5 pt-4 sm:px-5">
-          {pro.services.length ? (
-            <fieldset>
-              <legend className="text-[13px] font-medium text-neutral-500">Service</legend>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                {pro.services.map((s) => {
-                  const on = s.id === pick.serviceId;
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={on}
-                      onClick={() => setPick({ day, time: null, serviceId: s.id })}
-                      className={`flex items-center justify-between gap-3 rounded-xl px-3.5 py-3 text-left text-sm transition-colors ${
-                        on ? "bg-ink text-white" : "bg-ink/[0.04] text-ink hover:bg-ink/[0.07]"
-                      }`}
-                    >
-                      <span className="min-w-0 truncate font-medium">{s.name}</span>
-                      <span className={`shrink-0 tabular-nums ${on ? "text-white/70" : "text-neutral-500"}`}>
-                        {[s.priceLabel, `${s.minutes} min`].filter(Boolean).join(", ")}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-          ) : null}
-
-          <div className={pro.services.length ? "mt-5" : ""}>
-            <p className="text-[13px] font-medium text-neutral-500">Day</p>
-            <div className="-mx-1 mt-2 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {days.map((d) => {
-                const has = (perDay[d] || []).length > 0;
-                const on = d === day;
-                const date = new Date(`${d}T00:00:00`);
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    disabled={!has}
-                    aria-pressed={on}
-                    aria-label={`${dayName(d, today)}${has ? "" : ", no openings"}`}
-                    onClick={() => {
-                      setPeriodChoice(null);
-                      setPick({ day: d, time: null, serviceId: pick.serviceId });
-                    }}
-                    className={`flex w-14 shrink-0 flex-col items-center rounded-xl py-2 transition-colors disabled:cursor-not-allowed ${
-                      on ? "bg-ink text-white" : has ? "bg-ink/[0.04] text-ink hover:bg-ink/[0.08]" : "text-neutral-300"
-                    }`}
-                  >
-                    <span className={`text-[11px] font-medium ${on ? "text-white/70" : has ? "text-neutral-500" : ""}`}>
-                      {d === today ? "Today" : date.toLocaleDateString("en-CA", { weekday: "short" })}
-                    </span>
-                    <span className="mt-0.5 text-base font-semibold tabular-nums">{date.getDate()}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <p className="text-[13px] font-medium text-neutral-500">
-              {day ? `${dayName(day, today)}${service ? `, ${service.minutes} min` : ""}` : "Time"}
-            </p>
-            {times.length ? (
-              <>
-              {byPeriod.length > 1 ? (
-                <div role="tablist" aria-label="Part of the day" className="mt-2 inline-flex rounded-full bg-ink/[0.06] p-1">
-                  {byPeriod.map((p) => {
-                    const on = p.key === period;
-                    return (
-                      <button
-                        key={p.key}
-                        type="button"
-                        role="tab"
-                        aria-selected={on}
-                        onClick={() => setPeriodChoice(p.key)}
-                        className={`h-8 rounded-full px-3.5 text-[13px] font-medium transition-colors ${
-                          on ? "bg-surface text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)]" : "text-neutral-500 hover:text-ink"
-                        }`}
-                      >
-                        {p.label}
-                        <span className={`ml-1 tabular-nums ${on ? "text-neutral-400" : "text-neutral-400"}`}>{p.times.length}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-              <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6">
-                {shownTimes.map((t) => {
-                  const on = t === time;
-                  return (
-                    <button
-                      key={t}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() => setPick({ day, time: t, serviceId: pick.serviceId })}
-                      className={`h-10 rounded-xl text-[13px] font-medium tabular-nums transition-colors sm:text-sm ${
-                        on ? "bg-ink text-white" : "shadow-[inset_0_0_0_1px_rgba(10,10,10,0.12)] hover:shadow-[inset_0_0_0_1.5px_#0a0a0a]"
-                      }`}
-                    >
-                      {time12(t)}
-                    </button>
-                  );
-                })}
-              </div>
-              </>
-            ) : (
-              <p className="mt-2 text-sm text-neutral-500">
-                No openings in the next two weeks{service ? " for this service" : ""}. Try{" "}
-                <a href={pro.href} className="font-medium text-ink underline underline-offset-4">
-                  their profile
-                </a>{" "}
-                to send a request.
-              </p>
-            )}
-          </div>
-
-          <BookingBar pro={pro} service={service} day={day} time={time} today={today} slug={slug} onChanged={onChanged} />
-        </div>
-      ) : null}
-    </li>
   );
 }
 
@@ -768,7 +663,7 @@ function BookingBar({
   if (booked) {
     return (
       <>
-        <div className="mt-6 rounded-2xl bg-ink/[0.04] p-4 text-sm text-neutral-600">
+        <div className="rounded-2xl bg-ink/[0.04] p-4 text-sm text-neutral-600">
           Booked for {booked.when}.{" "}
           <a href={booked.id ? `/bookings/${booked.id}` : "/work"} className="font-medium text-ink underline underline-offset-4">
             View booking
@@ -806,11 +701,7 @@ function BookingBar({
   const price = service?.priceLabel || "";
 
   return (
-    <div
-      className={`relative mt-6 overflow-hidden rounded-3xl transition-colors duration-300 ${
-        ready ? "bg-white p-5 text-ink shadow-[0_18px_40px_-26px_rgba(0,0,0,0.4)] ring-1 ring-ink/[0.07]" : "bg-ink/[0.04] p-4"
-      }`}
-    >
+    <div className="relative">
       {ready ? (
         <>
           <div className="relative flex items-start justify-between gap-3">
