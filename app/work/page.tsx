@@ -1,6 +1,9 @@
+import { PAGE_TITLES } from "@/app/lib/pageTitles";
 import { redirect } from "next/navigation";
 import { getInitialWorkData } from "./getInitialData";
 import WorkPageClient from "./WorkPageClient";
+
+export const metadata = { title: PAGE_TITLES["/work"] };
 
 // Server Component wrapper — see app/requests/page.tsx for the pattern.
 export default async function WorkPage() {

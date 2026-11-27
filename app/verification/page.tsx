@@ -1,6 +1,9 @@
+import { PAGE_TITLES } from "@/app/lib/pageTitles";
 import { redirect } from "next/navigation";
 import { getInitialVerificationData } from "./getInitialData";
 import VerificationPageClient from "./VerificationPageClient";
+
+export const metadata = { title: PAGE_TITLES["/verification"] };
 
 // Server Component wrapper — see app/requests/page.tsx for the pattern this
 // follows. Fetches the signed-in professional's profile + submission history

@@ -90,6 +90,71 @@ test("Newsletter: audience counts load (send is never pressed)", async () => {
   await expect(page.locator("main")).toContainText(/\d/, { timeout: 20_000 });
 });
 
+test("Users: give the TEST shop a free plan, take it away, put it back; the team follows", async () => {
+  const { data: shop } = await db
+    .from("studios")
+    .select("id, plan, subscription_status, subscription_current_period_end, stripe_subscription_id")
+    .eq("name", "TEST Studio Plus Shop")
+    .single();
+  expect(shop).toBeTruthy();
+  const memberId = (await db.from("profiles").select("id").eq("email", "lineup.test+member1@example.com").single()).data!.id;
+  const shopPlan = async () => (await db.from("studios").select("plan, subscription_status").eq("id", shop!.id).single()).data;
+  const memberStatus = async () => (await db.from("profiles").select("subscription_status").eq("id", memberId).single()).data?.subscription_status;
+  try {
+    await page.goto("/admin");
+    await page.getByPlaceholder("Search by name or email").fill("lineup.test+owner");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    const picker = page.getByRole("combobox", { name: "Shop plan for TEST Studio Plus Shop" });
+    await expect(picker).toBeVisible({ timeout: 20_000 });
+    await expect(picker).toHaveValue("studio_plus");
+
+    await picker.selectOption("studio");
+    await expect.poll(shopPlan, { timeout: 15_000 }).toEqual({ plan: "studio", subscription_status: "active" });
+    await expect(page.getByText("TEST Studio Plus Shop is on Studio, free.")).toBeVisible();
+
+    await picker.selectOption("");
+    await expect.poll(shopPlan, { timeout: 15_000 }).toEqual({ plan: null, subscription_status: null });
+    // No shop plan: the team's pro plan from the shop stops.
+    await expect.poll(memberStatus, { timeout: 15_000 }).not.toBe("active");
+
+    await picker.selectOption("studio_plus");
+    await expect.poll(shopPlan, { timeout: 15_000 }).toEqual({ plan: "studio_plus", subscription_status: "active" });
+    await expect.poll(memberStatus, { timeout: 15_000 }).toBe("active");
+  } finally {
+    await db
+      .from("studios")
+      .update({ plan: shop!.plan, subscription_status: shop!.subscription_status, subscription_current_period_end: shop!.subscription_current_period_end })
+      .eq("id", shop!.id);
+  }
+});
+
+test("Users: a shop paying through Stripe can't be changed from Admin", async () => {
+  const { data: shop } = await db.from("studios").select("id, owner_id, plan, stripe_subscription_id").eq("name", "TEST Studio Plus Shop").single();
+  try {
+    await db.from("studios").update({ stripe_subscription_id: "sub_TEST_admin_check" }).eq("id", shop!.id);
+    await page.goto("/admin");
+    await page.getByPlaceholder("Search by name or email").fill("lineup.test+owner");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    const row = page.locator("tr", { hasText: "TEST Studio Plus Shop" });
+    await expect(row).toContainText("paid through Stripe", { timeout: 20_000 });
+    await expect(row.getByRole("combobox", { name: /Shop plan for/ })).toHaveCount(0);
+
+    // And the server refuses it too, not just the page.
+    const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
+    const { data: auth } = await anon.auth.signInWithPassword({ email: "lineup.test+admin@example.com", password: process.env.TEST_SEED_PASSWORD! });
+    const res = await page.request.patch("/api/admin/users", {
+      headers: { authorization: `Bearer ${auth.session!.access_token}` },
+      data: { userId: shop!.owner_id, shopPlan: "studio" },
+    });
+    expect(res.status()).toBe(409);
+    expect((await shopPlanOf(shop!.id))).toBe(shop!.plan);
+  } finally {
+    await db.from("studios").update({ stripe_subscription_id: shop!.stripe_subscription_id }).eq("id", shop!.id);
+  }
+});
+
+const shopPlanOf = async (id: string) => (await db.from("studios").select("plan").eq("id", id).single()).data?.plan;
+
 test("Admin at 390px: 44px controls, no sideways scroll", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const p = await ctx.newPage();

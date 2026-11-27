@@ -1,4 +1,7 @@
+import { PAGE_TITLES } from "@/app/lib/pageTitles";
 import UnsubscribeClient from "./UnsubscribeClient";
+
+export const metadata = { title: PAGE_TITLES["/unsubscribe"] };
 
 type UnsubscribePageProps = {
   searchParams: Promise<{
