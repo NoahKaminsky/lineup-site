@@ -29,7 +29,7 @@ import { buttonClass } from "@/app/components/ui";
 
 type BookingPick = { want: string | null; who: string; day: string | null; time: string | null };
 
-export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: string }) {
+export default function ShopBooking({ pros, slug, demo = false }: { pros: ShopPro[]; slug: string; demo?: boolean }) {
   const bookable = useMemo(() => pros.filter((p) => p.canBookOnline), [pros]);
   const [today, setToday] = useState(() => shopNow().dateKey);
   const [busy, setBusy] = useState<Busy[] | null>(bookable.length ? null : []);
@@ -314,7 +314,17 @@ export default function ShopBooking({ pros, slug }: { pros: ShopPro[]; slug: str
 
       {/* 4. Book */}
       <Step id="step-book" n={4} title="Confirm and pay" locked={!bookingPro || !bookingService} keepOpen>
-        {bookingPro && bookingService && day && time ? (
+        {bookingPro && bookingService && day && time && demo ? (
+          // The sample shop: show what they'd be booking, never take payment.
+          <div className="rounded-2xl bg-ink/[0.04] p-4">
+            <p className="text-[15px] font-semibold text-ink">
+              {bookingService.name} with {firstName(bookingPro.name)}, {dayName(day, today)} at {time12(time)}
+            </p>
+            <p className="mt-1 text-sm text-neutral-600">
+              {bookingService.priceLabel ? `${bookingService.priceLabel}. ` : ""}This is a sample shop, so nothing is booked. On a real shop, clients pay here or choose to pay at the shop.
+            </p>
+          </div>
+        ) : bookingPro && bookingService && day && time ? (
           <BookingBar key={`${bookingPro.id}-${day}-${time}`} pro={bookingPro} service={bookingService} day={day} time={time} today={today} slug={slug} onChanged={load} />
         ) : null}
       </Step>

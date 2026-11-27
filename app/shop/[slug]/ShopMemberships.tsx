@@ -22,7 +22,7 @@ type Mine = {
   visitsIncluded: number | null;
 };
 
-export default function ShopMemberships({ slug, shopName }: { slug: string; shopName: string }) {
+export default function ShopMemberships({ slug, shopName, demo = false }: { slug: string; shopName: string; demo?: boolean }) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [mine, setMine] = useState<Mine[]>([]);
   const [canJoin, setCanJoin] = useState(false);
@@ -128,7 +128,9 @@ export default function ShopMemberships({ slug, shopName }: { slug: string; shop
                 {p.visitsPerPeriod === null ? "Unlimited visits" : `${p.visitsPerPeriod} ${p.visitsPerPeriod === 1 ? "visit" : "visits"} a month`}
               </p>
               {p.description ? <p className="mt-2 flex-1 text-sm leading-6 text-neutral-600">{p.description}</p> : <div className="flex-1" />}
-              {canJoin ? (
+              {demo ? (
+                <p className="mt-4 rounded-xl bg-ink/[0.04] px-3.5 py-2.5 text-[13px] text-neutral-600">Sample plan. On a real shop, clients join here and pay monthly by card.</p>
+              ) : canJoin ? (
                 signedIn ? (
                   <button
                     type="button"

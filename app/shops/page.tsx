@@ -41,7 +41,9 @@ async function loadShops(): Promise<ShopCard[] | null> {
     const { data: studios } = await supabase
       .from("studios")
       .select("id, slug, name, tagline, trades, lat, lng, area_label, plan, subscription_status, cover_url, logo_url")
-      .not("slug", "is", null);
+      .not("slug", "is", null)
+      // The sample shop is only reachable by its link.
+      .eq("is_demo", false);
     const live = (studios || []).filter((s) => isStudioLive(s) && s.slug);
     if (!live.length) return [];
 
