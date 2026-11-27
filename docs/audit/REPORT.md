@@ -489,3 +489,27 @@ Production build on LineUp Test, fresh seed before each spec, after the last cha
 | lint (app) | ✅ 50 errors, the baseline |
 
 One earlier run had seeds fail and three specs time out for about ten minutes; the test database was slow, not the code (seeding worked again moments later and the same specs passed on rerun).
+
+## Step 10: an uncluttered shop, Shop / My work, step-by-step booking (27 Nov)
+
+Noah: the shop pages felt cluttered, "words everywhere and a million different tabs", with wording like "the shop's own money"; an owner who also takes clients should switch in and out of the shop; booking from a shop link should feel premium. Chosen: 5 sections, the switch in the top bar, step-by-step booking. Then: "make gear menu on all profiles".
+
+- ✅ **One top bar, five sections**: Today, Calendar, Clients, Team, Money. Before, an owner got the main nav plus a second row of 11 Studio tabs. Related pages now sit behind a small switch inside their section (Today | Requests, Clients | Memberships | Import, Team | Hiring, Earnings | Reports); Your page and Settings behind the gear. Old links (`/studio/chairs`, `/studio/analytics`…) still work and light up their section. Pros on a team who don't manage see only Today, Clients (memberships) and Team, in Studio. Map in `app/lib/shopNav.ts`. *tests/shop/shopNav.test.ts (9).*
+- ✅ **Shop | My work** in the top bar for owners and managers who also take clients (from their `studio_members` role). Shop shows only the shop's sections; My work shows Home, Calendar, Explore, Services, with no Shop tab. The page decides the side; shared pages (account) keep the last one. Shop-only accounts (no clients of their own) only ever see the shop, as before.
+- ✅ **Plainer words**: "The shop's own money" → "What the shop keeps"; every helper line under a heading cut to one short sentence (Chairs, Clients, Import, Memberships, Profile, Requests, Schedule, Settings, Team). No facts or numbers changed. Help guides and the owner tour point to the new places.
+- ✅ **Booking from a shop link in four steps**: 1. What would you like (the shop's menu with prices), 2. Who with (Anyone, or a pro with their next opening and rating), 3. When (two weeks of days, parts of the day, times), 4. Confirm and pay (the same payment step as before: pay now, pay at the shop, or membership). Anyone books whoever is free at the picked time, soonest-free first. Slot logic moved to `app/lib/shopSlots.ts`. *tests/shop/shopSlots.test.ts (7); e2e/shop-booking-flow.spec.ts now books through the steps.*
+- ✅ **A gear on every profile** (Account page): pros get edit profile, services and hours, subscription, payouts and verification, notifications, help; clients get edit profile, bookings, notifications, help. Studio's gear uses the same `GearMenu`.
+
+### Tests, Step 10
+Production build on LineUp Test (port 3300), fresh seed before each spec, run again after merging PR #16 in. One check in shop-desk-flow read the pass notification before the server had written it; the test now waits for it (passed twice in a row after).
+
+| Check | Result |
+|---|---|
+| smoke (every page as each TEST user, 1280 + 390) | ✅ 150/150 |
+| shop-booking-flow (membership and pay-at-shop through the new steps), shop-desk-flow, shop-profile | ✅ 3, 5, 3 |
+| studio, studio-flow, guides, reports, admin-flow (with PR #16's free shop plan), invites-flow, pages (PR #16) | ✅ 22, 5, 6, 4, 9, 4, 12 |
+| customer, customer-flow, pro, pro-flow, more-flows, payment-guards, email-confirm, guards, admin | ✅ 18, 7, 24, 6, 6, 2, 8, 12, 2 |
+| `npm test` | ✅ 315/315 (with PR #16's) |
+| `npx tsc --noEmit`, `npm run build` | ✅ |
+| lint (app) | ✅ 50 errors, the baseline |
+| Looked at by eye: owner (Shop and My work), team member, client profile, public shop page, 1280 + 390 | ✅ |
