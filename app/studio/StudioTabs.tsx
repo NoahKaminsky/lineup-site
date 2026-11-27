@@ -27,10 +27,13 @@ export default function StudioTabs({
   sections,
   active,
   counts = {},
+  compact = false,
 }: {
   sections: readonly { slug: string; label: string }[];
   active: string;
   counts?: Record<string, number>;
+  // A small switch between a section's related pages, sized to its labels.
+  compact?: boolean;
 }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
@@ -57,7 +60,7 @@ export default function StudioTabs({
   return (
     <div
       ref={trackRef}
-      className="relative flex w-full gap-1 overflow-x-auto rounded-full bg-ink/[0.05] p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className={`relative flex gap-1 overflow-x-auto rounded-full bg-ink/[0.05] p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${compact ? "w-fit max-w-full" : "w-full"}`}
     >
       {pill ? (
         <span
@@ -80,11 +83,11 @@ export default function StudioTabs({
             }}
             href={studioHref(s.slug)}
             aria-current={isActive ? "page" : undefined}
-            className={`relative z-10 inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium sm:min-h-0 sm:flex-1 sm:py-2.5 sm:text-sm transition-colors duration-200 ${
+            className={`relative z-10 inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium sm:min-h-0 sm:py-2.5 sm:text-sm transition-colors duration-200 ${compact ? "sm:px-4" : "sm:flex-1"} ${
               isActive ? "text-ink" : "text-neutral-500 hover:text-ink"
             }`}
           >
-            <Icon aria-hidden="true" className={`h-4 w-4 ${isActive ? "text-ink" : "text-neutral-400"}`} strokeWidth={isActive ? 2.2 : 1.8} />
+            {compact ? null : <Icon aria-hidden="true" className={`h-4 w-4 ${isActive ? "text-ink" : "text-neutral-400"}`} strokeWidth={isActive ? 2.2 : 1.8} />}
             {s.label}
             {count > 0 ? (
               <span className="ml-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#C8102E] px-1 text-[10px] font-semibold tabular-nums text-white">

@@ -7,6 +7,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { buttonClass } from "@/app/components/ui";
+import { modeForPath, shopSectionKey, shopSlugFromPath, visibleShopSections, type WorkMode } from "@/app/lib/shopNav";
 
 type NavbarProfile = {
   id: string;
@@ -22,7 +23,7 @@ type NavItem = {
   href: string;
   label: string;
   shortLabel: string;
-  icon: "dashboard" | "work" | "calendar" | "browse" | "services" | "account" | "shop" | "requests" | "team" | "chair";
+  icon: "dashboard" | "work" | "calendar" | "browse" | "services" | "account" | "shop" | "requests" | "team" | "chair" | "clients" | "money";
 };
 
 type NotifItem = {
@@ -112,6 +113,23 @@ function NavIcon({ icon }: { icon: NavItem["icon"] }) {
     return (
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
         <path d="M7 4h10v7H7zM5 11h14v3H5zM8 14l-1.5 6M16 14l1.5 6M12 14v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (icon === "clients") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+        <path d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM7.5 17a4.5 4.5 0 0 1 9 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  if (icon === "money") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden="true">
+        <path d="M4 19.5h16M6.5 16V11M11 16V7M15.5 16v-4M20 16V5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     );
   }
@@ -451,6 +469,9 @@ function NavbarComponent() {
   // One small read covers the plan badge and the "on a studio" check, at most
   // once a minute (plus on tab focus), instead of two reads on every tap.
   const [onStudio, setOnStudio] = useState(false);
+  // An owner or manager of the shop they're on: they get the Shop / My work switch.
+  const [canManageShop, setCanManageShop] = useState(false);
+  const [ownsShop, setOwnsShop] = useState(false);
   const lastPlanRead = useRef(0);
   const profileId = profile?.id;
   const refreshPlan = useCallback(async (force = false) => {
@@ -463,7 +484,22 @@ function NavbarComponent() {
       .eq("id", profileId)
       .maybeSingle();
     if (!data) return;
-    setOnStudio(!!(data as { studio_id?: string | null }).studio_id);
+    const studioId = (data as { studio_id?: string | null }).studio_id || null;
+    setOnStudio(!!studioId);
+    if (studioId) {
+      const { data: member } = await supabase
+        .from("studio_members")
+        .select("role")
+        .eq("studio_id", studioId)
+        .eq("profile_id", profileId)
+        .eq("status", "active")
+        .maybeSingle();
+      setCanManageShop(member?.role === "owner" || member?.role === "manager");
+      setOwnsShop(member?.role === "owner");
+    } else {
+      setCanManageShop(false);
+      setOwnsShop(false);
+    }
     setProfile((prev) =>
       prev &&
       (prev.subscription_plan !== data.subscription_plan || prev.subscription_status !== data.subscription_status)
@@ -615,19 +651,36 @@ function NavbarComponent() {
     if (elsewhere.some((p) => pathname === p || pathname.startsWith(`${p}/`))) router.replace("/studio");
   }, [isShop, pathname, router]);
 
+  // Shop / My work, for an owner or manager who also takes clients. The page
+  // decides; shared pages (account, notifications) keep the last choice.
+  const [lastMode, setLastMode] = useState<WorkMode>(() => {
+    if (typeof window === "undefined") return "work";
+    try {
+      return localStorage.getItem("lu-mode") === "shop" ? "shop" : "work";
+    } catch {
+      return "work";
+    }
+  });
+  const pathMode = modeForPath(pathname, lastMode);
+  if (pathMode !== lastMode) setLastMode(pathMode);
+  useEffect(() => {
+    try {
+      localStorage.setItem("lu-mode", pathMode);
+    } catch {}
+  }, [pathMode]);
+  const showModeSwitch = isProfessional && onStudio && canManageShop;
+  // Only the shop's sections in the bar: always for a shop account, and for
+  // an owner or manager while they're in Shop.
+  const shopMode = (isShop && onStudio) || (showModeSwitch && pathMode === "shop");
+
   const navItems = useMemo<NavItem[]>(() => {
     if (loading || !hasUser || !profile) return [];
 
-    if (isShop) {
-      // Still setting the shop up: nothing to navigate to yet.
-      if (!onStudio) return [];
-      return [
-        { href: "/studio", label: "Today", shortLabel: "Today", icon: "dashboard" },
-        { href: "/studio/calendar", label: "Calendar", shortLabel: "Cal", icon: "calendar" },
-        { href: "/studio/requests", label: "Requests", shortLabel: "Requests", icon: "requests" },
-        { href: "/studio/team", label: "Team", shortLabel: "Team", icon: "team" },
-        { href: "/studio/chairs", label: "Chairs", shortLabel: "Chairs", icon: "chair" },
-      ];
+    // A shop account still setting the shop up: nothing to navigate to yet.
+    if (isShop && !onStudio) return [];
+
+    if (shopMode) {
+      return visibleShopSections(isShop || canManageShop).map((s) => ({ href: s.href, label: s.label, shortLabel: s.label, icon: s.icon }));
     }
 
     if (isProfessional) {
@@ -637,8 +690,9 @@ function NavbarComponent() {
         // the account menu.
         { href: "/requests", label: "Home", shortLabel: "Home", icon: "dashboard" },
         { href: "/calendar", label: "Calendar", shortLabel: "Calendar", icon: "calendar" },
-        // On a shop's team, the shop takes Browse's spot.
-        onStudio
+        // On a shop's team, the shop takes Browse's spot. Owners and
+        // managers switch to it from the top instead.
+        onStudio && !showModeSwitch
           ? { href: "/studio", label: "Shop", shortLabel: "Shop", icon: "shop" }
           : { href: "/discover", label: "Explore", shortLabel: "Explore", icon: "browse" },
         { href: "/services", label: "Services", shortLabel: "Services", icon: "services" },
@@ -651,20 +705,16 @@ function NavbarComponent() {
       { href: "/discover", label: "Explore", shortLabel: "Explore", icon: "browse" },
       { href: "/account", label: "Account", shortLabel: "You", icon: "account" },
     ];
-  }, [loading, hasUser, profile, isProfessional, isShop, onStudio]);
+  }, [loading, hasUser, profile, isProfessional, isShop, onStudio, shopMode, canManageShop, showModeSwitch]);
 
   const desktopNavItems = useMemo<NavItem[]>(() => {
-    if (isShop) {
-      const items = [...navItems];
-      items.splice(4, 0, { href: "/studio/memberships", label: "Memberships", shortLabel: "Members", icon: "account" });
-      return items;
-    }
+    if (shopMode) return navItems;
     // Clients reach their account from the avatar on desktop, so the tab row
     // is just the three places they go. (The phone's bottom bar keeps "You".)
     if (!isProfessional) return navItems.filter((item) => item.href !== "/account");
     // Pros get the same four places on desktop as on the phone.
     return navItems;
-  }, [navItems, isProfessional, isShop, onStudio]);
+  }, [navItems, isProfessional, shopMode]);
 
   const isClient = hasUser && !loading && !!profile && !isProfessional && !isShop;
   // The dashboard already leads with its own "New request" button.
@@ -674,8 +724,11 @@ function NavbarComponent() {
   // A section stays highlighted on its sub-pages too (a request detail page is
   // still "Dashboard"; a booking detail page is still "Work").
   function isActive(path: string) {
-    // A shop account's "Today" is /studio itself; its sections are siblings.
-    if (isShop && path === "/studio") return pathname === "/studio";
+    // A shop section stays lit on its related pages (Hiring is under Team).
+    if (shopMode && path.startsWith("/studio")) {
+      const here = shopSectionKey(shopSlugFromPath(pathname));
+      return !!here && here === shopSectionKey(shopSlugFromPath(path));
+    }
     if (pathname === path || pathname.startsWith(`${path}/`)) return true;
     // A booking's page belongs to Calendar for pros, Bookings for clients.
     return path === (isProfessional ? "/calendar" : "/work") && pathname.startsWith("/bookings/");
@@ -698,12 +751,10 @@ function NavbarComponent() {
       active ? "bg-neutral-100 font-medium text-ink" : "text-neutral-700 hover:bg-neutral-50 hover:text-ink"
     }`;
 
-  const accountLinks = isShop
+  const accountLinks = shopMode
     ? [
-        { href: "/studio/settings", label: "Shop settings", show: true },
-        { href: "/studio/memberships", label: "Memberships", show: true },
-        { href: "/studio/analytics", label: "Shop analytics", show: true },
-        { href: "/studio/earnings", label: "Earnings", show: true },
+        { href: "/studio/profile", label: "Your shop's page", show: true },
+        { href: "/studio/settings", label: "Shop settings", show: isShop || ownsShop },
         { href: "/gift-cards", label: "Gift cards", show: true },
         { href: "/account", label: "Account", show: true },
         { href: "/admin", label: "Switch to admin", show: !!profile?.is_admin },
@@ -719,7 +770,7 @@ function NavbarComponent() {
     { href: "/gift-cards", label: "Gift cards", show: isProfessional, group: "Grow" },
     { href: "/import", label: "Bring your clients over", show: isProfessional, group: "Grow" },
     { href: "/refer", label: "Invite a pro, get a free month", show: isProfessional, group: "Grow" },
-    { href: "/studio", label: onStudio ? "Your shop" : "Open a shop", show: isProfessional, group: "Grow" },
+    { href: "/studio", label: onStudio ? "Your shop" : "Open a shop", show: isProfessional && !showModeSwitch, group: "Grow" },
     { href: "/chairs", label: "Chair openings", show: isProfessional, group: "Grow" },
     { href: "/archive", label: "Archived services", show: true, group: isProfessional ? "More" : "" },
     { href: "/admin", label: "Switch to admin", show: !!profile?.is_admin, group: isProfessional ? "More" : "" },
@@ -736,7 +787,7 @@ function NavbarComponent() {
               which leaves the tab row sitting in the centre of the bar. */}
           <div className="order-1 flex shrink-0 lg:flex-1">
           <Link
-            href={hasUser ? (isShop ? "/studio" : "/requests") : "/"}
+            href={hasUser ? (shopMode ? "/studio" : "/requests") : "/"}
             prefetch
             onClick={handleNavClick}
             className="flex h-16 shrink-0 items-center gap-2 rounded text-xl font-semibold tracking-[-0.03em] text-ink"
@@ -744,8 +795,9 @@ function NavbarComponent() {
             <svg viewBox="215 245 545 410" aria-hidden="true" className="h-[18px] w-auto text-ink">
               <LuMarkPaths />
             </svg>
-            LineUp
-            {hasUser && !loading && planBadge ? (
+            {/* With the Shop / My work switch, phones show just the mark. */}
+            <span className={showModeSwitch ? "max-[419px]:sr-only" : undefined}>LineUp</span>
+            {hasUser && !loading && planBadge && !showModeSwitch ? (
               <span
                 className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold tracking-[0.02em] ${
                   planBadge === "Basic" || planBadge === "Client" ? "text-neutral-500 ring-1 ring-inset ring-ink/10" : "bg-ink text-white"
@@ -755,6 +807,7 @@ function NavbarComponent() {
               </span>
             ) : null}
           </Link>
+          {showModeSwitch ? <ModeSwitch mode={pathMode} onNavigate={handleNavClick} /> : null}
           </div>
 
           <div className="order-2 ml-auto flex items-center gap-1.5 lg:order-3 lg:ml-0 lg:flex-1 lg:justify-end">
@@ -1068,6 +1121,40 @@ function NavbarComponent() {
         <MobileTabBar items={navItems} isActive={isActive} onNavigate={(href) => { handleNavClick(); router.push(href); }} onTap={handleNavClick} />
       ) : null}
     </>
+  );
+}
+
+// Shop / My work: one pill that slides between running the shop and your
+// own clients. Each side only shows its own places.
+function ModeSwitch({ mode, onNavigate }: { mode: WorkMode; onNavigate: () => void }) {
+  const sides: { mode: WorkMode; href: string; label: string }[] = [
+    { mode: "shop", href: "/studio", label: "Shop" },
+    { mode: "work", href: "/requests", label: "My work" },
+  ];
+  return (
+    <nav aria-label="Shop or my work" className="ml-3 flex items-center sm:ml-4">
+      <div className="relative grid grid-cols-2 rounded-full bg-ink/[0.06] p-[3px]">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-[3px] left-[3px] top-[3px] w-[calc(50%-3px)] rounded-full bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_10px_-4px_rgba(0,0,0,0.18)] transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]"
+          style={{ transform: mode === "work" ? "translateX(100%)" : "translateX(0)" }}
+        />
+        {sides.map((side) => (
+          <Link
+            key={side.mode}
+            href={side.href}
+            prefetch
+            onClick={onNavigate}
+            aria-current={mode === side.mode ? "page" : undefined}
+            className={`relative z-10 flex h-9 items-center justify-center whitespace-nowrap rounded-full px-3 text-[13px] font-medium transition-colors sm:px-3.5 ${
+              mode === side.mode ? "text-ink" : "text-neutral-500 hover:text-ink"
+            }`}
+          >
+            {side.label}
+          </Link>
+        ))}
+      </div>
+    </nav>
   );
 }
 
