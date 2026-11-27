@@ -1,4 +1,7 @@
+import { PAGE_TITLES } from "@/app/lib/pageTitles";
 import PublicLayout from "@/app/components/site/PublicLayout";
+
+export const metadata = { title: PAGE_TITLES["/privacy"] };
 
 export default function PrivacyPage() {
   return (
