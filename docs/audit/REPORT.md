@@ -513,3 +513,20 @@ Production build on LineUp Test (port 3300), fresh seed before each spec, run ag
 | `npx tsc --noEmit`, `npm run build` | ✅ |
 | lint (app) | ✅ 50 errors, the baseline |
 | Looked at by eye: owner (Shop and My work), team member, client profile, public shop page, 1280 + 390 | ✅ |
+
+## Step 11: shop polish, paid flows proven, a sample shop for pitches (27 Nov)
+
+- ✅ **Shop polish** (PR #18): "Earnings" instead of "Money"; a **Plan and billing** page (gear, account menu, and "Manage plan" / "Choose a plan" under the shop's name; Stripe returns there); roomier tags and buttons; plainer, more professional labels.
+- ✅ **Every paid flow run for real in Stripe test mode** (`stripe listen` forwarding, test keys, test database), on the dev server so Checkout returns to localhost: pro plan, boosts and referral credit, client payment, shop and pro gift cards, memberships, booth rent, Studio Plus, shop booking with membership and pay-at-shop.
+- ✅ **Where every cent of a shop booking goes**: `tests/money/shopSplit.test.ts` (commission at the shop's and a pro's own rate, booth rent, request clients, Studio vs Studio Plus, lapsed plans, the 70% cap, and 210 combinations where LineUp's fee + shop cut + pro payout = what the client paid). `e2e/shop-payouts-flow.spec.ts` pays two real test-mode bookings, completes them and reads the actual Stripe transfers: commission pro's deposit + final payout and the shop's cut to the right accounts for the exact amounts; booth renter, no cut.
+- ✅ **Sample shop** (`studios.is_demo`, migration on test and live): "Northline Barber Co." built by `scripts/demo-shop.mts` (four barbers with initials, real-looking menu and hours, a membership plan, stock photos; no made-up reviews or bookings). Link-only: left out of Find a shop, city pages and the sitemap, `noindex`, labelled "Sample shop", its last booking step never takes payment, memberships and gift cards can't be bought, its Studio never shows real clients' requests and can't post chair openings, its barbers are never verified. `e2e/demo-shop.spec.ts` (8).
+
+| Check | Result |
+|---|---|
+| Paid flows with Stripe forwarding: billing, boosts-referral, customer-flow, memberships, studio-billing, shop-booking, payment-guards | ✅ 1, 3, 8, 3, 2, 3, 2 |
+| shop-payouts-flow (new): real transfers for commission and booth rent | ✅ 2/2 |
+| demo-shop (new) | ✅ 8/8 |
+| `npm test` (with shopSplit) | ✅ 322/322 |
+| tsc, lint (app) | ✅, 50 (the baseline) |
+
+studio-billing-flow now chooses the plan the way an owner does: "Choose a plan" under the shop's name, then Plan and billing.
