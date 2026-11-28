@@ -128,6 +128,8 @@ export async function POST(req: Request) {
     const supabase = getServiceSupabase();
     const ctx = await getStudioForUser(supabase, user.id);
     if (!ctx?.canManage) return NextResponse.json({ error: "Only a studio's owner or managers can post." }, { status: 403 });
+    // Posting notifies real pros nearby; the sample shop can't.
+    if ((ctx.studio as { is_demo?: boolean }).is_demo) return NextResponse.json({ error: "This is a sample shop, so it can't post openings." }, { status: 400 });
     if (!isStudioLive(ctx.studio)) {
       return NextResponse.json({ error: "Posting chair openings is included with a studio plan." }, { status: 402 });
     }

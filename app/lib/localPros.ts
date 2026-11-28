@@ -39,7 +39,8 @@ export async function getLocalDirectory(): Promise<{ pros: LocalPro[]; shops: Lo
     supabase
       .from("studios")
       .select("slug, name, tagline, trades, lat, lng, plan, subscription_status")
-      .not("slug", "is", null),
+      .not("slug", "is", null)
+      .eq("is_demo", false),
   ]);
 
   const ratings = new Map<string, { sum: number; count: number }>();

@@ -54,7 +54,7 @@ async function loadShop(slug: string) {
 
   const { data: studio } = await supabase
     .from("studios")
-    .select("id, name, tagline, owner_id, plan, subscription_status, stripe_account_id, address, area_label, trades, about, cover_url, logo_url, phone, website, instagram, hours, amenities")
+    .select("id, name, tagline, owner_id, plan, subscription_status, stripe_account_id, address, area_label, trades, about, cover_url, logo_url, phone, website, instagram, hours, amenities, is_demo")
     .eq("slug", slug)
     .maybeSingle();
   if (!studio) return null;
@@ -108,9 +108,12 @@ async function loadShop(slug: string) {
   ]);
 
   const live = isStudioLive(studio);
+  // The sample shop: its pros are placeholders (never verified, so they stay
+  // out of Explore), shown here so the page looks like a real shop.
+  const demo = !!studio.is_demo;
   const pros: ShopPro[] = (profiles || [])
     // Same rule as Browse: only verified pros are shown to clients.
-    .filter((p) => isVerifiedNow(p))
+    .filter((p) => demo || isVerifiedNow(p))
     .map((p) => {
       const types: string[] =
         Array.isArray(p.professional_types) && p.professional_types.length
@@ -149,7 +152,7 @@ async function loadShop(slug: string) {
         professions: types.map((t) => PROFESSION_LABELS[t] || t).slice(0, 3),
         canBookOnline:
           live &&
-          onPaidPlan &&
+          (onPaidPlan || demo) &&
           !!p.direct_booking_enabled &&
           !!p.public_availability_enabled &&
           // Booked here means booked at the shop, for a set service.
@@ -196,7 +199,7 @@ async function loadShop(slug: string) {
   const ownHours = cleanHours(studio.hours ?? null).hours;
   const hours = ownHours && Object.keys(ownHours).length ? ownHours : combinedHours(pros.map((x) => x.hours));
 
-  return { studio, pros, address, live, photos: photos || [], reviews, hours, hoursAreTeams: !ownHours };
+  return { studio, pros, address, live, demo, photos: photos || [], reviews, hours, hoursAreTeams: !ownHours };
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -208,6 +211,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title: `${shop.studio.name}${shop.studio.area_label ? `, ${shop.studio.area_label}` : ""} | Book on LineUp`,
     description: shop.studio.tagline || shop.studio.about?.slice(0, 160) || `Book with the team at ${shop.studio.name} on LineUp.`,
     openGraph: cover ? { images: [cover] } : undefined,
+    // The sample shop stays out of search.
+    ...(shop.demo ? { robots: { index: false, follow: false } } : {}),
   };
 }
 
@@ -216,7 +221,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
   const shop = await loadShop(slug);
   if (!shop) notFound();
 
-  const { studio, pros, address, photos, reviews, hours, hoursAreTeams, live } = shop;
+  const { studio, pros, address, photos, reviews, hours, hoursAreTeams, live, demo } = shop;
   const mapsUrl = address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` : null;
   const directionsUrl = address ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}` : null;
   const summary = reviewSummary(reviews);
@@ -251,6 +256,15 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
   return (
     <main className="min-h-screen bg-paper pb-24 text-ink">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+
+      {demo ? (
+        <div className="mx-auto max-w-6xl px-4 pt-4 sm:px-6 sm:pt-6">
+          <p className="flex items-start gap-2.5 rounded-2xl bg-ink px-4 py-3 text-[13px] leading-5 text-white sm:items-center">
+            <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-medium">Sample shop</span>
+            <span>This page shows how a shop looks on LineUp. The team and times are examples; nothing here can be booked.</span>
+          </p>
+        </div>
+      ) : null}
 
       {/* Cover: the shop's own photo, or its first gallery photo. */}
       {cover ? (
@@ -300,10 +314,12 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
                 {status.label}
               </span>
             ) : null}
-            <span className="inline-flex items-center gap-1.5 text-neutral-600">
-              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-              Verified pros
-            </span>
+            {demo ? null : (
+              <span className="inline-flex items-center gap-1.5 text-neutral-600">
+                <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                Verified pros
+              </span>
+            )}
           </div>
 
           {/* What people do here, one tap each. */}
@@ -333,7 +349,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
                 Instagram
               </a>
             ) : null}
-            {giftCards ? (
+            {giftCards && !demo ? (
               <Link href={`/gift/shop/${slug}`} className={buttonClass("secondary", "md", "shrink-0")}>
                 <Gift className="h-4 w-4" aria-hidden="true" />
                 Gift card
@@ -364,7 +380,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
                   Online booking at {studio.name} isn&apos;t open yet. You can still book with a pro on their own profile.
                 </p>
               ) : null}
-              <ShopBooking pros={pros} slug={slug} />
+              <ShopBooking pros={pros} slug={slug} demo={demo} />
             </section>
 
             {photos.length ? (
@@ -383,7 +399,7 @@ export default async function ShopPage({ params }: { params: Promise<{ slug: str
               <ShopReviews reviews={reviews} summary={summary} shopName={studio.name} />
             </section>
 
-            <ShopMemberships slug={slug} shopName={studio.name} />
+            <ShopMemberships slug={slug} shopName={studio.name} demo={demo} />
           </div>
 
           {/* About, hours, where, contact: beside the booking on laptops, after it on phones. */}

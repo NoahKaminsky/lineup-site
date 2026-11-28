@@ -53,7 +53,9 @@ test("owner picks Studio Plus for the shop with a test card", async ({ page }) =
   await db.from("studios").update({ subscription_status: "canceled", stripe_subscription_id: null }).eq("id", ids.studio);
   await signIn(page, "owner");
   await page.goto("/studio");
-  await page.getByRole("button", { name: "Choose a plan" }).first().click();
+  // Under the shop's name: "No plan yet · Choose a plan" opens Plan and billing.
+  await page.getByRole("link", { name: /Choose a plan/ }).first().click();
+  await page.waitForURL(/\/studio\/billing/);
   await page.getByRole("button", { name: "Choose Studio Plus" }).click();
   await payOnCheckout(page, "TEST Shop Owner");
   await expect.poll(async () => {

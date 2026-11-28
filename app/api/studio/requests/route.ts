@@ -71,6 +71,8 @@ export async function GET(req: Request) {
     const supabase = getServiceSupabase();
     const ctx = await getStudioForUser(supabase, user.id);
     if (!ctx) return NextResponse.json({ error: "You're not on a studio's team." }, { status: 404 });
+    // The sample shop never sees real clients' requests.
+    if ((ctx.studio as { is_demo?: boolean }).is_demo) return NextResponse.json({ requests: [], teamSize: 0 });
 
     const [allTeam, place] = await Promise.all([loadTeam(supabase, ctx.studio.id), getStudioPlace(supabase, ctx.studio.id)]);
     const team = ctx.canManage ? allTeam : allTeam.filter((p) => p.id === user.id);
@@ -163,6 +165,7 @@ export async function POST(req: Request) {
     const supabase = getServiceSupabase();
     const ctx = await getStudioForUser(supabase, user.id);
     if (!ctx?.canManage) return NextResponse.json({ error: "Only owners and managers can pass requests." }, { status: 403 });
+    if ((ctx.studio as { is_demo?: boolean }).is_demo) return NextResponse.json({ error: "This is a sample shop." }, { status: 400 });
 
     const body = await req.json().catch(() => ({}));
     const requestId = typeof body?.requestId === "string" ? body.requestId : "";
